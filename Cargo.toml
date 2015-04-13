@@ -1,0 +1,18 @@
+[package]
+
+name = "tajo-kernel"
+description = "Tajo Data Processing Kernel using Modern Hardware Features"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
+license = "Apache-2.0"
+keywords = ["Data Analysis", "Data Processing", "Database"]
+
+[lib]
+name = "tajo"
+path = "src/lib.rs"
+
+[dependencies.url]
+git = "https://github.com/servo/rust-url"
+
+[dependencies.llvmint]
+llvmint = "0.0.2"
