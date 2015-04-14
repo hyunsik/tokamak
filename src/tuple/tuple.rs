@@ -1,28 +1,75 @@
 use common::Column;
+use common::DataType;
 use common::Schema;
 use common::TypeClass;
 
+use std::mem;
+use std::raw::Slice;
+
+pub struct Vector {
+  value_ptr: *const u8,
+  size: usize,
+  data_type: DataType,
+  null_ptr: *const u8
+}
+
+impl Vector {
+
+  fn value_ptr(&self) -> *const u8 {
+    self.value_ptr
+  }
+
+  fn null_ptr(&self) -> *const u8 {
+    self.null_ptr
+  }
+
+  fn data_type(&self) -> DataType {
+    self.data_type.clone()
+  }
+
+  fn values<T>(&self) -> &mut [T] {
+    let slice = Slice {data: self.value_ptr as *mut T, len: self.size};
+    unsafe {
+      mem::transmute(slice)
+    }
+  }
+}
+
 pub struct SlotVecRowBlock {
-  schema: Schema  
+  schema: Schema,
+  vectors: Vec<*mut Vector>
 }
 
 pub struct AllocatedVecRowBlock {
-  schema: Schema
+  schema: Schema,
+  vectors: Vec<*mut Vector>
 }
 
 trait VecRowBlockTrait {
   fn schema(&self) -> Schema;
 
   fn column_num(&self) -> usize;
+
+  fn vector(&self, usize) -> *mut Vector;
+
+  fn set_vector(&mut self, *mut Vector);
 }
 
-impl VecRowBlockTrait for SlotVecRowBlock {
+impl<'a> VecRowBlockTrait for SlotVecRowBlock {
     fn schema(&self) -> Schema {
       self.schema.clone()
     }
 
     fn column_num(&self) -> usize {
       self.schema.size()
+    }
+
+    fn vector(&self, col_id: usize) -> *mut Vector {
+      self.vectors[col_id]
+    }
+
+    fn set_vector(&mut self, vec: *mut Vector) {
+      self.vectors.push(vec);
     }
 }
 
@@ -33,6 +80,14 @@ impl VecRowBlockTrait for AllocatedVecRowBlock {
 
     fn column_num(&self) -> usize {
       self.schema.size()
+    }
+
+    fn vector(&self, col_id: usize) -> *mut Vector {
+      self.vectors[col_id]
+    }
+
+    fn set_vector(&mut self, vec: *mut Vector) {
+      self.vectors.push(vec);
     }
 }
 
