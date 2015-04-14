@@ -24,6 +24,10 @@ impl Schema {
     Schema {columns: columns}
   }
 
+  pub fn size(&self) -> usize {
+    self.columns.len()
+  }
+
   pub fn add(&mut self, c : Column) {
     self.columns.push(c);
   }
