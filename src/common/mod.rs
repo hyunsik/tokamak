@@ -3,5 +3,5 @@ pub use self::schema::{Column, Schema};
 
 pub mod constant;
 
-mod data_type;
-mod schema;
+pub mod data_type;
+pub mod schema;

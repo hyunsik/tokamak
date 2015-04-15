@@ -6,11 +6,11 @@ extern crate url;
 extern crate libc;
 
 // Keep the lexicography order
-mod common;
-mod dataframe;
-mod datasource;
-mod intrinsics;
-mod io;
-mod native;
-mod plan;
-mod tuple;
+pub mod common;
+pub mod dataframe;
+pub mod datasource;
+pub mod intrinsics;
+pub mod io;
+pub mod native;
+pub mod plan;
+pub mod tuple;

@@ -11,20 +11,18 @@ use std::raw::Slice;
 
 
 pub struct Vector {
-  value_ptr: *const u8,
-  size: usize,
+  ptr: *const u8,
   data_type: DataType,
-  null_ptr: *const u8
+
 }
 
 impl Vector {
-
-  fn value_ptr(&self) -> *const u8 {
-    self.value_ptr
+  fn new(ptr: *const u8, data_type: DataType) -> Vector {
+    Vector {ptr: ptr, data_type: data_type}
   }
 
-  fn null_ptr(&self) -> *const u8 {
-    self.null_ptr
+  fn value_ptr(&self) -> *const u8 {
+    self.ptr
   }
 
   fn data_type(&self) -> DataType {
@@ -32,7 +30,7 @@ impl Vector {
   }
 
   fn values<T>(&self) -> &mut [T] {
-    let slice = Slice {data: self.value_ptr as *mut T, len: self.size};
+    let slice = Slice {data: self.ptr as *mut T, len: VECTOR_SIZE};
     unsafe {
       mem::transmute(slice)
     }
@@ -42,7 +40,7 @@ impl Vector {
 
 pub struct SlotVecRowBlock {
   schema: Schema,
-  vectors: Vec<*mut Vector>
+  vectors: Vec<Vector>
 }
 
 impl SlotVecRowBlock {
@@ -54,28 +52,34 @@ impl SlotVecRowBlock {
 
 pub struct AllocatedVecRowBlock {
   schema: Schema,  
-  fixed_area_ptr: *mut u8,
-  vectors: Vec<*mut Vector>,
+  ptr: *mut u8,
+  vectors: Vec<Vector>,
 }
 
 impl AllocatedVecRowBlock {
 
-  fn new(schema: Schema) {
+  pub fn new(schema: Schema) -> AllocatedVecRowBlock {
     
     let mut fixed_area_size: usize = 0;    
 
     for c in schema.columns() {
-      fixed_area_size+= 
-        sse::compute_aligned_size((c.data_type.bytes_len() * VECTOR_SIZE) as usize);
+      fixed_area_size += 
+        sse::compute_aligned_size(c.data_type.bytes_len() as usize * VECTOR_SIZE);
     }
 
+    let mut fixed_area_ptr;
     unsafe {
-      let fixed_area_ptr = heap::allocate(fixed_area_size, sse::ALIGNED_SIZE);
+      fixed_area_ptr = heap::allocate(fixed_area_size, sse::ALIGNED_SIZE);
     }
 
-    for x in 0..schema.size() {
-      
+    
+    let mut vectors: Vec<Vector> = Vec::with_capacity(schema.size());
+    let mut ptr = fixed_area_ptr;
+    for x in 0..schema.size() {      
+      vectors.push(Vector::new(ptr, schema.column(x).data_type));
     }
+
+    AllocatedVecRowBlock {schema: schema, ptr: ptr, vectors: vectors}
   }
 }
 
@@ -85,12 +89,18 @@ trait VecRowBlockTrait {
 
   fn column_num(&self) -> usize;
 
-  fn vector(&self, usize) -> *mut Vector;
+  fn vector(&self, usize) -> &Vector;
 
-  fn set_vector(&mut self, *mut Vector);
+  fn set_vector(&mut self, Vector);
+
+  fn put_int1(&self, col_idx: usize, row_idx: usize, value: i8);
+
+  fn get_int1(&self, col_idx: usize, row_idx: usize) -> i8;
+
+  fn put_text(&self, col_idx: usize, row_idx: usize, value: &String);
 }
 
-impl<'a> VecRowBlockTrait for SlotVecRowBlock {
+impl VecRowBlockTrait for SlotVecRowBlock {
     fn schema(&self) -> Schema {
       self.schema.clone()
     }
@@ -99,12 +109,24 @@ impl<'a> VecRowBlockTrait for SlotVecRowBlock {
       self.schema.size()
     }
 
-    fn vector(&self, col_id: usize) -> *mut Vector {
-      self.vectors[col_id]
+    fn vector(&self, col_id: usize) -> &Vector {
+      &self.vectors[col_id]
     }
 
-    fn set_vector(&mut self, vec: *mut Vector) {
+    fn set_vector(&mut self, vec: Vector) {
       self.vectors.push(vec);
+    }
+
+    fn put_int1(&self, col_idx: usize, row_idx: usize, value: i8) {
+      panic!("");    
+    }
+
+    fn get_int1(&self, col_idx: usize, row_idx: usize) -> i8 {
+      panic!("");
+    }
+
+    fn put_text(&self, col_idx: usize, row_idx: usize, value: &String) {
+      panic!("put_text");
     }
 }
 
@@ -117,27 +139,60 @@ impl VecRowBlockTrait for AllocatedVecRowBlock {
       self.schema.size()
     }
 
-    fn vector(&self, col_id: usize) -> *mut Vector {
-      self.vectors[col_id]
+    fn vector(&self, col_id: usize) -> &Vector {
+      &self.vectors[col_id]
     }
 
-    fn set_vector(&mut self, vec: *mut Vector) {
+    fn set_vector(&mut self, vec: Vector) {
       self.vectors.push(vec);
+    }
+
+    fn put_int1(&self, col_idx: usize, row_idx: usize, value: i8) {      
+      let v : &mut [i8] = self.vectors[col_idx].values();
+      v[row_idx] = value;
+    }
+
+    fn get_int1(&self, col_idx: usize, row_idx: usize ) -> i8 {      
+      let v : &mut [i8] = self.vectors[col_idx].values();
+      v[row_idx]
+    }
+
+    fn put_text(&self, col_idx: usize, row_idx: usize, value: &String) {
+      
     }
 }
 
-struct VecRowBlock<R> {
-    rowblock: R
+pub struct VecRowBlock<R> {
+    pub rowblock: R
 }
 
 impl<R:VecRowBlockTrait> VecRowBlock<R> {
     #[inline(always)]
-    fn schema(&self) -> Schema {
+    pub fn schema(&self) -> Schema {
       self.rowblock.schema()
     }
 
-    fn column_num(&self) -> usize {
+    pub fn column_num(&self) -> usize {
       self.rowblock.column_num()
+    }
+
+    pub fn vector(&self, col_id: usize) -> &Vector {
+      self.rowblock.vector(col_id)
+    }
+
+    pub fn set_vector(&mut self, vec: Vector) {
+    }
+
+    pub fn put_int1(&self, col_idx: usize, row_idx: usize, value: i8) {
+      self.rowblock.put_int1(col_idx, row_idx, value);
+    }
+
+    pub fn get_int1(&self, col_idx: usize, row_idx: usize) -> i8 {
+      self.rowblock.get_int1(col_idx, row_idx)
+    }
+
+    fn put_text(&self, col_idx: usize, row_idx: usize, value: &String) {
+      self.rowblock.put_text(col_idx, row_idx, value);
     }
 }
 
