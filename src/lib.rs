@@ -4,6 +4,7 @@
 extern crate alloc;
 extern crate url;
 extern crate libc;
+extern crate memutil;
 
 // Keep the lexicography order
 pub mod common;
