@@ -4,8 +4,8 @@ use common::data_type::DataType;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Column {
-  name: String,
-  data_type: DataType,
+  pub name: String,
+  pub data_type: DataType,
 }
 
 impl Column {
@@ -36,9 +36,13 @@ impl Schema {
     self.columns.push(Column::new(name, type_class));
   }
 
-  pub fn get(&self, idx : usize) -> &Column {
+  pub fn column(&self, idx : usize) -> &Column {
     debug_assert!(idx < self.columns.len(), "Column index out of range");
     &self.columns[idx]
+  }
+
+  pub fn columns(&self) -> &Vec<Column> {
+    &self.columns
   }
 
   pub fn get_by_name(&self, name : String) -> Option<&Column> {

@@ -2,9 +2,13 @@ use common::Column;
 use common::DataType;
 use common::Schema;
 use common::TypeClass;
+use common::constant::VECTOR_SIZE;
+use intrinsics::sse;
 
+use alloc::heap;
 use std::mem;
 use std::raw::Slice;
+
 
 pub struct Vector {
   value_ptr: *const u8,
@@ -35,15 +39,46 @@ impl Vector {
   }
 }
 
+
 pub struct SlotVecRowBlock {
   schema: Schema,
   vectors: Vec<*mut Vector>
 }
 
-pub struct AllocatedVecRowBlock {
-  schema: Schema,
-  vectors: Vec<*mut Vector>
+impl SlotVecRowBlock {
+   fn new(schema: Schema) -> SlotVecRowBlock {
+      SlotVecRowBlock {schema: schema, vectors: Vec::new()}
+   }
 }
+
+
+pub struct AllocatedVecRowBlock {
+  schema: Schema,  
+  fixed_area_ptr: *mut u8,
+  vectors: Vec<*mut Vector>,
+}
+
+impl AllocatedVecRowBlock {
+
+  fn new(schema: Schema) {
+    
+    let mut fixed_area_size: usize = 0;    
+
+    for c in schema.columns() {
+      fixed_area_size+= 
+        sse::compute_aligned_size((c.data_type.bytes_len() * VECTOR_SIZE) as usize);
+    }
+
+    unsafe {
+      let fixed_area_ptr = heap::allocate(fixed_area_size, sse::ALIGNED_SIZE);
+    }
+
+    for x in 0..schema.size() {
+      
+    }
+  }
+}
+
 
 trait VecRowBlockTrait {
   fn schema(&self) -> Schema;
@@ -114,7 +149,7 @@ fn test_rowblock() {
   columns.push(Column::new("c3".to_string(), TypeClass::FLOAT4));
 
   let schema = Schema::new(columns);
-  let rowblock = VecRowBlock {rowblock: SlotVecRowBlock {schema: schema} };  
+  let rowblock = VecRowBlock {rowblock: SlotVecRowBlock::new(schema) };  
 
   assert_eq!(rowblock.column_num(), 3);
 }
