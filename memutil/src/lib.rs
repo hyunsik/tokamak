@@ -9,7 +9,7 @@ struct LimitedAllocator {
 mod arena {
 
 struct Arena {
-  init_size: usize
+  init_size: usize,
   increase_size: usize
 }
 

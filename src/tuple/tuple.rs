@@ -148,17 +148,21 @@ impl VecRowBlockTrait for AllocatedVecRowBlock {
     }
 
     fn put_int1(&self, col_idx: usize, row_idx: usize, value: i8) {      
-      let v : &mut [i8] = self.vectors[col_idx].values();
-      v[row_idx] = value;
+      let v : &mut [i8] = self.vectors[col_idx].values();      
+      unsafe{
+        (*v.get_unchecked_mut(row_idx)) = value;        
+      }
     }
 
     fn get_int1(&self, col_idx: usize, row_idx: usize ) -> i8 {      
       let v : &mut [i8] = self.vectors[col_idx].values();
-      v[row_idx]
+      unsafe {
+        *v.get_unchecked(row_idx)
+      }
     }
 
     fn put_text(&self, col_idx: usize, row_idx: usize, value: &String) {
-      
+
     }
 }
 

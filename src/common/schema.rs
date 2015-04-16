@@ -12,6 +12,10 @@ impl Column {
   pub fn new(column_name: String, type_class: TypeClass) -> Column {
     Column {name: column_name, data_type: DataType::new(type_class)}
   }
+
+  pub fn new_with_len(column_name: String, type_class: TypeClass, len: u32) -> Column {
+    Column {name: column_name, data_type: DataType::new_vartype(type_class, len)}
+  }
 }
 
 #[derive(Clone, PartialEq, Debug)]
