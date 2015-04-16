@@ -37,3 +37,16 @@ fn allocated_vector_init() {
     assert_eq!(rowblock.get_int1(1, i), 1);
   }
 }
+
+#[test]
+fn test_rowblock() {
+  let mut columns = Vec::new();
+  columns.push(Column::new("c1".to_string(), TypeClass::INT4));
+  columns.push(Column::new("c2".to_string(), TypeClass::INT8));
+  columns.push(Column::new("c3".to_string(), TypeClass::FLOAT4));
+
+  let schema = Schema::new(columns);
+  let rowblock = VecRowBlock {rowblock: SlotVecRowBlock::new(schema) };  
+
+  assert_eq!(rowblock.column_num(), 3);
+}

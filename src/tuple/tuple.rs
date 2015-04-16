@@ -44,7 +44,7 @@ pub struct SlotVecRowBlock {
 }
 
 impl SlotVecRowBlock {
-   fn new(schema: Schema) -> SlotVecRowBlock {
+   pub fn new(schema: Schema) -> SlotVecRowBlock {
       SlotVecRowBlock {schema: schema, vectors: Vec::new()}
    }
 }
@@ -198,17 +198,4 @@ impl<R:VecRowBlockTrait> VecRowBlock<R> {
     fn put_text(&self, col_idx: usize, row_idx: usize, value: &String) {
       self.rowblock.put_text(col_idx, row_idx, value);
     }
-}
-
-#[test]
-fn test_rowblock() {
-  let mut columns = Vec::new();
-  columns.push(Column::new("c1".to_string(), TypeClass::INT4));
-  columns.push(Column::new("c2".to_string(), TypeClass::INT8));
-  columns.push(Column::new("c3".to_string(), TypeClass::FLOAT4));
-
-  let schema = Schema::new(columns);
-  let rowblock = VecRowBlock {rowblock: SlotVecRowBlock::new(schema) };  
-
-  assert_eq!(rowblock.column_num(), 3);
 }
