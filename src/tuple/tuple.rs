@@ -77,14 +77,14 @@ impl AllocatedVecRowBlock {
 
     
     let mut vectors: Vec<Vector> = Vec::with_capacity(schema.size());
-    let mut last_ptr = fixed_area_ptr as isize;
+    let mut last_ptr = fixed_area_ptr as usize;
 
     for x in 0..schema.size() {      
       vectors.push(Vector::new(last_ptr as *const u8, schema.column(x).data_type));
 
       let vector_size = 
         sse::compute_aligned_size(schema.column(x).data_type.bytes_len() as usize * VECTOR_SIZE);
-      last_ptr = last_ptr + (vector_size as isize);
+      last_ptr = last_ptr + vector_size;
     }
 
     AllocatedVecRowBlock {
