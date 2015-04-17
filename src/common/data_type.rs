@@ -25,6 +25,9 @@ pub type INT4_T = i32;
 pub type INT8_T = i64;
 pub type FLOAT4_T = f32;
 pub type FLOAT8_T = f64;
+pub type DATE_T = i32;
+pub type TIME_T = i64;
+pub type TIMESTAMP_T = i64;
 
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]
