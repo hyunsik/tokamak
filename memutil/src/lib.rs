@@ -114,7 +114,7 @@ impl Div<u64> for ByteSize {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Buf {
+pub struct Buf {
   ptr: usize,
   limit: usize
 }
@@ -142,7 +142,8 @@ trait UnSafeDatumReader {
 impl UnSafeDatumWriter for Buf {
 
   fn write_bool(&mut self, value: bool) {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
 
     unsafe {
       *(self.ptr as *mut i8) = value as i8;
@@ -151,7 +152,8 @@ impl UnSafeDatumWriter for Buf {
     self.ptr += mem::size_of::<i8>();
   }
   fn write_i8  (&mut self, value: i8) {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
 
     unsafe {
       *(self.ptr as *mut i8) = value;
@@ -161,7 +163,8 @@ impl UnSafeDatumWriter for Buf {
   }
 
   fn write_i16 (&mut self, value: i16) {
-    debug_assert!((self.ptr + mem::size_of::<i16>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i16>()) <= self.limit, 
+      "buffer overrun");
 
     unsafe {
       *(self.ptr as *mut i16) = value;
@@ -171,7 +174,8 @@ impl UnSafeDatumWriter for Buf {
   }
 
   fn write_i32 (&mut self, value: i32) {
-    debug_assert!((self.ptr + mem::size_of::<i32>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i32>()) <= self.limit, 
+      "buffer overrun");
 
     unsafe {
       *(self.ptr as *mut i32) = value;
@@ -181,7 +185,8 @@ impl UnSafeDatumWriter for Buf {
   }
 
   fn write_i64 (&mut self, value: i64) {
-    debug_assert!((self.ptr + mem::size_of::<i64>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i64>()) <= self.limit, 
+      "buffer overrun");
 
     unsafe {
       *(self.ptr as *mut i64) = value as i64;
@@ -191,7 +196,8 @@ impl UnSafeDatumWriter for Buf {
   }
 
   fn write_f32 (&mut self, value: f32) {
-    debug_assert!((self.ptr + mem::size_of::<f32>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<f32>()) <= self.limit, 
+      "buffer overrun");
 
     unsafe {
       *(self.ptr as *mut f32) = value;
@@ -201,7 +207,8 @@ impl UnSafeDatumWriter for Buf {
   }
 
   fn write_f64 (&mut self, value: f64) {
-    debug_assert!((self.ptr + mem::size_of::<f64>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<f64>()) <= self.limit, 
+      "buffer overrun");
 
     unsafe {
       *(self.ptr as *mut f64) = value;
@@ -213,7 +220,8 @@ impl UnSafeDatumWriter for Buf {
 
 impl UnSafeDatumReader for Buf {
   fn read_bool(&mut self) -> bool {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
     
     let ptr = self.ptr;
     self.ptr += mem::size_of::<i8>();
@@ -222,8 +230,10 @@ impl UnSafeDatumReader for Buf {
       *(ptr as *const bool)
     }
   }
+
   fn read_i8(&mut self) -> i8 {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
 
     let ptr = self.ptr;
     self.ptr += mem::size_of::<i8>();
@@ -233,7 +243,8 @@ impl UnSafeDatumReader for Buf {
     }
   }
   fn read_i16(&mut self) -> i16 {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
 
     let ptr = self.ptr;
     self.ptr += mem::size_of::<i16>();
@@ -243,7 +254,8 @@ impl UnSafeDatumReader for Buf {
     }
   }
   fn read_i32(&mut self) -> i32 {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
 
     let ptr = self.ptr;
     self.ptr += mem::size_of::<i32>();
@@ -253,7 +265,8 @@ impl UnSafeDatumReader for Buf {
     }
   }
   fn read_i64(&mut self) -> i64 {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
 
     let ptr = self.ptr;
     self.ptr += mem::size_of::<i64>();
@@ -263,7 +276,8 @@ impl UnSafeDatumReader for Buf {
     }
   }
   fn read_f32(&mut self) -> f32 {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
 
     let ptr = self.ptr;
     self.ptr += mem::size_of::<f32>();
@@ -273,7 +287,8 @@ impl UnSafeDatumReader for Buf {
     }
   }
   fn read_f64 (&mut self) -> f64 {
-    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, "buffer overrun");
+    debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
+      "buffer overrun");
 
     let ptr = self.ptr;
     self.ptr += mem::size_of::<f64>();
@@ -284,54 +299,69 @@ impl UnSafeDatumReader for Buf {
   }
 }
 
+#[derive(Copy, Clone)]
 struct Chunk {
+  #[allow(raw_pointer_derive)]
   ptr: *const u8,
-  len: usize
 }
 
-struct Arena {
-  init_size: usize,
+pub struct Arena {
   page_size: usize,  
-  chunk: *mut Chunk,
-  chunks: Vec<*const Chunk>
+  chunk: Chunk,
+  offset: usize,  
+  chunks: Vec<Chunk>
 }
 
 impl Arena {
-  // pub fn new() -> Arena {
+  pub fn new(page_size: usize) -> Arena {
 
-  //   chunk 
-
-  //   Arena {
-  //     init_size: 4 * KB,
-  //     increase_size: 4 * KB,      
-  //   }
-  // }
-
-  // pub fn new_with_increase_size(init_size: usize, increase_size: usize) -> Arena {
-
-  // }
-
-  pub fn alloc(size: usize) -> Buf {
-    let ptr: *mut u8 = unsafe {
-      heap::allocate(size, 16) as *mut u8
+    let allocated: *mut u8 = unsafe {
+      heap::allocate(page_size, 16) as *mut u8
     };
 
-    if ptr.is_null() { alloc::oom() }
+    let first_chunk = Chunk{ptr: allocated};
 
-    Buf { 
-      ptr: ptr as usize, 
-      limit: (ptr as usize + size) 
+    Arena {
+      page_size: page_size,
+      chunk: first_chunk,
+      offset: 0,
+      chunks: Vec::new()
     }
   }
 
-  fn grow(&self) {
+  pub fn alloc(&mut self, size: usize) -> Buf {
+    if !self.ensure_alloc(size) {
+      self.new_chunk();
+    }
 
+    let addr = self.chunk.ptr as usize;
+    let offset = addr + size;
+    Buf {ptr: addr, limit: offset}
+  }
+
+  fn ensure_alloc(&self, size: usize) -> bool {
+    (self.page_size - self.offset) <= size
+  }
+
+  fn new_chunk(&mut self) {
+
+    let allocated: *mut u8 = unsafe {
+      heap::allocate(self.page_size, 16) as *mut u8
+    };
+
+    if allocated.is_null() { alloc::oom() }
+
+    let last_chunk = self.chunk;
+    self.offset = 0;
+    self.chunks.push(last_chunk);        
+    self.chunk = Chunk{ptr: allocated};
   }
 }
 
 #[test]
 fn test_buf_read_write() {
-  let mut buf = Arena::alloc(ByteSize::kb(16).as_usize());
+  let mut arena = Arena::new(ByteSize::kb(16).as_usize());
+  let mut buf = arena.alloc(ByteSize::kb(1).as_usize());
   let mut copy = buf;
 
   buf.write_bool(true);
@@ -354,7 +384,8 @@ fn test_buf_read_write() {
 #[test] 
 #[should_panic(expected = "buffer overrun")]
 fn test_write_buf_overrun() {
-  let mut buf = Arena::alloc(ByteSize::b(16).as_usize());
+  let mut arena = Arena::new(ByteSize::kb(16).as_usize());
+  let mut buf = arena.alloc(ByteSize::b(16).as_usize());
 
   buf.write_i32(1);
   buf.write_i32(2);
