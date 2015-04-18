@@ -493,7 +493,7 @@ pub struct VecRowBlock<R> {
   pub rowblock: R
 }
 
-impl<R:VecRowBlockTrait> VecRowBlock<R> {
+impl<R: VecRowBlockTrait> VecRowBlock<R> {
   #[inline(always)]
   pub fn schema(&self) -> Schema {
     self.rowblock.schema()
