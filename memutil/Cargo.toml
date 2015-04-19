@@ -2,3 +2,6 @@
 name = "memutil"
 version = "0.0.1"
 authors = ["Hyunsik Choi <hyunsik@apache.org>"]
+
+[dependencies.bytesize]
+bytesize = "0.0.1"

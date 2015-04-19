@@ -1,6 +1,8 @@
+extern crate bytesize;
 extern crate memutil;
 
-use memutil::{Arena, ByteSize, UnSafeDatumWriter, UnSafeDatumReader};
+use bytesize::ByteSize;
+use memutil::{Arena, UnSafeDatumWriter, UnSafeDatumReader};
 
 #[test]
 fn test_buf_read_write() {

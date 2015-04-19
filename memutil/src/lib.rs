@@ -1,8 +1,6 @@
 #![feature(alloc)]
 extern crate alloc;
-
-pub use self::bytes::{ByteSize, B, KB, MB, GB, TB, PB};
-mod bytes;
+extern crate bytesize;
 
 pub use self::buffer::{Buf, UnSafeDatumWriter, UnSafeDatumReader};
 mod buffer;
