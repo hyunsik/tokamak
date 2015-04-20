@@ -1,6 +1,7 @@
 use alloc;
 use alloc::heap;
 use buffer::Buf;
+use std::cell::RefCell;
 use std::cmp;
 
 #[derive(Copy, Clone)]
@@ -11,10 +12,22 @@ struct Chunk {
 
 pub struct Arena {
   page_size: usize,  
-  chunk: Chunk,
+  chunk: RefCell<Chunk>,
   offset: usize,  
   chunks: Vec<Chunk>
 }
+
+// impl Drop for Arena< {
+//   fn drop(&mut self) {
+//     unsafe {
+//       // heap::deallocate(self.chunk.borrow().ptr as *mut u8, self.page_size, 16);
+
+//       // for chunk in &*self.chunks {
+//       //   heap::deallocate(chunk.ptr as *mut u8, self.page_size, 16);
+//       // }
+//     }
+//   }
+// }
 
 impl Arena {
   pub fn new(page_size: usize) -> Arena {
@@ -23,11 +36,9 @@ impl Arena {
       heap::allocate(page_size, 16) as *mut u8
     };
 
-    let first_chunk = Chunk{ptr: allocated};
-
     Arena {
       page_size: page_size,
-      chunk: first_chunk,
+      chunk: RefCell::new(Chunk{ptr: allocated}),
       offset: 0,
       chunks: Vec::new()
     }
@@ -38,7 +49,7 @@ impl Arena {
       self.new_chunk(size);
     }
 
-    let addr = self.chunk.ptr as usize;
+    let addr = self.chunk.borrow().ptr as usize;
     let offset = addr + size;
     Buf::new(addr, offset)
   }
@@ -56,9 +67,9 @@ impl Arena {
 
     if allocated.is_null() { alloc::oom() }
 
-    let last_chunk = self.chunk;
+    //let last_chunk = self.chunk;
     self.offset = 0;
-    self.chunks.push(last_chunk);        
-    self.chunk = Chunk{ptr: allocated};
+    self.chunks.push(self.chunk.borrow().clone());        
+    *self.chunk.borrow_mut() = Chunk{ptr: allocated};
   }
 }
