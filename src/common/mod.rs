@@ -14,3 +14,4 @@ pub mod constant;
 pub mod data_type;
 pub mod schema;
 pub mod error;
+pub mod string_slice;

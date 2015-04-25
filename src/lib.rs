@@ -1,8 +1,8 @@
 #![feature(alloc)]
 #![feature(core)]
 #![feature(libc)]
+#![feature(collections)] 
 extern crate alloc;
-extern crate url;
 extern crate libc;
 extern crate memutil;
 

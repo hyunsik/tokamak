@@ -1,4 +1,3 @@
-use url::Url;
 use common::TypeClass;
 
 pub trait TableSpace {
@@ -30,7 +29,7 @@ pub trait DataFormat {
 }
 
 pub trait Storage {
-	fn uri (&self) -> Url;	
+	fn uri (&self) -> String;	
 
 	fn available_capacity(&self) -> u64;
 
@@ -38,7 +37,7 @@ pub trait Storage {
 }
 
 pub trait BlockStorage: Storage {
-	fn split(&self, url: Url, size : u64);
+	fn split(&self, url: String, size : u64);
 
-	fn list_files(url : Url);
+	fn list_files(url : String);
 }

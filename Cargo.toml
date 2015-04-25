@@ -11,9 +11,6 @@ keywords = ["Data Analysis", "Data Processing", "Database"]
 name = "tajo"
 path = "src/lib.rs"
 
-[dependencies.url]
-git = "https://github.com/servo/rust-url"
-
 [dependencies.llvmint]
 llvmint = "0.0.2"
 

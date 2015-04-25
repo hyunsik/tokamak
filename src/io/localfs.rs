@@ -1,8 +1,7 @@
-use url::Url;
 use io::{Storage, BlockStorage};
 
 pub struct LocalFs {
-  path: Url
+  path: String
 }
 
 impl LocalFs {
@@ -12,7 +11,7 @@ impl LocalFs {
 }
 
 impl Storage for LocalFs {
-  fn uri(&self) -> Url {
+  fn uri(&self) -> String {
    self.path.clone()
  }
 
@@ -26,7 +25,7 @@ impl Storage for LocalFs {
 }
 
 impl BlockStorage for LocalFs {
-  fn split(&self, url: Url, size : u64) {}
+  fn split(&self, url: String, size : u64) {}
 
-  fn list_files(url : Url) {}
+  fn list_files(url : String) {}
 }

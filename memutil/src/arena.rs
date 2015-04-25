@@ -17,14 +17,14 @@ pub struct Arena {
   chunks: Vec<Chunk>
 }
 
-// impl Drop for Arena< {
+// impl Drop for Arena {
 //   fn drop(&mut self) {
 //     unsafe {
-//       // heap::deallocate(self.chunk.borrow().ptr as *mut u8, self.page_size, 16);
+//       heap::deallocate(self.chunk.borrow().ptr as *mut u8, self.page_size, 16);
 
-//       // for chunk in &*self.chunks {
-//       //   heap::deallocate(chunk.ptr as *mut u8, self.page_size, 16);
-//       // }
+//       for chunk in &*self.chunks {
+//         heap::deallocate(chunk.ptr as *mut u8, self.page_size, 16);
+//       }
 //     }
 //   }
 // }
@@ -54,20 +54,21 @@ impl Arena {
     Buf::new(addr, offset)
   }
 
+  // pub fn alloc_str(&mut self, str: &str) -> const *u8 {
+
+  // }
+
   fn ensure_alloc(&self, size: usize) -> bool {
     (self.page_size - self.offset) <= size
   }
 
   fn new_chunk(&mut self, required_size: usize) {
-
-
     let allocated: *mut u8 = unsafe {
       heap::allocate(cmp::min(self.page_size, required_size), 16) as *mut u8
     };
 
     if allocated.is_null() { alloc::oom() }
 
-    //let last_chunk = self.chunk;
     self.offset = 0;
     self.chunks.push(self.chunk.borrow().clone());        
     *self.chunk.borrow_mut() = Chunk{ptr: allocated};

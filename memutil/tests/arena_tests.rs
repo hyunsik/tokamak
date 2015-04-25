@@ -1,8 +1,12 @@
+#![feature(core)]
 extern crate bytesize;
 extern crate memutil;
+use std::raw::Slice;
 
 use bytesize::ByteSize;
 use memutil::{Arena, UnSafeDatumWriter, UnSafeDatumReader};
+
+use std::mem;
 
 #[test]
 fn test_buf_read_write() {
@@ -38,4 +42,21 @@ fn test_write_buf_overrun() {
   buf.write_i32(3);
   buf.write_i32(4);
   buf.write_i32(4); // this write exceeds allocated buffer size
+}
+
+#[test]
+fn test_vec_and_slice() {
+  let xy: Vec<u8> = vec![0,1,2,3];
+  let slice = xy.as_ptr() as *const u8;
+}
+
+#[test]
+fn test_str() {
+  let str = "text".to_string();
+  assert_eq!(str.len(), 4);
+
+  let str2 = "text";
+  let bytes = str2.as_ptr() as *const u8;
+
+  let x = Slice {data: bytes, len: str2.len()};
 }

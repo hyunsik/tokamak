@@ -1,13 +1,12 @@
 use common::Error;
 use exec::Executor;
 use tuple::VecRowBlockTrait;
-use url::Url;
 
 // void ParseFields(StringPiece *line, StringPiece fields[], int fields_num, int &actual_fields_num);
 
 #[derive(Debug)]
 pub struct DelimTextScanner {
-  path: Url
+  path: String
 }
 
 impl Executor for DelimTextScanner {
