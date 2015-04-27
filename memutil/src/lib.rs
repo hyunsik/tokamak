@@ -1,6 +1,8 @@
 #![feature(alloc)]
 extern crate alloc;
 extern crate bytesize;
+#[macro_use]
+extern crate log;
 
 pub use self::buffer::{Buf, UnSafeDatumWriter, UnSafeDatumReader};
 mod buffer;

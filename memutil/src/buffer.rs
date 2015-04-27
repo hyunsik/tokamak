@@ -1,18 +1,24 @@
 use std::mem;
+use std::marker;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Buf {
+pub struct Buf<'b> {
   ptr: usize,
-  limit: usize
+  limit: usize,
+  _marker: marker::PhantomData<&'b ()>
 }
 
-impl Buf {
-  pub fn new(ptr: usize, limit: usize) -> Buf {
-    Buf {ptr: ptr, limit: limit}
+impl<'b> Buf<'b> {
+  pub fn new(ptr: usize, limit: usize) -> Buf<'b> {
+    Buf {ptr: ptr, limit: limit, _marker: marker::PhantomData}
+  }
+
+  pub fn remain(&self) -> usize {
+    self.limit - self.ptr
   }
 }
 
-pub trait UnSafeDatumWriter {
+pub trait UnSafeDatumWriter<'b> {
   fn write_bool(&mut self, value: bool);
   fn write_i8  (&mut self, value: i8);
   fn write_i16 (&mut self, value: i16);
@@ -22,7 +28,7 @@ pub trait UnSafeDatumWriter {
   fn write_f64 (&mut self, value: f64);
 }
 
-pub trait UnSafeDatumReader {
+pub trait UnSafeDatumReader<'b> {
   fn read_bool(&mut self) -> bool;
   fn read_i8  (&mut self) -> i8;
   fn read_i16 (&mut self) -> i16;
@@ -32,7 +38,7 @@ pub trait UnSafeDatumReader {
   fn read_f64 (&mut self) -> f64;
 }
 
-impl UnSafeDatumWriter for Buf {
+impl<'b> UnSafeDatumWriter<'b> for Buf<'b> {
 
   fn write_bool(&mut self, value: bool) {
     debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
@@ -111,7 +117,7 @@ impl UnSafeDatumWriter for Buf {
   }
 }
 
-impl UnSafeDatumReader for Buf {
+impl<'b> UnSafeDatumReader<'b> for Buf<'b> {
   fn read_bool(&mut self) -> bool {
     debug_assert!((self.ptr + mem::size_of::<i8>()) <= self.limit, 
       "buffer overrun");

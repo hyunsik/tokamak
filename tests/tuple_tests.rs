@@ -7,7 +7,7 @@ use tajo::tuple::*;
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();
-  columns.push(Column::new("c0".to_string(), TypeClass::BOOL));     // 0
+  columns.push(Column::new("c0".to_string(), TypeClass::BOOL));      // 0
   columns.push(Column::new("c1".to_string(), TypeClass::INT1));      // 1
   columns.push(Column::new("c2".to_string(), TypeClass::INT2));      // 2
   columns.push(Column::new("c3".to_string(), TypeClass::INT4));      // 3
@@ -18,7 +18,7 @@ fn make_test_schema() -> Schema {
   columns.push(Column::new("c8".to_string(), TypeClass::TIME));      // 8
   columns.push(Column::new("c9".to_string(), TypeClass::TIMESTAMP)); // 9
 
-  // columns.push(Column::new("c11".to_string(), TypeClass::TEXT));
+  columns.push(Column::new("c10".to_string(), TypeClass::TEXT));     // 10
   // columns.push(Column::new_with_len("c12".to_string(), TypeClass::VARCHAR, 4));
   // columns.push(Column::new_with_len("c13".to_string(), TypeClass::CHAR, 4));
 
@@ -36,6 +36,8 @@ fn fill_vector_block(rowblock: &mut VecRowBlockTrait) {
     rowblock.put_date(7, i, i as i32);
     rowblock.put_time(8, i, i as i64);
     rowblock.put_timestamp(9, i, i as i64);
+    
+    rowblock.put_text(10, i, &"Rust");
   }
 }
 
@@ -50,6 +52,10 @@ fn verify_vector_block(rowblock: &VecRowBlockTrait) {
     assert_eq!(rowblock.get_date(7, i), i as i32);
     assert_eq!(rowblock.get_time(8, i), i as i64);
     assert_eq!(rowblock.get_timestamp(9, i), i as i64);
+
+    assert_eq!(
+      *(rowblock.get_text(10, i).unwrap()), 
+      StringSlice::new_from_str("Rust"));
   }
 }
 

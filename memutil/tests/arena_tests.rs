@@ -1,12 +1,10 @@
-#![feature(core)]
 extern crate bytesize;
 extern crate memutil;
-use std::raw::Slice;
+#[macro_use]
+extern crate log;
 
 use bytesize::ByteSize;
 use memutil::{Arena, UnSafeDatumWriter, UnSafeDatumReader};
-
-use std::mem;
 
 #[test]
 fn test_buf_read_write() {
@@ -31,7 +29,7 @@ fn test_buf_read_write() {
   assert_eq!(copy.read_f64(), 1 as f64);
 }
 
-#[test] 
+#[test]
 #[should_panic(expected = "buffer overrun")]
 fn test_write_buf_overrun() {
   let mut arena = Arena::new(ByteSize::kb(16).as_usize());
@@ -41,22 +39,34 @@ fn test_write_buf_overrun() {
   buf.write_i32(2);
   buf.write_i32(3);
   buf.write_i32(4);
-  buf.write_i32(4); // this write exceeds allocated buffer size
+
+  buf.write_i32(5);
 }
 
 #[test]
-fn test_vec_and_slice() {
-  let xy: Vec<u8> = vec![0,1,2,3];
-  let slice = xy.as_ptr() as *const u8;
+#[allow(unused_variables)] 
+fn test_many_chunks() {
+  let mut arena = Arena::new(ByteSize::kb(4).as_usize());
+
+  for i in 0..1024 {
+    arena.alloc(ByteSize::kb(2).as_usize());
+  }
+
+  // 1 head + 1023
+  assert_eq!(arena.chunk_num(), 511);
+  assert_eq!(arena.allocated_size(), ByteSize::kb(2048).as_usize());
 }
 
 #[test]
-fn test_str() {
-  let str = "text".to_string();
-  assert_eq!(str.len(), 4);
+#[allow(unused_variables)] 
+fn test_large_chunks() {
+  let mut arena = Arena::new(ByteSize::kb(4).as_usize());
 
-  let str2 = "text";
-  let bytes = str2.as_ptr() as *const u8;
+  for i in 0..1024 {
+    arena.alloc(ByteSize::kb(8).as_usize());
+  }
 
-  let x = Slice {data: bytes, len: str2.len()};
+  // 1 head + 1023
+  assert_eq!(arena.chunk_num(), 1023);
+  assert_eq!(arena.allocated_size(), ByteSize::kb(8 * 1024).as_usize());
 }

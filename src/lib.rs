@@ -3,6 +3,7 @@
 #![feature(libc)]
 #![feature(collections)] 
 extern crate alloc;
+extern crate bytesize;
 extern crate libc;
 extern crate memutil;
 

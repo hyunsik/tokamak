@@ -1,3 +1,5 @@
+use common::string_slice::StringSlice;
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TypeClass {
   BOOL,
@@ -28,6 +30,7 @@ pub type FLOAT8_T = f64;
 pub type DATE_T = i32;
 pub type TIME_T = i64;
 pub type TIMESTAMP_T = i64;
+pub type TEXT_T = StringSlice;
 
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]

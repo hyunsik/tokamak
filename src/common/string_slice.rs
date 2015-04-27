@@ -27,6 +27,7 @@ use std::raw::Slice;
 
 
 #[derive(Debug)]
+#[repr(C)]
 pub struct StringSlice {
   ptr: *const u8,
   len: i32,

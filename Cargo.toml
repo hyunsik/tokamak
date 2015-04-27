@@ -11,8 +11,11 @@ keywords = ["Data Analysis", "Data Processing", "Database"]
 name = "tajo"
 path = "src/lib.rs"
 
-[dependencies.llvmint]
+[dependencies]
+bytesize = "0.0.1"
 llvmint = "0.0.2"
+log = "0.3.1"
+
 
 [dependencies.memutil]
 path = "memutil"
