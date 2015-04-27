@@ -20,16 +20,27 @@ pub enum TypeClass {
   BLOB
 }
 
+ #[allow(non_camel_case_types)]
 pub type BOOL_T = bool;
+#[allow(non_camel_case_types)]
 pub type INT1_T = i8;
+#[allow(non_camel_case_types)]
 pub type INT2_T = i16;
+#[allow(non_camel_case_types)]
 pub type INT4_T = i32;
+#[allow(non_camel_case_types)]
 pub type INT8_T = i64;
+#[allow(non_camel_case_types)]
 pub type FLOAT4_T = f32;
+#[allow(non_camel_case_types)]
 pub type FLOAT8_T = f64;
+#[allow(non_camel_case_types)]
 pub type DATE_T = i32;
+#[allow(non_camel_case_types)]
 pub type TIME_T = i64;
+#[allow(non_camel_case_types)]
 pub type TIMESTAMP_T = i64;
+#[allow(non_camel_case_types)]
 pub type TEXT_T = StringSlice;
 
 /// Data Domain for each field

@@ -1,6 +1,6 @@
 extern crate tajo;
 
-use std::{i8,i16,i32,i64};
+use std::{i8,i16};
 
 use tajo::common::*;
 use tajo::tuple::*;

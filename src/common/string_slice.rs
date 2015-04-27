@@ -19,15 +19,14 @@ use libc::funcs::c95::string::memcmp;
 use libc::types::common::c95::c_void;
 use std::mem;
 use std::cmp;
-use std::cmp::Eq;
 use std::cmp::Ordering;
-use std::ops::Add;
 use std::str;
 use std::raw::Slice;
 
 
 #[derive(Debug)]
 #[repr(C)]
+#[allow(raw_pointer_derive)]
 pub struct StringSlice {
   ptr: *const u8,
   len: i32,
