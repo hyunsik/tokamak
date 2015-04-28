@@ -1,12 +1,6 @@
-use bytesize::ByteSize;
-use common::Column;
-use common::Schema;
 use common::data_type::*;
 use common::constant::VECTOR_SIZE;
-use intrinsics::sse;
-use memutil::Arena;
 
-use alloc::heap;
 use std::marker;
 use std::mem;
 use std::raw::Slice;

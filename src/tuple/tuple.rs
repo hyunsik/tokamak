@@ -119,7 +119,7 @@ pub trait VecRowBlockTrait<'b> {
 
   fn put_text(&mut self, col_idx: usize, row_idx: usize, value: &str);
 
-  fn get_text(&self, col_idx: usize, row_idx: usize) -> Option<&TEXT_T>;
+  fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T;
 }
 
 impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
@@ -260,10 +260,10 @@ impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
     unimplemented!();
   }
 
-  fn get_text(&self, col_idx: usize, row_idx: usize) -> Option<&TEXT_T> {
+  fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {
     let v : &mut [TEXT_T] = self.vectors[col_idx].values();
     unsafe {
-      Some(v.get_unchecked(row_idx))
+      v.get_unchecked(row_idx)
     }
   }
 }
@@ -430,26 +430,18 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
   }
 
   fn put_text(&mut self, col_idx: usize, row_idx: usize, value: &str) {
-    let ptr = self.vectors[col_idx].values_ptr() as usize;    
-    let mut value_ptr = ptr + (16 as usize * row_idx);
+    let v : &mut [TEXT_T] = self.vectors[col_idx].values();
 
     let str_ptr = self.arena.alloc_str(value);
 
-    let str_slice = TEXT_T::new (str_ptr, value.len() as i32);
-
-    unsafe { 
-      *(value_ptr as *mut usize) = str_ptr as usize;
-    }
-    value_ptr += (mem::size_of::<usize>());
-    unsafe {
-      *(value_ptr as *mut i32) = value.len() as i32;
-    }
+    v[row_idx].set_ptr(str_ptr);
+    v[row_idx].set_len(value.len() as i32);
   }
 
-  fn get_text(&self, col_idx: usize, row_idx: usize) -> Option<&TEXT_T> {    
+  fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {    
     let v : &mut [TEXT_T] = self.vectors[col_idx].values();
     unsafe {
-      Some(v.get_unchecked(row_idx))
+      v.get_unchecked(row_idx)
     }
   }
 }
@@ -567,5 +559,10 @@ impl <'a, R: VecRowBlockTrait<'a>> VecRowBlock<R> {
   #[inline(always)]
   fn get_timestamp(&self, col_idx: usize, row_idx: usize) -> TIMESTAMP_T {
     self.rowblock.get_timestamp(col_idx, row_idx)
+  }
+
+  #[inline(always)]
+  fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {
+    self.rowblock.get_text(col_idx, row_idx)
   }
 }

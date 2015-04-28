@@ -1,3 +1,4 @@
+use std::mem;
 use common::string_slice::StringSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -85,7 +86,8 @@ impl DataType {
     TypeClass::TIME => 8,
     TypeClass::TIMESTAMP => 8,
     TypeClass::INTERVAL => 12,
-    TypeClass::VARCHAR | TypeClass::TEXT | TypeClass::BLOB => 12,
+    TypeClass::TEXT => mem::size_of::<TEXT_T>()as u32,
+    TypeClass::VARCHAR | TypeClass::BLOB => 12,
   }
 }
 

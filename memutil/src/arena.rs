@@ -8,6 +8,7 @@ use buffer::Buf;
 use std::cmp;
 use std::ptr;
 use std::marker;
+use std::mem;
 
 // only considered the memory aligned size of Intel x86
 pub static DEFAULT_ALIGNED_SIZE: usize = 16;
@@ -97,13 +98,17 @@ impl<'a> Arena<'a> {
 
   /// Allocate a string 
   pub fn alloc_str(&mut self, str: &str) -> *const u8 {
-    if self.need_grow(str.len()) {
-      self.new_chunk(str.len());
+    let bytes: &[u8] = unsafe {
+      mem::transmute(str)
+    };
+
+    if self.need_grow(bytes.len()) {
+      self.new_chunk(bytes.len());
     }
 
     let addr = (self.head.ptr as usize + self.offset) as *mut u8;
-    unsafe { ptr::copy(str.as_ptr(), addr, str.len()); }
-    self.offset += str.len();
+    unsafe { ptr::copy(bytes.as_ptr(), addr, bytes.len()); }
+    self.offset += bytes.len();
 
     addr
   }

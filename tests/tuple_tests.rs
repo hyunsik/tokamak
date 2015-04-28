@@ -54,8 +54,7 @@ fn verify_vector_block(rowblock: &VecRowBlockTrait) {
     assert_eq!(rowblock.get_timestamp(9, i), i as i64);
 
     assert_eq!(
-      *(rowblock.get_text(10, i).unwrap()), 
-      StringSlice::new_from_str("Rust"));
+      *(rowblock.get_text(10, i)), StringSlice::new_from_str("Rust"));
   }
 }
 

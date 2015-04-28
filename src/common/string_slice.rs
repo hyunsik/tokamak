@@ -34,13 +34,6 @@ pub struct StringSlice {
 
 impl StringSlice {
   
-  pub fn as_ptr(&self) -> *const u8 {
-    self.ptr
-  }
-
-  pub fn len(&self) -> i32 {
-    self.len
-  }
 
   pub fn new(ptr: *const u8, len: i32) -> StringSlice {
     StringSlice {
@@ -54,6 +47,22 @@ impl StringSlice {
       ptr: s.as_ptr(),
       len: s.len() as i32
     }
+  }
+
+  pub fn set_ptr(&mut self, ptr: *const u8) {
+    self.ptr = ptr;
+  }
+
+  pub fn set_len(&mut self, len: i32) {
+    self.len = len;
+  }
+
+  pub fn as_ptr(&self) -> *const u8 {
+    self.ptr
+  }
+
+  pub fn len(&self) -> i32 {
+    self.len
   }
 
   pub fn to_slice<'a>(&'a self) -> &'a [u8] {
