@@ -1,4 +1,4 @@
-pub use self::storage::{Storage, BlockStorage};
+pub use self::storage::{BlockStorage, DataFormat, Storage, TableSpace};
 pub use self::localfs::LocalFs;
 
 mod localfs;
