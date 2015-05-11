@@ -7,7 +7,7 @@ use tajo::io::stream::*;
 pub fn test_file_read() {
 
   let mut fin = FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl");
-  let mut reader: Reader<FileInputStream> = Reader::new(fin);
+  let mut reader = Reader::new(fin);
   
   let r = reader.open();
   assert!(r.is_ok());

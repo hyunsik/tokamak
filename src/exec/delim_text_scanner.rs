@@ -1,19 +1,23 @@
+use std::marker::PhantomData;
 use std::mem;
 
 use common::err::*;
 use exec::Executor;
+use io::stream::*;
 use tuple::VecRowBlockTrait;
 
 // void ParseFields(StringPiece *line, StringPiece fields[], int fields_num, int &actual_fields_num);
 
-#[derive(Debug)]
-pub struct DelimTextScanner<'a> {
-  path: &'a str,
+//#[derive(Debug)]
+pub struct DelimTextScanner<'a, S> {
+  //path: &'a str,
   line_delim: u8,
-  field_delim: u8
+  field_delim: u8,
+  reader: S,
+  marker: PhantomData<&'a ()>
 }
 
-impl<'a> Executor for DelimTextScanner<'a> {
+impl<'a, S> Executor for DelimTextScanner<'a, S> {
   fn init(&mut self) -> Void {
     void_ok()
   }
@@ -27,12 +31,14 @@ impl<'a> Executor for DelimTextScanner<'a> {
   }
 }
 
-impl<'a> DelimTextScanner<'a> {
-  pub fn new(path: &'a str, field_delim: u8) -> DelimTextScanner<'a> {
+impl<'a, S: ReaderTrait<'a>> DelimTextScanner<'a, S> {
+  pub fn new(stream: S, field_delim: u8) -> DelimTextScanner<'a, S> {
     DelimTextScanner {
-      path: path,
       line_delim: '\n' as u8,
-      field_delim: field_delim
+      field_delim: field_delim,
+
+      reader: stream,
+      marker: PhantomData
     }
   }
 
@@ -89,7 +95,10 @@ impl<'a> DelimTextScanner<'a> {
 
 #[test]
 fn test_find_first_record_index() {
-  let s = DelimTextScanner::new("/tmp/dummy", '\n' as u8);
+  let fin = FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl");
+  let mut reader = Reader::new(fin);
+
+  let s = DelimTextScanner::new(reader, '\n' as u8);
 
   assert_eq!(4, s.find_first_record_index("abc\nbb").unwrap());
   assert_eq!(1, s.find_first_record_index("\nabc\nbb").unwrap());
@@ -99,7 +108,9 @@ fn test_find_first_record_index() {
 
 #[test]
 fn test_next_line_indxes() {
-  let s = DelimTextScanner::new("/tmp/dummy", '\n' as u8);
+  let fin = FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl");
+  let mut reader = Reader::new(fin);
+  let s = DelimTextScanner::new(reader, '\n' as u8);
 
   let mut delim_indexes:Vec<usize> = Vec::new();
   let r1 = 

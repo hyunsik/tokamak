@@ -37,7 +37,6 @@ pub trait ReaderTrait<'a> {
 
 pub struct Reader<R> {
   reader: R,
-  //marker: PhantomData<&'a ()>,
 }
 
 impl<'a, R: ReaderTrait<'a>> Reader<R> {
@@ -88,7 +87,9 @@ pub static DEFAULT_BUF_SIZE:usize = 4096;
 
 pub struct FileInputStream<'a> {
   path: String,
-  buf: [u8;4096],
+  buf_size: usize,
+
+  buf: Vec<u8>,
   marker: PhantomData<&'a ()>,
 
   file: Option<File>,
@@ -98,10 +99,15 @@ pub struct FileInputStream<'a> {
 
 impl<'a> FileInputStream<'a> {
   pub fn new(path: &str) -> FileInputStream {
+    FileInputStream::new_with_bufsize(path, DEFAULT_BUF_SIZE)
+  }
+
+  pub fn new_with_bufsize(path: &str, buf_size: usize) -> FileInputStream {
     FileInputStream {
-      path: path.to_owned(), 
-      //buf: Vec::with_capacity(DEFAULT_BUF_SIZE), 
-      buf: unsafe { mem::zeroed() }, 
+      path: path.to_owned(),
+      buf_size: buf_size,
+
+      buf: Vec::with_capacity(buf_size), 
       marker: PhantomData,
 
       file: None,

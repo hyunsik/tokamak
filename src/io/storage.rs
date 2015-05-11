@@ -1,5 +1,7 @@
 use common::TypeClass;
 
+
+
 pub trait TableSpace {
 	fn create_table(&self);
 
