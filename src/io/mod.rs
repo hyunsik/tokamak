@@ -6,3 +6,4 @@ mod localfs;
 mod io_buffer;
 mod io_manager;
 mod storage;
+pub mod stream;

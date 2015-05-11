@@ -1,4 +1,4 @@
-use common::error::Error;
+use common::Error;
 
 pub struct ReadBuffer {
   buf: *const u8,

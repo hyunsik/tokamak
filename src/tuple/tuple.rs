@@ -12,7 +12,7 @@ use std::mem;
 
 pub struct SlotVecRowBlock<'a> {
   schema: Schema,
-  vectors: Vec<Vector<'a>>,
+  vectors: Vec<&'a Vector<'a>>,
 }
 
 impl<'a> SlotVecRowBlock<'a> {
@@ -45,7 +45,7 @@ impl<'a> AllocatedVecRowBlock<'a> {
         sse::compute_aligned_size(bytes_len as usize * VECTOR_SIZE);
     }
 
-    let mut fixed_area_ptr = unsafe {
+    let fixed_area_ptr = unsafe {
       heap::allocate(fixed_area_size, sse::ALIGNED_SIZE)
     };
 
@@ -73,13 +73,13 @@ impl<'a> AllocatedVecRowBlock<'a> {
 
 
 pub trait VecRowBlockTrait<'b> {
-  fn schema(&self) -> Schema;
+  fn schema(&'b self) -> &'b Schema;
 
   fn column_num(&self) -> usize;
 
   fn vector(&'b self, usize) -> &Vector<'b>;
 
-  fn set_vector(&mut self, Vector<'b>);
+  fn set_vector(&'b mut self, &'b Vector<'b>);
 
   fn put_int1(&self, col_idx: usize, row_idx: usize, value: INT1_T);
 
@@ -123,67 +123,75 @@ pub trait VecRowBlockTrait<'b> {
 }
 
 impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
-  fn schema(&self) -> Schema {
-    self.schema.clone()
+  #[inline]
+  fn schema(&'a self) -> &'a Schema {
+    &self.schema
   }
 
+  #[inline]
   fn column_num(&self) -> usize {
     self.schema.size()
   }
 
-  fn vector(&'a self, col_id: usize) -> &Vector<'a> {
+  #[inline]
+  fn vector(&'a self, col_id: usize) -> &'a Vector<'a> {
     &self.vectors[col_id]
   }
 
-  fn set_vector(& mut self, vec: Vector<'a>) {
+  #[inline]
+  fn set_vector(&mut self, vec: &'a Vector<'a>) {
     self.vectors.push(vec);
   }
-
-  #[inline(always)]
+  
+  #[inline]
+  #[allow(unused_variables)]
   fn put_int1(&self, col_idx: usize, row_idx: usize, value: INT1_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int1(&self, col_idx: usize, row_idx: usize ) -> INT1_T {      
     let v : &mut [INT1_T] = self.vectors[col_idx].values();
     unsafe {
       *v.get_unchecked(row_idx)
     }
   }
-
-  #[inline(always)]
+  
+  #[inline]
+  #[allow(unused_variables)]
   fn put_int2(&self, col_idx: usize, row_idx: usize, value: INT2_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int2(&self, col_idx: usize, row_idx: usize ) -> INT2_T {      
     let v : &mut [INT2_T] = self.vectors[col_idx].values();
     unsafe {
       *v.get_unchecked(row_idx)
     }
   }
-
-  #[inline(always)]
+  
+  #[inline]
+  #[allow(unused_variables)]
   fn put_int4(&self, col_idx: usize, row_idx: usize, value: INT4_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int4(&self, col_idx: usize, row_idx: usize ) -> INT4_T {      
     let v : &mut [INT4_T] = self.vectors[col_idx].values();
     unsafe {
       *v.get_unchecked(row_idx)
     }
   }
-
-  #[inline(always)]
+  
+  #[inline]
+  #[allow(unused_variables)]
   fn put_int8(&self, col_idx: usize, row_idx: usize, value: INT8_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int8(&self, col_idx: usize, row_idx: usize ) -> INT8_T {      
     let v : &mut [INT8_T] = self.vectors[col_idx].values();
     unsafe {
@@ -191,12 +199,13 @@ impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
+  #[allow(unused_variables)]
   fn put_float4(&self, col_idx: usize, row_idx: usize, value: FLOAT4_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_float4(&self, col_idx: usize, row_idx: usize ) -> FLOAT4_T {      
     let v : &mut [FLOAT4_T] = self.vectors[col_idx].values();
     unsafe {
@@ -204,12 +213,13 @@ impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
+  #[allow(unused_variables)]
   fn put_float8(&self, col_idx: usize, row_idx: usize, value: FLOAT8_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_float8(&self, col_idx: usize, row_idx: usize ) -> FLOAT8_T {      
     let v : &mut [FLOAT8_T] = self.vectors[col_idx].values();
     unsafe {
@@ -217,12 +227,13 @@ impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
+  #[allow(unused_variables)]
   fn put_date(&self, col_idx: usize, row_idx: usize, value: DATE_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_date(&self, col_idx: usize, row_idx: usize ) -> DATE_T {      
     let v : &mut [DATE_T] = self.vectors[col_idx].values();
     unsafe {
@@ -230,12 +241,13 @@ impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
+  #[allow(unused_variables)]
   fn put_time(&self, col_idx: usize, row_idx: usize, value: TIME_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_time(&self, col_idx: usize, row_idx: usize ) -> TIME_T {      
     let v : &mut [TIME_T] = self.vectors[col_idx].values();
     unsafe {
@@ -243,12 +255,13 @@ impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
+  #[allow(unused_variables)]
   fn put_timestamp(&self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T) {      
     unimplemented!();
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_timestamp(&self, col_idx: usize, row_idx: usize ) -> TIMESTAMP_T {      
     let v : &mut [TIMESTAMP_T] = self.vectors[col_idx].values();
     unsafe {
@@ -256,6 +269,8 @@ impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
     }
   }
 
+  #[inline]
+  #[allow(unused_variables)]
   fn put_text(&mut self, col_idx: usize, row_idx: usize, value: &str) {        
     unimplemented!();
   }
@@ -269,8 +284,8 @@ impl<'a> VecRowBlockTrait<'a> for SlotVecRowBlock<'a> {
 }
 
 impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
-  fn schema(&self) -> Schema {
-    self.schema.clone()
+  fn schema(&'a self) -> &'a Schema {
+    &self.schema
   }
 
   fn column_num(&self) -> usize {
@@ -281,11 +296,12 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     &self.vectors[col_id]
   }
 
-  fn set_vector(&mut self, vec: Vector<'a>) {
-    self.vectors.push(vec);
+  #[allow(unused_variables)]
+  fn set_vector(&mut self, vec: &'a Vector<'a>) {
+    panic!("AllocatedVecRowBlock::set_vector() is not support");
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_int1(&self, col_idx: usize, row_idx: usize, value: INT1_T) {      
     let v : &mut [INT1_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -293,7 +309,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int1(&self, col_idx: usize, row_idx: usize ) -> INT1_T {      
     let v : &mut [INT1_T] = self.vectors[col_idx].values();
     unsafe {
@@ -301,7 +317,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_int2(&self, col_idx: usize, row_idx: usize, value: INT2_T) {      
     let v : &mut [INT2_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -309,7 +325,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int2(&self, col_idx: usize, row_idx: usize ) -> INT2_T {      
     let v : &mut [INT2_T] = self.vectors[col_idx].values();
     unsafe {
@@ -317,7 +333,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_int4(&self, col_idx: usize, row_idx: usize, value: INT4_T) {      
     let v : &mut [INT4_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -325,7 +341,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int4(&self, col_idx: usize, row_idx: usize ) -> INT4_T {      
     let v : &mut [INT4_T] = self.vectors[col_idx].values();
     unsafe {
@@ -333,7 +349,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_int8(&self, col_idx: usize, row_idx: usize, value: INT8_T) {      
     let v : &mut [INT8_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -341,7 +357,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int8(&self, col_idx: usize, row_idx: usize ) -> INT8_T {      
     let v : &mut [INT8_T] = self.vectors[col_idx].values();
     unsafe {
@@ -349,7 +365,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_float4(&self, col_idx: usize, row_idx: usize, value: FLOAT4_T) {      
     let v : &mut [FLOAT4_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -357,7 +373,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_float4(&self, col_idx: usize, row_idx: usize ) -> FLOAT4_T {      
     let v : &mut [FLOAT4_T] = self.vectors[col_idx].values();
     unsafe {
@@ -365,7 +381,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_float8(&self, col_idx: usize, row_idx: usize, value: FLOAT8_T) {      
     let v : &mut [FLOAT8_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -373,7 +389,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_float8(&self, col_idx: usize, row_idx: usize ) -> FLOAT8_T {      
     let v : &mut [FLOAT8_T] = self.vectors[col_idx].values();
     unsafe {
@@ -381,7 +397,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_date(&self, col_idx: usize, row_idx: usize, value: DATE_T) {      
     let v : &mut [DATE_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -389,7 +405,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_date(&self, col_idx: usize, row_idx: usize ) -> DATE_T {      
     let v : &mut [DATE_T] = self.vectors[col_idx].values();
     unsafe {
@@ -397,7 +413,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_time(&self, col_idx: usize, row_idx: usize, value: TIME_T) {      
     let v : &mut [TIME_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -405,7 +421,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_time(&self, col_idx: usize, row_idx: usize ) -> TIME_T {      
     let v : &mut [TIME_T] = self.vectors[col_idx].values();
     unsafe {
@@ -413,7 +429,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_timestamp(&self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T) {      
     let v : &mut [TIMESTAMP_T] = self.vectors[col_idx].values();      
     unsafe{
@@ -421,7 +437,7 @@ impl<'a> VecRowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
     }
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_timestamp(&self, col_idx: usize, row_idx: usize ) -> TIMESTAMP_T {      
     let v : &mut [TIMESTAMP_T] = self.vectors[col_idx].values();
     unsafe {
@@ -450,118 +466,122 @@ pub struct VecRowBlock<R> {
   pub rowblock: R
 }
 
-impl <'a, R: VecRowBlockTrait<'a>> VecRowBlock<R> {
-  #[inline(always)]
-  pub fn schema(&self) -> Schema {
+impl <'a, R: VecRowBlockTrait<'a>> VecRowBlockTrait<'a> for VecRowBlock<R> {
+  #[inline]
+  fn schema(&'a self) -> &'a Schema {
     self.rowblock.schema()
   }
 
-  #[inline(always)]
-  pub fn column_num(&self) -> usize {
+  #[inline]
+  fn column_num(&self) -> usize {
     self.rowblock.column_num()
   }
 
-  #[inline(always)]
-  pub fn vector(&'a self, col_id: usize) -> &Vector<'a> {
+  #[inline]
+  fn vector(&'a self, col_id: usize) -> &Vector<'a> {
     self.rowblock.vector(col_id)
   }
 
-  #[inline(always)]
-  pub fn set_vector(&mut self, vec: &Vector<'a>) {
-    //self.rowblock.set_vector(col_id, vec)
+  #[inline]
+  fn set_vector(&'a mut self, vec: &'a Vector<'a>) {
+    self.rowblock.set_vector(vec)
   }
 
-  #[inline(always)]
-  pub fn put_int1(&self, col_idx: usize, row_idx: usize, value: INT1_T) {
+  #[inline]
+  fn put_int1(&self, col_idx: usize, row_idx: usize, value: INT1_T) {
     self.rowblock.put_int1(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
-  pub fn get_int1(&self, col_idx: usize, row_idx: usize) -> INT1_T {
+  #[inline]
+  fn get_int1(&self, col_idx: usize, row_idx: usize) -> INT1_T {
     self.rowblock.get_int1(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_int2(&self, col_idx: usize, row_idx: usize, value: INT2_T) {
     self.rowblock.put_int2(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int2(&self, col_idx: usize, row_idx: usize) -> INT2_T {
     self.rowblock.get_int2(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_int4(&self, col_idx: usize, row_idx: usize, value: INT4_T) {
     self.rowblock.put_int4(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int4(&self, col_idx: usize, row_idx: usize) -> INT4_T {
     self.rowblock.get_int4(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_int8(&self, col_idx: usize, row_idx: usize, value: INT8_T) {
     self.rowblock.put_int8(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_int8(&self, col_idx: usize, row_idx: usize) -> INT8_T {
     self.rowblock.get_int8(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_float4(&self, col_idx: usize, row_idx: usize, value: FLOAT4_T) {
     self.rowblock.put_float4(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_float4(&self, col_idx: usize, row_idx: usize) -> FLOAT4_T {
     self.rowblock.get_float4(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_float8(&self, col_idx: usize, row_idx: usize, value: FLOAT8_T) {
     self.rowblock.put_float8(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_float8(&self, col_idx: usize, row_idx: usize) -> FLOAT8_T {
     self.rowblock.get_float8(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_date(&self, col_idx: usize, row_idx: usize, value: DATE_T) {
     self.rowblock.put_date(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_date(&self, col_idx: usize, row_idx: usize) -> DATE_T {
     self.rowblock.get_date(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_time(&self, col_idx: usize, row_idx: usize, value: TIME_T) {
     self.rowblock.put_time(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_time(&self, col_idx: usize, row_idx: usize) -> TIME_T {
     self.rowblock.get_time(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  #[inline]
   fn put_timestamp(&self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T) {
     self.rowblock.put_timestamp(col_idx, row_idx, value);
   }
 
-  #[inline(always)]
+  #[inline]
   fn get_timestamp(&self, col_idx: usize, row_idx: usize) -> TIMESTAMP_T {
     self.rowblock.get_timestamp(col_idx, row_idx)
   }
 
-  #[inline(always)]
+  fn put_text(&mut self, col_idx: usize, row_idx: usize, value: &str) {
+    self.rowblock.put_text(col_idx, row_idx, value);
+  }
+
+  #[inline]
   fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {
     self.rowblock.get_text(col_idx, row_idx)
   }
