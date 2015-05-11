@@ -6,14 +6,27 @@ use std::option::Option;
 
 use common::err::*;
 
-pub struct Buffer<'a> {
+pub struct Buf<'a> {
   ptr: &'a [u8],
   len: usize
 }
 
+impl<'a> Buf<'a> {
+
+  #[inline]
+  pub fn as_slice(&self) -> &'a [u8] {
+    self.ptr
+  }
+
+  #[inline]
+  pub fn len(&self) -> usize {
+    self.len
+  }
+}
+
 pub trait Readable<'a> {
   fn open(&mut self) -> Void;
-  fn read(&'a mut self) -> TResult<Buffer<'a>>;  
+  fn read(&'a mut self) -> TResult<Buf<'a>>;  
   fn close(&self) -> Void;
 
   fn len(&self) -> TResult<u64>;
@@ -66,13 +79,13 @@ impl<'a> Readable<'a> for FileInputStream<'a> {
   }
 
   #[inline]
-  fn read(&'a mut self) -> TResult<Buffer<'a>>  {
+  fn read(&'a mut self) -> TResult<Buf<'a>>  {
     debug_assert!(self.file.is_some(), "File must be opened before calling read()");    
     
     match self.file.as_mut().unwrap().read(&mut self.buf) {
       Ok(read_len) => {
         self.pos = self.pos + read_len as u64;
-        Ok(Buffer {ptr: &self.buf, len: read_len})
+        Ok(Buf {ptr: &self.buf, len: read_len})
       },
       Err(e) => Err(Error::Unknown)
     }
