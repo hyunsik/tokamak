@@ -1,6 +1,6 @@
 use std::mem;
 
-use common::Error;
+use common::err::*;
 use exec::Executor;
 use tuple::VecRowBlockTrait;
 
@@ -14,14 +14,16 @@ pub struct DelimTextScanner<'a> {
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {
-  fn init(&self) -> Result<bool, Error> {
-    Ok(true)
+  fn init(&self) -> Void {
+    void_ok()
   }
-  fn next(&self, rowblock: &mut VecRowBlockTrait) -> Result<bool, Error> {
-    Ok(true)
+
+  fn next(&self, rowblock: &mut VecRowBlockTrait) -> Void {
+    void_ok()
   }
-  fn close(&self) -> Result<bool, Error> {
-    Ok(true)
+
+  fn close(&self) -> Void {
+    void_ok()
   }
 }
 

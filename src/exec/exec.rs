@@ -1,11 +1,11 @@
 use std::result;
 
-use common::Error;
+use common::Void;
 use tuple::VecRowBlockTrait;
 
 
 pub trait Executor {
-  fn init(&self) -> Result<bool, Error>;
-  fn next(&self, rowblock: &mut VecRowBlockTrait) -> Result<bool, Error>;
-  fn close(&self) -> Result<bool, Error>;
+  fn init(&self) -> Void;
+  fn next(&self, rowblock: &mut VecRowBlockTrait) -> Void;
+  fn close(&self) -> Void;
 }
