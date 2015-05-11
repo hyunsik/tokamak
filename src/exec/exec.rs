@@ -5,7 +5,7 @@ use tuple::VecRowBlockTrait;
 
 
 pub trait Executor {
-  fn init(&self) -> Void;
+  fn init(&mut self) -> Void;
   fn next(&self, rowblock: &mut VecRowBlockTrait) -> Void;
   fn close(&self) -> Void;
 }

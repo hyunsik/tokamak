@@ -14,7 +14,7 @@ pub struct DelimTextScanner<'a> {
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {
-  fn init(&self) -> Void {
+  fn init(&mut self) -> Void {
     void_ok()
   }
 

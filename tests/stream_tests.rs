@@ -3,13 +3,16 @@ extern crate tajo;
 use std::str;
 use tajo::io::stream::*;
 
-#[bench]
+#[test]
 pub fn test_file_read() {
+
   let mut fin = FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl");
-  let r = fin.open();
+  let mut reader: Reader<FileInputStream> = Reader::new(fin);
+  
+  let r = reader.open();
   assert!(r.is_ok());
 
-  let read = fin.read();
+  let read = reader.read();
   assert!(read.is_ok());
 
   let buf = read.ok().unwrap();
