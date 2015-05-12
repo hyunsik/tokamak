@@ -24,7 +24,7 @@ impl<'a> Buf<'a> {
   }
 }
 
-pub trait ReaderTrait<'a> {
+pub trait StreamReader<'a> {
   fn open(&mut self) -> Void;
   fn read(&'a mut self) -> TResult<Buf<'a>>;  
   fn close(&self) -> Void;
@@ -33,54 +33,6 @@ pub trait ReaderTrait<'a> {
   fn pos(&self) -> TResult<u64>;
   fn remain(&self) -> TResult<u64>;
   fn eos(&self) -> TResult<bool>;
-}
-
-pub struct Reader<R> {
-  reader: R,
-}
-
-impl<'a, R: ReaderTrait<'a>> Reader<R> {
-  pub fn new(r: R) -> Reader<R> {
-    Reader {reader: r}
-  }
-}
-
-impl <'a, R: ReaderTrait<'a>> ReaderTrait<'a> for Reader<R> {
-  
-  #[inline]
-  fn open(&mut self) -> Void {
-    self.reader.open()
-  }
-
-  #[inline]
-  fn read(&'a mut self) -> TResult<Buf<'a>> {
-    self.reader.read()
-  }
-
-  #[inline]
-  fn close(&self) -> Void {
-    self.reader.close()
-  }
-
-  #[inline]
-  fn len(&self) -> TResult<u64> {
-    self.reader.len()
-  }
-
-  #[inline]
-  fn pos(&self) -> TResult<u64> {
-    self.reader.pos()
-  }
-
-  #[inline]
-  fn remain(&self) -> TResult<u64> {
-    self.reader.remain()
-  }
-
-  #[inline]
-  fn eos(&self) -> TResult<bool> {
-    self.reader.eos()
-  }
 }
 
 pub static DEFAULT_BUF_SIZE:usize = 4096;
@@ -117,7 +69,7 @@ impl<'a> FileInputStream<'a> {
   }
 }
 
-impl<'a> ReaderTrait<'a> for FileInputStream<'a> {  
+impl<'a> StreamReader<'a> for FileInputStream<'a> {  
 
   fn open(&mut self) -> Void {    
 

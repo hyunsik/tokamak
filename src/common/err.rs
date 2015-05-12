@@ -7,7 +7,9 @@ pub enum Error {
 
   ColumnNotFound,
   TableNotFound,
-  NoDatabasde,
+  NoDatabase,
+  /// No matched table against an table url
+  NoMatchedTableSpace,
 
   NoLineDelimiter,
 }

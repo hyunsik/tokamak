@@ -12,10 +12,10 @@ name = "tajo"
 path = "src/lib.rs"
 
 [dependencies]
-bytesize = "0.0.1"
-llvmint = "0.0.2"
-log = "0.3.1"
-
+bytesize = "*"
+llvmint = "*"
+log = "*"
+url = "*"
 
 [dependencies.memutil]
 path = "memutil"

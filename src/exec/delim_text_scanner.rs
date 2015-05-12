@@ -13,7 +13,7 @@ pub struct DelimTextScanner<'a> {
   //path: &'a str,
   line_delim: u8,
   field_delim: u8,
-  reader: &'a ReaderTrait<'a>,
+  reader: Box<StreamReader<'a>>,
   marker: PhantomData<&'a ()>
 }
 
@@ -32,7 +32,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
 }
 
 impl<'a> DelimTextScanner<'a> {
-  pub fn new(stream: &'a ReaderTrait<'a>, field_delim: u8) -> DelimTextScanner<'a> {
+  pub fn new(stream: Box<StreamReader<'a>>, field_delim: u8) -> DelimTextScanner<'a> {
     DelimTextScanner {
       line_delim: '\n' as u8,
       field_delim: field_delim,
@@ -95,7 +95,7 @@ impl<'a> DelimTextScanner<'a> {
 
 #[test]
 fn test_find_first_record_index() {
-  let fin = FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl");
+  let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl"));
   let mut reader = Reader::new(fin);
 
   let s = DelimTextScanner::new(reader, '\n' as u8);
@@ -108,7 +108,7 @@ fn test_find_first_record_index() {
 
 #[test]
 fn test_next_line_indxes() {
-  let fin = FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl");
+  let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl"));
   let mut reader = Reader::new(fin);
   let s = DelimTextScanner::new(reader, '\n' as u8);
 

@@ -1,13 +1,18 @@
+// Keep an lexicography order
+
 #![feature(alloc)]
+#![feature(convert)]
+#![feature(collections)] 
 #![feature(core)]
 #![feature(libc)]
-#![feature(collections)] 
 extern crate alloc;
 extern crate bytesize;
+#[macro_use]
+extern crate log;
 extern crate libc;
 extern crate memutil;
+extern crate url;
 
-// Keep the lexicography order
 pub mod common;
 pub mod dataframe;
 pub mod datasource;
