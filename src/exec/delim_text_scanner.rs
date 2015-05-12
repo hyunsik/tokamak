@@ -9,15 +9,15 @@ use tuple::VecRowBlockTrait;
 // void ParseFields(StringPiece *line, StringPiece fields[], int fields_num, int &actual_fields_num);
 
 //#[derive(Debug)]
-pub struct DelimTextScanner<'a, S> {
+pub struct DelimTextScanner<'a> {
   //path: &'a str,
   line_delim: u8,
   field_delim: u8,
-  reader: S,
+  reader: &'a ReaderTrait<'a>,
   marker: PhantomData<&'a ()>
 }
 
-impl<'a, S> Executor for DelimTextScanner<'a, S> {
+impl<'a> Executor for DelimTextScanner<'a> {
   fn init(&mut self) -> Void {
     void_ok()
   }
@@ -31,8 +31,8 @@ impl<'a, S> Executor for DelimTextScanner<'a, S> {
   }
 }
 
-impl<'a, S: ReaderTrait<'a>> DelimTextScanner<'a, S> {
-  pub fn new(stream: S, field_delim: u8) -> DelimTextScanner<'a, S> {
+impl<'a> DelimTextScanner<'a> {
+  pub fn new(stream: &'a ReaderTrait<'a>, field_delim: u8) -> DelimTextScanner<'a> {
     DelimTextScanner {
       line_delim: '\n' as u8,
       field_delim: field_delim,
