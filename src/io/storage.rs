@@ -21,9 +21,9 @@ fn hdfs_scheme_handler(scheme: &str) -> SchemeType {
 }
 
 /// storage handler mapper for StorageManager
-pub fn default_space_handlers<'a>(url: Url) -> Box<TableSpace<'a>> {
+pub fn default_space_handlers<'a>(url: Url) -> TResult<Box<TableSpace<'a>>> {
 	match url.scheme.as_str() {
-		"file" => Box::new( LocalFS::new(&url.serialize()) ) ,
+		"file" => Ok(Box::new(LocalFS::new(&url.serialize()))) ,
 		_ => panic!("No supported: {}", url.serialize())
 	}
 }
@@ -124,7 +124,7 @@ pub trait BlockStorage: Storage {
 
 /// Manages TableSpaces
 pub struct StorageManager<'a> {
-	space_handler: fn(uri: Url) -> Box<TableSpace<'a>>,
+	space_handler: fn(uri: Url) -> TResult<Box<TableSpace<'a>>>,
 	space_map: UnsafeCell<HashMap<String, Box<TableSpace<'a>>>>,
 	lock: Mutex<()>,
 	url_parser: UrlParser<'a>,
@@ -137,7 +137,7 @@ impl<'a> StorageManager<'a> {
 		StorageManager::new_with_handler(default_space_handlers)
 	}
 
-	pub fn new_with_handler(space_handler: fn(uri: Url) -> Box<TableSpace<'a>>) -> StorageManager<'a> {
+	pub fn new_with_handler(space_handler: fn(uri: Url) -> TResult<Box<TableSpace<'a>>>) -> StorageManager<'a> {
 		
 		let mut url_parser = UrlParser::new();
     url_parser.scheme_type_mapper(hdfs_scheme_handler);
@@ -165,7 +165,7 @@ impl<'a> StorageManager<'a> {
 					}
 
 					let parsed_url = res.unwrap();
-					let handler:Box<TableSpace<'a>> = (self.space_handler)(parsed_url);
+					let handler = try!((self.space_handler)(parsed_url));
 					Ok(&(**entry.insert(handler)))
 				},
 				Entry::Occupied(entry) => {
