@@ -1,4 +1,6 @@
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
@@ -19,8 +21,7 @@ fn hdfs_scheme_handler(scheme: &str) -> SchemeType {
 }
 
 /// storage handler mapper for StorageManager
-pub fn default_space_handlers<'b> (url: &Url) -> Box<TableSpace<'b>> {
-
+pub fn default_space_handlers<'a>(url: Url) -> Box<TableSpace<'a>> {
 	match url.scheme.as_str() {
 		"file" => Box::new( LocalFS::new(&url.serialize()) ) ,
 		_ => panic!("No supported: {}", url.serialize())
@@ -28,7 +29,7 @@ pub fn default_space_handlers<'b> (url: &Url) -> Box<TableSpace<'b>> {
 }
 
 pub trait TableSpace<'a> {
-	fn uri(&'a self) -> &'a str;
+	fn url(&'a self) -> &'a str;
 
 	fn format(&self) -> Void;
 
@@ -43,10 +44,14 @@ pub trait TableSpace<'a> {
 	fn available_capacity(&self) -> u64;
 
 	fn total_capacity(&self) -> u64;
+
+	// fn new_scanner(&self, url: &str) -> TResult<Box<Executor>>;
+
+	// fn new_appender(&self, url: &str) -> TResult<Box<Executor>>;
 }
 
 pub struct LocalFS {
-	url: String
+	pub url: String
 }
 
 impl LocalFS {
@@ -56,7 +61,7 @@ impl LocalFS {
 }
 
 impl<'a> TableSpace<'a> for LocalFS {
-	fn uri(&'a self) -> &'a str {
+	fn url(&'a self) -> &'a str {
 		self.url.as_str()
 	}
 
@@ -117,9 +122,11 @@ pub trait BlockStorage: Storage {
 	fn list_files(url : String);
 }
 
+/// Manages TableSpaces
 pub struct StorageManager<'a> {
-	space_handler: fn(uri: &'a Url) -> Box<TableSpace>,
-	space_map: Mutex<HashMap<String, Box<TableSpace<'a>>>>,
+	space_handler: fn(uri: Url) -> Box<TableSpace<'a>>,
+	space_map: UnsafeCell<HashMap<String, Box<TableSpace<'a>>>>,
+	lock: Mutex<()>,
 	url_parser: UrlParser<'a>,
 	marker: PhantomData<&'a ()>
 }
@@ -130,36 +137,42 @@ impl<'a> StorageManager<'a> {
 		StorageManager::new_with_handler(default_space_handlers)
 	}
 
-	pub fn new_with_handler(space_handler: fn(uri: &Url) -> Box<TableSpace>) -> StorageManager<'a> {
+	pub fn new_with_handler(space_handler: fn(uri: Url) -> Box<TableSpace<'a>>) -> StorageManager<'a> {
 		
 		let mut url_parser = UrlParser::new();
     url_parser.scheme_type_mapper(hdfs_scheme_handler);
 
 		StorageManager {
 			space_handler: space_handler, 
-			space_map: Mutex::new(HashMap::new()),
+			space_map: UnsafeCell::new(HashMap::new()),
+			lock: Mutex::new(()),
 			url_parser: url_parser,
 			marker: PhantomData
 		}
 	}
 
-	pub fn get_space_url(&'a self, url: &str) -> Option<String> {		
-		let map = self.space_map.lock().unwrap();
-		let mut it = map.keys().filter(|&u| u == url);
-
-		match it.next() {
-			Some(u) => Some(u.to_owned()),
-			None => None
-		}
-	}
-
+	#[allow(unused_must_use)]
 	pub fn get_space(&'a self, url: &str) -> TResult<&'a TableSpace> {
+		self.lock.lock();
 
-		let mut guard = match self.space_map.lock() {
-			Ok(guard) => guard,
-			Err(e) => { error!("{}", e); panic!("poisoned") }
-		};
+		unsafe {
+			let key = url.to_owned();
+			match (*self.space_map.get()).entry(key) {				
+				Entry::Vacant(entry) => {
+					let res = self.url_parser.parse(url);					
+					if res.is_err() {
+						panic!("Invalid space url: {}", url)
+					}
 
-		Err(Error::Unknown)
+					let parsed_url = res.unwrap();
+					let handler:Box<TableSpace<'a>> = (self.space_handler)(parsed_url);
+					Ok(&(**entry.insert(handler)))
+				},
+				Entry::Occupied(entry) => {
+					let x: &Box<TableSpace<'a>> = entry.get();
+					Err(Error::Unknown)					
+				}
+			}
+		}
 	}
 }
