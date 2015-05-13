@@ -4,7 +4,6 @@ use std::mem;
 use common::err::*;
 use exec::Executor;
 use io::stream::*;
-use io::storage::*;
 use tuple::VecRowBlockTrait;
 
 //#[derive(Debug)]
@@ -94,7 +93,7 @@ impl<'a> DelimTextScanner<'a> {
 
 #[test]
 fn test_find_first_record_index() {
-  let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl"));
+  let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
   let s = DelimTextScanner::new(fin, '\n' as u8);
 
   assert_eq!(4, s.find_first_record_index("abc\nbb").unwrap());
@@ -105,7 +104,7 @@ fn test_find_first_record_index() {
 
 #[test]
 fn test_next_line_indxes() {
-  let mut fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl"));
+  let mut fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
   let s = DelimTextScanner::new(fin, '\n' as u8);
 
   let mut delim_indexes:Vec<usize> = Vec::new();

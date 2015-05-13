@@ -9,7 +9,7 @@ use common::TypeClass;
 use exec::Executor;
 use io::stream::*;
 
-//use exec::delim_text_scanner::*;
+use exec::DelimTextScanner;
 
 use url::{Url, UrlParser, SchemeType, whatwg_scheme_type_mapper};
 
@@ -101,15 +101,12 @@ impl<'a> TableSpace<'a> for LocalFS {
 
 	fn new_scanner(&self, url: &str, format_type: &str) -> TResult<Box<Executor>> {
 		
-		let mut fin = Box::new(FileInputStream::new(url));
-
-		//Ok(Box::new(DelimTextScanner::new(fin, '\n' as u8))),
-		// match format_type {
-		// 	"TEXT" => Err(Error::UnsupportedTableFormat),
-		// 	_ => Err(Error::UnsupportedTableFormat)
-		// };
-
-		Err(Error::Unimplemented)
+		let mut fin = Box::new(FileInputStream::new(url.to_owned()));
+		
+		match format_type {
+			"TEXT" => Ok(Box::new(DelimTextScanner::new(fin, '\n' as u8))),
+			_ => Err(Error::UnsupportedTableFormat)
+		}
 	}
 
 	fn new_appender(&self, url: &str, format_type: &str) -> TResult<Box<Executor>> {

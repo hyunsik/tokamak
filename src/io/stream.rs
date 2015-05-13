@@ -3,6 +3,7 @@ use std::io::Read;
 use std::mem;
 use std::marker::PhantomData;
 use std::option::Option;
+use std::str;
 
 use common::err::*;
 
@@ -42,21 +43,22 @@ pub struct FileInputStream<'a> {
   buf_size: usize,
 
   buf: Vec<u8>,
-  marker: PhantomData<&'a ()>,
 
   file: Option<File>,
   len: u64,
-  pos: u64
+  pos: u64,
+
+  marker: PhantomData<&'a ()>,
 }
 
 impl<'a> FileInputStream<'a> {
-  pub fn new(path: &str) -> FileInputStream {
+  pub fn new(path: String) -> FileInputStream<'a> {
     FileInputStream::new_with_bufsize(path, DEFAULT_BUF_SIZE)
   }
 
-  pub fn new_with_bufsize(path: &str, buf_size: usize) -> FileInputStream {
+  pub fn new_with_bufsize(path: String, buf_size: usize) -> FileInputStream<'a> {
     FileInputStream {
-      path: path.to_owned(),
+      path: path,
       buf_size: buf_size,
 
       buf: Vec::with_capacity(buf_size), 
@@ -122,4 +124,22 @@ impl<'a> StreamReader<'a> for FileInputStream<'a> {
   fn eos(&self) -> TResult<bool> {
     Ok(true)
   }
+}
+
+#[test]
+pub fn test_file_read() {
+
+  let mut fin = FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string());
+  let mut reader:&mut StreamReader = &mut fin;
+  
+  let r = reader.open();
+  assert!(r.is_ok());
+
+  let read = reader.read();
+  assert!(read.is_ok());
+
+  let buf = read.ok().unwrap();
+  println!("{}", buf.len());  
+  let s = str::from_utf8(buf.as_slice()).ok().unwrap();
+  println!("{}", s);
 }
