@@ -4,9 +4,8 @@ use std::mem;
 use common::err::*;
 use exec::Executor;
 use io::stream::*;
+use io::storage::*;
 use tuple::VecRowBlockTrait;
-
-// void ParseFields(StringPiece *line, StringPiece fields[], int fields_num, int &actual_fields_num);
 
 //#[derive(Debug)]
 pub struct DelimTextScanner<'a> {
@@ -96,9 +95,7 @@ impl<'a> DelimTextScanner<'a> {
 #[test]
 fn test_find_first_record_index() {
   let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl"));
-  let mut reader = Reader::new(fin);
-
-  let s = DelimTextScanner::new(reader, '\n' as u8);
+  let s = DelimTextScanner::new(fin, '\n' as u8);
 
   assert_eq!(4, s.find_first_record_index("abc\nbb").unwrap());
   assert_eq!(1, s.find_first_record_index("\nabc\nbb").unwrap());
@@ -108,9 +105,8 @@ fn test_find_first_record_index() {
 
 #[test]
 fn test_next_line_indxes() {
-  let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl"));
-  let mut reader = Reader::new(fin);
-  let s = DelimTextScanner::new(reader, '\n' as u8);
+  let mut fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl"));
+  let s = DelimTextScanner::new(fin, '\n' as u8);
 
   let mut delim_indexes:Vec<usize> = Vec::new();
   let r1 = 

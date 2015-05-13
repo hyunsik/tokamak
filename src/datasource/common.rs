@@ -1,5 +1,4 @@
 use common::Schema;
-use io::Storage;
 
 pub struct DataSource {
   schema: Schema,

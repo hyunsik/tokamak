@@ -1,5 +1,3 @@
-// Keep an lexicography order
-
 #![feature(alloc)]
 #![feature(convert)]
 #![feature(collections)] 

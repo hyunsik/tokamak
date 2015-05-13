@@ -6,8 +6,10 @@ use std::sync::{Arc, Mutex};
 
 use common::err::*;
 use common::TypeClass;
-
 use exec::Executor;
+use io::stream::*;
+
+//use exec::delim_text_scanner::*;
 
 use url::{Url, UrlParser, SchemeType, whatwg_scheme_type_mapper};
 
@@ -49,9 +51,9 @@ pub trait TableSpace<'a> {
 
 	fn total_capacity(&self) -> u64;
 
-	fn new_scanner(&self, url: &str) -> TResult<Box<Executor>>;
+	fn new_scanner(&self, url: &str, format_type: &str) -> TResult<Box<Executor>>;
 
-	fn new_appender(&self, url: &str) -> TResult<Box<Executor>>;
+	fn new_appender(&self, url: &str, format_type: &str) -> TResult<Box<Executor>>;
 }
 
 pub struct LocalFS {
@@ -98,6 +100,15 @@ impl<'a> TableSpace<'a> for LocalFS {
 	}
 
 	fn new_scanner(&self, url: &str, format_type: &str) -> TResult<Box<Executor>> {
+		
+		let mut fin = Box::new(FileInputStream::new(url));
+
+		//Ok(Box::new(DelimTextScanner::new(fin, '\n' as u8))),
+		// match format_type {
+		// 	"TEXT" => Err(Error::UnsupportedTableFormat),
+		// 	_ => Err(Error::UnsupportedTableFormat)
+		// };
+
 		Err(Error::Unimplemented)
 	}
 
@@ -120,71 +131,41 @@ pub trait DataFormat {
 	fn supported_types() -> Vec<TypeClass>;
 }
 
-pub trait Storage {
-	fn uri (&self) -> String;	
-
-	fn available_capacity(&self) -> u64;
-
-	fn total_capacity(&self) -> u64;
-}
-
-pub trait BlockStorage: Storage {
-	fn split(&self, url: String, size : u64);
-
-	fn list_files(url : String);
-}
-
 /// Manages TableSpaces
-pub struct StorageManager<'a> {
+pub struct TableSpaceMgr<'a> {
 	space_handler: fn(uri: Url) -> TResult<Box<TableSpace<'a>>>,
-	space_map: UnsafeCell<HashMap<String, Box<TableSpace<'a>>>>,
-	lock: Mutex<()>,
 	url_parser: UrlParser<'a>,
 	marker: PhantomData<&'a ()>
 }
 
-impl<'a> StorageManager<'a> {
-
-	pub fn new() -> StorageManager<'a> {
-		StorageManager::new_with_handler(default_space_handlers)
+impl<'a> TableSpaceMgr<'a> {
+	pub fn new() -> TableSpaceMgr<'a> {
+		TableSpaceMgr::new_with_handler(default_space_handlers)
 	}
 
-	pub fn new_with_handler(space_handler: fn(uri: Url) -> TResult<Box<TableSpace<'a>>>) -> StorageManager<'a> {
+	pub fn new_with_handler(space_handler: fn(uri: Url) -> TResult<Box<TableSpace<'a>>>) -> TableSpaceMgr<'a> {
 		
 		let mut url_parser = UrlParser::new();
     url_parser.scheme_type_mapper(hdfs_scheme_handler);
 
-		StorageManager {
-			space_handler: space_handler, 
-			space_map: UnsafeCell::new(HashMap::new()),
-			lock: Mutex::new(()),
+		TableSpaceMgr {
+			space_handler: space_handler,
 			url_parser: url_parser,
 			marker: PhantomData
 		}
 	}
 
 	#[allow(unused_must_use)]
-	pub fn get_space(&'a self, url: &str) -> TResult<&'a TableSpace> {
-		self.lock.lock();
-
-		unsafe {
-			let key = url.to_owned();
-			match (*self.space_map.get()).entry(key) {				
-				Entry::Vacant(entry) => {
-					let res = self.url_parser.parse(url);					
-					if res.is_err() {
-						panic!("Invalid space url: {}", url)
-					}
-
-					let parsed_url = res.unwrap();
-					let handler = try!((self.space_handler)(parsed_url));
-					Ok(&(**entry.insert(handler)))
-				},
-				Entry::Occupied(entry) => {
-					let x: &Box<TableSpace<'a>> = entry.get();
-					Err(Error::Unknown)					
-				}
-			}
-		}
+	pub fn get(&'a self, url: &str) -> TResult<Box<TableSpace>> {
+		let res = self.url_parser.parse(url);
+		let parsed_url = res.unwrap();
+		Ok(try!((self.space_handler)(parsed_url)))
 	}
+}
+
+#[test]
+pub fn tablespace_mgr_tests() {
+  let tbMgr = TableSpaceMgr::new();
+  let space = tbMgr.get("file:///").unwrap();
+  let executor = space.new_scanner("/home/hyunsik/tpch/lineitem/lineitem.tbl", "text");
 }

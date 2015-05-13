@@ -13,6 +13,10 @@ pub enum Error {
 
   NoLineDelimiter,
 
+  // Table Space
+  /// Unsupported format in a specify tablespace
+  UnsupportedTableFormat,
+
   /// Invoked function is not implemented yet
   Unimplemented,
 }
