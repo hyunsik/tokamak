@@ -7,6 +7,8 @@ use std::sync::{Arc, Mutex};
 use common::err::*;
 use common::TypeClass;
 
+use exec::Executor;
+
 use url::{Url, UrlParser, SchemeType, whatwg_scheme_type_mapper};
 
 
@@ -23,8 +25,10 @@ fn hdfs_scheme_handler(scheme: &str) -> SchemeType {
 /// storage handler mapper for StorageManager
 pub fn default_space_handlers<'a>(url: Url) -> TResult<Box<TableSpace<'a>>> {
 	match url.scheme.as_str() {
-		"file" => Ok(Box::new(LocalFS::new(&url.serialize()))) ,
-		_ => panic!("No supported: {}", url.serialize())
+		"file" => Ok(Box::new(LocalFS::new(&url.serialize()))),
+		_ => {
+			Err(Error::UnsupportedTableSpace)
+		}
 	}
 }
 
@@ -45,9 +49,9 @@ pub trait TableSpace<'a> {
 
 	fn total_capacity(&self) -> u64;
 
-	// fn new_scanner(&self, url: &str) -> TResult<Box<Executor>>;
+	fn new_scanner(&self, url: &str) -> TResult<Box<Executor>>;
 
-	// fn new_appender(&self, url: &str) -> TResult<Box<Executor>>;
+	fn new_appender(&self, url: &str) -> TResult<Box<Executor>>;
 }
 
 pub struct LocalFS {
@@ -91,6 +95,14 @@ impl<'a> TableSpace<'a> for LocalFS {
 
 	fn total_capacity(&self) -> u64 {		
 		0
+	}
+
+	fn new_scanner(&self, url: &str, format_type: &str) -> TResult<Box<Executor>> {
+		Err(Error::Unimplemented)
+	}
+
+	fn new_appender(&self, url: &str, format_type: &str) -> TResult<Box<Executor>> {
+		Err(Error::Unimplemented)
 	}
 }
 

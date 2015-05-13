@@ -8,10 +8,13 @@ pub enum Error {
   ColumnNotFound,
   TableNotFound,
   NoDatabase,
-  /// No matched table against an table url
-  NoMatchedTableSpace,
+  /// No tablespace handler for a given URL
+  UnsupportedTableSpace,
 
   NoLineDelimiter,
+
+  /// Invoked function is not implemented yet
+  Unimplemented,
 }
 
 pub type TResult<T> = Result<T, Error>;
