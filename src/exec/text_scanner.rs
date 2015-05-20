@@ -11,12 +11,13 @@ pub struct DelimTextScanner<'a> {
   //path: &'a str,
   line_delim: u8,
   field_delim: u8,
-  reader: Box<StreamReader<'a>>,
+  reader: Box<StreamReader>,
   marker: PhantomData<&'a ()>
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {
   fn init(&mut self) -> Void {
+    self.reader.read();
     void_ok()
   }
 
@@ -30,7 +31,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
 }
 
 impl<'a> DelimTextScanner<'a> {
-  pub fn new(stream: Box<StreamReader<'a>>, field_delim: u8) -> DelimTextScanner<'a> {
+  pub fn new(stream: Box<StreamReader>, field_delim: u8) -> DelimTextScanner<'a> {
     DelimTextScanner {
       line_delim: '\n' as u8,
       field_delim: field_delim,

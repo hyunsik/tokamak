@@ -25,9 +25,9 @@ impl<'a> Buf<'a> {
   }
 }
 
-pub trait StreamReader<'a> {
+pub trait StreamReader {
   fn open(&mut self) -> Void;
-  fn read(&'a mut self) -> TResult<Buf<'a>>;  
+  fn read(&mut self) -> TResult<Buf>;  
   fn close(&self) -> Void;
 
   fn len(&self) -> TResult<u64>;
@@ -71,7 +71,7 @@ impl<'a> FileInputStream<'a> {
   }
 }
 
-impl<'a> StreamReader<'a> for FileInputStream<'a> {  
+impl<'a> StreamReader for FileInputStream<'a> {  
 
   fn open(&mut self) -> Void {    
 
@@ -88,7 +88,7 @@ impl<'a> StreamReader<'a> for FileInputStream<'a> {
   }
 
   #[inline]
-  fn read(&'a mut self) -> TResult<Buf<'a>>  {
+  fn read(&mut self) -> TResult<Buf>  {
     debug_assert!(self.file.is_some(), "File must be opened before calling read()");    
     
     match self.file.as_mut().unwrap().read(&mut self.buf) {
