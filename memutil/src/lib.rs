@@ -1,3 +1,5 @@
+#![feature(oom)]
+#![feature(heap_api)]
 #![feature(alloc)]
 extern crate alloc;
 extern crate bytesize;

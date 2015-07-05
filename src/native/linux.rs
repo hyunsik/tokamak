@@ -22,3 +22,14 @@ extern "C" {
   pub fn statvfs(path: *const c_char, buf: *mut statvfs) -> c_int;
   pub fn fstatvfs(fd: c_int, buf: *mut statvfs) -> c_int;
 }
+
+#[test]
+fn test_statvfs() {
+
+  let path = CString::new("/etc/passwd");
+  unsafe {
+    let mut buf = mem::zeroed();
+    let ret = statvfs(path.unwrap().as_ptr(), &mut buf);    
+    assert_eq!(ret, 0);
+  }
+}

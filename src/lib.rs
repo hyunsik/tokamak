@@ -1,3 +1,5 @@
+#![feature(heap_api)]
+#![feature(raw)]
 #![feature(alloc)]
 #![feature(convert)]
 #![feature(collections)] 
@@ -12,11 +14,10 @@ extern crate memutil;
 extern crate url;
 
 pub mod common;
-pub mod dataframe;
-pub mod datasource;
 pub mod exec;
 pub mod intrinsics;
 pub mod io;
 pub mod native;
 pub mod plan;
+pub mod task;
 pub mod tuple;
