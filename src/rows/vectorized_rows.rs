@@ -5,7 +5,7 @@ use common::constant::VECTOR_SIZE;
 use intrinsics::sse;
 use memutil::Arena;
 use rows::vector::Vector;
-use rows::{RowBlock, RowBlockTrait};
+use rows::RowBlock;
 
 use alloc::heap;
 use std::mem;
@@ -72,7 +72,7 @@ impl<'a> AllocatedVecRowBlock<'a> {
   }  
 }
 
-impl<'a> RowBlockTrait<'a> for SlotVecRowBlock<'a> {
+impl<'a> RowBlock<'a> for SlotVecRowBlock<'a> {
   #[inline]
   fn schema(&'a self) -> &'a Schema {
     &self.schema
@@ -233,7 +233,7 @@ impl<'a> RowBlockTrait<'a> for SlotVecRowBlock<'a> {
   }
 }
 
-impl<'a> RowBlockTrait<'a> for AllocatedVecRowBlock<'a> {
+impl<'a> RowBlock<'a> for AllocatedVecRowBlock<'a> {
   fn schema(&'a self) -> &'a Schema {
     &self.schema
   }
