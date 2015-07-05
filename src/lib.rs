@@ -20,4 +20,4 @@ pub mod io;
 pub mod native;
 pub mod plan;
 pub mod task;
-pub mod tuple;
+pub mod rows;

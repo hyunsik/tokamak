@@ -4,7 +4,7 @@ use std::mem;
 use common::err::*;
 use exec::Executor;
 use io::stream::*;
-use tuple::VecRowBlockTrait;
+use rows::RowBlockTrait;
 
 //#[derive(Debug)]
 pub struct DelimTextScanner<'a> {
@@ -21,7 +21,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
     void_ok()
   }
 
-  fn next(&self, rowblock: &mut VecRowBlockTrait) -> Void {
+  fn next(&self, rowblock: &mut RowBlockTrait) -> Void {
     void_ok()
   }
 

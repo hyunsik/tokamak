@@ -1,10 +1,10 @@
 use std::result;
 
 use common::Void;
-use tuple::VecRowBlockTrait;
+use rows::RowBlockTrait;
 
 pub trait Executor {
   fn init(&mut self) -> Void;
-  fn next(&self, rowblock: &mut VecRowBlockTrait) -> Void;
+  fn next(&self, rowblock: &mut RowBlockTrait) -> Void;
   fn close(&self) -> Void;
 }
