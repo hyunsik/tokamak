@@ -5,6 +5,15 @@ use std::marker;
 use std::mem;
 use std::raw::Slice;
 
+
+trait Vector1<'a> {
+  fn data_type(&self) -> &DataType;
+  fn size() -> usize;
+  fn array<T>(&self) -> &[T];
+  fn array_mut<T>(&self) -> &mut [T];
+}
+
+
 pub struct Vector<'a> {
   ptr: *const u8,
   data_type: DataType,

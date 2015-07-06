@@ -1,3 +1,26 @@
+//!
+//! In-memory Row block representation implementation
+//!
+//! In theoretical, a row block represents contains a chunk of a relational 
+//! table or a slice of a matrix. In practice context, a row block contains 
+//! a list of tuples. We designed that its actual in-memory representation 
+//! can be varied according to input tables and execution plan.
+//!
+//! `RowBlock` is a trait for all row block representations. We have roughtly 
+//! two kinds of row block implementations:
+//!
+//! * Row-oriented row block: all fields in a row are sequentially stored 
+//! in adjacent memory.
+//! * Column-oriented row block: column values for each column are 
+//! sequentially stored in adjacent memory.
+//!
+//! Its design considerations are as follows:
+//!
+//! * RowBlock should contain a chunk of a relational table as well as a 
+//! matrix of linear algebra
+//! * Each column vector, a part of a `RowBlock`, can be different 
+//! encoding, different compression, and different memory representation.
+
 pub mod vectorized_rows;
 pub use self::vectorized_rows::{AllocatedVecRowBlock, SlotVecRowBlock};
 
@@ -8,9 +31,9 @@ use common::Schema;
 use common::data_type::*;
 
 pub trait RowBlock<'b> {
-  fn schema(&'b self) -> &'b Schema;
-
   fn column_num(&self) -> usize;
+
+  fn schema(&'b self) -> &'b Schema;  
 
   fn vector(&'b self, usize) -> &Vector<'b>;
 

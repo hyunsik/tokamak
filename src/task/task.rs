@@ -23,10 +23,13 @@ impl TaskAttempt {
     }
   }
 
+  #[allow(dead_code)]
   fn start() {}
 
+  #[allow(dead_code)]
   fn stop() {}
 
+  #[allow(dead_code)]
   fn kill() {}
 
   fn progress() -> f32 {
