@@ -3,7 +3,8 @@ extern crate tajo;
 use std::{i8,i16};
 
 use tajo::common::*;
-use tajo::tuple::*;
+use tajo::rows::*;
+use std::boxed::Box;
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();
@@ -25,7 +26,7 @@ fn make_test_schema() -> Schema {
   Schema::new(columns)
 }
 
-fn fill_vector_block(rowblock: &mut VecRowBlockTrait) {
+fn fill_vector_block(rowblock: &mut RowBlock) {
   for i in (0..1024) {
     rowblock.put_int1(1, i, (i % (i8::MAX - 1) as usize) as i8);
     rowblock.put_int2(2, i, (i % (i16::MAX -1) as usize) as i16);
@@ -41,7 +42,7 @@ fn fill_vector_block(rowblock: &mut VecRowBlockTrait) {
   }
 }
 
-fn verify_vector_block(rowblock: &VecRowBlockTrait) {
+fn verify_vector_block(rowblock: &RowBlock) {
   for i in (0..1024) {
     assert_eq!(rowblock.get_int1(1, i), (i % (i8::MAX - 1) as usize) as i8);
     assert_eq!(rowblock.get_int2(2, i), (i % (i16::MAX - 1) as usize) as i16);
@@ -75,7 +76,7 @@ fn test_rowblock() {
   columns.push(Column::new("c3".to_string(), TypeClass::FLOAT4));
 
   let schema = Schema::new(columns);
-  let rowblock = VecRowBlock {rowblock: SlotVecRowBlock::new(schema) };  
+  let rowblock: Box<RowBlock> = Box::new(SlotVecRowBlock::new(schema));  
 
   assert_eq!(rowblock.column_num(), 3);
 }

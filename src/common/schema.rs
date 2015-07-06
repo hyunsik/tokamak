@@ -1,5 +1,5 @@
-use common::data_type::TypeClass;
-use common::data_type::DataType;
+use common::types::TypeClass;
+use common::types::DataType;
 
 
 #[derive(Clone, PartialEq, Debug)]

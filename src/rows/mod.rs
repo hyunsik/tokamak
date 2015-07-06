@@ -28,7 +28,7 @@ mod vector;
 pub use self::vector::Vector;
 
 use common::Schema;
-use common::data_type::*;
+use common::types::*;
 
 pub trait RowBlock<'b> {
   fn column_num(&self) -> usize;

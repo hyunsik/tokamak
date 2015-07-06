@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use common::err::*;
-use common::TypeClass;
+use common::types::TypeClass;
 use exec::Executor;
 use io::stream::*;
 
