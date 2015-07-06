@@ -1,6 +1,7 @@
 extern crate tajo;
 
-use tajo::common::*;
+use tajo::common::schema::*;
+use tajo::common::types::*;
 
 #[test]
 fn test_column() {
