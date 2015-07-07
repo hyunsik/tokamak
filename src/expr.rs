@@ -5,6 +5,7 @@
 use common::types::{HasTypeKind, TypeKind};
 use common::schema::Column;
 
+#[derive(Clone)]
 pub enum Datum {
   Bool(bool),  
   Int1(i8),
@@ -24,29 +25,25 @@ pub enum Datum {
 }
 
 impl HasTypeKind for Datum {
-  fn type_kind(self) -> TypeKind {
-    match self {
-      Datum::Bool(x) => TypeKind::Bool,
-      Datum::Int1(x) => TypeKind::Int1,
-      Datum::Int2(x) => TypeKind::Int2,
-      Datum::Int4(x) => TypeKind::Int4,
-      Datum::Int8(x) => TypeKind::Int8,
-      Datum::Float4(x) => TypeKind::Float4,
-      Datum::Float8(x) => TypeKind::Float8,
-      Datum::Time(x) => TypeKind::Time,
-      Datum::Date(x) => TypeKind::Date,
-      Datum::Timestamp(x) => TypeKind::Timestamp,
-      Datum::Interval(x,y) => TypeKind::Interval,
-      Datum::Char(x) => TypeKind::Char,
-      Datum::Text(x) => TypeKind::Text,
-      Datum::Varchar(x) => TypeKind::Varchar,
-      Datum::Blob(x) => TypeKind::Blob
+  fn type_kind(&self) -> TypeKind {
+    match *self {
+      Datum::Bool(ref x) => TypeKind::Bool,
+      Datum::Int1(ref x) => TypeKind::Int1,
+      Datum::Int2(ref x) => TypeKind::Int2,
+      Datum::Int4(ref x) => TypeKind::Int4,
+      Datum::Int8(ref x) => TypeKind::Int8,
+      Datum::Float4(ref x) => TypeKind::Float4,
+      Datum::Float8(ref x) => TypeKind::Float8,
+      Datum::Time(ref x) => TypeKind::Time,
+      Datum::Date(ref x) => TypeKind::Date,
+      Datum::Timestamp(ref x) => TypeKind::Timestamp,
+      Datum::Interval(ref x,ref y) => TypeKind::Interval,
+      Datum::Char(ref x) => TypeKind::Char,
+      Datum::Text(ref x) => TypeKind::Text,
+      Datum::Varchar(ref x) => TypeKind::Varchar,
+      Datum::Blob(ref x) => TypeKind::Blob
     }
   }
-}
-
-fn test() {
-  let x = Datum::Bool(true);
 }
 
 pub enum Expr {
@@ -92,5 +89,5 @@ pub enum Expr {
   Cast,
   Row,
   Field {column: Column},
-  Const
+  Const {datum: Datum}
 }

@@ -21,7 +21,7 @@ pub enum TypeKind {
 }
 
 pub trait HasTypeKind {
-  fn type_kind(self) -> TypeKind;
+  fn type_kind(&self) -> TypeKind;
 }
 
  #[allow(non_camel_case_types)]

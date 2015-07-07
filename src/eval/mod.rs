@@ -1,13 +1,15 @@
 use common::err::{Error, TResult, Void, void_ok};
 use rows::RowBlock;
 use rows::vector::Vector1;
-use common::types::DataType;
+use common::types::{DataType, TypeKind, HasTypeKind};
 use common::schema::{Column, Schema};
 use expr::{Datum, Expr};
 
 pub trait Eval {
-  //fn datatype(&self) -> &DataType;
-  //fn bind(&self, schema: &Schema) -> Void;
+  fn bind(&mut self, schema: &Schema) -> Void;
+
+  fn datatype(&self) -> &DataType;
+
   // fn eval(&self, RowBlock) -> TResult<&Vector1>;  
   fn is_const(&self) -> bool;
 }
@@ -42,20 +44,41 @@ struct Concatenate {lhs: Box<Eval>, rhs: Box<Eval>}
 struct Between {lhs: Box<Eval>, mid: Box<Eval>, rhs: Box<Eval>}
 
 struct Field {column: Column}
-struct Const {datum: Datum}
+struct Const {datum: Datum, res_type: DataType}
 
 impl Eval for Field {
-  // fn datatype(&self) -> &DataType {
-  //   &self.column.data_type
-  // }
-  // fn bind(&self, schema: &Schema) -> Void {
-  //   void_ok()
-  // }
+  fn bind(&mut self, schema: &Schema) -> Void {
+    void_ok()
+  }
+
+  fn datatype(&self) -> &DataType {
+    &self.column.data_type
+  }
+
   // fn eval(&self, RowBlock) -> TResult<&Vector1>;  
   fn is_const(&self) -> bool { false }
 }
 
+impl Const {
+  fn new(datum: &Datum) -> Const {
+    Const {
+        datum: datum.clone(), 
+        res_type: DataType::new(datum.type_kind())
+    }
+  }
+}
+
 impl Eval for Const {
+  
+  fn bind(&mut self, schema: &Schema) -> Void {
+    self.res_type = DataType::new(self.datum.type_kind());    
+    void_ok()
+  }
+
+  fn datatype(&self) -> &DataType {
+    &self.res_type
+  }
+  
   fn is_const(&self) -> bool { true }
 }
 
@@ -73,6 +96,8 @@ pub fn compile(expr: Box<Expr>) -> TResult<Box<Eval>> {
     // },
 
     Expr::Field {column} => Ok(Box::new(Field {column: column})),
+
+    Expr::Const {datum} => Ok(Box::new(Const::new(datum))),
 
     _ => Err(Error::InvalidExpression)
   }
