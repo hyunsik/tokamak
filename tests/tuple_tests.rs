@@ -9,20 +9,20 @@ use std::boxed::Box;
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();
-  columns.push(Column::new("c0".to_string(), TypeClass::BOOL));      // 0
-  columns.push(Column::new("c1".to_string(), TypeClass::INT1));      // 1
-  columns.push(Column::new("c2".to_string(), TypeClass::INT2));      // 2
-  columns.push(Column::new("c3".to_string(), TypeClass::INT4));      // 3
-  columns.push(Column::new("c4".to_string(), TypeClass::INT8));      // 4
-  columns.push(Column::new("c5".to_string(), TypeClass::FLOAT4));    // 5
-  columns.push(Column::new("c6".to_string(), TypeClass::FLOAT8));    // 6
-  columns.push(Column::new("c7".to_string(), TypeClass::DATE));      // 7
-  columns.push(Column::new("c8".to_string(), TypeClass::TIME));      // 8
-  columns.push(Column::new("c9".to_string(), TypeClass::TIMESTAMP)); // 9
+  columns.push(Column::new("c0".to_string(), TypeKind::Bool));      // 0
+  columns.push(Column::new("c1".to_string(), TypeKind::Int1));      // 1
+  columns.push(Column::new("c2".to_string(), TypeKind::Int2));      // 2
+  columns.push(Column::new("c3".to_string(), TypeKind::Int4));      // 3
+  columns.push(Column::new("c4".to_string(), TypeKind::Int8));      // 4
+  columns.push(Column::new("c5".to_string(), TypeKind::Float4));    // 5
+  columns.push(Column::new("c6".to_string(), TypeKind::Float8));    // 6
+  columns.push(Column::new("c7".to_string(), TypeKind::Date));      // 7
+  columns.push(Column::new("c8".to_string(), TypeKind::Time));      // 8
+  columns.push(Column::new("c9".to_string(), TypeKind::Timestamp)); // 9
 
-  columns.push(Column::new("c10".to_string(), TypeClass::TEXT));     // 10
-  // columns.push(Column::new_with_len("c12".to_string(), TypeClass::VARCHAR, 4));
-  // columns.push(Column::new_with_len("c13".to_string(), TypeClass::CHAR, 4));
+  columns.push(Column::new("c10".to_string(), TypeKind::Text));     // 10
+  // columns.push(Column::new_with_len("c12".to_string(), TypeKind::VARCHAR, 4));
+  // columns.push(Column::new_with_len("c13".to_string(), TypeKind::CHAR, 4));
 
   Schema::new(columns)
 }
@@ -72,9 +72,9 @@ fn allocated_vector_init() {
 #[test]
 fn test_rowblock() {
   let mut columns = Vec::new();
-  columns.push(Column::new("c1".to_string(), TypeClass::INT4));
-  columns.push(Column::new("c2".to_string(), TypeClass::INT8));
-  columns.push(Column::new("c3".to_string(), TypeClass::FLOAT4));
+  columns.push(Column::new("c1".to_string(), TypeKind::Int4));
+  columns.push(Column::new("c2".to_string(), TypeKind::Int8));
+  columns.push(Column::new("c3".to_string(), TypeKind::Float4));
 
   let schema = Schema::new(columns);
   let rowblock: Box<RowBlock> = Box::new(SlotVecRowBlock::new(schema));  
