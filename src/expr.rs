@@ -2,7 +2,7 @@
 //! Expression Plan Representation for Tajo Kernel
 //!
 
-use common::schema::{Column};
+use common::schema::Column;
 
 enum Expr {
   // Unary Expressions

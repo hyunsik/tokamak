@@ -24,7 +24,7 @@
 pub mod vectorized_rows;
 pub use self::vectorized_rows::{AllocatedVecRowBlock, SlotVecRowBlock};
 
-mod vector;
+pub mod vector;
 pub use self::vector::Vector;
 
 use common::Schema;

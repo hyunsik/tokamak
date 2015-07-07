@@ -7,7 +7,7 @@ use std::raw::Slice;
 use std::iter::Iterator;
 
 
-trait Vector1<'a> {
+pub trait Vector1<'a> {
   fn data_type(&self) -> &DataType;
   fn size() -> usize;
   fn array<T>(&self) -> &[T];
