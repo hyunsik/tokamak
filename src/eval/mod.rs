@@ -57,6 +57,8 @@ impl Field {
 
 impl Eval for Field {
   fn bind(&mut self, schema: &Schema) -> Void {
+    //self.field_id = schema.get_
+
     void_ok()
   }
 

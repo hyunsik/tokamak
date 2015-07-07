@@ -40,6 +40,10 @@ impl Schema {
     self.columns.push(Column::new(name, type_class));
   }
 
+  pub fn column_id(&self, name: &str) -> Option<usize> {
+    self.columns.iter().position(|c| c.name == name)
+  }
+
   pub fn column(&self, idx : usize) -> &Column {
     debug_assert!(idx < self.columns.len(), "Column index out of range");
     &self.columns[idx]
