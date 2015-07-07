@@ -6,8 +6,8 @@ use common::schema::{Column, Schema};
 use expr::Expr;
 
 pub trait Eval {
-  fn datatype(&self) -> &DataType;
-  fn bind(&self, schema: &Schema) -> Void;
+  //fn datatype(&self) -> &DataType;
+  //fn bind(&self, schema: &Schema) -> Void;
   // fn eval(&self, RowBlock) -> TResult<&Vector1>;  
   fn is_const(&self) -> bool;
 }
@@ -42,16 +42,21 @@ struct Concatenate {lhs: Box<Eval>, rhs: Box<Eval>}
 struct Between {lhs: Box<Eval>, mid: Box<Eval>, rhs: Box<Eval>}
 
 struct Field {column: Column}
+struct Const {datatype: DataType}
 
 impl Eval for Field {
-  fn datatype(&self) -> &DataType {
-    &self.column.data_type
-  }
-  fn bind(&self, schema: &Schema) -> Void {
-    void_ok()
-  }
+  // fn datatype(&self) -> &DataType {
+  //   &self.column.data_type
+  // }
+  // fn bind(&self, schema: &Schema) -> Void {
+  //   void_ok()
+  // }
   // fn eval(&self, RowBlock) -> TResult<&Vector1>;  
   fn is_const(&self) -> bool { false }
+}
+
+impl Eval for Const {
+  fn is_const(&self) -> bool { true }
 }
 
 pub fn compile(expr: Box<Expr>) -> TResult<Box<Eval>> {  

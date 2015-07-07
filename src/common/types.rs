@@ -3,21 +3,20 @@ use common::string_slice::StringSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TypeClass {
-  BOOL,
-  CHAR,
+  BOOL,  
   INT1,
   INT2,
   INT4,
   INT8,
   FLOAT4,
-  FLOAT8,
-  NUMERIC,
-  VARCHAR,
-  TEXT,
+  FLOAT8,  
   DATE,
   TIME,
   TIMESTAMP,
   INTERVAL,
+  CHAR,
+  VARCHAR,
+  TEXT,
   BLOB
 }
 
@@ -73,19 +72,18 @@ impl DataType {
  #[inline(always)]
  pub fn size_of(data_type: &DataType) -> u32 {
   match data_type.class {
-    TypeClass::BOOL => 1,    
-    TypeClass::CHAR => data_type.len,
+    TypeClass::BOOL => 1,        
     TypeClass::INT1 => 1,
     TypeClass::INT2 => 2,
     TypeClass::INT4 => 4,
     TypeClass::INT8 => 8,
     TypeClass::FLOAT4 => 4,
     TypeClass::FLOAT8 => 8,
-    TypeClass::NUMERIC => panic!("NUMERIC is not supported"),
     TypeClass::DATE => 4,
     TypeClass::TIME => 8,
     TypeClass::TIMESTAMP => 8,
     TypeClass::INTERVAL => 12,
+    TypeClass::CHAR => data_type.len,
     TypeClass::TEXT => mem::size_of::<TEXT_T>()as u32,
     TypeClass::VARCHAR | TypeClass::BLOB => 12,
   }
@@ -94,7 +92,6 @@ impl DataType {
 pub fn has_length(data_type: &DataType) -> bool {
   match data_type.class {
     TypeClass::CHAR | TypeClass::VARCHAR | TypeClass::BLOB => true,
-    TypeClass::NUMERIC => panic!("NUMERIC is not supported"),
     _ => false
   }
 }
@@ -102,7 +99,6 @@ pub fn has_length(data_type: &DataType) -> bool {
 pub fn is_variable(data_type: &DataType) -> bool {
   match data_type.class {
     TypeClass::VARCHAR | TypeClass::BLOB => true,
-    TypeClass::NUMERIC => panic!("NUMERIC is not supported"),
     _ => false
   }
 }
