@@ -43,8 +43,17 @@ struct Concatenate {lhs: Box<Eval>, rhs: Box<Eval>}
 
 struct Between {lhs: Box<Eval>, mid: Box<Eval>, rhs: Box<Eval>}
 
-struct Field {column: Column}
+struct Field {column: Column, field_id: Option<usize>}
 struct Const {datum: Datum, res_type: DataType}
+
+impl Field {
+  fn new(column: Column) -> Field {
+    Field {
+      column: column,
+      field_id: None
+    }
+  }
+}
 
 impl Eval for Field {
   fn bind(&mut self, schema: &Schema) -> Void {
@@ -54,9 +63,10 @@ impl Eval for Field {
   fn datatype(&self) -> &DataType {
     &self.column.data_type
   }
+  
+  fn is_const(&self) -> bool { false }
 
   // fn eval(&self, RowBlock) -> TResult<&Vector1>;  
-  fn is_const(&self) -> bool { false }
 }
 
 impl Const {
@@ -95,9 +105,9 @@ pub fn compile(expr: Box<Expr>) -> TResult<Box<Eval>> {
     //   )
     // },
 
-    Expr::Field {column} => Ok(Box::new(Field {column: column})),
+    Expr::Field {column} => Ok(Box::new(Field::new(column))),
 
-    Expr::Const {datum} => Ok(Box::new(Const::new(datum))),
+    Expr::Const {datum} => Ok(Box::new(Const::new(&datum))),
 
     _ => Err(Error::InvalidExpression)
   }
