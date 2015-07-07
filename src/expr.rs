@@ -4,10 +4,10 @@
 
 use common::schema::Column;
 
-enum Expr {
+pub enum Expr {
   // Unary Expressions
   Not {child: Box<Expr>},
-  isNull {child: Box<Expr>},
+  IsNull {child: Box<Expr>},
 
   // Binary Arithmetic Expressions
   And {lhs: Box<Expr>, rhs: Box<Expr>},
@@ -23,7 +23,7 @@ enum Expr {
   Minus {lhs: Box<Expr>, rhs: Box<Expr>},
   Multiply {lhs: Box<Expr>, rhs: Box<Expr>},
   Divide {lhs: Box<Expr>, rhs: Box<Expr>},
-  Modular {lhs: Box<Expr>, rhs: Box<Expr>},  
+  Modular {lhs: Box<Expr>, rhs: Box<Expr>},
 
   // Functions
   Function,
@@ -42,9 +42,10 @@ enum Expr {
   IfThen,
   In,
 
+  // Values
   Signed,
   Cast,
   Row,
-  Field {field: Column},
+  Field {column: Column},
   Const
 }

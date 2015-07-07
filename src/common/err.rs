@@ -19,6 +19,7 @@ pub enum Error {
 
   /// Invoked function is not implemented yet
   Unimplemented,
+  InvalidExpression,
 }
 
 pub type TResult<T> = Result<T, Error>;

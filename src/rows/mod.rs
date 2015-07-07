@@ -30,6 +30,13 @@ pub use self::vector::Vector;
 use common::Schema;
 use common::types::*;
 
+struct VectorDesc {
+  repeating: bool,
+  nullable: bool,
+  sorted: bool,
+  array: bool
+}
+
 pub trait RowBlock<'b> {
   fn column_num(&self) -> usize;
 
