@@ -3,7 +3,7 @@ use rows::RowBlock;
 use rows::vector::Vector1;
 use common::types::DataType;
 use common::schema::{Column, Schema};
-use expr::Expr;
+use expr::{Datum, Expr};
 
 pub trait Eval {
   //fn datatype(&self) -> &DataType;
@@ -42,7 +42,7 @@ struct Concatenate {lhs: Box<Eval>, rhs: Box<Eval>}
 struct Between {lhs: Box<Eval>, mid: Box<Eval>, rhs: Box<Eval>}
 
 struct Field {column: Column}
-struct Const {datatype: DataType}
+struct Const {datum: Datum}
 
 impl Eval for Field {
   // fn datatype(&self) -> &DataType {

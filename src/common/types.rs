@@ -20,6 +20,10 @@ pub enum TypeKind {
   Blob
 }
 
+pub trait HasTypeKind {
+  fn type_kind(self) -> TypeKind;
+}
+
  #[allow(non_camel_case_types)]
 pub type BOOL_T = bool;
 #[allow(non_camel_case_types)]

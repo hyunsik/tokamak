@@ -2,6 +2,7 @@
 //! Expression Plan Representation for Tajo Kernel
 //!
 
+use common::types::{HasTypeKind, TypeKind};
 use common::schema::Column;
 
 pub enum Datum {
@@ -20,6 +21,32 @@ pub enum Datum {
   Text(String),
   Varchar(String),
   Blob(Vec<u8>)
+}
+
+impl HasTypeKind for Datum {
+  fn type_kind(self) -> TypeKind {
+    match self {
+      Datum::Bool(x) => TypeKind::Bool,
+      Datum::Int1(x) => TypeKind::Int1,
+      Datum::Int2(x) => TypeKind::Int2,
+      Datum::Int4(x) => TypeKind::Int4,
+      Datum::Int8(x) => TypeKind::Int8,
+      Datum::Float4(x) => TypeKind::Float4,
+      Datum::Float8(x) => TypeKind::Float8,
+      Datum::Time(x) => TypeKind::Time,
+      Datum::Date(x) => TypeKind::Date,
+      Datum::Timestamp(x) => TypeKind::Timestamp,
+      Datum::Interval(x,y) => TypeKind::Interval,
+      Datum::Char(x) => TypeKind::Char,
+      Datum::Text(x) => TypeKind::Text,
+      Datum::Varchar(x) => TypeKind::Varchar,
+      Datum::Blob(x) => TypeKind::Blob
+    }
+  }
+}
+
+fn test() {
+  let x = Datum::Bool(true);
 }
 
 pub enum Expr {
