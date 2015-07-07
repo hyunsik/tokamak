@@ -15,6 +15,7 @@ extern crate url;
 
 pub mod common;
 pub mod exec;
+pub mod expr;
 pub mod intrinsics;
 pub mod io;
 pub mod native;
