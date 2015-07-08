@@ -69,11 +69,7 @@ impl<'a> Vector<'a> {
       data_type: data_type, 
       _marker: marker::PhantomData
     }
-  }
-
-  pub fn data_type(&self) -> &DataTy {
-    &self.data_type
-  }
+  }  
 
   pub fn as_array<T>(&self) -> &[T] {
     let slice = Slice {data: self.ptr as *const T, len: VECTOR_SIZE};
@@ -87,5 +83,11 @@ impl<'a> Vector<'a> {
     unsafe {
       mem::transmute(slice)
     }
+  }
+}
+
+impl<'a> HasDataTy for Vector<'a> {
+  fn data_ty(&self) -> &DataTy {
+    &self.data_type
   }
 }
