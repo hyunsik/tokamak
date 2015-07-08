@@ -20,10 +20,6 @@ impl HasDataTy for Column {
   fn data_ty(&self) -> &DataType { &self.data_ty }
 }
 
-impl HasTy for Column {
-  fn ty(&self) -> Ty { self.data_ty.ty }
-}
-
 #[derive(Clone, PartialEq, Debug)]
 pub struct Schema {
   columns : Vec<Column>
