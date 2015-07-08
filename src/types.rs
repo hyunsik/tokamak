@@ -123,7 +123,7 @@ impl HasTy for DataType {
   }
 }
 
-pub fn result_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) -> TResult<DataType> {
+pub fn result_data_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) -> TResult<DataType> {
   match lhs_ty.ty() {
     
     Ty::Bool => {
