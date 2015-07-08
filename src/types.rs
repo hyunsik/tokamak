@@ -1,4 +1,5 @@
 use std::mem;
+use common::err::{Error, TResult};
 use common::string_slice::StringSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -29,27 +30,27 @@ pub trait HasDataTy {
 }
 
 #[allow(non_camel_case_types)]
-pub type BOOL_T = bool;
+pub type BOOL_T      = bool;
 #[allow(non_camel_case_types)]
-pub type INT1_T = i8;
+pub type INT1_T      = i8;
 #[allow(non_camel_case_types)]
-pub type INT2_T = i16;
+pub type INT2_T      = i16;
 #[allow(non_camel_case_types)]
-pub type INT4_T = i32;
+pub type INT4_T      = i32;
 #[allow(non_camel_case_types)]
-pub type INT8_T = i64;
+pub type INT8_T      = i64;
 #[allow(non_camel_case_types)]
-pub type FLOAT4_T = f32;
+pub type FLOAT4_T    = f32;
 #[allow(non_camel_case_types)]
-pub type FLOAT8_T = f64;
+pub type FLOAT8_T    = f64;
 #[allow(non_camel_case_types)]
-pub type DATE_T = i32;
+pub type DATE_T      = i32;
 #[allow(non_camel_case_types)]
-pub type TIME_T = i64;
+pub type TIME_T      = i64;
 #[allow(non_camel_case_types)]
 pub type TIMESTAMP_T = i64;
 #[allow(non_camel_case_types)]
-pub type TEXT_T = StringSlice;
+pub type TEXT_T      = StringSlice;
 
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -122,6 +123,97 @@ impl HasTy for DataType {
   }
 }
 
-// pub fn result_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) {
-//   match lhs_ty 
-// }
+pub fn result_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) -> TResult<DataType> {
+  match lhs_ty.ty() {
+    
+    Ty::Bool => {
+      match rhs_ty.ty() {
+        Ty::Bool => Ok(DataType::new(Ty::Bool)),
+        _ => Err(Error::UndefinedOperator)
+      }
+    },
+
+
+    Ty::Int1 => {
+      match rhs_ty.ty() {
+        Ty::Int1 | Ty::Int2 | Ty::Int4 | Ty::Int8 | Ty::Float4 | Ty::Float8 =>{
+          Ok(rhs_ty.clone())
+        },
+        _ => Err(Error::UndefinedOperator)
+      }
+    },
+
+    Ty::Int2 => {
+      match rhs_ty.ty() {
+        Ty::Int2 | Ty::Int4 | Ty::Int8 | Ty::Float4 | Ty::Float8 => {
+          Ok(rhs_ty.clone())
+        },
+        Ty::Int1 => Ok(lhs_ty.clone()),
+        _ => Err(Error::UndefinedOperator)
+      }
+    },
+
+    Ty::Int4 => {
+      match rhs_ty.ty() {
+        Ty::Int4 | Ty::Int8 | Ty::Float4 | Ty::Float8 => Ok(rhs_ty.clone()),
+        Ty::Int1 | Ty::Int2 => Ok(lhs_ty.clone()),
+        _ => Err(Error::UndefinedOperator)
+      }
+    },
+
+    Ty::Int8 => {
+      match rhs_ty.ty() {
+        Ty::Int8 | Ty::Float4 | Ty::Float8 => Ok(rhs_ty.clone()),
+        Ty::Int1 | Ty::Int2 | Ty::Int4 => Ok(lhs_ty.clone()),
+        _ => Err(Error::UndefinedOperator)
+      }
+    },
+
+    Ty::Float4 => {
+      match rhs_ty.ty() {
+        Ty::Float4 | Ty::Float8 => Ok(rhs_ty.clone()),
+        Ty::Int1 | Ty::Int2 | Ty::Int4 | Ty::Int8 => Ok(lhs_ty.clone()),
+        _ => Err(Error::UndefinedOperator)
+      }
+    },
+
+    Ty::Float8 => {
+      match rhs_ty.ty() {
+        Ty::Float8 => Ok(rhs_ty.clone()),
+        Ty::Int1 | Ty::Int2 | Ty::Int4 | Ty::Int8 | Ty::Float4 => Ok(lhs_ty.clone()),
+        _ => Err(Error::UndefinedOperator)
+      }
+    },
+
+    Ty::Time => {      
+      Err(Error::UndefinedOperator)      
+    },
+
+    Ty::Date => {
+      Err(Error::UndefinedOperator)
+    },
+
+    Ty::Timestamp => {
+      Err(Error::UndefinedOperator)
+    },
+
+    Ty::Interval => {
+      Err(Error::UndefinedOperator)
+    },
+
+    Ty::Char | Ty::Varchar => {
+      Err(Error::UndefinedOperator)
+    },
+
+    Ty::Text => {
+      match rhs_ty.ty() {
+        Ty::Text => Ok(rhs_ty.clone()),
+        _ => Err(Error::UndefinedOperator)
+      }
+    },
+
+    Ty::Blob => {
+      Err(Error::UndefinedOperator)
+    }
+  } 
+}
