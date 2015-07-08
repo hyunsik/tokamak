@@ -1,5 +1,5 @@
 use std::mem;
-use common::err::{Error, TResult};
+use common::err::TResult;
 use common::string_slice::StringSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]

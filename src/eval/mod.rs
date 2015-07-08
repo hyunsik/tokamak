@@ -2,12 +2,12 @@
 //! Expression Evaluator Trait and Implementation
 //!
 
-use common::err::{Error, TResult, Void, void_ok};
+use common::err::{TResult, Void};
 use rows::RowBlock;
 use rows::vector::Vector1;
-use types::{DataType, Ty, HasDataTy, HasTy};
-use schema::{Column, Schema};
-use expr::{Datum, Expr};
+use types::{HasDataTy};
+use schema::{Schema};
+use expr::Expr;
 
 /// Common Trait of All Expression Evaluators  
 pub trait Eval : HasDataTy {
@@ -27,12 +27,12 @@ pub trait FilterEval : Eval {
 }
 
 /// Map Expression Evaluator Compiler
-pub trait MapCompiler<'a> {
+pub trait MapEvalCompiler<'a> {
   fn compile(expr: &'a Expr) -> TResult<Box<MapEval>>;
 }
 
 /// Filter Expression Evaluator Compiler
-pub trait FilterCompiler<'a> {
+pub trait FilterEvalCompiler<'a> {
   fn compile(expr: &'a Expr) -> TResult<Box<FilterEval>>;   
 }
 
