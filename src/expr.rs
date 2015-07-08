@@ -2,7 +2,7 @@
 //! Expression Plan Representation for Tajo Kernel
 //!
 
-use common::types::{DataType, HasTy, Ty};
+use common::types::{DataType, HasTy, HasDataTy, Ty};
 use common::schema::Column;
 use common::P;
 
@@ -139,7 +139,13 @@ impl Expr {
   //   Expr {
   //     data_type:  
   // }
- }
+}
+
+impl HasDataTy for Expr {
+  fn data_ty(&self) -> &DataType {
+    &self.data_ty
+  }
+}
 
 /// Visitor for Expr Tree
 pub trait Visitor<'v>: Sized {

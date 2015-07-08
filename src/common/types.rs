@@ -108,17 +108,17 @@ impl DataType {
   }
 }
 
-impl HasTy for DataType {
-  #[inline]
-  fn ty(&self) -> Ty {
-   self.ty
-  }
-}
-
 impl HasDataTy for DataType {
   #[inline]
   fn data_ty(&self) -> &DataType {
     &self
+  }
+}
+
+impl HasTy for DataType {
+  #[inline]
+  fn ty(&self) -> Ty {
+   self.ty
   }
 }
 

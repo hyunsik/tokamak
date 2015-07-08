@@ -12,7 +12,7 @@ use expr::{Datum, Expr};
 /// Common Trait of All Expression Evaluators  
 pub trait Eval : HasDataTy {
   fn bind(&mut self, schema: &Schema) -> Void;
-
+  
   fn is_const(&self) -> bool;
 }
 
