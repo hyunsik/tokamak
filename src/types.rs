@@ -123,6 +123,7 @@ impl HasTy for DataType {
   }
 }
 
+/// Determine a result data type from two expression data types.
 pub fn result_data_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) -> TResult<DataType> {
   match lhs_ty.ty() {
     
