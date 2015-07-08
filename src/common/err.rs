@@ -5,9 +5,16 @@ use std::io;
 pub enum Error {
   Unknown,
 
-  ColumnNotFound,
-  TableNotFound,
-  NoDatabase,
+  InternalError,
+  Notimplemented,
+  FeatureNotSupported,
+  InvalidRpcCall,
+  
+  UndefinedTablespace,
+  UndefinedDatabase,
+  UndefinedTable,
+  UndefinedColumn,
+
   /// No tablespace handler for a given URL
   UnsupportedTableSpace,
 

@@ -86,10 +86,18 @@ impl Field {
 }
 
 impl Eval for Field {
+  
   fn bind(&mut self, schema: &Schema) -> Void {
-    //self.field_id = schema.get_
-
-    void_ok()
+      
+    match schema.column_id(&self.column.name) {
+        
+     Some(id) => {
+      self.field_id = Some(id);
+      void_ok()
+     },
+     
+     None => Err(Error::UndefinedColumn)
+    }    
   }
 
   fn ty(&self) -> &DataType {
@@ -162,7 +170,4 @@ pub fn compile<'a>(expr: &'a Expr) -> TResult<Box<Eval>> {
 
     _ => Err(Error::InvalidExpression)
   }
-}
-
-pub fn map_plus_vec_vec<RES, L, R>(lhs: Vec<L>, rhs: Vec<R>) {
 }
