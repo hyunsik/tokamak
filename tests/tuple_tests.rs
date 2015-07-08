@@ -4,6 +4,7 @@ use std::{i8,i16};
 
 use tajo::common::*;
 use tajo::common::types::*;
+use tajo::schema::*;
 use tajo::rows::*;
 use std::boxed::Box;
 

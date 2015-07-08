@@ -3,7 +3,7 @@
 //!
 
 use common::types::{DataType, HasTy, HasDataTy, Ty};
-use common::schema::Column;
+use schema::Column;
 use common::P;
 
 /// Datum representation for a single value

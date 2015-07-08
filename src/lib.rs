@@ -21,5 +21,6 @@ pub mod intrinsics;
 pub mod io;
 pub mod native;
 pub mod plan;
+pub mod schema;
 pub mod task;
 pub mod rows;

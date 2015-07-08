@@ -27,7 +27,7 @@ pub use self::vectorized_rows::{AllocatedVecRowBlock, SlotVecRowBlock};
 pub mod vector;
 pub use self::vector::Vector;
 
-use common::Schema;
+use schema::Schema;
 use common::types::*;
 
 struct VectorDesc {

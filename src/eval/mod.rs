@@ -6,13 +6,13 @@ use common::err::{Error, TResult, Void, void_ok};
 use rows::RowBlock;
 use rows::vector::Vector1;
 use common::types::{DataType, Ty, HasDataTy, HasTy};
-use common::schema::{Column, Schema};
+use schema::{Column, Schema};
 use expr::{Datum, Expr};
 
 /// Common Trait of All Expression Evaluators  
 pub trait Eval : HasDataTy {
   fn bind(&mut self, schema: &Schema) -> Void;
-  
+
   fn is_const(&self) -> bool;
 }
 

@@ -3,7 +3,7 @@
 //!
 
 use std::boxed::Box;
-use common::schema::Column;
+use schema::Column;
 use eval::Eval;
 use expr::{Expr, Visitor};
 use std::marker;

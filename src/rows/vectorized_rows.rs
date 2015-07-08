@@ -1,9 +1,9 @@
 use bytesize::ByteSize;
-use common::Schema;
 use common::types::*;
 use common::constant::VECTOR_SIZE;
 use intrinsics::sse;
 use memutil::Arena;
+use schema::Schema;
 use rows::vector::Vector;
 use rows::RowBlock;
 

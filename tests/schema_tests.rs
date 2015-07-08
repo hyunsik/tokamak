@@ -1,6 +1,6 @@
 extern crate tajo;
 
-use tajo::common::schema::*;
+use tajo::schema::*;
 use tajo::common::types::*;
 
 fn make_test_schema() -> Schema {

@@ -2,7 +2,7 @@
 //! Plan Representation for Tajo Kernel
 //!
 
-use common::schema::{Column, Schema};
+use schema::{Column, Schema};
 use url::Url;
 
 trait Eval {
