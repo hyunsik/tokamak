@@ -1,21 +1,23 @@
-use common::types::Ty;
-use common::types::DataType;
-
+use common::types::{Ty, DataType, HasDataTy};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Column {
   pub name: String,
-  pub data_type: DataType,
+  pub data_ty: DataType,
 }
 
 impl Column {
   pub fn new(column_name: String, ty: Ty) -> Column {
-    Column {name: column_name, data_type: DataType::new(ty)}
+    Column {name: column_name, data_ty: DataType::new(ty)}
   }
 
   pub fn new_with_len(column_name: String, ty: Ty, len: u32) -> Column {
-    Column {name: column_name, data_type: DataType::new_vartype(ty, len)}
+    Column {name: column_name, data_ty: DataType::new_vartype(ty, len)}
   }
+}
+
+impl HasDataTy for Column {
+  fn data_ty(&self) -> &DataType { &self.data_ty }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -36,8 +38,8 @@ impl Schema {
     self.columns.push(c);
   }
 
-  pub fn add_directly(&mut self, name : String, type_class: Ty) {
-    self.columns.push(Column::new(name, type_class));
+  pub fn add_directly(&mut self, name : String, ty: Ty) {
+    self.columns.push(Column::new(name, ty));
   }
 
   pub fn column_id(&self, name: &str) -> Option<usize> {

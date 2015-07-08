@@ -130,7 +130,7 @@ pub enum ExprSpec {
 impl Expr {
   pub fn new_field(column: &Column) -> Expr {
     Expr {
-      data_ty: column.data_type.clone(),
+      data_ty: column.data_ty.clone(),
       node: ExprSpec::Field(Box::new(column.clone()))
     }
   }

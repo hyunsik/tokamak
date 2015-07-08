@@ -5,15 +5,13 @@
 use common::err::{Error, TResult, Void, void_ok};
 use rows::RowBlock;
 use rows::vector::Vector1;
-use common::types::{DataType, Ty, HasTy};
+use common::types::{DataType, Ty, HasDataTy, HasTy};
 use common::schema::{Column, Schema};
 use expr::{Datum, Expr};
 
 /// Common Trait of All Expression Evaluators  
-pub trait Eval {
+pub trait Eval : HasDataTy {
   fn bind(&mut self, schema: &Schema) -> Void;
-  
-  fn ty(&self) -> &DataType;
 
   fn is_const(&self) -> bool;
 }
@@ -62,19 +60,19 @@ pub struct Row {values: Vec<Box<Eval>>}
 pub struct Field {column: Column, field_id: Option<usize>}
 pub struct Const {datum: Datum, res_type: DataType}
 
-impl Eval for Plus {
-  fn bind(&mut self, schema: &Schema) -> Void {
-    //self.field_id = schema.get_
+// impl Eval for Plus {
+//   fn bind(&mut self, schema: &Schema) -> Void {
+//     //self.field_id = schema.get_
 
-    void_ok()
-  }
+//     void_ok()
+//   }
 
-  fn ty(&self) -> &DataType {
-    self.lhs.ty()
-  }
+//   fn ty(&self) -> &DataType {
+//     self.lhs.ty()
+//   }
   
-  fn is_const(&self) -> bool { false }
-}
+//   fn is_const(&self) -> bool { false }
+// }
 
 impl Field {
   pub fn new(column: &Column) -> Field {
@@ -82,6 +80,12 @@ impl Field {
       column: column.clone(),
       field_id: None
     }
+  }
+}
+
+impl HasDataTy for Field {
+  fn data_ty(&self) -> &DataType {
+    &self.column.data_ty
   }
 }
 
@@ -98,11 +102,7 @@ impl Eval for Field {
      
      None => Err(Error::UndefinedColumn)
     }    
-  }
-
-  fn ty(&self) -> &DataType {
-    &self.column.data_type
-  }
+  }  
   
   fn is_const(&self) -> bool { false }
 
@@ -118,19 +118,19 @@ impl Const {
   }
 }
 
-impl Eval for Const {
+// impl Eval for Const {
   
-  fn bind(&mut self, schema: &Schema) -> Void {
-    self.res_type = DataType::new(self.datum.ty());
-    void_ok()
-  }
+//   fn bind(&mut self, schema: &Schema) -> Void {
+//     self.res_type = DataType::new(self.datum.ty());
+//     void_ok()
+//   }
 
-  fn ty(&self) -> &DataType {
-    &self.res_type
-  }
+//   fn ty(&self) -> &DataType {
+//     &self.res_type
+//   }
   
-  fn is_const(&self) -> bool { true }
-}
+//   fn is_const(&self) -> bool { true }
+// }
 
 pub fn compile<'a>(expr: &'a Expr) -> TResult<Box<Eval>> {  
   match *expr {

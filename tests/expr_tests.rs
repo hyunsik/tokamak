@@ -18,8 +18,8 @@ impl<'v> Visitor<'v> for VisitOrder {
 #[test]
 fn test_visitor() {
 
-  let col1 = Column::new("c0".to_string(), TypeKind::Int8);
-  let col2 = Column::new("c1".to_string(), TypeKind::Int4);
+  let col1 = Column::new("c0".to_string(), Ty::Int8);
+  let col2 = Column::new("c1".to_string(), Ty::Int4);
   
   let lhs : Box<Expr> = Box::new(Expr::new_field(&col1));
   let rhs : Box<Expr> = Box::new(Expr::new_field(&col2));

@@ -24,6 +24,10 @@ pub trait HasTy {
   fn ty(&self) -> Ty;
 }
 
+pub trait HasDataTy {
+  fn data_ty(&self) -> &DataType;
+}
+
 #[allow(non_camel_case_types)]
 pub type BOOL_T = bool;
 #[allow(non_camel_case_types)]
@@ -105,8 +109,16 @@ impl DataType {
 }
 
 impl HasTy for DataType {
+  #[inline]
   fn ty(&self) -> Ty {
    self.ty
+  }
+}
+
+impl HasDataTy for DataType {
+  #[inline]
+  fn data_ty(&self) -> &DataType {
+    &self
   }
 }
 
