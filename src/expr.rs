@@ -6,6 +6,7 @@ use common::types::{DataType, HasTypeKind, TypeKind};
 use common::schema::Column;
 use common::P;
 
+/// Datum representation for a single value
 #[derive(Clone)]
 pub enum Datum {
   Bool(bool),  
@@ -47,18 +48,22 @@ impl HasTypeKind for Datum {
   }
 }
 
+/// Function Declaration
 pub struct FnDecl {
   signature: String
 }
 
+/// Aggregation Function Declaration
 pub struct AggFnDecl {
   signature: String 
 }
 
+/// Window Function Declaration
 pub struct WinFnDecl {
   signature: String  
 }
 
+/// Comparison Operator Type
 pub enum CompOp {
   Eq,
   NotEq,
@@ -68,6 +73,7 @@ pub enum CompOp {
   Geq
 }
 
+/// Arithmetic Operator Type
 pub enum ArithmOp {
   Plus,
   Minus,
@@ -76,11 +82,13 @@ pub enum ArithmOp {
   Modular,  
 }
 
+/// Expression Element
 pub struct Expr {
   data_ty: DataType,
   node: ExprSpec
 }
 
+/// Expression Specific Element
 pub enum ExprSpec {
   // Unary Expressions
   Not(Box<Expr>),
@@ -119,6 +127,7 @@ pub enum ExprSpec {
   Const(Box<Datum>)
 }
 
+/// Visitor for Expr Tree
 pub trait Visitor<'v>: Sized {
   fn visit_not(&mut self, child: &'v Expr) {
     walk_expr(self, child);
@@ -207,6 +216,7 @@ pub trait Visitor<'v>: Sized {
   fn visit_const(&mut self, datum: &'v Datum) {}
 }
 
+/// Walker for Expr Tree
 pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
 
   match expr.node {
@@ -301,6 +311,7 @@ pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
   }
 }
 
+/// Walker for Binary Expr
 #[inline]
 pub fn walk_bin_expr<'v, V: Visitor<'v>>(visitor: &mut V, 
                                          lhs: &'v Expr, 
