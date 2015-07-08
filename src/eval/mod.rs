@@ -132,16 +132,6 @@ impl Eval for Const {
   fn is_const(&self) -> bool { true }
 }
 
-// pub fn walk_expr<'a>(expr: &'a Expr) {
-//   match *expr {
-//     Expr::Plus (ref lhs, ref rhs) => {
-//       walk_expr(&**lhs);
-//       walk_expr(&**rhs);
-//     },
-//     _ => {}
-//   };
-// }
-
 pub fn compile<'a>(expr: &'a Expr) -> TResult<Box<Eval>> {  
   match *expr {
 
@@ -171,3 +161,5 @@ pub fn compile<'a>(expr: &'a Expr) -> TResult<Box<Eval>> {
     _ => Err(Error::InvalidExpression)
   }
 }
+
+pub mod interpreter;
