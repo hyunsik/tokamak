@@ -3,11 +3,9 @@ extern crate tajo;
 use tajo::schema::Column;
 use tajo::types::*;
 use tajo::expr::*;
-use tajo::eval::*;
-use std::marker;
 
 struct VisitOrder {
-  order: i32,
+  pub order: Vec<String>
 }
 
 impl<'v> Visitor<'v> for VisitOrder {
@@ -16,25 +14,27 @@ impl<'v> Visitor<'v> for VisitOrder {
     walk_expr(self, rhs);
 
     match *op {
-      ArithmOp::Plus => println!("Plus"),
-      ArithmOp::Minus => println!("Minus"),
+      ArithmOp::Plus => self.order.push("plus".to_string()),
+      ArithmOp::Minus => self.order.push("minus".to_string()),
+      ArithmOp::Mul => self.order.push("mul".to_string()),
+      ArithmOp::Div => self.order.push("div".to_string()),
       _ => panic!("Unknown op")
     }
   }
 
   fn visit_field(&mut self, c: &'v Column) {
-    println!("column: {}", c.name); 
+    self.order.push(format!("{}", c.name)); 
   }
 }
 
 #[test]
-fn test_visitor() {
+fn test_visit_arithm() {
 
-  let col1 = Column::new("c0".to_string(), Ty::Int8);
-  let col2 = Column::new("c1".to_string(), Ty::Int4);
+  let col1 = Column::new("c0", Ty::Int8);
+  let col2 = Column::new("c1", Ty::Int4);
 
-  let col3 = Column::new("c2".to_string(), Ty::Int4);
-  let col4 = Column::new("c3".to_string(), Ty::Int4);
+  let col3 = Column::new("c2", Ty::Int4);
+  let col4 = Column::new("c3", Ty::Int4);
   
   let lhs1 : Box<Expr> = Box::new(Expr::new_field(&col1));
   let rhs2 : Box<Expr> = Box::new(Expr::new_field(&col2));
@@ -46,12 +46,10 @@ fn test_visitor() {
 
   let plus2: Box<Expr> = Box::new(Expr::new_arithm(ArithmOp::Plus, lhs2, rhs2));
 
-  let plus3: Box<Expr> = Box::new(Expr::new_arithm(ArithmOp::Plus, plus1, plus2));
-
-  //let lhs: Box<Eval> = Box::new(Field::new(&col1));
-  //let rhs: Box<Eval> = Box::new(Field::new(&col2));
-  //let plus: Box<Eval> = Box::new(Plus {lhs: lhs, rhs: rhs});
-  
-  let mut visitor = VisitOrder{order: 1};  
+  let plus3: Box<Expr> = Box::new(Expr::new_arithm(ArithmOp::Mul, plus1, plus2));
+ 
+  let mut visitor = VisitOrder{order: Vec::new()};  
   walk_expr(&mut visitor, &*plus3);
+
+  assert_eq!(vec!["c0", "c1", "plus", "c2", "c3", "plus", "mul"], visitor.order);
 }

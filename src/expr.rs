@@ -77,9 +77,9 @@ pub enum CompOp {
 pub enum ArithmOp {
   Plus,
   Minus,
-  Multiply,
-  Divide,
-  Modular,  
+  Mul,
+  Div,
+  Mod,  
 }
 
 /// Expression Element

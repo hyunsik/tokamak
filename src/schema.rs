@@ -7,12 +7,18 @@ pub struct Column {
 }
 
 impl Column {
-  pub fn new(column_name: String, ty: Ty) -> Column {
-    Column {name: column_name, data_ty: DataType::new(ty)}
+  pub fn new<T: AsRef<str>>(name: T, ty: Ty) -> Column {
+    Column {
+      name: name.as_ref().to_owned(), 
+      data_ty: DataType::new(ty)
+    }
   }
 
-  pub fn new_with_len(column_name: String, ty: Ty, len: u32) -> Column {
-    Column {name: column_name, data_ty: DataType::new_vartype(ty, len)}
+  pub fn new_with_len<T: AsRef<str>>(name: T, ty: Ty, len: u32) -> Column {
+    Column {
+      name: name.as_ref().to_owned(), 
+      data_ty: DataType::new_vartype(ty, len)
+    }
   }
 }
 
