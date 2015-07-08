@@ -43,7 +43,7 @@ pub struct GreaterThan {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct GreaterThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
 
 // Binary Arithmetic Evalessions
-pub struct Plus {lhs: Box<Eval>, rhs: Box<Eval>}
+pub struct Plus {pub lhs: Box<Eval>, pub rhs: Box<Eval>}
 pub struct Minus {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Multiply {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Divide {lhs: Box<Eval>, rhs: Box<Eval>}
@@ -77,9 +77,9 @@ impl Eval for Plus {
 }
 
 impl Field {
-  fn new(column: Column) -> Field {
+  pub fn new(column: &Column) -> Field {
     Field {
-      column: column,
+      column: column.clone(),
       field_id: None
     }
   }
@@ -162,4 +162,5 @@ pub fn compile<'a>(expr: &'a Expr) -> TResult<Box<Eval>> {
   }
 }
 
+/// Interpreter Compiler for Expressions
 pub mod interpreter;

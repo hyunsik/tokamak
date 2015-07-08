@@ -127,6 +127,20 @@ pub enum ExprSpec {
   Const(Box<Datum>)
 }
 
+impl Expr {
+  pub fn new_field(column: &Column) -> Expr {
+    Expr {
+      data_ty: column.data_type.clone(),
+      node: ExprSpec::Field(Box::new(column.clone()))
+    }
+  }
+  
+  // pub fn new_arithm(op: ArithmOp, lhs: Box<Expr>, rhs: Box<Expr>) {
+  //   Expr {
+  //     data_type:  
+  // }
+ }
+
 /// Visitor for Expr Tree
 pub trait Visitor<'v>: Sized {
   fn visit_not(&mut self, child: &'v Expr) {

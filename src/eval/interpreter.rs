@@ -1,4 +1,9 @@
+//!
+//! Interpreter Compiler for Expressions
+//!
+
 use std::boxed::Box;
+use common::schema::Column;
 use eval::Eval;
 use expr::{Expr, Visitor};
 use std::marker;
@@ -8,6 +13,8 @@ pub struct InterpreterCompiler {
   //_marker: marker::PhantomData<&'a ()>
 }
 
-impl<'a> Visitor<'a> for InterpreterCompiler {
-
+impl<'v> Visitor<'v> for InterpreterCompiler {
+  fn visit_field(&mut self, c: &'v Column) {
+    println!("column: {}", c.name); 
+  } 
 }
