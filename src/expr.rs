@@ -86,6 +86,7 @@ pub enum ExprSpec {
   Not(Box<Expr>),
   IsNull(Box<Expr>, bool), // bool - 'is null' if true. 'is not null' if false.
   Sign(Box<Expr>, bool), // true - Plus, false - Minus
+  Cast(Box<Expr>, Box<DataType>, Box<DataType>),
 
   // Binary Arithmetic Expressions
   And(Box<Expr>,Box<Expr>),
@@ -112,44 +113,98 @@ pub enum ExprSpec {
   Case(Vec<Box<Expr>>, Box<Expr>), // multiple conditions, else return value
   IfThen(Box<Expr>, Box<Expr>), // condition, return value  
 
-  // values
-  Cast(Box<Expr>,Box<DataType>,Box<DataType>),
+  // values  
   Row(Vec<Box<Expr>>),  
   Field(Box<Column>),
   Const(Box<Datum>)
 }
 
 pub trait Visitor<'v>: Sized {
-  fn visit_not(&mut self, child: &'v Expr);  
-  fn visit_is_null(&mut self, child: &'v Expr, not: bool);
-  fn visit_sign(&mut self, child: &'v Expr, not: bool);
-
-  fn visit_and(&mut self, lhs: &'v Expr, rhs: &'v Expr);
-  fn visit_or(&mut self, lhs: &'v Expr, rhs: &'v Expr);
-  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr);
-  fn visit_arithm(&mut self, op: &ArithmOp, 
-    lhs: &'v Expr, rhs: &'v Expr);
-  fn visit_concat(&mut self, lhs: &'v Expr, rhs: &'v Expr);
-
-  fn visit_fn(&mut self, fd: &'v FnDecl, args: &'v Vec<Box<Expr>>);
-  fn visit_aggfn(&mut self, aggfd: &'v AggFnDecl, args: &'v Vec<Box<Expr>>);
-  fn visit_winfn(&mut self, winfd: &'v WinFnDecl, args: &'v Vec<Box<Expr>>);
-
-  fn visit_like(&mut self, pat: &'v Expr, pred: &'v Expr, not: bool);
-  fn visit_similarto(&mut self, pat: &'v Expr, pred: &'v Expr, not: bool);
-  fn visit_regexmatch(&mut self, pat: &'v Expr, pred: &'v Expr, not: bool);
-
-  fn visit_between(&mut self, pred: &'v Expr, begin: &'v Expr, end: &'v Expr);
-  fn visit_in(&mut self, pred: &'v Expr, &'v Vec<Box<Expr>>);
-
-  fn visit_case(&mut self, ifconds: &'v Vec<Box<Expr>>, else_result: &'v Expr);
-  fn visit_if_then(&mut self, ifcond: &'v Expr, result: &'v Expr);
-
+  fn visit_not(&mut self, child: &'v Expr) {
+    walk_expr(self, child);
+  } 
+  fn visit_is_null(&mut self, child: &'v Expr, not: bool) {
+    walk_expr(self, child);
+  }
+  fn visit_sign(&mut self, child: &'v Expr, not: bool) {
+    walk_expr(self, child);
+  }
   fn visit_cast(&mut self, expr: &'v Expr, from: &'v DataType, 
-    to: &'v DataType);
-  fn visit_row(&mut self, row: &'v Vec<Box<Expr>>);
-  fn visit_field(&mut self, field: &'v Column);
-  fn visit_const(&mut self, datum: &'v Datum);
+    to: &'v DataType) {
+    walk_expr(self, expr);
+  }
+
+  fn visit_and(&mut self, lhs: &'v Expr, rhs: &'v Expr) {
+    walk_bin_expr(self, lhs, rhs)
+  }
+  fn visit_or(&mut self, lhs: &'v Expr, rhs: &'v Expr) {
+    walk_bin_expr(self, lhs, rhs)
+  }
+  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {
+    walk_bin_expr(self, lhs, rhs)
+  }
+  fn visit_arithm(&mut self, op: &ArithmOp, 
+    lhs: &'v Expr, rhs: &'v Expr) {
+    walk_bin_expr(self, lhs, rhs)
+  }
+  fn visit_concat(&mut self, lhs: &'v Expr, rhs: &'v Expr) {
+    walk_bin_expr(self, lhs, rhs)
+  }
+
+  fn visit_fn(&mut self, fd: &'v FnDecl, args: &'v Vec<Box<Expr>>) {
+    for ref arg in args {
+      walk_expr(self, arg);
+    }
+  }
+  fn visit_aggfn(&mut self, aggfd: &'v AggFnDecl, args: &'v Vec<Box<Expr>>) {
+    for ref arg in args {
+      walk_expr(self, arg);
+    }
+  }
+  fn visit_winfn(&mut self, winfd: &'v WinFnDecl, args: &'v Vec<Box<Expr>>) {
+    for ref arg in args {
+      walk_expr(self, arg);
+    }
+  }
+
+  fn visit_like(&mut self, pat: &'v Expr, pred: &'v Expr, not: bool) {
+    walk_bin_expr(self, pat, pred);
+  }
+  fn visit_similarto(&mut self, pat: &'v Expr, pred: &'v Expr, not: bool) {
+    walk_bin_expr(self, pat, pred);
+  }
+  fn visit_regexmatch(&mut self, pat: &'v Expr, pred: &'v Expr, not: bool) {
+    walk_bin_expr(self, pat, pred);
+  }
+
+  fn visit_between(&mut self, pred: &'v Expr, begin: &'v Expr, end: &'v Expr) {
+    walk_expr(self, pred);
+    walk_expr(self, begin);
+    walk_expr(self, end);
+  }
+  fn visit_in(&mut self, pred: &'v Expr, values: &'v Vec<Box<Expr>>) {
+    walk_expr(self, pred);
+    self.visit_row(values);
+  }
+
+  fn visit_case(&mut self, ifconds: &'v Vec<Box<Expr>>, else_result: &'v Expr) {
+    for ref each_if in ifconds {
+      walk_expr(self, each_if);
+    }
+    walk_expr(self, else_result);
+  }
+  fn visit_if_then(&mut self, ifcond: &'v Expr, result: &'v Expr) {
+    walk_expr(self, ifcond);
+    walk_expr(self, result);
+  }  
+
+  fn visit_row(&mut self, values: &'v Vec<Box<Expr>>) {
+    for ref v in values {
+      walk_expr(self, v);
+    }
+  }
+  fn visit_field(&mut self, field: &'v Column) {}
+  fn visit_const(&mut self, datum: &'v Datum) {}
 }
 
 pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
@@ -167,6 +222,11 @@ pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
     ExprSpec::Sign(ref child, positive) => {
       visitor.visit_sign(child, positive);
     }
+
+    ExprSpec::Cast(ref value, ref from, ref to) => {
+      visitor.visit_cast(value, from, to)
+    },
+
 
     ExprSpec::And(ref lhs, ref rhs) => {
       visitor.visit_and(lhs, rhs);
@@ -231,11 +291,7 @@ pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
     ExprSpec::IfThen(ref ifcond, ref result) => {
       visitor.visit_if_then(ifcond, result)
     },
-
-
-    ExprSpec::Cast(ref value, ref from, ref to) => {
-      visitor.visit_cast(value, from, to)
-    },
+    
 
     ExprSpec::Row(ref values) => visitor.visit_row(values),
 
@@ -243,4 +299,12 @@ pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
 
     ExprSpec::Const(ref datum) => visitor.visit_const(datum),
   }
+}
+
+#[inline]
+pub fn walk_bin_expr<'v, V: Visitor<'v>>(visitor: &mut V, 
+                                         lhs: &'v Expr, 
+                                         rhs: &'v Expr) {
+  walk_expr(visitor, lhs);
+  walk_expr(visitor, rhs);
 }
