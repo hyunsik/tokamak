@@ -28,7 +28,7 @@ pub mod vector;
 pub use self::vector::Vector;
 
 use schema::Schema;
-use common::types::*;
+use types::*;
 
 struct VectorDesc {
   repeating: bool,

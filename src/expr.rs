@@ -2,7 +2,7 @@
 //! Expression Plan Representation for Tajo Kernel
 //!
 
-use common::types::{DataType, HasTy, HasDataTy, Ty};
+use types::{DataType, HasTy, HasDataTy, Ty};
 use schema::Column;
 use common::P;
 

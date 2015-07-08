@@ -1,7 +1,7 @@
 extern crate tajo;
 
 use tajo::schema::*;
-use tajo::common::types::*;
+use tajo::types::*;
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();

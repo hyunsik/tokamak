@@ -1,4 +1,4 @@
-use common::types::{Ty, DataType, HasDataTy, HasTy};
+use types::{Ty, DataType, HasDataTy, HasTy};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Column {

@@ -1,4 +1,4 @@
-use common::types::*;
+use types::*;
 use common::constant::VECTOR_SIZE;
 
 use std::marker;

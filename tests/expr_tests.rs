@@ -1,7 +1,7 @@
 extern crate tajo;
 
 use tajo::schema::Column;
-use tajo::common::types::*;
+use tajo::types::*;
 use tajo::expr::*;
 use tajo::eval::*;
 

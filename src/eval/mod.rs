@@ -5,7 +5,7 @@
 use common::err::{Error, TResult, Void, void_ok};
 use rows::RowBlock;
 use rows::vector::Vector1;
-use common::types::{DataType, Ty, HasDataTy, HasTy};
+use types::{DataType, Ty, HasDataTy, HasTy};
 use schema::{Column, Schema};
 use expr::{Datum, Expr};
 

@@ -1,5 +1,5 @@
 use bytesize::ByteSize;
-use common::types::*;
+use types::*;
 use common::constant::VECTOR_SIZE;
 use intrinsics::sse;
 use memutil::Arena;
