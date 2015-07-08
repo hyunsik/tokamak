@@ -7,3 +7,7 @@ pub mod types;
 pub mod schema;
 pub mod err;
 pub mod string_slice;
+
+pub struct P<T> {
+  ptr: Box<T>
+}

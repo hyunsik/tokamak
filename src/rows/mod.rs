@@ -34,7 +34,7 @@ struct VectorDesc {
   repeating: bool,
   nullable: bool,
   sorted: bool,
-  array: bool
+  contiguous: bool
 }
 
 pub trait RowBlock<'b> {

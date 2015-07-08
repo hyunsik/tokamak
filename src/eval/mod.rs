@@ -46,6 +46,20 @@ struct Between {lhs: Box<Eval>, mid: Box<Eval>, rhs: Box<Eval>}
 struct Field {column: Column, field_id: Option<usize>}
 struct Const {datum: Datum, res_type: DataType}
 
+impl Eval for Plus {
+  fn bind(&mut self, schema: &Schema) -> Void {
+    //self.field_id = schema.get_
+
+    void_ok()
+  }
+
+  fn datatype(&self) -> &DataType {
+    self.lhs.datatype()
+  }
+  
+  fn is_const(&self) -> bool { false }
+}
+
 impl Field {
   fn new(column: Column) -> Field {
     Field {
@@ -94,7 +108,17 @@ impl Eval for Const {
   fn is_const(&self) -> bool { true }
 }
 
-pub fn compile(expr: Box<Expr>) -> TResult<Box<Eval>> {  
+// pub fn walk_expr<'a>(expr: &'a Expr) {
+//   match *expr {
+//     Expr::Plus (ref lhs, ref rhs) => {
+//       walk_expr(&**lhs);
+//       walk_expr(&**rhs);
+//     },
+//     _ => {}
+//   };
+// }
+
+pub fn compile<'a>(expr: &'a Expr) -> TResult<Box<Eval>> {  
   match *expr {
 
     // Expr::Between {lhs, mid, rhs} => {
@@ -107,11 +131,26 @@ pub fn compile(expr: Box<Expr>) -> TResult<Box<Eval>> {
     //   )
     // },
 
-    Expr::Field {column} => Ok(Box::new(Field::new(column))),
+    // Expr::Plus (ref lhs, ref rhs) => {
+    //   Ok(Box::new(
+    //     Plus {
+    //       lhs: try!(compile(&**lhs)),
+    //       rhs: try!(compile(&**rhs)),
+    //     }
+    //   ))
+    // },
 
-    Expr::Const {datum} => Ok(Box::new(Const::new(&datum))),
+    // Expr::Field {column} => Ok(Box::new(Field::new(column))),
+
+    // Expr::Const {datum} => Ok(Box::new(Const::new(&datum))),
 
     _ => Err(Error::InvalidExpression)
   }
 }
+
+// pub trait ExprVisitor<'v> {
+//   type Value;
+
+//   fn visit(&mut self, )
+// }
 
