@@ -7,7 +7,7 @@ use eval::Eval;
 use expr::{Datum, Expr, Visitor};
 use schema::{Column, Schema};
 use std::boxed::Box;
-use types::{DataType, HasDataTy, HasTy, Ty};
+use types::{DataTy, HasDataTy, HasTy, Ty};
 
 // Unary Expressions
 pub struct Not {child: Box<Eval>}
@@ -41,7 +41,7 @@ pub struct In {pred: Box<Eval>, row: Box<Row>}
 
 pub struct Row {values: Vec<Box<Eval>>}
 pub struct Field {column: Column, field_id: Option<usize>}
-pub struct Const {datum: Datum, res_type: DataType}
+pub struct Const {datum: Datum, res_type: DataTy}
 
 
 // impl Eval for Plus {
@@ -51,7 +51,7 @@ pub struct Const {datum: Datum, res_type: DataType}
 //     void_ok()
 //   }
 
-//   fn ty(&self) -> &DataType {
+//   fn ty(&self) -> &DataTy {
 //     self.lhs.ty()
 //   }
   
@@ -68,7 +68,7 @@ impl Field {
 }
 
 impl HasDataTy for Field {
-  fn data_ty(&self) -> &DataType {
+  fn data_ty(&self) -> &DataTy {
     &self.column.data_ty
   }
 }
@@ -97,7 +97,7 @@ impl Const {
   fn new(datum: &Datum) -> Const {
     Const {
         datum: datum.clone(), 
-        res_type: DataType::new(datum.ty())
+        res_type: DataTy::new(datum.ty())
     }
   }
 }
@@ -105,11 +105,11 @@ impl Const {
 // impl Eval for Const {
   
 //   fn bind(&mut self, schema: &Schema) -> Void {
-//     self.res_type = DataType::new(self.datum.ty());
+//     self.res_type = DataTy::new(self.datum.ty());
 //     void_ok()
 //   }
 
-//   fn ty(&self) -> &DataType {
+//   fn ty(&self) -> &DataTy {
 //     &self.res_type
 //   }
   

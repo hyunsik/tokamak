@@ -25,7 +25,7 @@ fn make_test_schema() -> Schema {
 
 #[test]
 fn test_column() {
-  let c1 = Column {name: "ABC".to_string(), data_ty: DataType::new(Ty::Int2)};
+  let c1 = Column {name: "ABC".to_string(), data_ty: DataTy::new(Ty::Int2)};
   assert_eq!(c1.name, "ABC".to_string());
   assert_eq!(c1.data_ty.ty, Ty::Int2);
 }

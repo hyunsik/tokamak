@@ -8,7 +8,7 @@ use std::iter::Iterator;
 
 
 pub trait Vector1<'a> {
-  fn data_type(&self) -> &DataType;
+  fn data_type(&self) -> &DataTy;
   fn size() -> usize;
   fn array<T>(&self) -> &[T];
   fn array_mut<T>(&self) -> &mut [T];
@@ -19,12 +19,12 @@ pub trait Vector1<'a> {
 pub struct Vector<'a> {
   ptr: *const u8,
   size: usize,
-  data_type: DataType,
+  data_type: DataTy,
   _marker: marker::PhantomData<&'a ()>
 }
 
 impl<'a> Vector<'a> {
-  pub fn new(ptr: *const u8, size: usize, data_type: DataType) -> Vector<'a> {
+  pub fn new(ptr: *const u8, size: usize, data_type: DataTy) -> Vector<'a> {
     Vector {
       ptr: ptr, 
       size: size,
@@ -33,7 +33,7 @@ impl<'a> Vector<'a> {
     }
   }
 
-  pub fn data_type(&self) -> &DataType {
+  pub fn data_type(&self) -> &DataTy {
     &self.data_type
   }
 

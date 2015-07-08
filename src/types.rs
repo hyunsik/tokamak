@@ -26,7 +26,7 @@ pub trait HasTy {
 }
 
 pub trait HasDataTy {
-  fn data_ty(&self) -> &DataType;
+  fn data_ty(&self) -> &DataTy;
 }
 
 #[allow(non_camel_case_types)]
@@ -54,28 +54,28 @@ pub type TEXT_T      = StringSlice;
 
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct DataType {
+pub struct DataTy {
   pub ty : Ty, 
   pub len : u32, // for CHAR, VARCHAR
   pub precision : u8, // for numeric or decimal
   pub scale : u8 // for numeric or decimal
 }
 
-impl DataType {
-  pub fn new (ty : Ty) -> DataType {
-    return DataType {ty: ty, len : 0, precision: 0, scale: 0};
+impl DataTy {
+  pub fn new (ty : Ty) -> DataTy {
+    return DataTy {ty: ty, len : 0, precision: 0, scale: 0};
   }
 
-  pub fn new_vartype(ty : Ty, len: u32) -> DataType {
-    return DataType {ty: ty, len : len, precision: 0, scale: 0};
+  pub fn new_vartype(ty : Ty, len: u32) -> DataTy {
+    return DataTy {ty: ty, len : len, precision: 0, scale: 0};
   }
 
   pub fn bytes_len(&self) -> u32 {
-    DataType::size_of(self)
+    DataTy::size_of(self)
   }
 
   #[inline(always)]
-  pub fn size_of(data_type: &DataType) -> u32 {
+  pub fn size_of(data_type: &DataTy) -> u32 {
     match data_type.ty {
       Ty::Bool => 1,        
       Ty::Int1 => 1,
@@ -94,14 +94,14 @@ impl DataType {
     }
   }
 
-  pub fn has_length(data_type: &DataType) -> bool {
+  pub fn has_length(data_type: &DataTy) -> bool {
     match data_type.ty {
       Ty::Char | Ty::Varchar | Ty::Blob => true,
       _ => false
     }
   }
 
-  pub fn is_variable(data_type: &DataType) -> bool {
+  pub fn is_variable(data_type: &DataTy) -> bool {
     match data_type.ty {
       Ty::Varchar | Ty::Blob => true,
       _ => false
@@ -109,14 +109,14 @@ impl DataType {
   }
 }
 
-impl HasDataTy for DataType {
+impl HasDataTy for DataTy {
   #[inline]
-  fn data_ty(&self) -> &DataType {
+  fn data_ty(&self) -> &DataTy {
     &self
   }
 }
 
-impl HasTy for DataType {
+impl HasTy for DataTy {
   #[inline]
   fn ty(&self) -> Ty {
    self.ty
@@ -124,7 +124,7 @@ impl HasTy for DataType {
 }
 
 /// Determine a result data type from two expression data types.
-pub fn result_data_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) -> DataType {
+pub fn result_data_ty(&lhs_ty: &DataTy, &rhs_ty: &DataTy) -> DataTy {
   match lhs_ty.ty() {
     
     Ty::Bool => {

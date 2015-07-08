@@ -1,29 +1,29 @@
-use types::{Ty, DataType, HasDataTy, HasTy};
+use types::{Ty, DataTy, HasDataTy, HasTy};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Column {
   pub name: String,
-  pub data_ty: DataType,
+  pub data_ty: DataTy,
 }
 
 impl Column {
   pub fn new<T: AsRef<str>>(name: T, ty: Ty) -> Column {
     Column {
       name: name.as_ref().to_owned(), 
-      data_ty: DataType::new(ty)
+      data_ty: DataTy::new(ty)
     }
   }
 
   pub fn new_with_len<T: AsRef<str>>(name: T, ty: Ty, len: u32) -> Column {
     Column {
       name: name.as_ref().to_owned(), 
-      data_ty: DataType::new_vartype(ty, len)
+      data_ty: DataTy::new_vartype(ty, len)
     }
   }
 }
 
 impl HasDataTy for Column {
-  fn data_ty(&self) -> &DataType { &self.data_ty }
+  fn data_ty(&self) -> &DataTy { &self.data_ty }
 }
 
 #[derive(Clone, PartialEq, Debug)]

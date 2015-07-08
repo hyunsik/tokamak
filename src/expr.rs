@@ -2,7 +2,7 @@
 //! Expression Plan Representation for Tajo Kernel
 //!
 
-use types::{DataType, HasTy, HasDataTy, Ty, result_data_ty};
+use types::{DataTy, HasTy, HasDataTy, Ty, result_data_ty};
 use schema::Column;
 use common::P;
 
@@ -84,7 +84,7 @@ pub enum ArithmOp {
 
 /// Expression Element
 pub struct Expr {
-  data_ty: DataType,
+  data_ty: DataTy,
   node: ExprSpec
 }
 
@@ -94,7 +94,7 @@ pub enum ExprSpec {
   Not(Box<Expr>),
   IsNull(Box<Expr>, bool), // bool - 'is null' if true. 'is not null' if false.
   Sign(Box<Expr>, bool), // true - Plus, false - Minus
-  Cast(Box<Expr>, Box<DataType>, Box<DataType>),
+  Cast(Box<Expr>, Box<DataTy>, Box<DataTy>),
 
   // Binary Arithmetic Expressions
   And(Box<Expr>,Box<Expr>),
@@ -144,7 +144,7 @@ impl Expr {
 }
 
 impl HasDataTy for Expr {
-  fn data_ty(&self) -> &DataType {
+  fn data_ty(&self) -> &DataTy {
     &self.data_ty
   }
 }
@@ -160,8 +160,8 @@ pub trait Visitor<'v>: Sized {
   fn visit_sign(&mut self, child: &'v Expr, not: bool) {
     walk_expr(self, child);
   }
-  fn visit_cast(&mut self, expr: &'v Expr, from: &'v DataType, 
-    to: &'v DataType) {
+  fn visit_cast(&mut self, expr: &'v Expr, from: &'v DataTy, 
+    to: &'v DataTy) {
     walk_expr(self, expr);
   }
 
