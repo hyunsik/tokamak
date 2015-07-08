@@ -2,7 +2,7 @@ use std::mem;
 use common::string_slice::StringSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub enum TypeKind {
+pub enum Ty {
   Bool,  
   Int1,
   Int2,
@@ -20,8 +20,8 @@ pub enum TypeKind {
   Blob
 }
 
-pub trait HasTypeKind {
-  fn type_kind(&self) -> TypeKind;
+pub trait HasTy {
+  fn ty(&self) -> Ty;
 }
 
 #[allow(non_camel_case_types)]
@@ -50,64 +50,66 @@ pub type TEXT_T = StringSlice;
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct DataType {
-  class : TypeKind, 
-  len : u32, // for CHAR, VARCHAR
-  precision : u8, // for numeric or decimal
-  scale : u8 // for numeric or decimal
+  pub ty : Ty, 
+  pub len : u32, // for CHAR, VARCHAR
+  pub precision : u8, // for numeric or decimal
+  pub scale : u8 // for numeric or decimal
 }
 
 impl DataType {
-  pub fn new (class : TypeKind) -> DataType {
-    return DataType {class: class, len : 0, precision: 0, scale: 0};
+  pub fn new (ty : Ty) -> DataType {
+    return DataType {ty: ty, len : 0, precision: 0, scale: 0};
   }
 
-  pub fn new_vartype(class : TypeKind, len: u32) -> DataType {
-    return DataType {class: class, len : len, precision: 0, scale: 0};
+  pub fn new_vartype(ty : Ty, len: u32) -> DataType {
+    return DataType {ty: ty, len : len, precision: 0, scale: 0};
   }
 
   pub fn bytes_len(&self) -> u32 {
     DataType::size_of(self)
   }
 
-  pub fn class(&self) -> TypeKind {
-   self.class
-  }
-
   #[inline(always)]
   pub fn size_of(data_type: &DataType) -> u32 {
-    match data_type.class {
-      TypeKind::Bool => 1,        
-      TypeKind::Int1 => 1,
-      TypeKind::Int2 => 2,
-      TypeKind::Int4 => 4,
-      TypeKind::Int8 => 8,
-      TypeKind::Float4 => 4,
-      TypeKind::Float8 => 8,
-      TypeKind::Date => 4,
-      TypeKind::Time => 8,
-      TypeKind::Timestamp => 8,
-      TypeKind::Interval => 12,
-      TypeKind::Char => data_type.len,
-      TypeKind::Text => mem::size_of::<TEXT_T>()as u32,
-      TypeKind::Varchar | TypeKind::Blob => 12,
+    match data_type.ty {
+      Ty::Bool => 1,        
+      Ty::Int1 => 1,
+      Ty::Int2 => 2,
+      Ty::Int4 => 4,
+      Ty::Int8 => 8,
+      Ty::Float4 => 4,
+      Ty::Float8 => 8,
+      Ty::Date => 4,
+      Ty::Time => 8,
+      Ty::Timestamp => 8,
+      Ty::Interval => 12,
+      Ty::Char => data_type.len,
+      Ty::Text => mem::size_of::<TEXT_T>()as u32,
+      Ty::Varchar | Ty::Blob => 12,
     }
   }
 
   pub fn has_length(data_type: &DataType) -> bool {
-    match data_type.class {
-      TypeKind::Char | TypeKind::Varchar | TypeKind::Blob => true,
+    match data_type.ty {
+      Ty::Char | Ty::Varchar | Ty::Blob => true,
       _ => false
     }
   }
 
   pub fn is_variable(data_type: &DataType) -> bool {
-    match data_type.class {
-      TypeKind::Varchar | TypeKind::Blob => true,
+    match data_type.ty {
+      Ty::Varchar | Ty::Blob => true,
       _ => false
     }
   }
 }
 
+impl HasTy for DataType {
+  fn ty(&self) -> Ty {
+   self.ty
+  }
+}
+
 // pub fn result_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) {
-  
+//   match lhs_ty 
 // }

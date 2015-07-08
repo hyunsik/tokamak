@@ -1,4 +1,4 @@
-use common::types::TypeKind;
+use common::types::Ty;
 use common::types::DataType;
 
 
@@ -9,12 +9,12 @@ pub struct Column {
 }
 
 impl Column {
-  pub fn new(column_name: String, type_class: TypeKind) -> Column {
-    Column {name: column_name, data_type: DataType::new(type_class)}
+  pub fn new(column_name: String, ty: Ty) -> Column {
+    Column {name: column_name, data_type: DataType::new(ty)}
   }
 
-  pub fn new_with_len(column_name: String, type_class: TypeKind, len: u32) -> Column {
-    Column {name: column_name, data_type: DataType::new_vartype(type_class, len)}
+  pub fn new_with_len(column_name: String, ty: Ty, len: u32) -> Column {
+    Column {name: column_name, data_type: DataType::new_vartype(ty, len)}
   }
 }
 
@@ -36,7 +36,7 @@ impl Schema {
     self.columns.push(c);
   }
 
-  pub fn add_directly(&mut self, name : String, type_class: TypeKind) {
+  pub fn add_directly(&mut self, name : String, type_class: Ty) {
     self.columns.push(Column::new(name, type_class));
   }
 

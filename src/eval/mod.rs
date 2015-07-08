@@ -5,7 +5,7 @@
 use common::err::{Error, TResult, Void, void_ok};
 use rows::RowBlock;
 use rows::vector::Vector1;
-use common::types::{DataType, TypeKind, HasTypeKind};
+use common::types::{DataType, Ty, HasTy};
 use common::schema::{Column, Schema};
 use expr::{Datum, Expr};
 
@@ -19,12 +19,12 @@ pub trait Eval {
 }
 
 /// Map Expression Evaluator Trait
-pub trait MapEval {
+pub trait MapEval : Eval {
   fn eval(&self, RowBlock) -> TResult<&Vector1>;
 }
 
 /// Filter Expression Evaluator Trait
-pub trait FilterEval {
+pub trait FilterEval : Eval {
   fn filter(&self, RowBlock) -> Void;
 }
 
@@ -113,7 +113,7 @@ impl Const {
   fn new(datum: &Datum) -> Const {
     Const {
         datum: datum.clone(), 
-        res_type: DataType::new(datum.type_kind())
+        res_type: DataType::new(datum.ty())
     }
   }
 }
@@ -121,7 +121,7 @@ impl Const {
 impl Eval for Const {
   
   fn bind(&mut self, schema: &Schema) -> Void {
-    self.res_type = DataType::new(self.datum.type_kind());    
+    self.res_type = DataType::new(self.datum.ty());
     void_ok()
   }
 

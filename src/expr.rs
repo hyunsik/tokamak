@@ -2,7 +2,7 @@
 //! Expression Plan Representation for Tajo Kernel
 //!
 
-use common::types::{DataType, HasTypeKind, TypeKind};
+use common::types::{DataType, HasTy, Ty};
 use common::schema::Column;
 use common::P;
 
@@ -26,24 +26,24 @@ pub enum Datum {
   Blob(Vec<u8>)
 }
 
-impl HasTypeKind for Datum {
-  fn type_kind(&self) -> TypeKind {
+impl HasTy for Datum {
+  fn ty(&self) -> Ty {
     match *self {
-      Datum::Bool(ref x) => TypeKind::Bool,
-      Datum::Int1(ref x) => TypeKind::Int1,
-      Datum::Int2(ref x) => TypeKind::Int2,
-      Datum::Int4(ref x) => TypeKind::Int4,
-      Datum::Int8(ref x) => TypeKind::Int8,
-      Datum::Float4(ref x) => TypeKind::Float4,
-      Datum::Float8(ref x) => TypeKind::Float8,
-      Datum::Time(ref x) => TypeKind::Time,
-      Datum::Date(ref x) => TypeKind::Date,
-      Datum::Timestamp(ref x) => TypeKind::Timestamp,
-      Datum::Interval(ref x,ref y) => TypeKind::Interval,
-      Datum::Char(ref x) => TypeKind::Char,
-      Datum::Text(ref x) => TypeKind::Text,
-      Datum::Varchar(ref x) => TypeKind::Varchar,
-      Datum::Blob(ref x) => TypeKind::Blob
+      Datum::Bool(ref x) => Ty::Bool,
+      Datum::Int1(ref x) => Ty::Int1,
+      Datum::Int2(ref x) => Ty::Int2,
+      Datum::Int4(ref x) => Ty::Int4,
+      Datum::Int8(ref x) => Ty::Int8,
+      Datum::Float4(ref x) => Ty::Float4,
+      Datum::Float8(ref x) => Ty::Float8,
+      Datum::Time(ref x) => Ty::Time,
+      Datum::Date(ref x) => Ty::Date,
+      Datum::Timestamp(ref x) => Ty::Timestamp,
+      Datum::Interval(ref x,ref y) => Ty::Interval,
+      Datum::Char(ref x) => Ty::Char,
+      Datum::Text(ref x) => Ty::Text,
+      Datum::Varchar(ref x) => Ty::Varchar,
+      Datum::Blob(ref x) => Ty::Blob
     }
   }
 }
