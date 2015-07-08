@@ -2,7 +2,7 @@
 //! Expression Plan Representation for Tajo Kernel
 //!
 
-use types::{DataType, HasTy, HasDataTy, Ty};
+use types::{DataType, HasTy, HasDataTy, Ty, result_data_ty};
 use schema::Column;
 use common::P;
 
@@ -99,8 +99,8 @@ pub enum ExprSpec {
   // Binary Arithmetic Expressions
   And(Box<Expr>,Box<Expr>),
   Or(Box<Expr>,Box<Expr>),
-  Comp(CompOp, Box<Expr>,Box<Expr>),
-  Arithm(ArithmOp,Box<Expr>,Box<Expr>),
+  Comp(CompOp, Box<Expr>, Box<Expr>),
+  Arithm(ArithmOp, Box<Expr>, Box<Expr>),
   Concat(Box<Expr>,Box<Expr>),
 
   // Functions
@@ -135,10 +135,12 @@ impl Expr {
     }
   }
   
-  // pub fn new_arithm(op: ArithmOp, lhs: Box<Expr>, rhs: Box<Expr>) {
-  //   Expr {
-  //     data_type:  
-  // }
+  pub fn new_arithm(op: ArithmOp, lhs: Box<Expr>, rhs: Box<Expr>) -> Expr {
+    Expr {
+      data_ty: result_data_ty(lhs.data_ty(), rhs.data_ty()),
+      node: ExprSpec::Arithm(op, lhs, rhs)
+    }
+  }
 }
 
 impl HasDataTy for Expr {

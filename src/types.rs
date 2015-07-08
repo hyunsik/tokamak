@@ -124,13 +124,13 @@ impl HasTy for DataType {
 }
 
 /// Determine a result data type from two expression data types.
-pub fn result_data_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) -> TResult<DataType> {
+pub fn result_data_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) -> DataType {
   match lhs_ty.ty() {
     
     Ty::Bool => {
       match rhs_ty.ty() {
-        Ty::Bool => Ok(DataType::new(Ty::Bool)),
-        _ => Err(Error::UndefinedOperator)
+        Ty::Bool => rhs_ty.clone(),
+        _ => panic!("Undefined Operator")
       }
     },
 
@@ -138,83 +138,83 @@ pub fn result_data_ty(&lhs_ty: &DataType, &rhs_ty: &DataType) -> TResult<DataTyp
     Ty::Int1 => {
       match rhs_ty.ty() {
         Ty::Int1 | Ty::Int2 | Ty::Int4 | Ty::Int8 | Ty::Float4 | Ty::Float8 =>{
-          Ok(rhs_ty.clone())
+          rhs_ty.clone()
         },
-        _ => Err(Error::UndefinedOperator)
+        _ => panic!("Undefined Operator")
       }
     },
 
     Ty::Int2 => {
       match rhs_ty.ty() {
         Ty::Int2 | Ty::Int4 | Ty::Int8 | Ty::Float4 | Ty::Float8 => {
-          Ok(rhs_ty.clone())
+          rhs_ty.clone()
         },
-        Ty::Int1 => Ok(lhs_ty.clone()),
-        _ => Err(Error::UndefinedOperator)
+        Ty::Int1 => lhs_ty.clone(),
+        _ => panic!("Undefined Operator")
       }
     },
 
     Ty::Int4 => {
       match rhs_ty.ty() {
-        Ty::Int4 | Ty::Int8 | Ty::Float4 | Ty::Float8 => Ok(rhs_ty.clone()),
-        Ty::Int1 | Ty::Int2 => Ok(lhs_ty.clone()),
-        _ => Err(Error::UndefinedOperator)
+        Ty::Int4 | Ty::Int8 | Ty::Float4 | Ty::Float8 => rhs_ty.clone(),
+        Ty::Int1 | Ty::Int2 => lhs_ty.clone(),
+        _ => panic!("Undefined Operator")
       }
     },
 
     Ty::Int8 => {
       match rhs_ty.ty() {
-        Ty::Int8 | Ty::Float4 | Ty::Float8 => Ok(rhs_ty.clone()),
-        Ty::Int1 | Ty::Int2 | Ty::Int4 => Ok(lhs_ty.clone()),
-        _ => Err(Error::UndefinedOperator)
+        Ty::Int8 | Ty::Float4 | Ty::Float8 => rhs_ty.clone(),
+        Ty::Int1 | Ty::Int2 | Ty::Int4 => lhs_ty.clone(),
+        _ => panic!("Undefined Operator")
       }
     },
 
     Ty::Float4 => {
       match rhs_ty.ty() {
-        Ty::Float4 | Ty::Float8 => Ok(rhs_ty.clone()),
-        Ty::Int1 | Ty::Int2 | Ty::Int4 | Ty::Int8 => Ok(lhs_ty.clone()),
-        _ => Err(Error::UndefinedOperator)
+        Ty::Float4 | Ty::Float8 => rhs_ty.clone(),
+        Ty::Int1 | Ty::Int2 | Ty::Int4 | Ty::Int8 => lhs_ty.clone(),
+        _ => panic!("Undefined Operator")
       }
     },
 
     Ty::Float8 => {
       match rhs_ty.ty() {
-        Ty::Float8 => Ok(rhs_ty.clone()),
-        Ty::Int1 | Ty::Int2 | Ty::Int4 | Ty::Int8 | Ty::Float4 => Ok(lhs_ty.clone()),
-        _ => Err(Error::UndefinedOperator)
+        Ty::Float8 => rhs_ty.clone(),
+        Ty::Int1 | Ty::Int2 | Ty::Int4 | Ty::Int8 | Ty::Float4 => lhs_ty.clone(),
+        _ => panic!("Undefined Operator")
       }
     },
 
     Ty::Time => {      
-      Err(Error::UndefinedOperator)      
+      panic!("Undefined Operator")
     },
 
     Ty::Date => {
-      Err(Error::UndefinedOperator)
+      panic!("Undefined Operator")
     },
 
     Ty::Timestamp => {
-      Err(Error::UndefinedOperator)
+      panic!("Undefined Operator")
     },
 
     Ty::Interval => {
-      Err(Error::UndefinedOperator)
+      panic!("Undefined Operator")
     },
 
     Ty::Char | Ty::Varchar => {
-      Err(Error::UndefinedOperator)
+      panic!("Undefined Operator")
     },
 
     Ty::Text => {
       match rhs_ty.ty() {
-        Ty::Text => Ok(rhs_ty.clone()),
-        _ => Err(Error::UndefinedOperator)
+        Ty::Text => rhs_ty.clone(),
+        _ => panic!("Undefined Operator")
       }
     },
 
     Ty::Blob => {
-      Err(Error::UndefinedOperator)
+      panic!("Undefined Operator")
     }
   } 
 }
