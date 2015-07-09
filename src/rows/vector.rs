@@ -2,16 +2,19 @@ use types::{DataTy, HasDataTy};
 use common::constant::VECTOR_SIZE;
 
 use std::marker;
+use std::marker::Sized;
 use std::mem;
+use std::slice;
+use std::slice::Iter;
 use std::raw::Slice;
 use std::iter::Iterator;
 
 
 pub trait Vector<'a> : HasDataTy {
   fn size(&self) -> usize;
-  unsafe fn as_array<T>(&self) -> &'a [T];
-  unsafe fn as_mut_array<T>(&mut self) -> &'a mut [T];
-  fn iter<T>() -> Iterator<Item=T>;
+  fn as_array<T>(&self) -> &'a [T];
+  fn as_mut_array<T>(&mut self) -> &'a mut [T];
+  //fn iter<T: 'a>(&self) -> Box<Iterator<Item=T>>;
 }
 
 pub trait VRowBlock<'b> {
@@ -33,7 +36,7 @@ impl<'b> VRowBlock<'b> for BorrowVRowBlock<'b> {
   }
 }
 
-pub struct ArrayVector<T> {
+pub struct ArrayVector<T: Sized> {
   array: Vec<T>,
   data_ty: DataTy
 }
@@ -41,18 +44,41 @@ pub struct ArrayVector<T> {
 impl<'a, V> Vector<'a> for ArrayVector<V> {
   fn size(&self) -> usize { self.array.len() }
   
-  unsafe fn as_array<T>(&self) -> &'a [T] {
-    let slice = Slice {data: self.array.as_ptr() as *const T, len: self.array.len()};    
-    mem::transmute(slice)        
-  }
-
-  unsafe fn as_mut_array<T>(&mut self) -> &'a mut [T] {
-    let slice = Slice {data: self.array.as_mut_ptr() as *mut T, len: self.array.len()};
+  #[inline]
+  fn as_array<T>(&self) -> &'a [T] {
     unsafe {
-      mem::transmute(slice)
+      slice::from_raw_parts(self.array.as_ptr() as *const T, VECTOR_SIZE)
     }
   }
+
+  #[inline]
+  fn as_mut_array<T>(&mut self) -> &'a mut [T] {
+    unsafe {
+      slice::from_raw_parts_mut(self.array.as_mut_ptr() as *mut T, VECTOR_SIZE)
+    }
+  }
+
+  // fn iter<T: 'a>(&self) -> Box<Iterator<Item=T>> {
+  //   let slice = Slice {data: self.array.as_ptr() as *const T, len: self.array.len()};
+  //   let x: &'a [T] = unsafe {
+  //     mem::transmute(slice)
+  //   };    
+
+  //   Box::new(ArrayVectorItor {iter: x.iter()})
+  // }
 }
+
+// struct ArrayVectorItor<'a, T: 'a> {
+//   iter: Iter<'a, T>
+// }
+
+// impl<'a, T: 'a> Iterator for ArrayVectorItor<'a, T> {
+//   type Item = T;
+
+//   fn next(&mut self) -> Option<T> {        
+//     self.iter.next()
+//   }
+// }
 
 impl<T> HasDataTy for ArrayVector<T> {
   fn data_ty(&self) -> &DataTy {
@@ -79,17 +105,15 @@ impl<'a> PtrVector<'a> {
   }  
 
   pub fn as_array<T>(&self) -> &[T] {
-    let slice = Slice {data: self.ptr as *const T, len: VECTOR_SIZE};
     unsafe {
-      mem::transmute(slice)
-    }
+      slice::from_raw_parts(self.ptr as *const T, VECTOR_SIZE)
+    }    
   }
 
   pub fn as_mut_array<T>(&self) -> &mut [T] {
-    let slice = Slice {data: self.ptr as *mut T, len: VECTOR_SIZE};
     unsafe {
-      mem::transmute(slice)
-    }
+      slice::from_raw_parts_mut(self.ptr as *mut T, VECTOR_SIZE)
+    }    
   }
 }
 
