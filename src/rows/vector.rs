@@ -9,7 +9,7 @@ use std::iter::Iterator;
 
 pub trait Vector<'a> : HasDataTy {
   fn size(&self) -> usize;
-  fn array<T>(&self) -> &'a [T];
+  fn as_array<T>(&self) -> &'a [T];
   //fn array_mut<T>(&self) -> &mut [T];
   //fn iter<T>() -> Iterator<Item=T>;
 }
@@ -40,7 +40,7 @@ pub struct ArrayVector<T> {
 
 impl<'a, V> Vector<'a> for ArrayVector<V> {
   fn size(&self) -> usize { self.array.len() }
-  fn array<T>(&self) -> &'a [T] { 
+  fn as_array<T>(&self) -> &'a [T] { 
     unsafe {
       mem::transmute(&*self.array)    
     }    
