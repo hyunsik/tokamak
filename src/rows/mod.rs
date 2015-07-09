@@ -25,7 +25,7 @@ pub mod vectorized_rows;
 pub use self::vectorized_rows::{AllocatedVecRowBlock, SlotVecRowBlock};
 
 pub mod vector;
-pub use self::vector::Vector;
+pub use self::vector::{Vector, PtrVector};
 
 use schema::Schema;
 use types::*;
@@ -42,9 +42,9 @@ pub trait RowBlock<'b> {
 
   fn schema(&'b self) -> &'b Schema;  
 
-  fn vector(&'b self, usize) -> &Vector<'b>;
+  fn vector(&'b self, usize) -> &PtrVector<'b>;
 
-  fn set_vector(&'b mut self, &'b Vector<'b>);
+  fn set_vector(&'b mut self, &'b PtrVector<'b>);
 
   fn put_int1(&self, col_idx: usize, row_idx: usize, value: INT1_T);
 

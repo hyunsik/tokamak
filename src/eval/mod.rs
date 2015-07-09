@@ -4,7 +4,7 @@
 
 use common::err::{TResult, Void};
 use rows::RowBlock;
-use rows::vector::Vector1;
+use rows::vector::Vector;
 use types::{HasDataTy};
 use schema::{Schema};
 use expr::Expr;
@@ -18,7 +18,7 @@ pub trait Eval : HasDataTy {
 
 /// Map Expression Evaluator Trait
 pub trait MapEval : Eval {
-  fn eval(&self, RowBlock) -> TResult<&Vector1>;
+  fn eval(&self, RowBlock) -> TResult<&Vector>;
 }
 
 /// Filter Expression Evaluator Trait

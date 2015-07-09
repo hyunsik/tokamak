@@ -4,7 +4,7 @@ use common::constant::VECTOR_SIZE;
 use intrinsics::sse;
 use memutil::Arena;
 use schema::Schema;
-use rows::vector::Vector;
+use rows::vector::{PtrVector};
 use rows::RowBlock;
 
 use alloc::heap;
@@ -13,7 +13,7 @@ use std::mem;
 
 pub struct SlotVecRowBlock<'a> {
   schema: Schema,
-  vectors: Vec<&'a Vector<'a>>,
+  vectors: Vec<&'a PtrVector<'a>>,
 }
 
 impl<'a> SlotVecRowBlock<'a> {
@@ -27,7 +27,7 @@ pub struct AllocatedVecRowBlock<'a> {
   schema: Schema,  
   type_lengths: Vec<u32>,
   ptr: *mut u8,
-  vectors: Vec<Vector<'a>>,
+  vectors: Vec<PtrVector<'a>>,
   arena: Arena<'a>
 }
 
@@ -51,12 +51,12 @@ impl<'a> AllocatedVecRowBlock<'a> {
     };
 
     
-    let mut vectors: Vec<Vector> = Vec::with_capacity(schema.size());
+    let mut vectors: Vec<PtrVector> = Vec::with_capacity(schema.size());
     let mut last_ptr = fixed_area_ptr as usize;
 
     for x in 0..schema.size() {      
       vectors.push(
-        Vector::new(
+        PtrVector::new(
           last_ptr as *const u8, VECTOR_SIZE, schema.column(x).data_ty));
 
       let vector_size = 
@@ -86,12 +86,12 @@ impl<'a> RowBlock<'a> for SlotVecRowBlock<'a> {
   }
 
   #[inline]
-  fn vector(&'a self, col_id: usize) -> &'a Vector<'a> {
+  fn vector(&'a self, col_id: usize) -> &'a PtrVector<'a> {
     &self.vectors[col_id]
   }
 
   #[inline]
-  fn set_vector(&mut self, vec: &'a Vector<'a>) {
+  fn set_vector(&mut self, vec: &'a PtrVector<'a>) {
     self.vectors.push(vec);
   }
   
@@ -244,12 +244,12 @@ impl<'a> RowBlock<'a> for AllocatedVecRowBlock<'a> {
     self.schema.size()
   }
 
-  fn vector(&'a self, col_id: usize) -> &'a Vector {
+  fn vector(&'a self, col_id: usize) -> &'a PtrVector {
     &self.vectors[col_id]
   }
 
   #[allow(unused_variables)]
-  fn set_vector(&mut self, vec: &'a Vector<'a>) {
+  fn set_vector(&mut self, vec: &'a PtrVector<'a>) {
     panic!("AllocatedVecRowBlock::set_vector() is not support");
   }
 

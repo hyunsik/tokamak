@@ -7,9 +7,9 @@ use std::raw::Slice;
 use std::iter::Iterator;
 
 
-pub trait Vector1 : HasDataTy {
+pub trait Vector<'a> : HasDataTy {
   fn size(&self) -> usize;
-  fn array<T>(&self) -> &[T];
+  fn array<T>(&self) -> &'a [T];
   //fn array_mut<T>(&self) -> &mut [T];
   //fn iter<T>() -> Iterator<Item=T>;
 }
@@ -38,9 +38,9 @@ pub struct ArrayVector<T> {
   data_ty: DataTy
 }
 
-impl<V> Vector1 for ArrayVector<V> {
+impl<'a, V> Vector<'a> for ArrayVector<V> {
   fn size(&self) -> usize { self.array.len() }
-  fn array<T>(&self) -> &[T] { 
+  fn array<T>(&self) -> &'a [T] { 
     unsafe {
       mem::transmute(&*self.array)    
     }    
@@ -54,16 +54,16 @@ impl<T> HasDataTy for ArrayVector<T> {
 }
 
 
-pub struct Vector<'a> {
+pub struct PtrVector<'a> {
   ptr: *const u8,
   size: usize,
   data_type: DataTy,
   _marker: marker::PhantomData<&'a ()>
 }
 
-impl<'a> Vector<'a> {
-  pub fn new(ptr: *const u8, size: usize, data_type: DataTy) -> Vector<'a> {
-    Vector {
+impl<'a> PtrVector<'a> {
+  pub fn new(ptr: *const u8, size: usize, data_type: DataTy) -> PtrVector<'a> {
+    PtrVector {
       ptr: ptr, 
       size: size,
       data_type: data_type, 
@@ -86,7 +86,7 @@ impl<'a> Vector<'a> {
   }
 }
 
-impl<'a> HasDataTy for Vector<'a> {
+impl<'a> HasDataTy for PtrVector<'a> {
   fn data_ty(&self) -> &DataTy {
     &self.data_type
   }
