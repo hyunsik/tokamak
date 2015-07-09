@@ -9,9 +9,9 @@ use std::iter::Iterator;
 
 pub trait Vector<'a> : HasDataTy {
   fn size(&self) -> usize;
-  fn as_array<T>(&self) -> &'a [T];
-  //fn array_mut<T>(&self) -> &mut [T];
-  //fn iter<T>() -> Iterator<Item=T>;
+  unsafe fn as_array<T>(&self) -> &'a [T];
+  unsafe fn as_mut_array<T>(&mut self) -> &'a mut [T];
+  fn iter<T>() -> Iterator<Item=T>;
 }
 
 pub trait VRowBlock<'b> {
@@ -40,10 +40,17 @@ pub struct ArrayVector<T> {
 
 impl<'a, V> Vector<'a> for ArrayVector<V> {
   fn size(&self) -> usize { self.array.len() }
-  fn as_array<T>(&self) -> &'a [T] { 
+  
+  unsafe fn as_array<T>(&self) -> &'a [T] {
+    let slice = Slice {data: self.array.as_ptr() as *const T, len: self.array.len()};    
+    mem::transmute(slice)        
+  }
+
+  unsafe fn as_mut_array<T>(&mut self) -> &'a mut [T] {
+    let slice = Slice {data: self.array.as_mut_ptr() as *mut T, len: self.array.len()};
     unsafe {
-      mem::transmute(&*self.array)    
-    }    
+      mem::transmute(slice)
+    }
   }
 }
 
