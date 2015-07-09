@@ -46,39 +46,39 @@ pub trait RowBlock<'b> {
 
   fn set_vector(&'b mut self, &'b PtrVector<'b>);
 
-  fn put_int1(&self, col_idx: usize, row_idx: usize, value: INT1_T);
+  fn put_int1(&mut self, col_idx: usize, row_idx: usize, value: INT1_T);
 
   fn get_int1(&self, col_idx: usize, row_idx: usize) -> INT1_T;
 
-  fn put_int2(&self, col_idx: usize, row_idx: usize, value: INT2_T);
+  fn put_int2(&mut self, col_idx: usize, row_idx: usize, value: INT2_T);
 
   fn get_int2(&self, col_idx: usize, row_idx: usize) -> INT2_T;
 
-  fn put_int4(&self, col_idx: usize, row_idx: usize, value: INT4_T);
+  fn put_int4(&mut self, col_idx: usize, row_idx: usize, value: INT4_T);
 
   fn get_int4(&self, col_idx: usize, row_idx: usize) -> INT4_T;
 
-  fn put_int8(&self, col_idx: usize, row_idx: usize, value: INT8_T);
+  fn put_int8(&mut self, col_idx: usize, row_idx: usize, value: INT8_T);
 
   fn get_int8(&self, col_idx: usize, row_idx: usize) -> INT8_T;
 
-  fn put_float4(&self, col_idx: usize, row_idx: usize, value: FLOAT4_T);
+  fn put_float4(&mut self, col_idx: usize, row_idx: usize, value: FLOAT4_T);
 
   fn get_float4(&self, col_idx: usize, row_idx: usize) -> FLOAT4_T;
 
-  fn put_float8(&self, col_idx: usize, row_idx: usize, value: FLOAT8_T);
+  fn put_float8(&mut self, col_idx: usize, row_idx: usize, value: FLOAT8_T);
 
   fn get_float8(&self, col_idx: usize, row_idx: usize) -> FLOAT8_T;
 
-  fn put_date(&self, col_idx: usize, row_idx: usize, value: DATE_T);
+  fn put_date(&mut self, col_idx: usize, row_idx: usize, value: DATE_T);
 
   fn get_date(&self, col_idx: usize, row_idx: usize) -> DATE_T;
 
-  fn put_time(&self, col_idx: usize, row_idx: usize, value: TIME_T);
+  fn put_time(&mut self, col_idx: usize, row_idx: usize, value: TIME_T);
 
   fn get_time(&self, col_idx: usize, row_idx: usize) -> TIME_T;
 
-  fn put_timestamp(&self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T);
+  fn put_timestamp(&mut self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T);
 
   fn get_timestamp(&self, col_idx: usize, row_idx: usize) -> TIMESTAMP_T;
 

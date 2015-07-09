@@ -86,7 +86,7 @@ impl<T> HasDataTy for ArrayVector<T> {
   }
 }
 
-
+/// Borrowed vector
 pub struct PtrVector<'a> {
   ptr: *const u8,
   size: usize,
@@ -103,17 +103,21 @@ impl<'a> PtrVector<'a> {
       _marker: marker::PhantomData
     }
   }  
+}
 
-  pub fn as_array<T>(&self) -> &[T] {
+impl<'a, 'b> Vector<'a> for PtrVector<'b> {
+  fn size(&self) -> usize {self.size}
+
+  fn as_array<T>(&self) -> &'a [T] {
     unsafe {
       slice::from_raw_parts(self.ptr as *const T, VECTOR_SIZE)
     }    
   }
 
-  pub fn as_mut_array<T>(&self) -> &mut [T] {
+  fn as_mut_array<T>(&mut self) -> &'a mut [T] {
     unsafe {
       slice::from_raw_parts_mut(self.ptr as *mut T, VECTOR_SIZE)
-    }    
+    }
   }
 }
 
