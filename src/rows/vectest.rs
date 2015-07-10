@@ -1,18 +1,51 @@
+use alloc::heap;
 use std::marker;
+
+use common::constant::VECTOR_SIZE;
+use intrinsics::sse;
+use types::{Ty, DataTy, HasDataTy};
 
 trait Vector {
   fn size(&self) -> usize;
 
-  //fn as_array<T: Sized>() -> &[T]
+  //fn as_array<T: Sized>() -> &[T];
 }
 
 struct ArrayVector {
-  array: [i32; 1]
+  ptr: *mut u8,
+  data_ty: DataTy
+}
+
+impl ArrayVector {
+  pub fn new(data_ty: &DataTy) -> ArrayVector {
+    let alloc_size = sse::compute_aligned_size(
+      data_ty.bytes_len() as usize * VECTOR_SIZE);
+
+    let ptr = unsafe {
+      heap::allocate(alloc_size, sse::ALIGNED_SIZE)
+    };
+
+    ArrayVector {
+      ptr: ptr,
+      data_ty: data_ty.clone(),
+    }
+  }
+}
+
+impl Drop for ArrayVector {
+  fn drop(&mut self) {
+    unsafe {
+      let alloc_size = sse::compute_aligned_size(
+        self.data_ty.bytes_len() as usize * VECTOR_SIZE);
+
+      heap::deallocate(self.ptr as *mut u8, alloc_size, sse::ALIGNED_SIZE);
+    }
+  }
 }
 
 impl Vector for ArrayVector {
  fn size(&self) -> usize {
-  self.array.len()
+  VECTOR_SIZE
  } 
 }
 
@@ -56,7 +89,7 @@ impl<'a> RowBlock<'a> for YRowBlock<'a> {
 #[test]
 fn test_yrowblock() {
   let mut y = YRowBlock {vectors: Vec::new(), _marker: marker::PhantomData};
-  let vector = ArrayVector {array: [0]};
+  let vector = ArrayVector::new(&DataTy::new(Ty::Int4));
   y.set_vector(Box::new(vector));
 
   let mut ass = AssemblyRowBlock {vectors: Vec::new()};
