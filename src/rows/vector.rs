@@ -91,18 +91,6 @@ impl<'a> Vector for ArrayVector<'a> {
   }
 }
 
-// struct ArrayVectorItor<'a, T: 'a> {
-//   iter: Iter<'a, T>
-// }
-
-// impl<'a, T: 'a> Iterator for ArrayVectorItor<'a, T> {
-//   type Item = T;
-
-//   fn next(&mut self) -> Option<T> {        
-//     self.iter.next()
-//   }
-// }
-
 impl<'a> HasDataTy for ArrayVector<'a> {
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
