@@ -27,6 +27,8 @@ pub use self::vrows::{AllocatedVecRowBlock, PtrVector, SlotVecRowBlock};
 pub mod vector;
 pub use self::vector::{Vector};
 
+pub mod vectest;
+
 use schema::Schema;
 use types::*;
 
