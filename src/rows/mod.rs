@@ -44,9 +44,9 @@ pub trait RowBlock<'b> {
 
   fn schema(&'b self) -> &'b Schema;  
 
-  fn vector(&'b self, usize) -> &PtrVector<'b>;
+  fn vector(&'b self, usize) -> &'b Vector;
 
-  fn set_vector(&'b mut self, &'b PtrVector<'b>);
+  fn set_vector(&'b mut self, &'b Vector);
 
   fn put_int1(&mut self, col_idx: usize, row_idx: usize, value: INT1_T);
 

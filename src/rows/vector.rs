@@ -14,9 +14,8 @@ use common::constant::VECTOR_SIZE;
 
 pub trait Vector : HasDataTy {
   fn size(&self) -> usize;
-  fn as_array<T>(&self) -> &[T];
-  fn as_mut_array<T>(&mut self) -> &mut [T];
-  //fn iter<T: 'a>(&self) -> Box<Iterator<Item=T>>;
+  fn as_ptr(&self) -> *const u8;
+  fn as_mut_ptr(&mut self) ->*mut u8;
 }
 
 pub trait VRowBlock<'b> {
@@ -77,22 +76,46 @@ impl<'a> Vector for ArrayVector<'a> {
   fn size(&self) -> usize {VECTOR_SIZE}
 
   #[inline]
-  fn as_array<T>(&self) -> &[T] {
-    unsafe {
-      slice::from_raw_parts(self.ptr as *const T, VECTOR_SIZE)
-    }    
+  fn as_ptr(&self) -> *const u8 {
+    self.ptr
   }
 
   #[inline]
-  fn as_mut_array<T>(&mut self) -> &mut [T] {
-    unsafe {
-      slice::from_raw_parts_mut(self.ptr as *mut T, VECTOR_SIZE)
-    }
+  fn as_mut_ptr(&mut self) -> *mut u8 {
+    self.ptr
   }
+
+  // #[inline]
+  // fn as_array<T>(&self) -> &[T] {
+  //   unsafe {
+  //     slice::from_raw_parts(self.ptr as *const T, VECTOR_SIZE)
+  //   }    
+  // }
+
+  // #[inline]
+  // fn as_mut_array<T>(&mut self) -> &mut [T] {
+  //   unsafe {
+  //     slice::from_raw_parts_mut(self.ptr as *mut T, VECTOR_SIZE)
+  //   }
+  // }
 }
 
 impl<'a> HasDataTy for ArrayVector<'a> {
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
   }
+}
+
+#[inline]
+pub fn as_array<T>(v: &Vector) -> &[T] {
+  unsafe {
+    slice::from_raw_parts(v.as_ptr() as *const T, VECTOR_SIZE)
+  }    
+}
+
+#[inline]
+pub fn as_mut_array<T>(v: &mut Vector) -> &mut [T] {
+  unsafe {
+    slice::from_raw_parts_mut(v.as_mut_ptr() as *mut T, VECTOR_SIZE)
+  }    
 }
