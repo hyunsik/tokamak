@@ -4,11 +4,13 @@ use common::constant::VECTOR_SIZE;
 use intrinsics::sse;
 use memutil::Arena;
 use schema::Schema;
-use rows::vector::{Vector, PtrVector};
+use rows::vector::{Vector};
 use rows::RowBlock;
 
 use alloc::heap;
 use std::mem;
+use std::marker;
+use std::slice;
 
 
 pub struct SlotVecRowBlock<'a> {
@@ -22,6 +24,47 @@ impl<'a> SlotVecRowBlock<'a> {
   }
 }
 
+
+/// Borrowed vector
+pub struct PtrVector<'a> {
+  ptr: *const u8,
+  size: usize,
+  data_type: DataTy,
+  _marker: marker::PhantomData<&'a ()>
+}
+
+impl<'a> PtrVector<'a> {
+  pub fn new(ptr: *const u8, size: usize, data_type: DataTy) -> PtrVector<'a> {
+    PtrVector {
+      ptr: ptr, 
+      size: size,
+      data_type: data_type, 
+      _marker: marker::PhantomData
+    }
+  }  
+}
+
+impl<'a, 'b> Vector for PtrVector<'b> {
+  fn size(&self) -> usize {self.size}
+
+  fn as_array<T>(&self) -> &[T] {
+    unsafe {
+      slice::from_raw_parts(self.ptr as *const T, VECTOR_SIZE)
+    }    
+  }
+
+  fn as_mut_array<T>(&mut self) -> &mut [T] {
+    unsafe {
+      slice::from_raw_parts_mut(self.ptr as *mut T, VECTOR_SIZE)
+    }
+  }
+}
+
+impl<'a> HasDataTy for PtrVector<'a> {
+  fn data_ty(&self) -> &DataTy {
+    &self.data_type
+  }
+}
 
 pub struct AllocatedVecRowBlock<'a> {
   schema: Schema,  

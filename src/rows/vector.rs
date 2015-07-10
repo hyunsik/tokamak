@@ -1,6 +1,4 @@
-use types::{DataTy, HasDataTy};
-use common::constant::VECTOR_SIZE;
-
+use alloc::heap;
 use std::marker;
 use std::marker::Sized;
 use std::mem;
@@ -8,6 +6,10 @@ use std::slice;
 use std::slice::Iter;
 use std::raw::Slice;
 use std::iter::Iterator;
+
+use intrinsics::sse;
+use types::{DataTy, HasDataTy};
+use common::constant::VECTOR_SIZE;
 
 
 pub trait Vector : HasDataTy {
@@ -36,36 +38,57 @@ impl<'b> VRowBlock<'b> for BorrowVRowBlock<'b> {
   }
 }
 
-pub struct ArrayVector<T: Sized> {
-  array: Vec<T>,
-  data_ty: DataTy
+pub struct ArrayVector<'a> {
+  ptr: *mut u8,
+  data_ty: DataTy,
+  _marker: marker::PhantomData<&'a ()>
 }
 
-impl<'a, V> Vector for ArrayVector<V> {
-  fn size(&self) -> usize { self.array.len() }
-  
+impl<'a> ArrayVector<'a> {
+  pub fn new(data_ty: &DataTy) -> ArrayVector {
+    let alloc_size = sse::compute_aligned_size(
+      data_ty.bytes_len() as usize * VECTOR_SIZE);
+
+    let ptr = unsafe {
+      heap::allocate(alloc_size, sse::ALIGNED_SIZE)
+    };
+
+    ArrayVector {
+      ptr: ptr,
+      data_ty: data_ty.clone(),
+      _marker: marker::PhantomData
+    }
+  }
+}
+
+impl<'a> Drop for ArrayVector<'a> {
+  fn drop(&mut self) {
+    unsafe {
+      let alloc_size = sse::compute_aligned_size(
+        self.data_ty.bytes_len() as usize * VECTOR_SIZE);
+
+      heap::deallocate(self.ptr as *mut u8, alloc_size, sse::ALIGNED_SIZE);
+    }
+  }
+}
+
+impl<'a> Vector for ArrayVector<'a> {
+  #[inline]
+  fn size(&self) -> usize {VECTOR_SIZE}
+
   #[inline]
   fn as_array<T>(&self) -> &[T] {
     unsafe {
-      slice::from_raw_parts(self.array.as_ptr() as *const T, VECTOR_SIZE)
-    }
+      slice::from_raw_parts(self.ptr as *const T, VECTOR_SIZE)
+    }    
   }
 
   #[inline]
   fn as_mut_array<T>(&mut self) -> &mut [T] {
     unsafe {
-      slice::from_raw_parts_mut(self.array.as_mut_ptr() as *mut T, VECTOR_SIZE)
+      slice::from_raw_parts_mut(self.ptr as *mut T, VECTOR_SIZE)
     }
   }
-
-  // fn iter<T: 'a>(&self) -> Box<Iterator<Item=T>> {
-  //   let slice = Slice {data: self.array.as_ptr() as *const T, len: self.array.len()};
-  //   let x: &'a [T] = unsafe {
-  //     mem::transmute(slice)
-  //   };    
-
-  //   Box::new(ArrayVectorItor {iter: x.iter()})
-  // }
 }
 
 // struct ArrayVectorItor<'a, T: 'a> {
@@ -80,49 +103,8 @@ impl<'a, V> Vector for ArrayVector<V> {
 //   }
 // }
 
-impl<T> HasDataTy for ArrayVector<T> {
+impl<'a> HasDataTy for ArrayVector<'a> {
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
-  }
-}
-
-/// Borrowed vector
-pub struct PtrVector<'a> {
-  ptr: *const u8,
-  size: usize,
-  data_type: DataTy,
-  _marker: marker::PhantomData<&'a ()>
-}
-
-impl<'a> PtrVector<'a> {
-  pub fn new(ptr: *const u8, size: usize, data_type: DataTy) -> PtrVector<'a> {
-    PtrVector {
-      ptr: ptr, 
-      size: size,
-      data_type: data_type, 
-      _marker: marker::PhantomData
-    }
-  }  
-}
-
-impl<'a, 'b> Vector for PtrVector<'b> {
-  fn size(&self) -> usize {self.size}
-
-  fn as_array<T>(&self) -> &[T] {
-    unsafe {
-      slice::from_raw_parts(self.ptr as *const T, VECTOR_SIZE)
-    }    
-  }
-
-  fn as_mut_array<T>(&mut self) -> &mut [T] {
-    unsafe {
-      slice::from_raw_parts_mut(self.ptr as *mut T, VECTOR_SIZE)
-    }
-  }
-}
-
-impl<'a> HasDataTy for PtrVector<'a> {
-  fn data_ty(&self) -> &DataTy {
-    &self.data_type
   }
 }

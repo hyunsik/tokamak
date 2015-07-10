@@ -22,10 +22,10 @@
 //! encoding, different compression, and different memory representation.
 
 pub mod vectorized_rows;
-pub use self::vectorized_rows::{AllocatedVecRowBlock, SlotVecRowBlock};
+pub use self::vectorized_rows::{AllocatedVecRowBlock, PtrVector, SlotVecRowBlock};
 
 pub mod vector;
-pub use self::vector::{Vector, PtrVector};
+pub use self::vector::{Vector};
 
 use schema::Schema;
 use types::*;
