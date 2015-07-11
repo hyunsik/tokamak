@@ -2,13 +2,15 @@
 //! Interpreter Compiler for Expressions
 //!
 
+use common::constant::VECTOR_SIZE;
 use common::err::{Error, TResult, Void, void_ok};
 use eval::{Eval, MapEval};
 use expr::{Datum, Expr, Visitor};
 use rows::RowBlock;
-use rows::vector::Vector;
+use rows::vector::{Vector, as_mut_array, as_array};
 use schema::{Column, Schema};
 use std::boxed::Box;
+use std::ops;
 use types::{DataTy, HasDataTy, HasTy, result_data_ty, Ty};
 
 // Unary Expressions
@@ -69,6 +71,50 @@ impl HasDataTy for Plus {
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
   }
+}
+
+
+fn eval<T: ops::Add>(res: &mut [T], l: &[T], r: &[T]) where T : Copy + ops::Add<T, Output=T> {
+  unsafe {
+    for i in 0..VECTOR_SIZE {
+       *res.get_unchecked_mut(i) = *l.get_unchecked(i) + *r.get_unchecked(i);
+    }  
+  }
+}
+
+fn eval2<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector) where T : Copy + ops::Add<T, Output=T> {
+  let t: &mut [T] = as_mut_array(res);
+  let l: &[T] = as_array(lhs);
+  let r: &[T] = as_array(rhs);
+
+  unsafe {
+    for i in 0..VECTOR_SIZE {
+      *t.get_unchecked_mut(i) = *l.get_unchecked(i) + *r.get_unchecked(i);
+    }  
+  }
+}
+
+// trait MapPrimitive {
+//   fn map_plus_vec_vec<T: ops::Add, L, R>(res: &mut Vector, lhs: &Vector, rhs: &Vector);
+// }
+
+// struct MapPlus;
+
+// impl MapPrimitive for MapPlus {
+//   fn map_plus_vec_vec<T: ops::Add, L, R>(res: &mut Vector, lhs: &Vector, rhs: &Vector) {
+//     let t: &mut [T] = as_mut_array(res);
+//     let l: &[L] = as_array(lhs);
+//     let r: &[R] = as_array(rhs);
+
+//     for i in 0..r.len() {
+//       t[i] = (l[i] as T) + (r[i] as T);
+//     }
+//   }
+// }
+
+#[test]
+fn test_generic_trait() {
+  //let p: Box<Primitive> = Box::new(Primitive<INT4_T, INT4_T, INT4_T> {});
 }
 
 impl Field {
