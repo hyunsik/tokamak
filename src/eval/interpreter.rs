@@ -7,7 +7,7 @@ use eval::Eval;
 use expr::{Datum, Expr, Visitor};
 use schema::{Column, Schema};
 use std::boxed::Box;
-use types::{DataTy, HasDataTy, HasTy, Ty};
+use types::{DataTy, HasDataTy, HasTy, result_data_ty, Ty};
 
 // Unary Expressions
 pub struct Not {child: Box<Eval>}
@@ -24,7 +24,7 @@ pub struct GreaterThan {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct GreaterThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
 
 // Binary Arithmetic Evalessions
-pub struct Plus {pub lhs: Box<Eval>, pub rhs: Box<Eval>}
+pub struct Plus {data_ty: DataTy, pub lhs: Box<Eval>, pub rhs: Box<Eval>}
 pub struct Minus {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Multiply {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Divide {lhs: Box<Eval>, rhs: Box<Eval>}
@@ -44,19 +44,21 @@ pub struct Field {column: Column, field_id: Option<usize>}
 pub struct Const {datum: Datum, res_type: DataTy}
 
 
-// impl Eval for Plus {
-//   fn bind(&mut self, schema: &Schema) -> Void {
-//     //self.field_id = schema.get_
-
-//     void_ok()
-//   }
-
-//   fn ty(&self) -> &DataTy {
-//     self.lhs.ty()
-//   }
+impl Eval for Plus {
+  fn bind(&mut self, schema: &Schema) -> Void {
+    self.data_ty = result_data_ty(self.lhs.data_ty(), self.rhs.data_ty());
+    void_ok()
+  }  
   
-//   fn is_const(&self) -> bool { false }
-// }
+  fn is_const(&self) -> bool { false }
+}
+
+impl HasDataTy for Plus {
+  #[inline]
+  fn data_ty(&self) -> &DataTy {
+    &self.data_ty
+  }
+}
 
 impl Field {
   pub fn new(column: &Column) -> Field {
