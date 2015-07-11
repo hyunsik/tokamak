@@ -62,6 +62,12 @@ impl MapEval for Plus {
     let l: &Vector = try!(self.lhs.eval(r));
     let r: &Vector = try!(self.rhs.eval(r));
 
+    let f: Option<fn(&mut Vector, &Vector, &Vector)> = Some(if true {
+      eval2::<i32>
+    } else {
+      eval2::<i64>
+    });
+
     Err(Error::InvalidExpression)
   }
 }
@@ -82,6 +88,15 @@ fn eval<T: ops::Add>(res: &mut [T], l: &[T], r: &[T]) where T : Copy + ops::Add<
   }
 }
 
+fn eval_i32(res: &mut Vector, lhs: &Vector, rhs: &Vector) {
+  eval2::<i32>(res, lhs, rhs);
+}
+
+fn eval_i64(res: &mut Vector, lhs: &Vector, rhs: &Vector) {
+  eval2::<i64>(res, lhs, rhs);
+}
+
+#[inline]
 fn eval2<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector) where T : Copy + ops::Add<T, Output=T> {
   let t: &mut [T] = as_mut_array(res);
   let l: &[T] = as_array(lhs);
@@ -114,7 +129,7 @@ fn eval2<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector) where T : Co
 
 #[test]
 fn test_generic_trait() {
-  //let p: Box<Primitive> = Box::new(Primitive<INT4_T, INT4_T, INT4_T> {});
+  let y = eval2;
 }
 
 impl Field {
