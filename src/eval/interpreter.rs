@@ -28,7 +28,7 @@ pub struct GreaterThan {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct GreaterThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
 
 // Binary Arithmetic Evalessions
-pub struct Plus {data_ty: DataTy, pub lhs: Box<MapEval>, pub rhs: Box<MapEval>}
+pub struct Plus<'r> {data_ty: DataTy, pub lhs: Box<MapEval<'r>>, pub rhs: Box<MapEval<'r>>}
 pub struct Minus {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Multiply {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Divide {lhs: Box<Eval>, rhs: Box<Eval>}
@@ -44,11 +44,11 @@ pub struct Between {pred: Box<Eval>, begin: Box<Eval>, end: Box<Eval>}
 pub struct In {pred: Box<Eval>, row: Box<Row>}
 
 pub struct Row {values: Vec<Box<Eval>>}
-pub struct Field {column: Column, field_id: Option<usize>}
+pub struct Field {column: Column, field_id: usize}
 pub struct Const {datum: Datum, res_type: DataTy}
 
 
-impl Eval for Plus {
+impl<'r> Eval for Plus<'r> {
   fn bind(&mut self, schema: &Schema) -> Void {
     self.data_ty = result_data_ty(self.lhs.data_ty(), self.rhs.data_ty());
     void_ok()
@@ -57,8 +57,8 @@ impl Eval for Plus {
   fn is_const(&self) -> bool { false }
 }
 
-impl MapEval for Plus {
-  fn eval(&self, r: &RowBlock) -> &Vector {
+impl<'r> MapEval<'r> for Plus<'r> {
+  fn eval(&self, r: &'r RowBlock<'r>) -> &'r Vector {
     let l: &Vector = self.lhs.eval(r);
     let r: &Vector = self.rhs.eval(r);
 
@@ -72,7 +72,7 @@ impl MapEval for Plus {
   }
 }
 
-impl HasDataTy for Plus {
+impl<'r> HasDataTy for Plus<'r> {
   #[inline]
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
@@ -127,16 +127,11 @@ fn eval2<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector) where T : Co
 //   }
 // }
 
-#[test]
-fn test_generic_trait() {
-  let y = eval2;
-}
-
 impl Field {
   pub fn new(column: &Column) -> Field {
     Field {
       column: column.clone(),
-      field_id: None
+      field_id: 0
     }
   }
 }
@@ -154,7 +149,7 @@ impl Eval for Field {
     match schema.column_id(&self.column.name) {
         
      Some(id) => {
-      self.field_id = Some(id);
+      self.field_id = id;
       void_ok()
      },
      
@@ -162,9 +157,13 @@ impl Eval for Field {
     }    
   }  
   
-  fn is_const(&self) -> bool { false }
+  fn is_const(&self) -> bool { false }  
+}
 
-  // fn eval(&self, RowBlock) -> TResult<&Vector1>;  
+impl<'r> MapEval<'r> for Field {
+  fn eval(&self, r: &'r RowBlock<'r>) -> &'r Vector {
+    r.vector(self.field_id)
+  }
 }
 
 impl Const {
