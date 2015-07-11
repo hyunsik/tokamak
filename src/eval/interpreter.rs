@@ -3,8 +3,10 @@
 //!
 
 use common::err::{Error, TResult, Void, void_ok};
-use eval::Eval;
+use eval::{Eval, MapEval};
 use expr::{Datum, Expr, Visitor};
+use rows::RowBlock;
+use rows::vector::Vector;
 use schema::{Column, Schema};
 use std::boxed::Box;
 use types::{DataTy, HasDataTy, HasTy, result_data_ty, Ty};
@@ -24,7 +26,7 @@ pub struct GreaterThan {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct GreaterThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
 
 // Binary Arithmetic Evalessions
-pub struct Plus {data_ty: DataTy, pub lhs: Box<Eval>, pub rhs: Box<Eval>}
+pub struct Plus {data_ty: DataTy, pub lhs: Box<MapEval>, pub rhs: Box<MapEval>}
 pub struct Minus {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Multiply {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Divide {lhs: Box<Eval>, rhs: Box<Eval>}
@@ -51,6 +53,15 @@ impl Eval for Plus {
   }  
   
   fn is_const(&self) -> bool { false }
+}
+
+impl MapEval for Plus {
+  fn eval(&self, r: &RowBlock) -> TResult<&Vector> {
+    let l: &Vector = try!(self.lhs.eval(r));
+    let r: &Vector = try!(self.rhs.eval(r));
+
+    Err(Error::InvalidExpression)
+  }
 }
 
 impl HasDataTy for Plus {
