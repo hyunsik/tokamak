@@ -16,6 +16,7 @@ pub trait Vector : HasDataTy {
   fn size(&self) -> usize;
   fn as_ptr(&self) -> *const u8;
   fn as_mut_ptr(&mut self) ->*mut u8;
+  fn is_const(&self) -> bool;
 }
 
 pub trait VRowBlock<'b> {
@@ -85,25 +86,23 @@ impl<'a> Vector for ArrayVector<'a> {
     self.ptr
   }
 
-  // #[inline]
-  // fn as_array<T>(&self) -> &[T] {
-  //   unsafe {
-  //     slice::from_raw_parts(self.ptr as *const T, VECTOR_SIZE)
-  //   }    
-  // }
-
-  // #[inline]
-  // fn as_mut_array<T>(&mut self) -> &mut [T] {
-  //   unsafe {
-  //     slice::from_raw_parts_mut(self.ptr as *mut T, VECTOR_SIZE)
-  //   }
-  // }
+  #[inline]
+  fn is_const(&self) -> bool { false }
 }
 
 impl<'a> HasDataTy for ArrayVector<'a> {
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
   }
+}
+
+#[inline]
+pub fn first_value<T>(v: &Vector) -> &T {
+  let array = unsafe {
+    slice::from_raw_parts(v.as_ptr() as *const T, 1) as &[T]
+  };
+
+  &array[0]
 }
 
 #[inline]

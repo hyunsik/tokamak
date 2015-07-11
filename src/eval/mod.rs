@@ -38,3 +38,4 @@ pub trait FilterEvalCompiler<'a> {
 
 /// Interpreter Compiler for Expressions
 pub mod interpreter;
+pub mod primitives;

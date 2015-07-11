@@ -45,6 +45,7 @@ impl<'a> PtrVector<'a> {
 }
 
 impl<'a> Vector for PtrVector<'a> {
+  #[inline]
   fn size(&self) -> usize {self.size}
 
   #[inline]
@@ -56,6 +57,8 @@ impl<'a> Vector for PtrVector<'a> {
   fn as_mut_ptr(&mut self) -> *mut u8 {
     self.ptr
   }
+
+  fn is_const(&self) -> bool { false }
 }
 
 impl<'a> HasDataTy for PtrVector<'a> {

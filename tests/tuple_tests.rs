@@ -8,7 +8,7 @@ use tajo::schema::*;
 use tajo::rows::*;
 use std::boxed::Box;
 
-fn make_test_schema() -> Schema {
+pub fn make_test_schema() -> Schema {
   let mut columns = Vec::new();
   columns.push(Column::new("c0".to_string(), Ty::Bool));      // 0
   columns.push(Column::new("c1".to_string(), Ty::Int1));      // 1
@@ -28,7 +28,7 @@ fn make_test_schema() -> Schema {
   Schema::new(columns)
 }
 
-fn fill_vector_block(rowblock: &mut RowBlock) {
+pub fn fill_vector_block(rowblock: &mut RowBlock) {
   for i in (0..1024) {
     rowblock.put_int1(1, i, (i % (i8::MAX - 1) as usize) as i8);
     rowblock.put_int2(2, i, (i % (i16::MAX -1) as usize) as i16);

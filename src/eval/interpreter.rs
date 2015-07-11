@@ -2,15 +2,17 @@
 //! Interpreter Compiler for Expressions
 //!
 
+use std::boxed::Box;
+use std::ops;
+
 use common::constant::VECTOR_SIZE;
 use common::err::{Error, TResult, Void, void_ok};
 use eval::{Eval, MapEval};
+use eval::primitives::*;
 use expr::{Datum, Expr, Visitor};
 use rows::RowBlock;
-use rows::vector::{Vector, as_mut_array, as_array};
+use rows::vector::Vector;
 use schema::{Column, Schema};
-use std::boxed::Box;
-use std::ops;
 use types::{DataTy, HasDataTy, HasTy, result_data_ty, Ty};
 
 // Unary Expressions
@@ -63,9 +65,9 @@ impl<'r> MapEval<'r> for Plus<'r> {
     let r: &Vector = self.rhs.eval(r);
 
     let f: Option<fn(&mut Vector, &Vector, &Vector)> = Some(if true {
-      eval2::<i32>
+      map_plus_vv::<i32>
     } else {
-      eval2::<i64>
+      map_plus_vv::<i64>
     });
 
     l
@@ -78,54 +80,6 @@ impl<'r> HasDataTy for Plus<'r> {
     &self.data_ty
   }
 }
-
-
-fn eval<T: ops::Add>(res: &mut [T], l: &[T], r: &[T]) where T : Copy + ops::Add<T, Output=T> {
-  unsafe {
-    for i in 0..VECTOR_SIZE {
-       *res.get_unchecked_mut(i) = *l.get_unchecked(i) + *r.get_unchecked(i);
-    }  
-  }
-}
-
-fn eval_i32(res: &mut Vector, lhs: &Vector, rhs: &Vector) {
-  eval2::<i32>(res, lhs, rhs);
-}
-
-fn eval_i64(res: &mut Vector, lhs: &Vector, rhs: &Vector) {
-  eval2::<i64>(res, lhs, rhs);
-}
-
-#[inline]
-fn eval2<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector) where T : Copy + ops::Add<T, Output=T> {
-  let t: &mut [T] = as_mut_array(res);
-  let l: &[T] = as_array(lhs);
-  let r: &[T] = as_array(rhs);
-
-  unsafe {
-    for i in 0..VECTOR_SIZE {
-      *t.get_unchecked_mut(i) = *l.get_unchecked(i) + *r.get_unchecked(i);
-    }  
-  }
-}
-
-// trait MapPrimitive {
-//   fn map_plus_vec_vec<T: ops::Add, L, R>(res: &mut Vector, lhs: &Vector, rhs: &Vector);
-// }
-
-// struct MapPlus;
-
-// impl MapPrimitive for MapPlus {
-//   fn map_plus_vec_vec<T: ops::Add, L, R>(res: &mut Vector, lhs: &Vector, rhs: &Vector) {
-//     let t: &mut [T] = as_mut_array(res);
-//     let l: &[L] = as_array(lhs);
-//     let r: &[R] = as_array(rhs);
-
-//     for i in 0..r.len() {
-//       t[i] = (l[i] as T) + (r[i] as T);
-//     }
-//   }
-// }
 
 impl Field {
   pub fn new(column: &Column) -> Field {
@@ -175,48 +129,20 @@ impl Const {
   }
 }
 
-// impl Eval for Const {
-  
-//   fn bind(&mut self, schema: &Schema) -> Void {
-//     self.res_type = DataTy::new(self.datum.ty());
-//     void_ok()
-//   }
-
-//   fn ty(&self) -> &DataTy {
-//     &self.res_type
-//   }
-  
-//   fn is_const(&self) -> bool { true }
-// }
-
-pub fn compile<'a>(expr: &'a Expr) -> TResult<Box<Eval>> {  
-  match *expr {
-
-    // Expr::Between {lhs, mid, rhs} => {
-    //   Ok(Box::new(
-    //     Between {
-    //       lhs: try!(compile(lhs)), 
-    //       mid: try!(compile(mid)), 
-    //       rhs: try!(compile(rhs))
-    //     })
-    //   )
-    // },
-
-    // Expr::Plus (ref lhs, ref rhs) => {
-    //   Ok(Box::new(
-    //     Plus {
-    //       lhs: try!(compile(&**lhs)),
-    //       rhs: try!(compile(&**rhs)),
-    //     }
-    //   ))
-    // },
-
-    // Expr::Field {column} => Ok(Box::new(Field::new(column))),
-
-    // Expr::Const {datum} => Ok(Box::new(Const::new(&datum))),
-
-    _ => Err(Error::InvalidExpression)
+impl HasDataTy for Const {
+  fn data_ty(&self) -> &DataTy {
+    &self.res_type
   }
+}
+
+impl Eval for Const {
+  
+  fn bind(&mut self, schema: &Schema) -> Void {
+    self.res_type = DataTy::new(self.datum.ty());
+    void_ok()
+  }  
+  
+  fn is_const(&self) -> bool { true }
 }
 
 pub struct InterpreterCompiler {
