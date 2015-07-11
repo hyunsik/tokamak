@@ -58,9 +58,9 @@ impl Eval for Plus {
 }
 
 impl MapEval for Plus {
-  fn eval(&self, r: &RowBlock) -> TResult<&Vector> {
-    let l: &Vector = try!(self.lhs.eval(r));
-    let r: &Vector = try!(self.rhs.eval(r));
+  fn eval(&self, r: &RowBlock) -> &Vector {
+    let l: &Vector = self.lhs.eval(r);
+    let r: &Vector = self.rhs.eval(r);
 
     let f: Option<fn(&mut Vector, &Vector, &Vector)> = Some(if true {
       eval2::<i32>
@@ -68,7 +68,7 @@ impl MapEval for Plus {
       eval2::<i64>
     });
 
-    Err(Error::InvalidExpression)
+    l
   }
 }
 
