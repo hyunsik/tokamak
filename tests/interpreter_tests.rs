@@ -30,7 +30,7 @@ pub fn make_test_schema() -> Schema {
   Schema::new(columns)
 }
 
-pub fn fill_vector_block(rowblock: Rc<RefCell<RowBlock>>) {
+pub fn fill_vector_block(rowblock: &mut RowBlock) {
   for i in (0..1024) {
     rowblock.put_int1(1, i, (i % (i8::MAX - 1) as usize) as i8);
     rowblock.put_int2(2, i, (i % (i16::MAX -1) as usize) as i16);
@@ -51,7 +51,7 @@ fn test_field() {
   let schema = make_test_schema();
   
   let mut field: Box<MapEval> = Box::new(Field::new(&Column::new("c3".to_string(), Ty::Int4)));
-  let mut r: Rc<RefCell<RowBlock>> = Rc::new(RefCell::new(AllocatedVecRowBlock::new(schema.clone())));
+  let mut r: Box<RowBlock> = Box::new(AllocatedVecRowBlock::new(schema.clone()));
   fill_vector_block(&mut *r);  
 
   assert!(field.bind(&schema).is_ok());
