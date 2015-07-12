@@ -119,7 +119,7 @@ impl<'a> AllocatedVecRowBlock<'a> {
 
 impl<'a> RowBlock<'a> for SlotVecRowBlock<'a> {
   #[inline]
-  fn schema(&'a self) -> &'a Schema {
+  fn schema(&self) -> &Schema {
     &self.schema
   }
 
@@ -280,7 +280,7 @@ impl<'a> RowBlock<'a> for SlotVecRowBlock<'a> {
 
 
 impl<'a> RowBlock<'a> for AllocatedVecRowBlock<'a> {
-  fn schema(&'a self) -> &'a Schema {
+  fn schema(&self) -> &Schema {
     &self.schema
   }
 

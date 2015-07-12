@@ -42,7 +42,7 @@ struct VectorDesc {
 pub trait RowBlock<'b> {
   fn column_num(&self) -> usize;
 
-  fn schema(&'b self) -> &'b Schema;  
+  fn schema(&self) -> &Schema;  
 
   fn vector(&'b self, usize) -> &'b Vector;
 
