@@ -19,8 +19,13 @@ pub struct SlotVecRowBlock<'a> {
 }
 
 impl<'a> SlotVecRowBlock<'a> {
- pub fn new(schema: Schema) -> SlotVecRowBlock<'a> {
-  SlotVecRowBlock {schema: schema, vectors: Vec::new()}
+  pub fn new(schema: Schema) -> SlotVecRowBlock<'a> {
+    SlotVecRowBlock {schema: schema, vectors: Vec::new()}
+  }
+
+  #[inline]
+  fn set_vector(&mut self, vec: &'a Vector) {
+    self.vectors.push(vec);
   }
 }
 
@@ -117,7 +122,7 @@ impl<'a> AllocatedVecRowBlock<'a> {
   }  
 }
 
-impl<'a> RowBlock<'a> for SlotVecRowBlock<'a> {
+impl<'a> RowBlock for SlotVecRowBlock<'a> {
   #[inline]
   fn schema(&self) -> &Schema {
     &self.schema
@@ -131,12 +136,7 @@ impl<'a> RowBlock<'a> for SlotVecRowBlock<'a> {
   #[inline]
   fn vector(&self, col_id: usize) -> &Vector {
     self.vectors[col_id]
-  }
-
-  #[inline]
-  fn set_vector(&mut self, vec: &'a Vector) {
-    self.vectors.push(vec);
-  }
+  }  
   
   #[inline]
   #[allow(unused_variables)]
@@ -279,7 +279,7 @@ impl<'a> RowBlock<'a> for SlotVecRowBlock<'a> {
 }
 
 
-impl<'a> RowBlock<'a> for AllocatedVecRowBlock<'a> {
+impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
   fn schema(&self) -> &Schema {
     &self.schema
   }
@@ -290,11 +290,6 @@ impl<'a> RowBlock<'a> for AllocatedVecRowBlock<'a> {
 
   fn vector(&self, col_id: usize) -> &Vector {
     &self.vectors[col_id]
-  }
-
-  #[allow(unused_variables)]
-  fn set_vector(&mut self, vec: &'a Vector) {
-    panic!("AllocatedVecRowBlock::set_vector() is not support");
   }
 
   #[inline]

@@ -30,7 +30,7 @@ pub struct GreaterThan {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct GreaterThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
 
 // Binary Arithmetic Evalessions
-pub struct Plus<'r> {data_ty: DataTy, pub lhs: Box<MapEval<'r>>, pub rhs: Box<MapEval<'r>>}
+pub struct Plus {data_ty: DataTy, pub lhs: Box<MapEval>, pub rhs: Box<MapEval>}
 pub struct Minus {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Multiply {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Divide {lhs: Box<Eval>, rhs: Box<Eval>}
@@ -50,7 +50,7 @@ pub struct Field {column: Column, field_id: usize}
 pub struct Const {datum: Datum, res_type: DataTy}
 
 
-impl<'r> Eval for Plus<'r> {
+impl Eval for Plus {
   fn bind(&mut self, schema: &Schema) -> Void {
     self.data_ty = result_data_ty(self.lhs.data_ty(), self.rhs.data_ty());
     void_ok()
@@ -59,8 +59,8 @@ impl<'r> Eval for Plus<'r> {
   fn is_const(&self) -> bool { false }
 }
 
-impl<'r> MapEval<'r> for Plus<'r> {
-  fn eval(&self, r: &'r RowBlock<'r>) -> &'r Vector {
+impl MapEval for Plus {
+  fn eval<'r>(&'r self, r: &'r RowBlock) -> &'r Vector {
     let l: &Vector = self.lhs.eval(r);
     let r: &Vector = self.rhs.eval(r);
 
@@ -74,7 +74,7 @@ impl<'r> MapEval<'r> for Plus<'r> {
   }
 }
 
-impl<'r> HasDataTy for Plus<'r> {
+impl HasDataTy for Plus {
   #[inline]
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
@@ -114,8 +114,8 @@ impl Eval for Field {
   fn is_const(&self) -> bool { false }  
 }
 
-impl<'r> MapEval<'r> for Field {
-  fn eval(&self, r: &'r RowBlock<'r>) -> &'r Vector {
+impl MapEval for Field {
+  fn eval<'r>(&'r self, r: &'r RowBlock) -> &'r Vector {
     r.vector(self.field_id)
   }
 }

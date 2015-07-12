@@ -39,14 +39,12 @@ struct VectorDesc {
   contiguous: bool
 }
 
-pub trait RowBlock<'b> {
+pub trait RowBlock {
   fn column_num(&self) -> usize;
 
   fn schema(&self) -> &Schema;  
 
   fn vector(&self, usize) -> &Vector;
-
-  fn set_vector(&'b mut self, &'b Vector);
 
   fn put_int1(&mut self, col_idx: usize, row_idx: usize, value: INT1_T);
 
