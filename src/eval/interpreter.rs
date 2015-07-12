@@ -64,7 +64,7 @@ impl MapEval for Plus {
     let l: &Vector = self.lhs.eval(r);
     let r: &Vector = self.rhs.eval(r);
 
-    let f: Option<fn(&mut Vector, &Vector, &Vector)> = Some(if true {
+    let f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)> = Some(if true {
       map_plus_vv::<i32>
     } else {
       map_plus_vv::<i64>
