@@ -1,13 +1,12 @@
 extern crate tajo;
 
 use std::{i8,i16};
-use std::rc::Rc;
-use std::cell::RefCell;
 
 use tajo::schema::*;
 use tajo::eval::{Eval, MapEval};
 use tajo::eval::interpreter::*;
 use tajo::rows::*;
+use tajo::rows::vector::as_array;
 use tajo::types::*;
 
 pub fn make_test_schema() -> Schema {
@@ -47,7 +46,7 @@ pub fn fill_vector_block(rowblock: &mut RowBlock) {
 }
 
 #[test]
-fn test_field() {
+fn test_FieldEval() {
   let schema = make_test_schema();
   
   let mut field: Box<MapEval> = Box::new(Field::new(&Column::new("c3".to_string(), Ty::Int4)));
@@ -55,5 +54,9 @@ fn test_field() {
   fill_vector_block(&mut *r);  
 
   assert!(field.bind(&schema).is_ok());
-  let v: &Vector = field.eval(&*r);  
+  let v: &Vector = field.eval(&*r);
+  let array: &[INT4_T] = as_array(v);
+
+  assert_eq!(Ty::Int4, v.data_ty().ty());
+  assert_eq!(1024, array.iter().count());
 }
