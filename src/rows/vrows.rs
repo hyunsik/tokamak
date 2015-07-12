@@ -129,7 +129,7 @@ impl<'a> RowBlock<'a> for SlotVecRowBlock<'a> {
   }
 
   #[inline]
-  fn vector(&'a self, col_id: usize) -> &'a Vector {
+  fn vector(&self, col_id: usize) -> &Vector {
     self.vectors[col_id]
   }
 
@@ -288,7 +288,7 @@ impl<'a> RowBlock<'a> for AllocatedVecRowBlock<'a> {
     self.schema.size()
   }
 
-  fn vector(&'a self, col_id: usize) -> &'a Vector {
+  fn vector(&self, col_id: usize) -> &Vector {
     &self.vectors[col_id]
   }
 

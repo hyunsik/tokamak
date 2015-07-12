@@ -44,7 +44,7 @@ pub trait RowBlock<'b> {
 
   fn schema(&self) -> &Schema;  
 
-  fn vector(&'b self, usize) -> &'b Vector;
+  fn vector(&self, usize) -> &Vector;
 
   fn set_vector(&'b mut self, &'b Vector);
 
