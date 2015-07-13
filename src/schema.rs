@@ -32,7 +32,11 @@ pub struct Schema {
 }
 
 impl Schema {
-  pub fn new(columns: Vec<Column>) -> Schema {
+  pub fn new() -> Schema {
+    Schema {columns: Vec::new()}
+  }
+
+  pub fn from_vec(columns: Vec<Column>) -> Schema {
     Schema {columns: columns}
   }
 
@@ -44,7 +48,7 @@ impl Schema {
     self.columns.push(c);
   }
 
-  pub fn add_directly(&mut self, name : String, ty: Ty) {
+  pub fn add_column(&mut self, name : &str, ty: Ty) {
     self.columns.push(Column::new(name, ty));
   }
 
@@ -61,7 +65,7 @@ impl Schema {
     &self.columns
   }
 
-  pub fn get_by_name(&self, name : String) -> Option<&Column> {
+  pub fn get_by_name(&self, name : &str) -> Option<&Column> {
     self.columns.iter().filter(|&c| c.name == name).next()
   }
 }

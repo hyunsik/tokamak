@@ -20,7 +20,7 @@ fn make_test_schema() -> Schema {
   // columns.push(Column::new_with_len("c12".to_string(), Ty::VARCHAR, 4));
   // columns.push(Column::new_with_len("c13".to_string(), Ty::CHAR, 4));
 
-  Schema::new(columns)
+  Schema::from_vec(columns)
 }
 
 #[test]

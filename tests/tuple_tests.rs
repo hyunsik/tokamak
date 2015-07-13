@@ -25,7 +25,7 @@ pub fn make_test_schema() -> Schema {
   // columns.push(Column::new_with_len("c12".to_string(), Ty::VARCHAR, 4));
   // columns.push(Column::new_with_len("c13".to_string(), Ty::CHAR, 4));
 
-  Schema::new(columns)
+  Schema::from_vec(columns)
 }
 
 pub fn fill_vector_block(rowblock: &mut RowBlockWriter) {
@@ -77,7 +77,7 @@ fn test_rowblock() {
   columns.push(Column::new("c2".to_string(), Ty::Int8));
   columns.push(Column::new("c3".to_string(), Ty::Float4));
 
-  let schema = Schema::new(columns);
+  let schema = Schema::from_vec(columns);
   let rowblock: Box<RowBlock> = Box::new(BorrowedVRowBlock::new(schema));  
 
   assert_eq!(rowblock.column_num(), 3);
