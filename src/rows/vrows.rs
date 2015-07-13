@@ -5,7 +5,7 @@ use intrinsics::sse;
 use memutil::Arena;
 use schema::Schema;
 use rows::vector::{Vector, as_array, as_mut_array};
-use rows::RowBlock;
+use rows::{AsRowBlock, RowBlock, RowBlockWriter};
 
 use alloc::heap;
 use std::mem;
@@ -26,6 +26,12 @@ impl<'a> SlotVecRowBlock<'a> {
   #[inline]
   fn set_vector(&mut self, vec: &'a Vector) {
     self.vectors.push(vec);
+  }
+}
+
+impl<'a> AsRowBlock for SlotVecRowBlock<'a> {
+  fn as_reader(&self) -> &RowBlock {
+    self
   }
 }
 
@@ -122,6 +128,12 @@ impl<'a> AllocatedVecRowBlock<'a> {
   }  
 }
 
+impl<'a> AsRowBlock for AllocatedVecRowBlock<'a> {
+  fn as_reader(&self) -> &RowBlock {
+    self
+  }
+}
+
 impl<'a> RowBlock for SlotVecRowBlock<'a> {
   #[inline]
   fn schema(&self) -> &Schema {
@@ -137,12 +149,6 @@ impl<'a> RowBlock for SlotVecRowBlock<'a> {
   fn vector(&self, col_id: usize) -> &Vector {
     self.vectors[col_id]
   }  
-  
-  #[inline]
-  #[allow(unused_variables)]
-  fn put_int1(&mut self, col_idx: usize, row_idx: usize, value: INT1_T) {      
-    unimplemented!();
-  }
 
   #[inline]
   fn get_int1(&self, col_idx: usize, row_idx: usize ) -> INT1_T {      
@@ -150,13 +156,7 @@ impl<'a> RowBlock for SlotVecRowBlock<'a> {
     unsafe {
       *v.get_unchecked(row_idx)
     }
-  }
-  
-  #[inline]
-  #[allow(unused_variables)]
-  fn put_int2(&mut self, col_idx: usize, row_idx: usize, value: INT2_T) {      
-    unimplemented!();
-  }
+  }  
 
   #[inline]
   fn get_int2(&self, col_idx: usize, row_idx: usize ) -> INT2_T {      
@@ -165,12 +165,6 @@ impl<'a> RowBlock for SlotVecRowBlock<'a> {
       *v.get_unchecked(row_idx)
     }
   }
-  
-  #[inline]
-  #[allow(unused_variables)]
-  fn put_int4(&mut self, col_idx: usize, row_idx: usize, value: INT4_T) {      
-    unimplemented!();
-  }
 
   #[inline]
   fn get_int4(&self, col_idx: usize, row_idx: usize ) -> INT4_T {      
@@ -178,12 +172,6 @@ impl<'a> RowBlock for SlotVecRowBlock<'a> {
     unsafe {
       *v.get_unchecked(row_idx)
     }
-  }
-  
-  #[inline]
-  #[allow(unused_variables)]
-  fn put_int8(&mut self, col_idx: usize, row_idx: usize, value: INT8_T) {      
-    unimplemented!();
   }
 
   #[inline]
@@ -195,23 +183,11 @@ impl<'a> RowBlock for SlotVecRowBlock<'a> {
   }
 
   #[inline]
-  #[allow(unused_variables)]
-  fn put_float4(&mut self, col_idx: usize, row_idx: usize, value: FLOAT4_T) {      
-    unimplemented!();
-  }
-
-  #[inline]
   fn get_float4(&self, col_idx: usize, row_idx: usize ) -> FLOAT4_T {      
     let v : &[FLOAT4_T] = as_array(self.vectors[col_idx]);
     unsafe {
       *v.get_unchecked(row_idx)
     }
-  }
-
-  #[inline]
-  #[allow(unused_variables)]
-  fn put_float8(&mut self, col_idx: usize, row_idx: usize, value: FLOAT8_T) {      
-    unimplemented!();
   }
 
   #[inline]
@@ -223,23 +199,11 @@ impl<'a> RowBlock for SlotVecRowBlock<'a> {
   }
 
   #[inline]
-  #[allow(unused_variables)]
-  fn put_date(&mut self, col_idx: usize, row_idx: usize, value: DATE_T) {      
-    unimplemented!();
-  }
-
-  #[inline]
   fn get_date(&self, col_idx: usize, row_idx: usize ) -> DATE_T {      
     let v : &[DATE_T] = as_array(self.vectors[col_idx]);
     unsafe {
       *v.get_unchecked(row_idx)
     }
-  }
-
-  #[inline]
-  #[allow(unused_variables)]
-  fn put_time(&mut self, col_idx: usize, row_idx: usize, value: TIME_T) {      
-    unimplemented!();
   }
 
   #[inline]
@@ -251,23 +215,11 @@ impl<'a> RowBlock for SlotVecRowBlock<'a> {
   }
 
   #[inline]
-  #[allow(unused_variables)]
-  fn put_timestamp(&mut self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T) {      
-    unimplemented!();
-  }
-
-  #[inline]
   fn get_timestamp(&self, col_idx: usize, row_idx: usize ) -> TIMESTAMP_T {      
     let v : &[TIMESTAMP_T] = as_array(self.vectors[col_idx]);
     unsafe {
       *v.get_unchecked(row_idx)
     }
-  }
-
-  #[inline]
-  #[allow(unused_variables)]
-  fn put_text(&mut self, col_idx: usize, row_idx: usize, value: &str) {        
-    unimplemented!();
   }
 
   fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {
@@ -278,6 +230,89 @@ impl<'a> RowBlock for SlotVecRowBlock<'a> {
   }
 }
 
+impl<'a> RowBlockWriter for AllocatedVecRowBlock<'a> {
+  #[inline]
+  fn put_int1(&mut self, col_idx: usize, row_idx: usize, value: INT1_T) {      
+    let v : &mut [INT1_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+  #[inline]
+  fn put_int2(&mut self, col_idx: usize, row_idx: usize, value: INT2_T) {      
+    let v : &mut [INT2_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+    #[inline]
+  fn put_int4(&mut self, col_idx: usize, row_idx: usize, value: INT4_T) {      
+    let v : &mut [INT4_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+  #[inline]
+  fn put_int8(&mut self, col_idx: usize, row_idx: usize, value: INT8_T) {      
+    let v : &mut [INT8_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+    #[inline]
+  fn put_float4(&mut self, col_idx: usize, row_idx: usize, value: FLOAT4_T) {      
+    let v : &mut [FLOAT4_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+    #[inline]
+  fn put_float8(&mut self, col_idx: usize, row_idx: usize, value: FLOAT8_T) {      
+    let v : &mut [FLOAT8_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+    #[inline]
+  fn put_date(&mut self, col_idx: usize, row_idx: usize, value: DATE_T) {      
+    let v : &mut [DATE_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+    #[inline]
+  fn put_time(&mut self, col_idx: usize, row_idx: usize, value: TIME_T) {      
+    let v : &mut [TIME_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+
+  #[inline]
+  fn put_timestamp(&mut self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T) {      
+    let v : &mut [TIMESTAMP_T] = as_mut_array(&mut self.vectors[col_idx]);
+    unsafe{
+      (*v.get_unchecked_mut(row_idx)) = value;        
+    }
+  }
+
+    fn put_text(&mut self, col_idx: usize, row_idx: usize, value: &str) {
+    let v : &mut [TEXT_T] = as_mut_array(&mut self.vectors[col_idx]);
+
+    let str_ptr = self.arena.alloc_str(value);
+
+    v[row_idx].set_ptr(str_ptr);
+    v[row_idx].set_len(value.len() as i32);
+  }
+}
 
 impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
   fn schema(&self) -> &Schema {
@@ -290,15 +325,7 @@ impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
 
   fn vector(&self, col_id: usize) -> &Vector {
     &self.vectors[col_id]
-  }
-
-  #[inline]
-  fn put_int1(&mut self, col_idx: usize, row_idx: usize, value: INT1_T) {      
-    let v : &mut [INT1_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
-    }
-  }
+  }  
 
   #[inline]
   fn get_int1(&self, col_idx: usize, row_idx: usize ) -> INT1_T {      
@@ -306,29 +333,13 @@ impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
     unsafe {
       *v.get_unchecked(row_idx)
     }
-  }
-
-  #[inline]
-  fn put_int2(&mut self, col_idx: usize, row_idx: usize, value: INT2_T) {      
-    let v : &mut [INT2_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
-    }
-  }
+  }  
 
   #[inline]
   fn get_int2(&self, col_idx: usize, row_idx: usize ) -> INT2_T {      
     let v : &[INT2_T] = as_array(&self.vectors[col_idx]);
     unsafe {
       *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn put_int4(&mut self, col_idx: usize, row_idx: usize, value: INT4_T) {      
-    let v : &mut [INT4_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
     }
   }
 
@@ -341,26 +352,10 @@ impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
   }
 
   #[inline]
-  fn put_int8(&mut self, col_idx: usize, row_idx: usize, value: INT8_T) {      
-    let v : &mut [INT8_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
-    }
-  }
-
-  #[inline]
   fn get_int8(&self, col_idx: usize, row_idx: usize ) -> INT8_T {      
     let v : &[INT8_T] = as_array(&self.vectors[col_idx]);
     unsafe {
       *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn put_float4(&mut self, col_idx: usize, row_idx: usize, value: FLOAT4_T) {      
-    let v : &mut [FLOAT4_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
     }
   }
 
@@ -373,26 +368,10 @@ impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
   }
 
   #[inline]
-  fn put_float8(&mut self, col_idx: usize, row_idx: usize, value: FLOAT8_T) {      
-    let v : &mut [FLOAT8_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
-    }
-  }
-
-  #[inline]
   fn get_float8(&self, col_idx: usize, row_idx: usize ) -> FLOAT8_T {      
     let v : &[FLOAT8_T] = as_array(&self.vectors[col_idx]);
     unsafe {
       *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn put_date(&mut self, col_idx: usize, row_idx: usize, value: DATE_T) {      
-    let v : &mut [DATE_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
     }
   }
 
@@ -405,26 +384,10 @@ impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
   }
 
   #[inline]
-  fn put_time(&mut self, col_idx: usize, row_idx: usize, value: TIME_T) {      
-    let v : &mut [TIME_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
-    }
-  }
-
-  #[inline]
   fn get_time(&self, col_idx: usize, row_idx: usize ) -> TIME_T {      
     let v : &[TIME_T] = as_array(&self.vectors[col_idx]);
     unsafe {
       *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn put_timestamp(&mut self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T) {      
-    let v : &mut [TIMESTAMP_T] = as_mut_array(&mut self.vectors[col_idx]);
-    unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
     }
   }
 
@@ -434,15 +397,6 @@ impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
     unsafe {
       *v.get_unchecked(row_idx)
     }
-  }
-
-  fn put_text(&mut self, col_idx: usize, row_idx: usize, value: &str) {
-    let v : &mut [TEXT_T] = as_mut_array(&mut self.vectors[col_idx]);
-
-    let str_ptr = self.arena.alloc_str(value);
-
-    v[row_idx].set_ptr(str_ptr);
-    v[row_idx].set_len(value.len() as i32);
   }
 
   fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {    

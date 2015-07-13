@@ -28,7 +28,7 @@ pub fn make_test_schema() -> Schema {
   Schema::new(columns)
 }
 
-pub fn fill_vector_block(rowblock: &mut RowBlock) {
+pub fn fill_vector_block(rowblock: &mut RowBlockWriter) {
   for i in (0..1024) {
     rowblock.put_int1(1, i, (i % (i8::MAX - 1) as usize) as i8);
     rowblock.put_int2(2, i, (i % (i16::MAX -1) as usize) as i16);
