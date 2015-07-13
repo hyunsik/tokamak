@@ -52,81 +52,81 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }  
 
   #[inline]
-  fn get_int1(&self, col_idx: usize, row_idx: usize ) -> INT1_T {      
-    let v : &[INT1_T] = as_array(self.vectors[col_idx]);
+  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1_T {      
+    let v : &[INT1_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }  
 
   #[inline]
-  fn get_int2(&self, col_idx: usize, row_idx: usize ) -> INT2_T {      
-    let v : &[INT2_T] = as_array(self.vectors[col_idx]);
+  fn get_int2(&self, row_id: usize, col_id: usize ) -> INT2_T {      
+    let v : &[INT2_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_int4(&self, col_idx: usize, row_idx: usize ) -> INT4_T {      
-    let v : &[INT4_T] = as_array(self.vectors[col_idx]);
+  fn get_int4(&self, row_id: usize, col_id: usize ) -> INT4_T {      
+    let v : &[INT4_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_int8(&self, col_idx: usize, row_idx: usize ) -> INT8_T {      
-    let v : &[INT8_T] = as_array(self.vectors[col_idx]);
+  fn get_int8(&self, row_id: usize, col_id: usize ) -> INT8_T {      
+    let v : &[INT8_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_float4(&self, col_idx: usize, row_idx: usize ) -> FLOAT4_T {      
-    let v : &[FLOAT4_T] = as_array(self.vectors[col_idx]);
+  fn get_float4(&self, row_id: usize, col_id: usize ) -> FLOAT4_T {      
+    let v : &[FLOAT4_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_float8(&self, col_idx: usize, row_idx: usize ) -> FLOAT8_T {      
-    let v : &[FLOAT8_T] = as_array(self.vectors[col_idx]);
+  fn get_float8(&self, row_id: usize, col_id: usize ) -> FLOAT8_T {      
+    let v : &[FLOAT8_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_date(&self, col_idx: usize, row_idx: usize ) -> DATE_T {      
-    let v : &[DATE_T] = as_array(self.vectors[col_idx]);
+  fn get_date(&self, row_id: usize, col_id: usize ) -> DATE_T {      
+    let v : &[DATE_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_time(&self, col_idx: usize, row_idx: usize ) -> TIME_T {      
-    let v : &[TIME_T] = as_array(self.vectors[col_idx]);
+  fn get_time(&self, row_id: usize, col_id: usize ) -> TIME_T {      
+    let v : &[TIME_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_timestamp(&self, col_idx: usize, row_idx: usize ) -> TIMESTAMP_T {      
-    let v : &[TIMESTAMP_T] = as_array(self.vectors[col_idx]);
+  fn get_timestamp(&self, row_id: usize, col_id: usize ) -> TIMESTAMP_T {      
+    let v : &[TIMESTAMP_T] = as_array(self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
-  fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {
-    let v : &[TEXT_T] = as_array(self.vectors[col_idx]);
+  fn get_text(&self, row_id: usize, col_id: usize) -> &TEXT_T {
+    let v : &[TEXT_T] = as_array(self.vectors[col_id]);
     unsafe {
-      v.get_unchecked(row_idx)
+      v.get_unchecked(row_id)
     }
   }
 }
@@ -235,85 +235,85 @@ impl<'a> AsRowBlock for HeapVRowBlock<'a> {
 
 impl<'a> RowBlockWriter for HeapVRowBlock<'a> {
   #[inline]
-  fn put_int1(&mut self, col_idx: usize, row_idx: usize, value: INT1_T) {      
-    let v : &mut [INT1_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1_T) {      
+    let v : &mut [INT1_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
   #[inline]
-  fn put_int2(&mut self, col_idx: usize, row_idx: usize, value: INT2_T) {      
-    let v : &mut [INT2_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_int2(&mut self, row_id: usize, col_id: usize, value: INT2_T) {      
+    let v : &mut [INT2_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
     #[inline]
-  fn put_int4(&mut self, col_idx: usize, row_idx: usize, value: INT4_T) {      
-    let v : &mut [INT4_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_int4(&mut self, row_id: usize, col_id: usize, value: INT4_T) {      
+    let v : &mut [INT4_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
   #[inline]
-  fn put_int8(&mut self, col_idx: usize, row_idx: usize, value: INT8_T) {      
-    let v : &mut [INT8_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_int8(&mut self, row_id: usize, col_id: usize, value: INT8_T) {      
+    let v : &mut [INT8_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
     #[inline]
-  fn put_float4(&mut self, col_idx: usize, row_idx: usize, value: FLOAT4_T) {      
-    let v : &mut [FLOAT4_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_float4(&mut self, row_id: usize, col_id: usize, value: FLOAT4_T) {      
+    let v : &mut [FLOAT4_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
     #[inline]
-  fn put_float8(&mut self, col_idx: usize, row_idx: usize, value: FLOAT8_T) {      
-    let v : &mut [FLOAT8_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_float8(&mut self, row_id: usize, col_id: usize, value: FLOAT8_T) {      
+    let v : &mut [FLOAT8_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
     #[inline]
-  fn put_date(&mut self, col_idx: usize, row_idx: usize, value: DATE_T) {      
-    let v : &mut [DATE_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_date(&mut self, row_id: usize, col_id: usize, value: DATE_T) {      
+    let v : &mut [DATE_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
     #[inline]
-  fn put_time(&mut self, col_idx: usize, row_idx: usize, value: TIME_T) {      
-    let v : &mut [TIME_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_time(&mut self, row_id: usize, col_id: usize, value: TIME_T) {      
+    let v : &mut [TIME_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
 
   #[inline]
-  fn put_timestamp(&mut self, col_idx: usize, row_idx: usize, value: TIMESTAMP_T) {      
-    let v : &mut [TIMESTAMP_T] = as_mut_array(&mut self.vectors[col_idx]);
+  fn put_timestamp(&mut self, row_id: usize, col_id: usize, value: TIMESTAMP_T) {      
+    let v : &mut [TIMESTAMP_T] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_idx)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
 
-    fn put_text(&mut self, col_idx: usize, row_idx: usize, value: &str) {
-    let v : &mut [TEXT_T] = as_mut_array(&mut self.vectors[col_idx]);
+    fn put_text(&mut self, row_id: usize, col_id: usize, value: &str) {
+    let v : &mut [TEXT_T] = as_mut_array(&mut self.vectors[col_id]);
 
     let str_ptr = self.arena.alloc_str(value);
 
-    v[row_idx].set_ptr(str_ptr);
-    v[row_idx].set_len(value.len() as i32);
+    v[row_id].set_ptr(str_ptr);
+    v[row_id].set_len(value.len() as i32);
   }
 }
 
@@ -331,81 +331,81 @@ impl<'a> RowBlock for HeapVRowBlock<'a> {
   }  
 
   #[inline]
-  fn get_int1(&self, col_idx: usize, row_idx: usize ) -> INT1_T {      
-    let v : &[INT1_T] = as_array(&self.vectors[col_idx]);
+  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1_T {      
+    let v : &[INT1_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }  
 
   #[inline]
-  fn get_int2(&self, col_idx: usize, row_idx: usize ) -> INT2_T {      
-    let v : &[INT2_T] = as_array(&self.vectors[col_idx]);
+  fn get_int2(&self, row_id: usize, col_id: usize ) -> INT2_T {      
+    let v : &[INT2_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_int4(&self, col_idx: usize, row_idx: usize ) -> INT4_T {      
-    let v : &[INT4_T] = as_array(&self.vectors[col_idx]);
+  fn get_int4(&self, row_id: usize, col_id: usize ) -> INT4_T {      
+    let v : &[INT4_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_int8(&self, col_idx: usize, row_idx: usize ) -> INT8_T {      
-    let v : &[INT8_T] = as_array(&self.vectors[col_idx]);
+  fn get_int8(&self, row_id: usize, col_id: usize ) -> INT8_T {      
+    let v : &[INT8_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_float4(&self, col_idx: usize, row_idx: usize ) -> FLOAT4_T {      
-    let v : &[FLOAT4_T] = as_array(&self.vectors[col_idx]);
+  fn get_float4(&self, row_id: usize, col_id: usize ) -> FLOAT4_T {      
+    let v : &[FLOAT4_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_float8(&self, col_idx: usize, row_idx: usize ) -> FLOAT8_T {      
-    let v : &[FLOAT8_T] = as_array(&self.vectors[col_idx]);
+  fn get_float8(&self, row_id: usize, col_id: usize ) -> FLOAT8_T {      
+    let v : &[FLOAT8_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_date(&self, col_idx: usize, row_idx: usize ) -> DATE_T {      
-    let v : &[DATE_T] = as_array(&self.vectors[col_idx]);
+  fn get_date(&self, row_id: usize, col_id: usize) -> DATE_T {      
+    let v : &[DATE_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_time(&self, col_idx: usize, row_idx: usize ) -> TIME_T {      
-    let v : &[TIME_T] = as_array(&self.vectors[col_idx]);
+  fn get_time(&self, row_id: usize, col_id: usize) -> TIME_T {      
+    let v : &[TIME_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
   #[inline]
-  fn get_timestamp(&self, col_idx: usize, row_idx: usize ) -> TIMESTAMP_T {      
-    let v : &[TIMESTAMP_T] = as_array(&self.vectors[col_idx]);
+  fn get_timestamp(&self, row_id: usize, col_id: usize) -> TIMESTAMP_T {      
+    let v : &[TIMESTAMP_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      *v.get_unchecked(row_idx)
+      *v.get_unchecked(row_id)
     }
   }
 
-  fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {    
-    let v : &[TEXT_T] = as_array(&self.vectors[col_idx]);
+  fn get_text(&self, row_id: usize, col_id: usize) -> &TEXT_T {    
+    let v : &[TEXT_T] = as_array(&self.vectors[col_id]);
     unsafe {
-      v.get_unchecked(row_idx)
+      v.get_unchecked(row_id)
     }
   }
 }
