@@ -13,14 +13,14 @@ use std::marker;
 use std::slice;
 
 
-pub struct SlotVecRowBlock<'a> {
+pub struct BorrowedVRowBlock<'a> {
   schema: Schema,
   vectors: Vec<&'a Vector>,
 }
 
-impl<'a> SlotVecRowBlock<'a> {
-  pub fn new(schema: Schema) -> SlotVecRowBlock<'a> {
-    SlotVecRowBlock {schema: schema, vectors: Vec::new()}
+impl<'a> BorrowedVRowBlock<'a> {
+  pub fn new(schema: Schema) -> BorrowedVRowBlock<'a> {
+    BorrowedVRowBlock {schema: schema, vectors: Vec::new()}
   }
 
   #[inline]
@@ -29,11 +29,108 @@ impl<'a> SlotVecRowBlock<'a> {
   }
 }
 
-impl<'a> AsRowBlock for SlotVecRowBlock<'a> {
+impl<'a> AsRowBlock for BorrowedVRowBlock<'a> {
   fn as_reader(&self) -> &RowBlock {
     self
   }
 }
+
+impl<'a> RowBlock for BorrowedVRowBlock<'a> {
+  #[inline]
+  fn schema(&self) -> &Schema {
+    &self.schema
+  }
+
+  #[inline]
+  fn column_num(&self) -> usize {
+    self.schema.size()
+  }
+
+  #[inline]
+  fn vector(&self, col_id: usize) -> &Vector {
+    self.vectors[col_id]
+  }  
+
+  #[inline]
+  fn get_int1(&self, col_idx: usize, row_idx: usize ) -> INT1_T {      
+    let v : &[INT1_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }  
+
+  #[inline]
+  fn get_int2(&self, col_idx: usize, row_idx: usize ) -> INT2_T {      
+    let v : &[INT2_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }
+
+  #[inline]
+  fn get_int4(&self, col_idx: usize, row_idx: usize ) -> INT4_T {      
+    let v : &[INT4_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }
+
+  #[inline]
+  fn get_int8(&self, col_idx: usize, row_idx: usize ) -> INT8_T {      
+    let v : &[INT8_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }
+
+  #[inline]
+  fn get_float4(&self, col_idx: usize, row_idx: usize ) -> FLOAT4_T {      
+    let v : &[FLOAT4_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }
+
+  #[inline]
+  fn get_float8(&self, col_idx: usize, row_idx: usize ) -> FLOAT8_T {      
+    let v : &[FLOAT8_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }
+
+  #[inline]
+  fn get_date(&self, col_idx: usize, row_idx: usize ) -> DATE_T {      
+    let v : &[DATE_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }
+
+  #[inline]
+  fn get_time(&self, col_idx: usize, row_idx: usize ) -> TIME_T {      
+    let v : &[TIME_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }
+
+  #[inline]
+  fn get_timestamp(&self, col_idx: usize, row_idx: usize ) -> TIMESTAMP_T {      
+    let v : &[TIMESTAMP_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      *v.get_unchecked(row_idx)
+    }
+  }
+
+  fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {
+    let v : &[TEXT_T] = as_array(self.vectors[col_idx]);
+    unsafe {
+      v.get_unchecked(row_idx)
+    }
+  }
+}
+
 
 
 /// Borrowed vector
@@ -134,101 +231,7 @@ impl<'a> AsRowBlock for AllocatedVecRowBlock<'a> {
   }
 }
 
-impl<'a> RowBlock for SlotVecRowBlock<'a> {
-  #[inline]
-  fn schema(&self) -> &Schema {
-    &self.schema
-  }
 
-  #[inline]
-  fn column_num(&self) -> usize {
-    self.schema.size()
-  }
-
-  #[inline]
-  fn vector(&self, col_id: usize) -> &Vector {
-    self.vectors[col_id]
-  }  
-
-  #[inline]
-  fn get_int1(&self, col_idx: usize, row_idx: usize ) -> INT1_T {      
-    let v : &[INT1_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }  
-
-  #[inline]
-  fn get_int2(&self, col_idx: usize, row_idx: usize ) -> INT2_T {      
-    let v : &[INT2_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn get_int4(&self, col_idx: usize, row_idx: usize ) -> INT4_T {      
-    let v : &[INT4_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn get_int8(&self, col_idx: usize, row_idx: usize ) -> INT8_T {      
-    let v : &[INT8_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn get_float4(&self, col_idx: usize, row_idx: usize ) -> FLOAT4_T {      
-    let v : &[FLOAT4_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn get_float8(&self, col_idx: usize, row_idx: usize ) -> FLOAT8_T {      
-    let v : &[FLOAT8_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn get_date(&self, col_idx: usize, row_idx: usize ) -> DATE_T {      
-    let v : &[DATE_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn get_time(&self, col_idx: usize, row_idx: usize ) -> TIME_T {      
-    let v : &[TIME_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }
-
-  #[inline]
-  fn get_timestamp(&self, col_idx: usize, row_idx: usize ) -> TIMESTAMP_T {      
-    let v : &[TIMESTAMP_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      *v.get_unchecked(row_idx)
-    }
-  }
-
-  fn get_text(&self, col_idx: usize, row_idx: usize) -> &TEXT_T {
-    let v : &[TEXT_T] = as_array(self.vectors[col_idx]);
-    unsafe {
-      v.get_unchecked(row_idx)
-    }
-  }
-}
 
 impl<'a> RowBlockWriter for AllocatedVecRowBlock<'a> {
   #[inline]

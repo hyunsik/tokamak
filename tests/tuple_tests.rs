@@ -78,7 +78,7 @@ fn test_rowblock() {
   columns.push(Column::new("c3".to_string(), Ty::Float4));
 
   let schema = Schema::new(columns);
-  let rowblock: Box<RowBlock> = Box::new(SlotVecRowBlock::new(schema));  
+  let rowblock: Box<RowBlock> = Box::new(BorrowedVRowBlock::new(schema));  
 
   assert_eq!(rowblock.column_num(), 3);
 }
