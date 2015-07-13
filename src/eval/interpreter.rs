@@ -9,7 +9,7 @@ use common::constant::VECTOR_SIZE;
 use common::err::{Error, TResult, Void, void_ok};
 use eval::{Eval, MapEval};
 use eval::primitives::*;
-use expr::{Datum, Expr, Visitor};
+use expr::{ArithmOp, Datum, Expr, Visitor};
 use rows::RowBlock;
 use rows::vector::Vector;
 use schema::{Column, Schema};
@@ -30,6 +30,14 @@ pub struct GreaterThan {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct GreaterThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
 
 // Binary Arithmetic Evalessions
+pub struct ArithmMapEval {
+  pub op: ArithmOp, 
+  pub data_ty: Option<DataTy>, 
+  pub lhs: Box<MapEval>,
+  pub rhs: Box<MapEval>,
+  f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>  
+}
+
 pub struct Plus {data_ty: DataTy, pub lhs: Box<MapEval>, pub rhs: Box<MapEval>}
 pub struct Minus {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Multiply {lhs: Box<Eval>, rhs: Box<Eval>}
@@ -50,25 +58,41 @@ pub struct Field {column: Column, field_id: usize}
 pub struct Const {datum: Datum, res_type: DataTy}
 
 
-impl Eval for Plus {
+fn get_arithm_primitive(op: ArithmOp, res_ty: &DataTy, 
+                        lty: &DataTy, rty: &DataTy) 
+                        -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {  
+
+  let f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)> = Some(if true {
+      map_plus_vv::<i32>
+    } else {
+      map_plus_vv::<i64>
+    });
+
+  map_plus_vv::<i32>
+}
+
+impl Eval for ArithmMapEval {
+
   fn bind(&mut self, schema: &Schema) -> Void {
-    self.data_ty = result_data_ty(self.lhs.data_ty(), self.rhs.data_ty());
+    self.data_ty = Some(result_data_ty(self.lhs.data_ty(), self.rhs.data_ty()));
     void_ok()
   }  
   
   fn is_const(&self) -> bool { false }
 }
 
-impl MapEval for Plus {
+impl HasDataTy for ArithmMapEval {
+  fn data_ty(&self) -> &DataTy {
+    self.data_ty.as_ref().unwrap()
+  }
+}
+
+impl MapEval for ArithmMapEval {
   fn eval<'r>(&'r self, r: &'r RowBlock) -> &'r Vector {
     let l: &Vector = self.lhs.eval(r);
     let r: &Vector = self.rhs.eval(r);
 
-    let f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)> = Some(if true {
-      map_plus_vv::<i32>
-    } else {
-      map_plus_vv::<i64>
-    });
+    
 
     l
   }
