@@ -19,25 +19,6 @@ pub trait Vector : HasDataTy {
   fn is_const(&self) -> bool;
 }
 
-pub trait VRowBlock<'b> {
-  fn vector(&self, column_id: usize) -> &'b Vector;
-  fn set_vector(&mut self, column_id: usize, &'b Vector);
-}
-
-pub struct BorrowVRowBlock<'b> {
-  vectors: Vec<&'b Vector>
-}
-
-impl<'b> VRowBlock<'b> for BorrowVRowBlock<'b> {
-  fn vector(&self, column_id: usize) -> &'b Vector {
-    self.vectors[column_id]
-  }
-
-  fn set_vector(&mut self, column_id: usize, vector: &'b Vector) {
-    self.vectors[column_id] = vector
-  }
-}
-
 pub struct ArrayVector<'a> {
   ptr: *mut u8,
   data_ty: DataTy,

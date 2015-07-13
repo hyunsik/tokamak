@@ -27,8 +27,6 @@ pub use self::vrows::{HeapVRowBlock, PtrVector, BorrowedVRowBlock};
 pub mod vector;
 pub use self::vector::{Vector};
 
-pub mod vectest;
-
 use schema::Schema;
 use types::*;
 
