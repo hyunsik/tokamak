@@ -50,7 +50,7 @@ fn test_field_eval() {
   let schema = make_test_schema();
   
   let mut field: Box<MapEval> = Box::new(Field::new(&Column::new("c3".to_string(), Ty::Int4)));
-  let mut r: Box<RowBlockWriter> = Box::new(HeapVRowBlock::new(schema.clone()));
+  let mut r: Box<RowBlockWriter> = Box::new(HeapVRowBlock::new(&schema));
   fill_vector_block(&mut *r);  
 
   assert!(field.bind(&schema).is_ok());

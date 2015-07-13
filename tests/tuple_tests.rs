@@ -65,7 +65,7 @@ fn verify_vector_block(rowblock: &RowBlock) {
 fn allocated_vector_init() { 
   let schema = make_test_schema();
   
-  let mut rowblock = HeapVRowBlock::new(schema);
+  let mut rowblock = HeapVRowBlock::new(&schema);
   fill_vector_block(&mut rowblock);
   verify_vector_block(&rowblock);
 }
@@ -78,7 +78,7 @@ fn test_rowblock() {
   columns.push(Column::new("c3".to_string(), Ty::Float4));
 
   let schema = Schema::from_vec(columns);
-  let rowblock: Box<RowBlock> = Box::new(BorrowedVRowBlock::new(schema));  
+  let rowblock: Box<RowBlock> = Box::new(BorrowedVRowBlock::new(&schema));  
 
   assert_eq!(rowblock.column_num(), 3);
 }

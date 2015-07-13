@@ -19,8 +19,8 @@ pub struct BorrowedVRowBlock<'a> {
 }
 
 impl<'a> BorrowedVRowBlock<'a> {
-  pub fn new(schema: Schema) -> BorrowedVRowBlock<'a> {
-    BorrowedVRowBlock {schema: schema, vectors: Vec::new()}
+  pub fn new(schema: &Schema) -> BorrowedVRowBlock<'a> {
+    BorrowedVRowBlock {schema: schema.clone(), vectors: Vec::new()}
   }
 
   #[inline]
@@ -185,7 +185,7 @@ pub struct HeapVRowBlock<'a> {
 
 impl<'a> HeapVRowBlock<'a> {
 
-  pub fn new(schema: Schema) -> HeapVRowBlock<'a> {
+  pub fn new(schema: &Schema) -> HeapVRowBlock<'a> {
 
     let mut fixed_area_size: usize = 0;    
     let mut type_lengths: Vec<u32> = Vec::new();
@@ -216,7 +216,7 @@ impl<'a> HeapVRowBlock<'a> {
     }
 
     HeapVRowBlock {
-      schema: schema, 
+      schema: schema.clone(), 
       type_lengths: type_lengths, 
       ptr: fixed_area_ptr, 
       vectors: vectors,
