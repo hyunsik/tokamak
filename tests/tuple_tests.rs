@@ -65,7 +65,7 @@ fn verify_vector_block(rowblock: &RowBlock) {
 fn allocated_vector_init() { 
   let schema = make_test_schema();
   
-  let mut rowblock = AllocatedVecRowBlock::new(schema);
+  let mut rowblock = HeapVRowBlock::new(schema);
   fill_vector_block(&mut rowblock);
   verify_vector_block(&rowblock);
 }

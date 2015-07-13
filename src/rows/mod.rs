@@ -22,7 +22,7 @@
 //! encoding, different compression, and different memory representation.
 
 pub mod vrows;
-pub use self::vrows::{AllocatedVecRowBlock, PtrVector, BorrowedVRowBlock};
+pub use self::vrows::{HeapVRowBlock, PtrVector, BorrowedVRowBlock};
 
 pub mod vector;
 pub use self::vector::{Vector};

@@ -175,7 +175,7 @@ impl<'a> HasDataTy for PtrVector<'a> {
   }
 }
 
-pub struct AllocatedVecRowBlock<'a> {
+pub struct HeapVRowBlock<'a> {
   schema: Schema,  
   type_lengths: Vec<u32>,
   ptr: *mut u8,
@@ -183,9 +183,9 @@ pub struct AllocatedVecRowBlock<'a> {
   arena: Arena<'a>
 }
 
-impl<'a> AllocatedVecRowBlock<'a> {
+impl<'a> HeapVRowBlock<'a> {
 
-  pub fn new(schema: Schema) -> AllocatedVecRowBlock<'a> {
+  pub fn new(schema: Schema) -> HeapVRowBlock<'a> {
 
     let mut fixed_area_size: usize = 0;    
     let mut type_lengths: Vec<u32> = Vec::new();
@@ -215,7 +215,7 @@ impl<'a> AllocatedVecRowBlock<'a> {
       last_ptr = last_ptr + vector_size;
     }
 
-    AllocatedVecRowBlock {
+    HeapVRowBlock {
       schema: schema, 
       type_lengths: type_lengths, 
       ptr: fixed_area_ptr, 
@@ -225,7 +225,7 @@ impl<'a> AllocatedVecRowBlock<'a> {
   }  
 }
 
-impl<'a> AsRowBlock for AllocatedVecRowBlock<'a> {
+impl<'a> AsRowBlock for HeapVRowBlock<'a> {
   fn as_reader(&self) -> &RowBlock {
     self
   }
@@ -233,7 +233,7 @@ impl<'a> AsRowBlock for AllocatedVecRowBlock<'a> {
 
 
 
-impl<'a> RowBlockWriter for AllocatedVecRowBlock<'a> {
+impl<'a> RowBlockWriter for HeapVRowBlock<'a> {
   #[inline]
   fn put_int1(&mut self, col_idx: usize, row_idx: usize, value: INT1_T) {      
     let v : &mut [INT1_T] = as_mut_array(&mut self.vectors[col_idx]);
@@ -317,7 +317,7 @@ impl<'a> RowBlockWriter for AllocatedVecRowBlock<'a> {
   }
 }
 
-impl<'a> RowBlock for AllocatedVecRowBlock<'a> {
+impl<'a> RowBlock for HeapVRowBlock<'a> {
   fn schema(&self) -> &Schema {
     &self.schema
   }
