@@ -18,7 +18,7 @@ pub trait Eval : HasDataTy {
 
 /// Map Expression Evaluator Trait
 pub trait MapEval : Eval {
-  fn eval<'r>(&'r self, &'r RowBlock) -> &'r Vector;
+  fn eval<'r>(&'r mut self, &'r RowBlock) -> &'r Vector;
 }
 
 /// Filter Expression Evaluator Trait

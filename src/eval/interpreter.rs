@@ -11,7 +11,7 @@ use eval::{Eval, MapEval};
 use eval::primitives::*;
 use expr::{ArithmOp, Datum, Expr, Visitor};
 use rows::RowBlock;
-use rows::vector::Vector;
+use rows::vector::{Vector, ArrayVector};
 use schema::{Column, Schema};
 use types::{DataTy, HasDataTy, HasTy, result_data_ty, Ty};
 
@@ -30,12 +30,13 @@ pub struct GreaterThan {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct GreaterThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
 
 // Binary Arithmetic Evalessions
-pub struct ArithmMapEval {
+pub struct ArithmMapEval<'a> {
   pub op: ArithmOp, 
   pub data_ty: Option<DataTy>, 
   pub lhs: Box<MapEval>,
   pub rhs: Box<MapEval>,
-  f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>  
+  pub result: ArrayVector<'a>,
+  pub f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>  
 }
 
 pub struct Plus {data_ty: DataTy, pub lhs: Box<MapEval>, pub rhs: Box<MapEval>}
@@ -71,30 +72,31 @@ fn get_arithm_primitive(op: ArithmOp, res_ty: &DataTy,
   map_plus_vv::<i32>
 }
 
-impl Eval for ArithmMapEval {
+impl<'a> Eval for ArithmMapEval<'a> {
 
   fn bind(&mut self, schema: &Schema) -> Void {
     self.data_ty = Some(result_data_ty(self.lhs.data_ty(), self.rhs.data_ty()));
+    try!(self.lhs.bind(schema));
+    try!(self.rhs.bind(schema));
     void_ok()
   }  
   
   fn is_const(&self) -> bool { false }
 }
 
-impl HasDataTy for ArithmMapEval {
+impl<'a> HasDataTy for ArithmMapEval<'a> {
   fn data_ty(&self) -> &DataTy {
     self.data_ty.as_ref().unwrap()
   }
 }
 
-impl MapEval for ArithmMapEval {
-  fn eval<'r>(&'r self, r: &'r RowBlock) -> &'r Vector {
+impl<'a> MapEval for ArithmMapEval<'a> {
+  fn eval<'r>(&'r mut self, r: &'r RowBlock) -> &'r Vector {
     let l: &Vector = self.lhs.eval(r);
-    let r: &Vector = self.rhs.eval(r);
+    let r: &Vector = self.rhs.eval(r);   
 
-    
-
-    l
+    self.f.unwrap()(&mut self.result, l, r, None);
+    &self.result
   }
 }
 
@@ -139,7 +141,7 @@ impl Eval for Field {
 }
 
 impl MapEval for Field {
-  fn eval<'r>(&'r self, r: &'r RowBlock) -> &'r Vector {
+  fn eval<'r>(&'r mut self, r: &'r RowBlock) -> &'r Vector {
     r.vector(self.field_id)
   }
 }

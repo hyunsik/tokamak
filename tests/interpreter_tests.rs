@@ -2,11 +2,14 @@ extern crate tajo;
 
 use std::{i8,i16};
 
+use tajo::common::StringSlice;
 use tajo::schema::*;
+use tajo::expr::ArithmOp;
 use tajo::eval::{Eval, MapEval};
 use tajo::eval::interpreter::*;
+use tajo::eval::primitives::*;
 use tajo::rows::*;
-use tajo::rows::vector::as_array;
+use tajo::rows::vector::{ArrayVector, as_array};
 use tajo::types::*;
 
 pub fn make_test_schema() -> Schema {
@@ -45,6 +48,23 @@ pub fn fill_vector_block(rowblock: &mut RowBlockWriter) {
   }
 }
 
+fn verify_vector_block(rowblock: &RowBlock) {
+  for i in (0..1024) {
+    assert_eq!(rowblock.get_int1(i, 1), (i % (i8::MAX - 1) as usize) as i8);
+    assert_eq!(rowblock.get_int2(i, 2), (i % (i16::MAX - 1) as usize) as i16);
+    assert_eq!(rowblock.get_int4(i, 3), i as i32);
+    assert_eq!(rowblock.get_int8(i, 4), i as i64);
+    assert_eq!(rowblock.get_float4(i, 5), i as f32);
+    assert_eq!(rowblock.get_float8(i, 6), i as f64);
+    assert_eq!(rowblock.get_date(i, 7), i as i32);
+    assert_eq!(rowblock.get_time(i, 8), i as i64);
+    assert_eq!(rowblock.get_timestamp(i, 9), i as i64);
+
+    assert_eq!(
+      *(rowblock.get_text(i, 10)), StringSlice::new_from_str("Rust"));
+  }
+}
+
 #[test]
 fn test_field_eval() {
   let schema = make_test_schema();
@@ -59,4 +79,29 @@ fn test_field_eval() {
 
   assert_eq!(Ty::Int4, v.data_ty().ty());
   assert_eq!(1024, array.iter().count());
+}
+
+#[test]
+fn test_arithm_eval() {
+  let schema = make_test_schema();
+  let field1: Box<MapEval> = Box::new(Field::new(&Column::new("c3".to_string(), Ty::Int4)));
+  let field2: Box<MapEval> = Box::new(Field::new(&Column::new("c3".to_string(), Ty::Int4)));
+  let dt = DataTy::new(Ty::Int4);
+
+  let mut arithm = ArithmMapEval {
+    op: ArithmOp::Plus,
+    data_ty: Some(DataTy::new(Ty::Int4)),
+    lhs: field1,
+    rhs: field2,
+    result: ArrayVector::new(&dt),
+    f: Some(map_plus_vv::<i32>)
+  };
+
+  assert!(arithm.bind(&schema).is_ok());
+
+  let mut r: Box<RowBlockWriter> = Box::new(HeapVRowBlock::new(&schema));
+  fill_vector_block(&mut *r);
+  verify_vector_block(r.as_reader());
+
+  arithm.eval(r.as_reader());
 }
