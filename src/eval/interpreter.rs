@@ -330,6 +330,88 @@ fn get_arithm_prim(op: &ArithmOp,
   }  
 }
 
+fn get_comp_primitive(op: &CompOp,                       
+                      lhs_dty: &DataTy, lhs_const: bool,
+                      rhs_dty: &DataTy, rhs_const: bool) 
+    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {
+
+  assert_eq!(lhs_dty, rhs_dty);
+
+  match (lhs_dty.ty) {
+    Ty::Int2      => get_comp_vec_or_const::<INT2_T>     (op, lhs_const, rhs_const),
+    Ty::Int4      => get_comp_vec_or_const::<INT4_T>     (op, lhs_const, rhs_const),
+    Ty::Int8      => get_comp_vec_or_const::<INT8_T>     (op, lhs_const, rhs_const),
+    Ty::Float4    => get_comp_vec_or_const::<FLOAT4_T>   (op, lhs_const, rhs_const),
+    Ty::Float8    => get_comp_vec_or_const::<FLOAT8_T>   (op, lhs_const, rhs_const),
+    Ty::Time      => get_comp_vec_or_const::<TIME_T>     (op, lhs_const, rhs_const),
+    Ty::Date      => get_comp_vec_or_const::<DATE_T>     (op, lhs_const, rhs_const),
+    Ty::Timestamp => get_comp_vec_or_const::<TIMESTAMP_T>(op, lhs_const, rhs_const),
+    //Ty::Text      => get_comp_vec_or_const::<TEXT_T>     (op, lhs_const, rhs_const),
+    _             => panic!("unsupported data type")
+  }
+}
+
+fn get_comp_vec_or_const<T>(op: &CompOp, lhs_const: bool, rhs_const: bool) -> 
+    fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)
+    where T: Copy + Display + PartialEq + PartialOrd {
+  
+  match *op {
+    CompOp::Eq => {
+      match (lhs_const, rhs_const) {
+        (true, false)  => map_eq_cv::<T>,
+        (false, true)  => map_eq_vc::<T>,
+        (false, false) => map_eq_vv::<T>,
+        _ => panic!("binary operation between const and const is not supported yet.")
+      }
+    },
+
+    CompOp::Ne => {
+      match (lhs_const, rhs_const) {
+        (true, false)  => map_ne_cv::<T>,
+        (false, true)  => map_ne_vc::<T>,
+        (false, false) => map_ne_vv::<T>,
+        _ => panic!("binary operation between const and const is not supported yet.")
+      }
+    },
+
+    CompOp::Lt => {
+      match (lhs_const, rhs_const) {
+        (true, false)  => map_lt_cv::<T>,
+        (false, true)  => map_lt_vc::<T>,
+        (false, false) => map_lt_vv::<T>,
+        _ => panic!("binary operation between const and const is not supported yet.")
+      }
+    },
+
+    CompOp::Le => {
+      match (lhs_const, rhs_const) {
+        (true, false)  => map_le_cv::<T>,
+        (false, true)  => map_le_vc::<T>,
+        (false, false) => map_le_vv::<T>,
+        _ => panic!("binary operation between const and const is not supported yet.")
+      }
+    },
+
+    CompOp::Gt => {
+      match (lhs_const, rhs_const) {
+        (true, false)  => map_gt_cv::<T>,
+        (false, true)  => map_gt_vc::<T>,
+        (false, false) => map_gt_vv::<T>,
+        _ => panic!("binary operation between const and const is not supported yet.")
+      }
+    },
+
+    CompOp::Ge => {
+      match (lhs_const, rhs_const) {
+        (true, false)  => map_ge_cv::<T>,
+        (false, true)  => map_ge_vc::<T>,
+        (false, false) => map_ge_vv::<T>,
+        _ => panic!("binary operation between const and const is not supported yet.")
+      }
+    }
+  }
+}
+
 fn get_arithm_plus_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
     where T : Copy + Display + ops::Add<T, Output=T> {

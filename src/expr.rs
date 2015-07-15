@@ -66,11 +66,11 @@ pub struct WinFnDecl {
 /// Comparison Operator Type
 pub enum CompOp {
   Eq,
-  NotEq,
-  Lth,
-  Leq,
-  Gth,
-  Geq
+  Ne,
+  Lt,
+  Le,
+  Gt,
+  Ge
 }
 
 /// Arithmetic Operator Type
