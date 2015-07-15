@@ -57,10 +57,10 @@ impl<'a> Eval for CompEval<'a> {
 
     assert_eq!(self.lhs.data_ty(), self.rhs.data_ty());
 
-    // self.f = Some(get_arithm_prim(&self.op,
-    //                               self.data_ty.as_ref().unwrap(),
-    //                               &self.lhs.data_ty(), self.lhs.is_const(),
-    //                               &self.rhs.data_ty(), self.rhs.is_const()));
+    self.f = Some(get_comp_primitive(
+                    &self.op,
+                    &self.lhs.data_ty(), self.lhs.is_const(),
+                    &self.rhs.data_ty(), self.rhs.is_const()));
 
     void_ok()
   }  
@@ -71,6 +71,16 @@ impl<'a> Eval for CompEval<'a> {
 impl<'a> HasDataTy for CompEval<'a> {
   fn data_ty(&self) -> &DataTy {
     &self.res_ty
+  }
+}
+
+impl<'a> MapEval for CompEval<'a> {
+  fn eval<'r>(&'r mut self, r: &'r RowBlock) -> &'r Vector {
+    self.f.unwrap()(&mut self.result as &mut Vector, 
+                    self.lhs.eval(r), 
+                    self.rhs.eval(r), 
+                    None);
+    &self.result
   }
 }
 
@@ -227,16 +237,34 @@ pub struct InterpreterCompiler {
   node_num: u32
 }
 
-impl<'v> Visitor<'v> for InterpreterCompiler {
+impl InterpreterCompiler {
+  fn walk_and_take_bin_expr(&mut self, lhs: &Expr, rhs: &Expr) -> 
+      (Box<MapEval>, Box<MapEval>) {
 
-  fn visit_arithm(&mut self, op: &ArithmOp, lhs: &'v Expr, rhs: &'v Expr) {    
     walk_expr(self, lhs);
     let lhs = self.tree.take();
     walk_expr(self, rhs);
     let rhs = self.tree.take();
 
-    let p: Box<MapEval> = Box::new(ArithmMapEval::new(op, lhs.unwrap(), rhs.unwrap()));
-    self.tree = Some(p);
+    (lhs.unwrap(), rhs.unwrap())
+  }
+}
+
+impl<'v> Visitor<'v> for InterpreterCompiler {
+  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {    
+    let childs = self.walk_and_take_bin_expr(lhs, rhs);
+
+    self.tree = Some(
+      Box::new(CompEval::new(*op, childs.0, childs.1))
+    );
+  }
+
+  fn visit_arithm(&mut self, op: &ArithmOp, lhs: &'v Expr, rhs: &'v Expr) {    
+    let childs = self.walk_and_take_bin_expr(lhs, rhs);
+
+    self.tree = Some(
+      Box::new(ArithmMapEval::new(op, childs.0, childs.1))
+    );
   }
 
   fn visit_field(&mut self, c: &'v Column) {

@@ -64,6 +64,7 @@ pub struct WinFnDecl {
 }
 
 /// Comparison Operator Type
+#[derive(Clone, Copy)]
 pub enum CompOp {
   Eq,
   Ne,
@@ -74,7 +75,7 @@ pub enum CompOp {
 }
 
 /// Arithmetic Operator Type
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum ArithmOp {
   Plus,
   Sub,
