@@ -2,7 +2,6 @@ use alloc::heap;
 use std::marker;
 use std::mem;
 use std::slice;
-use std::slice::Iter;
 use std::ptr;
 
 use common::constant::VECTOR_SIZE;

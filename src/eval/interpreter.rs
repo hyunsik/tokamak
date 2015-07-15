@@ -256,78 +256,71 @@ fn get_arithm_prim(op: &ArithmOp,
 
   assert_eq!(lhs_dty, rhs_dty);
 
-  match *op {
+  match lhs_dty.ty() {
+    Ty::Int2      => get_arithm_vec_or_const::<INT2_T>     (op, lhs_vec, rhs_vec),
+    Ty::Int4      => get_arithm_vec_or_const::<INT4_T>     (op, lhs_vec, rhs_vec),
+    Ty::Int8      => get_arithm_vec_or_const::<INT8_T>     (op, lhs_vec, rhs_vec),
+    Ty::Float4    => get_arithm_vec_or_const::<FLOAT4_T>   (op, lhs_vec, rhs_vec),
+    Ty::Float8    => get_arithm_vec_or_const::<FLOAT8_T>   (op, lhs_vec, rhs_vec),
+    Ty::Time      => get_arithm_vec_or_const::<TIME_T>     (op, lhs_vec, rhs_vec),
+    Ty::Date      => get_arithm_vec_or_const::<DATE_T>     (op, lhs_vec, rhs_vec),
+    Ty::Timestamp => get_arithm_vec_or_const::<TIMESTAMP_T>(op, lhs_vec, rhs_vec),
+    _ => panic!("unsupported data type")
+  }
+}
 
+fn get_arithm_vec_or_const<T>(op: &ArithmOp, lhs_const: bool, rhs_const: bool)
+  -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
+  where T : Copy + Display + ops::Add<T, Output=T> + ops::Sub<T, Output=T> +
+            ops::Mul<T, Output=T> + ops::Div<T, Output=T> + ops::Rem<T, Output=T> {
+
+  match *op {
+    
     ArithmOp::Plus => {
-      match lhs_dty.ty() {
-        Ty::Int2      => get_arithm_plus_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
-        Ty::Int4      => get_arithm_plus_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
-        Ty::Int8      => get_arithm_plus_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
-        Ty::Float4    => get_arithm_plus_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
-        Ty::Float8    => get_arithm_plus_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
-        Ty::Time      => get_arithm_plus_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
-        Ty::Date      => get_arithm_plus_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
-        Ty::Timestamp => get_arithm_plus_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
-        _ => panic!("unsupported data type")
+      match (lhs_const, rhs_const) {
+        (true, false) => map_plus_cv::<T>,
+        (false, true) => map_plus_vc::<T>,
+        (false, false) => map_plus_vv::<T>,   
+        _ => panic!("plus operation between const and const is not supported yet.")
       }
     },
 
     ArithmOp::Sub => {
-      match lhs_dty.ty() {
-        Ty::Int2      => get_arithm_sub_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
-        Ty::Int4      => get_arithm_sub_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
-        Ty::Int8      => get_arithm_sub_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
-        Ty::Float4    => get_arithm_sub_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
-        Ty::Float8    => get_arithm_sub_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
-        Ty::Time      => get_arithm_sub_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
-        Ty::Date      => get_arithm_sub_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
-        Ty::Timestamp => get_arithm_sub_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
-        _ => panic!("unsupported data type")
+      match (lhs_const, rhs_const) {
+        (true, false) => map_sub_cv::<T>,
+        (false, true) => map_sub_vc::<T>,    
+        (false, false) => map_sub_vv::<T>,    
+        _ => panic!("sub operation between const and const is not supported yet.")
       }
     },
 
     ArithmOp::Mul => {
-      match lhs_dty.ty() {
-        Ty::Int2      => get_arithm_mul_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
-        Ty::Int4      => get_arithm_mul_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
-        Ty::Int8      => get_arithm_mul_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
-        Ty::Float4    => get_arithm_mul_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
-        Ty::Float8    => get_arithm_mul_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
-        Ty::Time      => get_arithm_mul_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
-        Ty::Date      => get_arithm_mul_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
-        Ty::Timestamp => get_arithm_mul_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
-        _ => panic!("unsupported data type")
+      match (lhs_const, rhs_const) {
+        (true, false) => map_mul_cv::<T>,
+        (false, true) => map_mul_vc::<T>,    
+        (false, false) => map_mul_vv::<T>,    
+        _ => panic!("mul operation between const and const is not supported yet.")
       }
     },
 
     ArithmOp::Div => {
-      match lhs_dty.ty() {
-        Ty::Int2      => get_arithm_div_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
-        Ty::Int4      => get_arithm_div_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
-        Ty::Int8      => get_arithm_div_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
-        Ty::Float4    => get_arithm_div_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
-        Ty::Float8    => get_arithm_div_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
-        Ty::Time      => get_arithm_div_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
-        Ty::Date      => get_arithm_div_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
-        Ty::Timestamp => get_arithm_div_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
-        _ => panic!("unsupported data type")
+      match (lhs_const, rhs_const) {
+        (true, false) => map_div_cv::<T>,
+        (false, true) => map_div_vc::<T>,    
+        (false, false) => map_div_vv::<T>,    
+        _ => panic!("div operation between const and const is not supported yet.")
       }
     },
 
     ArithmOp::Rem => {
-      match lhs_dty.ty() {
-        Ty::Int2      => get_arithm_rem_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
-        Ty::Int4      => get_arithm_rem_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
-        Ty::Int8      => get_arithm_rem_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
-        Ty::Float4    => get_arithm_rem_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
-        Ty::Float8    => get_arithm_rem_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
-        Ty::Time      => get_arithm_rem_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
-        Ty::Date      => get_arithm_rem_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
-        Ty::Timestamp => get_arithm_rem_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
-        _ => panic!("unsupported data type")
+      match (lhs_const, rhs_const) {
+        (true, false) => map_rem_cv::<T>,
+        (false, true) => map_rem_vc::<T>,
+        (false, false) => map_rem_vv::<T>,    
+        _ => panic!("rem operation between const and const is not supported yet.")
       }
     }
-  }  
+  }
 }
 
 fn get_comp_primitive(op: &CompOp,                       
@@ -409,65 +402,5 @@ fn get_comp_vec_or_const<T>(op: &CompOp, lhs_const: bool, rhs_const: bool) ->
         _ => panic!("binary operation between const and const is not supported yet.")
       }
     }
-  }
-}
-
-fn get_arithm_plus_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
-    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
-    where T : Copy + Display + ops::Add<T, Output=T> {
-  
-  match (lhs_const, rhs_const) {
-    (true, false) => map_plus_cv::<T>,
-    (false, true) => map_plus_vc::<T>,
-    (false, false) => map_plus_vv::<T>,   
-    _ => panic!("plus operation between const and const is not supported yet.")
-  }
-}
-
-fn get_arithm_sub_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
-    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
-    where T : Copy + Display + ops::Sub<T, Output=T> {
-  
-  match (lhs_const, rhs_const) {
-    (true, false) => map_sub_cv::<T>,
-    (false, true) => map_sub_vc::<T>,    
-    (false, false) => map_sub_vv::<T>,    
-    _ => panic!("sub operation between const and const is not supported yet.")
-  }
-}
-
-fn get_arithm_mul_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
-    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
-    where T : Copy + Display + ops::Mul<T, Output=T> {
-  
-  match (lhs_const, rhs_const) {
-    (true, false) => map_mul_cv::<T>,
-    (false, true) => map_mul_vc::<T>,    
-    (false, false) => map_mul_vv::<T>,    
-    _ => panic!("mul operation between const and const is not supported yet.")
-  }
-}
-
-fn get_arithm_div_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
-    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
-    where T : Copy + Display + ops::Div<T, Output=T> {
-  
-  match (lhs_const, rhs_const) {
-    (true, false) => map_div_cv::<T>,
-    (false, true) => map_div_vc::<T>,    
-    (false, false) => map_div_vv::<T>,    
-    _ => panic!("div operation between const and const is not supported yet.")
-  }
-}
-
-fn get_arithm_rem_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
-    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
-    where T : Copy + Display + ops::Rem<T, Output=T> {
-  
-  match (lhs_const, rhs_const) {
-    (true, false) => map_rem_cv::<T>,
-    (false, true) => map_rem_vc::<T>,
-    (false, false) => map_rem_vv::<T>,    
-    _ => panic!("rem operation between const and const is not supported yet.")
   }
 }
