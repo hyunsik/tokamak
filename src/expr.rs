@@ -76,10 +76,10 @@ pub enum CompOp {
 /// Arithmetic Operator Type
 pub enum ArithmOp {
   Plus,
-  Minus,
+  Sub,
   Mul,
   Div,
-  Mod,  
+  Rem,  
 }
 
 /// Expression Element

@@ -4,6 +4,7 @@
 
 use std::boxed::Box;
 use std::ops;
+use std::fmt::Display;
 
 use common::constant::VECTOR_SIZE;
 use common::err::{Error, TResult, Void, void_ok};
@@ -13,7 +14,7 @@ use expr::{ArithmOp, Datum, Expr, Visitor};
 use rows::RowBlock;
 use rows::vector::{Vector, ArrayVector};
 use schema::{Column, Schema};
-use types::{DataTy, HasDataTy, HasTy, result_data_ty, Ty};
+use types::*;
 
 // Unary Expressions
 pub struct Not {child: Box<Eval>}
@@ -39,12 +40,6 @@ pub struct ArithmMapEval<'a> {
   pub f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>  
 }
 
-pub struct Plus {data_ty: DataTy, pub lhs: Box<MapEval>, pub rhs: Box<MapEval>}
-pub struct Minus {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct Multiply {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct Divide {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct Modular {lhs: Box<Eval>, rhs: Box<Eval>}
-
 // String operators or pattern matching predicates
 pub struct Concatenate {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Like {pattern: String, child: Box<Eval>}
@@ -55,22 +50,6 @@ pub struct Between {pred: Box<Eval>, begin: Box<Eval>, end: Box<Eval>}
 pub struct In {pred: Box<Eval>, row: Box<Row>}
 
 pub struct Row {values: Vec<Box<Eval>>}
-pub struct Field {column: Column, field_id: usize}
-pub struct Const {datum: Datum, res_type: DataTy}
-
-
-fn get_arithm_primitive(op: ArithmOp, res_ty: &DataTy, 
-                        lty: &DataTy, rty: &DataTy) 
-                        -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {  
-
-  let f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)> = Some(if true {
-      map_plus_vv::<i32>
-    } else {
-      map_plus_vv::<i64>
-    });
-
-  map_plus_vv::<i32>
-}
 
 impl<'a> Eval for ArithmMapEval<'a> {
 
@@ -92,18 +71,11 @@ impl<'a> HasDataTy for ArithmMapEval<'a> {
 
 impl<'a> MapEval for ArithmMapEval<'a> {
   fn eval<'r>(&'r mut self, r: &'r RowBlock) -> &'r Vector {
-    let l: &Vector = self.lhs.eval(r);
-    let r: &Vector = self.rhs.eval(r);   
-
-    self.f.unwrap()(&mut self.result, l, r, None);
+    self.f.unwrap()(&mut self.result, 
+                    self.lhs.eval(r), 
+                    self.rhs.eval(r), 
+                    None);
     &self.result
-  }
-}
-
-impl HasDataTy for Plus {
-  #[inline]
-  fn data_ty(&self) -> &DataTy {
-    &self.data_ty
   }
 }
 
@@ -121,6 +93,8 @@ impl HasDataTy for Field {
     &self.column.data_ty
   }
 }
+
+pub struct Field {column: Column, field_id: usize}
 
 impl Eval for Field {
   
@@ -145,6 +119,8 @@ impl MapEval for Field {
     r.vector(self.field_id)
   }
 }
+
+pub struct Const {datum: Datum, res_type: DataTy}
 
 impl Const {
   fn new(datum: &Datum) -> Const {
@@ -181,4 +157,146 @@ impl<'v> Visitor<'v> for InterpreterCompiler {
   fn visit_field(&mut self, c: &'v Column) {
     println!("column: {}", c.name); 
   } 
+}
+
+fn get_arithm_prim(op: ArithmOp, 
+                   res_ty: &DataTy, 
+                   lhs_dty: &DataTy, lhs_vec: bool,
+                   rhs_dty: &DataTy, rhs_vec: bool) 
+    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {
+
+  assert_eq!(lhs_dty, rhs_dty);
+
+  match op {
+
+    ArithmOp::Plus => {
+      match lhs_dty.ty() {
+        Ty::Int2      => get_arithm_plus_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
+        Ty::Int4      => get_arithm_plus_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
+        Ty::Int8      => get_arithm_plus_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
+        Ty::Float4    => get_arithm_plus_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
+        Ty::Float8    => get_arithm_plus_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
+        Ty::Time      => get_arithm_plus_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
+        Ty::Date      => get_arithm_plus_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
+        Ty::Timestamp => get_arithm_plus_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
+        _ => panic!("unsupported data type")
+      }
+    },
+
+    ArithmOp::Sub => {
+      match lhs_dty.ty() {
+        Ty::Int2      => get_arithm_sub_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
+        Ty::Int4      => get_arithm_sub_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
+        Ty::Int8      => get_arithm_sub_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
+        Ty::Float4    => get_arithm_sub_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
+        Ty::Float8    => get_arithm_sub_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
+        Ty::Time      => get_arithm_sub_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
+        Ty::Date      => get_arithm_sub_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
+        Ty::Timestamp => get_arithm_sub_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
+        _ => panic!("unsupported data type")
+      }
+    },
+
+    ArithmOp::Mul => {
+      match lhs_dty.ty() {
+        Ty::Int2      => get_arithm_mul_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
+        Ty::Int4      => get_arithm_mul_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
+        Ty::Int8      => get_arithm_mul_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
+        Ty::Float4    => get_arithm_mul_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
+        Ty::Float8    => get_arithm_mul_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
+        Ty::Time      => get_arithm_mul_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
+        Ty::Date      => get_arithm_mul_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
+        Ty::Timestamp => get_arithm_mul_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
+        _ => panic!("unsupported data type")
+      }
+    },
+
+    ArithmOp::Div => {
+      match lhs_dty.ty() {
+        Ty::Int2      => get_arithm_div_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
+        Ty::Int4      => get_arithm_div_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
+        Ty::Int8      => get_arithm_div_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
+        Ty::Float4    => get_arithm_div_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
+        Ty::Float8    => get_arithm_div_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
+        Ty::Time      => get_arithm_div_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
+        Ty::Date      => get_arithm_div_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
+        Ty::Timestamp => get_arithm_div_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
+        _ => panic!("unsupported data type")
+      }
+    },
+
+    ArithmOp::Rem => {
+      match lhs_dty.ty() {
+        Ty::Int2      => get_arithm_rem_vec_or_const::<INT2_T>(lhs_vec, rhs_vec),
+        Ty::Int4      => get_arithm_rem_vec_or_const::<INT4_T>(lhs_vec, rhs_vec),
+        Ty::Int8      => get_arithm_rem_vec_or_const::<INT8_T>(lhs_vec, rhs_vec),
+        Ty::Float4    => get_arithm_rem_vec_or_const::<FLOAT4_T>(lhs_vec, rhs_vec),
+        Ty::Float8    => get_arithm_rem_vec_or_const::<FLOAT8_T>(lhs_vec, rhs_vec),
+        Ty::Time      => get_arithm_rem_vec_or_const::<TIME_T>(lhs_vec, rhs_vec),
+        Ty::Date      => get_arithm_rem_vec_or_const::<DATE_T>(lhs_vec, rhs_vec),
+        Ty::Timestamp => get_arithm_rem_vec_or_const::<TIMESTAMP_T>(lhs_vec, rhs_vec),
+        _ => panic!("unsupported data type")
+      }
+    }
+  }  
+}
+
+fn get_arithm_plus_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
+    where T : Copy + Display + ops::Add<T, Output=T> {
+  
+  match (lhs_vec, rhs_vec) {
+    (true, true) => map_plus_vv::<T>,
+    (true, false) => map_plus_vc::<T>,
+    (false, true) => map_plus_cv::<T>,
+    _ => panic!("plus operation between const and const is not supported yet.")
+  }
+}
+
+fn get_arithm_sub_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
+    where T : Copy + Display + ops::Sub<T, Output=T> {
+  
+  match (lhs_vec, rhs_vec) {
+    (true, true) => map_sub_vv::<T>,
+    (true, false) => map_sub_vc::<T>,
+    (false, true) => map_sub_cv::<T>,
+    _ => panic!("plus operation between const and const is not supported yet.")
+  }
+}
+
+fn get_arithm_mul_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
+    where T : Copy + Display + ops::Mul<T, Output=T> {
+  
+  match (lhs_vec, rhs_vec) {
+    (true, true) => map_mul_vv::<T>,
+    (true, false) => map_mul_vc::<T>,
+    (false, true) => map_mul_cv::<T>,
+    _ => panic!("plus operation between const and const is not supported yet.")
+  }
+}
+
+fn get_arithm_div_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
+    where T : Copy + Display + ops::Div<T, Output=T> {
+  
+  match (lhs_vec, rhs_vec) {
+    (true, true) => map_div_vv::<T>,
+    (true, false) => map_div_vc::<T>,
+    (false, true) => map_div_cv::<T>,
+    _ => panic!("plus operation between const and const is not supported yet.")
+  }
+}
+
+fn get_arithm_rem_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+    -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
+    where T : Copy + Display + ops::Rem<T, Output=T> {
+  
+  match (lhs_vec, rhs_vec) {
+    (true, true) => map_rem_vv::<T>,
+    (true, false) => map_rem_vc::<T>,
+    (false, true) => map_rem_cv::<T>,
+    _ => panic!("plus operation between const and const is not supported yet.")
+  }
 }

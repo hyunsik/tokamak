@@ -4,8 +4,6 @@ use std::mem;
 use std::slice;
 use std::slice::Iter;
 use std::ptr;
-use std::raw::Slice;
-use std::iter::Iterator;
 
 use common::constant::VECTOR_SIZE;
 use common::StringSlice;

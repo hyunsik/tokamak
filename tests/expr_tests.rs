@@ -15,7 +15,7 @@ impl<'v> Visitor<'v> for VisitOrder {
 
     match *op {
       ArithmOp::Plus => self.order.push("plus".to_string()),
-      ArithmOp::Minus => self.order.push("minus".to_string()),
+      ArithmOp::Sub => self.order.push("minus".to_string()),
       ArithmOp::Mul => self.order.push("mul".to_string()),
       ArithmOp::Div => self.order.push("div".to_string()),
       _ => panic!("Unknown op")
