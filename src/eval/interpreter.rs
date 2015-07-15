@@ -95,11 +95,11 @@ pub struct ArithmMapEval<'a> {
 }
 
 impl<'a> ArithmMapEval<'a> {
-  pub fn new(op: &ArithmOp, lhs: Box<MapEval>, rhs: Box<MapEval>) 
+  pub fn new(op: ArithmOp, lhs: Box<MapEval>, rhs: Box<MapEval>) 
       -> ArithmMapEval<'a> {
 
     ArithmMapEval {
-      op: op.clone(),
+      op: op,
       data_ty: None, // initialized by bind(),
       lhs: lhs,
       rhs: rhs,
@@ -263,7 +263,7 @@ impl<'v> Visitor<'v> for InterpreterCompiler {
     let childs = self.walk_and_take_bin_expr(lhs, rhs);
 
     self.tree = Some(
-      Box::new(ArithmMapEval::new(op, childs.0, childs.1))
+      Box::new(ArithmMapEval::new(*op, childs.0, childs.1))
     );
   }
 
