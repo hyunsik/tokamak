@@ -7,6 +7,80 @@ use std::fmt::Display;
 use common::constant::VECTOR_SIZE;
 use rows::vector;
 use rows::vector::{as_mut_array, as_array, first_value, Vector};
+use types::BOOL_T;
+
+// And -----------------------------------------------------------
+pub fn map_and_vv(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
+                                selected: Option<&[usize]>) {
+  let t: &mut [BOOL_T] = as_mut_array(res);
+  let l: &[BOOL_T] = as_array(lhs);
+  let r: &[BOOL_T] = as_array(rhs);
+
+  if selected.is_some() {
+    let sel_vec = selected.unwrap();
+    unsafe {
+      let mut sel_id: usize;
+      for i in 0..sel_vec.len() {
+        sel_id = sel_vec[i];
+        *t.get_unchecked_mut(sel_id) = *l.get_unchecked(sel_id) && *r.get_unchecked(sel_id);
+      }
+    }
+  } else {
+    unsafe {
+      for i in 0..VECTOR_SIZE {
+        *t.get_unchecked_mut(i) = *l.get_unchecked(i) && *r.get_unchecked(i);
+      }
+    }
+  }
+}
+
+pub fn map_and_vc(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
+                                selected: Option<&[usize]>) {
+  let t: &mut [BOOL_T] = as_mut_array(res);
+  let l: &[BOOL_T] = as_array(lhs);
+  let r: BOOL_T = *first_value(rhs);
+
+  if selected.is_some() {
+    let sel_vec = selected.unwrap();
+    unsafe {
+      let mut sel_id: usize;
+      for i in 0..sel_vec.len() {
+        sel_id = sel_vec[i];
+        *t.get_unchecked_mut(sel_id) = *l.get_unchecked(sel_id) && r;
+      }
+    }
+  } else {
+    unsafe {
+      for i in 0..VECTOR_SIZE {
+        *t.get_unchecked_mut(i) = *l.get_unchecked(i) && r;
+      }
+    }
+  }
+}
+
+pub fn map_and_cv(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
+                                selected: Option<&[usize]>) {
+  let t: &mut [BOOL_T] = as_mut_array(res);
+  let l: BOOL_T = *first_value(lhs);
+  let r: &[BOOL_T] = as_array(rhs);
+
+  if selected.is_some() {
+    let sel_vec = selected.unwrap();
+    unsafe {
+      let mut sel_id: usize;
+      for i in 0..sel_vec.len() {
+        sel_id = sel_vec[i];
+        *t.get_unchecked_mut(sel_id) = l && *r.get_unchecked(sel_id)
+      }
+    }
+  } else {
+    unsafe {
+      for i in 0..VECTOR_SIZE {
+        *t.get_unchecked_mut(i) = l && *r.get_unchecked(i);
+      }
+    }
+  }
+}
 
 // Comp Eq -----------------------------------------------------------
 pub fn map_eq_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector, 

@@ -24,6 +24,49 @@ pub struct IsNull {child: Box<Eval>}
 pub struct And {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Or {lhs: Box<Eval>, rhs: Box<Eval>}
 
+pub struct AndEval<'a> {
+  res_ty: DataTy, // TODO - to be replaced by a a singleton instance
+  lhs: Box<MapEval>,
+  rhs: Box<MapEval>,
+  result: ArrayVector<'a>,
+  f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>  
+}
+
+impl<'a> AndEval<'a> {
+  pub fn new(lhs: Box<MapEval>, rhs: Box<MapEval>) -> AndEval<'a> {
+    AndEval {
+      res_ty: DataTy::new(Ty::Bool),
+      lhs: lhs,
+      rhs: rhs,
+      result: ArrayVector::new(DataTy::new(Ty::Bool)),
+      f: None
+    }
+  }
+}
+
+impl<'a> Eval for AndEval<'a> {
+
+  fn bind(&mut self, schema: &Schema) -> Void {    
+    try!(self.lhs.bind(schema));
+    try!(self.rhs.bind(schema));
+
+    assert_eq!(Ty::Bool, self.lhs.data_ty().ty());
+    assert_eq!(Ty::Bool, self.rhs.data_ty().ty());
+
+    self.f = Some(get_and_primitive(self.lhs.is_const(),self.rhs.is_const()));
+
+    void_ok()
+  }  
+  
+  fn is_const(&self) -> bool { false }
+}
+
+impl<'a> HasDataTy for AndEval<'a> {
+  fn data_ty(&self) -> &DataTy {
+    &self.res_ty
+  }
+}
+
 pub struct CompEval<'a> {
   op: CompOp,
   res_ty: DataTy,
@@ -273,6 +316,17 @@ impl<'v> Visitor<'v> for InterpreterCompiler {
 
   fn visit_const(&mut self, d: &'v Datum) {
     self.tree = Some(Box::new(ConstEval::new(d)));
+  }
+}
+
+fn get_and_primitive(lhs_const: bool, rhs_const: bool) -> 
+    fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {
+
+  match (lhs_const, rhs_const) {
+    (true, false) => map_and_cv,
+    (false, true) => map_and_vc,
+    (false, false) => map_and_vv,
+    _ => panic!("unsupported const vs. const operation")
   }
 }
 
