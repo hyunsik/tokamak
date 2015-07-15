@@ -10,9 +10,9 @@ use common::constant::VECTOR_SIZE;
 use common::err::{Error, TResult, Void, void_ok};
 use eval::{Eval, MapEval};
 use eval::primitives::*;
-use expr::{ArithmOp, Datum, Expr, Visitor};
+use expr::*;
 use rows::RowBlock;
-use rows::vector::{Vector, ArrayVector};
+use rows::vector::{ArrayVector, ConstVector, Vector};
 use schema::{Column, Schema};
 use types::*;
 
@@ -36,8 +36,23 @@ pub struct ArithmMapEval<'a> {
   pub data_ty: Option<DataTy>, 
   pub lhs: Box<MapEval>,
   pub rhs: Box<MapEval>,
-  pub result: ArrayVector<'a>,
+  pub result: Option<ArrayVector<'a>>,
   pub f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>  
+}
+
+impl<'a> ArithmMapEval<'a> {
+  pub fn new(op: &ArithmOp, lhs: Box<MapEval>, rhs: Box<MapEval>) 
+      -> ArithmMapEval<'a> {
+
+    ArithmMapEval {
+      op: op.clone(),
+      data_ty: None, // initialized by bind(),
+      lhs: lhs,
+      rhs: rhs,
+      result: None,
+      f: None
+    }
+  }
 }
 
 // String operators or pattern matching predicates
@@ -55,8 +70,11 @@ impl<'a> Eval for ArithmMapEval<'a> {
 
   fn bind(&mut self, schema: &Schema) -> Void {
     self.data_ty = Some(result_data_ty(self.lhs.data_ty(), self.rhs.data_ty()));
+    
     try!(self.lhs.bind(schema));
     try!(self.rhs.bind(schema));
+
+    self.result = Some(ArrayVector::new(self.data_ty.unwrap().clone()));
 
     self.f = Some(get_arithm_prim(&self.op,
                                   self.data_ty.as_ref().unwrap(),
@@ -77,11 +95,11 @@ impl<'a> HasDataTy for ArithmMapEval<'a> {
 
 impl<'a> MapEval for ArithmMapEval<'a> {
   fn eval<'r>(&'r mut self, r: &'r RowBlock) -> &'r Vector {
-    self.f.unwrap()(&mut self.result, 
+    self.f.unwrap()(self.result.as_mut().unwrap(), 
                     self.lhs.eval(r), 
                     self.rhs.eval(r), 
                     None);
-    &self.result
+    self.result.as_ref().unwrap()
   }
 }
 
@@ -126,43 +144,64 @@ impl MapEval for Field {
   }
 }
 
-pub struct Const {datum: Datum, res_type: DataTy}
+pub struct ConstEval {
+  v: ConstVector
+}
 
-impl Const {
-  fn new(datum: &Datum) -> Const {
-    Const {
-        datum: datum.clone(), 
-        res_type: DataTy::new(datum.ty())
+impl ConstEval {
+  fn new(datum: &Datum) -> ConstEval {
+    ConstEval {
+      v: ConstVector::new(datum.clone())
     }
   }
 }
 
-impl HasDataTy for Const {
+impl HasDataTy for ConstEval {
   fn data_ty(&self) -> &DataTy {
-    &self.res_type
+    &self.v.data_ty()
   }
 }
 
-impl Eval for Const {
+impl Eval for ConstEval {
   
-  fn bind(&mut self, schema: &Schema) -> Void {
-    self.res_type = DataTy::new(self.datum.ty());
+  fn bind(&mut self, schema: &Schema) -> Void {    
     void_ok()
   }  
   
   fn is_const(&self) -> bool { true }
 }
 
+impl MapEval for ConstEval {
+  fn eval<'r>(&'r mut self, r: &'r RowBlock) -> &'r Vector {
+    &self.v
+  }
+}
+
 pub struct InterpreterCompiler {
-  tree: Option<Box<Eval>>,
+  tree: Option<Box<MapEval>>,
   err: Option<Error>,
   node_num: u32
 }
 
 impl<'v> Visitor<'v> for InterpreterCompiler {
+
+  fn visit_arithm(&mut self, op: &ArithmOp, lhs: &'v Expr, rhs: &'v Expr) {    
+    walk_expr(self, lhs);
+    let lhs = self.tree.take();
+    walk_expr(self, rhs);
+    let rhs = self.tree.take();
+
+    let p: Box<MapEval> = Box::new(ArithmMapEval::new(op, lhs.unwrap(), rhs.unwrap()));
+    self.tree = Some(p);
+  }
+
   fn visit_field(&mut self, c: &'v Column) {
-    println!("column: {}", c.name); 
+    self.tree = Some(Box::new(Field::new(c)));
   } 
+
+  fn visit_const(&mut self, d: &'v Datum) {
+    self.tree = Some(Box::new(ConstEval::new(d)));
+  }
 }
 
 fn get_arithm_prim(op: &ArithmOp, 

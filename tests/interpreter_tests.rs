@@ -88,15 +88,7 @@ fn test_arithm_eval() {
   let field2: Box<MapEval> = Box::new(Field::new(&Column::new("c3".to_string(), Ty::Int4)));
   let dt = DataTy::new(Ty::Int4);
 
-  let mut arithm = ArithmMapEval {
-    op: ArithmOp::Plus,
-    data_ty: Some(DataTy::new(Ty::Int4)),
-    lhs: field1,
-    rhs: field2,
-    result: ArrayVector::new(&dt),
-    f: Some(map_plus_vv::<i32>)
-  };
-
+  let mut arithm = ArithmMapEval::new(&ArithmOp::Plus, field1, field2);
   assert!(arithm.bind(&schema).is_ok());
 
   let mut r: Box<RowBlockWriter> = Box::new(HeapVRowBlock::new(&schema));

@@ -74,6 +74,7 @@ pub enum CompOp {
 }
 
 /// Arithmetic Operator Type
+#[derive(Clone)]
 pub enum ArithmOp {
   Plus,
   Sub,
