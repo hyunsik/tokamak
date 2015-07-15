@@ -17,14 +17,17 @@
 
 use libc::funcs::c95::string::memcmp;
 use libc::types::common::c95::c_void;
-use std::mem;
 use std::cmp;
 use std::cmp::Ordering;
-use std::str;
+use std::fmt::{Error, Display, Formatter};
+use std::mem;
 use std::raw::Slice;
+use std::result::Result;
+use std::str;
 
 
-#[derive(Debug)]
+
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 #[allow(raw_pointer_derive)]
 pub struct StringSlice {
@@ -32,8 +35,7 @@ pub struct StringSlice {
   len: i32,
 }
 
-impl StringSlice {
-  
+impl StringSlice {  
 
   pub fn new(ptr: *const u8, len: i32) -> StringSlice {
     StringSlice {
@@ -78,6 +80,12 @@ impl StringSlice {
 
   pub fn to_string(&self) -> String {
     String::from_str(self.to_str())
+  }
+}
+
+impl Display for StringSlice {
+  fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+    Display::fmt(self.to_str(), f)
   }
 }
 

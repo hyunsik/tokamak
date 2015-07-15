@@ -346,7 +346,7 @@ fn get_comp_primitive(op: &CompOp,
     Ty::Time      => get_comp_vec_or_const::<TIME_T>     (op, lhs_const, rhs_const),
     Ty::Date      => get_comp_vec_or_const::<DATE_T>     (op, lhs_const, rhs_const),
     Ty::Timestamp => get_comp_vec_or_const::<TIMESTAMP_T>(op, lhs_const, rhs_const),
-    //Ty::Text      => get_comp_vec_or_const::<TEXT_T>     (op, lhs_const, rhs_const),
+    Ty::Text      => get_comp_vec_or_const::<TEXT_T>     (op, lhs_const, rhs_const),
     _             => panic!("unsupported data type")
   }
 }
