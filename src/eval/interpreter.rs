@@ -23,12 +23,56 @@ pub struct IsNull {child: Box<Eval>}
 // Binary Comparison Expressions
 pub struct And {lhs: Box<Eval>, rhs: Box<Eval>}
 pub struct Or {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct Equal {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct NotEqual {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct LessThan {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct LessThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct GreaterThan {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct GreaterThanOrEqual {lhs: Box<Eval>, rhs: Box<Eval>}
+
+pub struct CompEval<'a> {
+  op: CompOp,
+  res_ty: DataTy,
+  lhs: Box<MapEval>,
+  rhs: Box<MapEval>,
+  result: ArrayVector<'a>,
+
+  f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>
+}
+
+impl<'a> CompEval<'a> {
+  pub fn new(op: CompOp, lhs: Box<MapEval>, rhs: Box<MapEval>) 
+      -> CompEval<'a> {
+
+    CompEval {
+      op: op,
+      res_ty: DataTy::new(Ty::Bool),
+      lhs: lhs,
+      rhs: rhs,
+      result: ArrayVector::new(DataTy::new(Ty::Bool)),
+      f: None
+    }
+  }
+}
+
+impl<'a> Eval for CompEval<'a> {
+
+  fn bind(&mut self, schema: &Schema) -> Void {    
+    try!(self.lhs.bind(schema));
+    try!(self.rhs.bind(schema));
+
+    assert_eq!(self.lhs.data_ty(), self.rhs.data_ty());
+
+    // self.f = Some(get_arithm_prim(&self.op,
+    //                               self.data_ty.as_ref().unwrap(),
+    //                               &self.lhs.data_ty(), self.lhs.is_const(),
+    //                               &self.rhs.data_ty(), self.rhs.is_const()));
+
+    void_ok()
+  }  
+  
+  fn is_const(&self) -> bool { false }
+}
+
+impl<'a> HasDataTy for CompEval<'a> {
+  fn data_ty(&self) -> &DataTy {
+    &self.res_ty
+  }
+}
 
 // Binary Arithmetic Evalessions
 pub struct ArithmMapEval<'a> {
