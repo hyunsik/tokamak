@@ -8,7 +8,6 @@ use rows::vector::{Vector, as_array, as_mut_array};
 use rows::{AsRowBlock, RowBlock, RowBlockWriter};
 
 use alloc::heap;
-use std::mem;
 use std::marker;
 use std::slice;
 
@@ -16,11 +15,16 @@ use std::slice;
 pub struct BorrowedVRowBlock<'a> {
   schema: Schema,
   vectors: Vec<&'a Vector>,
+  selected: Vec<bool>
 }
 
 impl<'a> BorrowedVRowBlock<'a> {
   pub fn new(schema: &Schema) -> BorrowedVRowBlock<'a> {
-    BorrowedVRowBlock {schema: schema.clone(), vectors: Vec::new()}
+    BorrowedVRowBlock {
+      schema: schema.clone(), 
+      vectors: Vec::new(), 
+      selected: Vec::new()
+    }
   }
 
   #[inline]
@@ -49,7 +53,15 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   #[inline]
   fn vector(&self, col_id: usize) -> &Vector {
     self.vectors[col_id]
-  }  
+  }
+
+  fn selected(&self) -> &Vec<bool> {
+    &self.selected
+  }
+
+  fn selected_mut(&mut self) -> &mut Vec<bool> {
+    &mut self.selected
+  }
 
   #[inline]
   fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1_T {      
@@ -180,6 +192,7 @@ pub struct HeapVRowBlock<'a> {
   type_lengths: Vec<u32>,
   ptr: *mut u8,
   vectors: Vec<PtrVector<'a>>,
+  selected: Vec<bool>,
   arena: Arena<'a>
 }
 
@@ -220,6 +233,7 @@ impl<'a> HeapVRowBlock<'a> {
       type_lengths: type_lengths, 
       ptr: fixed_area_ptr, 
       vectors: vectors,
+      selected: Vec::new(),
       arena: Arena::new(ByteSize::kb(4).as_usize())
     }
   }  
@@ -328,7 +342,15 @@ impl<'a> RowBlock for HeapVRowBlock<'a> {
 
   fn vector(&self, col_id: usize) -> &Vector {
     &self.vectors[col_id]
-  }  
+  }
+
+  fn selected(&self) -> &Vec<bool> {
+    &self.selected
+  }
+
+  fn selected_mut(&mut self) -> &mut Vec<bool> {
+    &mut self.selected
+  }
 
   #[inline]
   fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1_T {      
