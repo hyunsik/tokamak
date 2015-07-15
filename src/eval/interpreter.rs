@@ -57,6 +57,12 @@ impl<'a> Eval for ArithmMapEval<'a> {
     self.data_ty = Some(result_data_ty(self.lhs.data_ty(), self.rhs.data_ty()));
     try!(self.lhs.bind(schema));
     try!(self.rhs.bind(schema));
+
+    self.f = Some(get_arithm_prim(&self.op,
+                                  self.data_ty.as_ref().unwrap(),
+                                  &self.lhs.data_ty(), self.lhs.is_const(),
+                                  &self.rhs.data_ty(), self.rhs.is_const()));
+
     void_ok()
   }  
   
@@ -159,7 +165,7 @@ impl<'v> Visitor<'v> for InterpreterCompiler {
   } 
 }
 
-fn get_arithm_prim(op: ArithmOp, 
+fn get_arithm_prim(op: &ArithmOp, 
                    res_ty: &DataTy, 
                    lhs_dty: &DataTy, lhs_vec: bool,
                    rhs_dty: &DataTy, rhs_vec: bool) 
@@ -167,7 +173,7 @@ fn get_arithm_prim(op: ArithmOp,
 
   assert_eq!(lhs_dty, rhs_dty);
 
-  match op {
+  match *op {
 
     ArithmOp::Plus => {
       match lhs_dty.ty() {
@@ -241,62 +247,62 @@ fn get_arithm_prim(op: ArithmOp,
   }  
 }
 
-fn get_arithm_plus_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+fn get_arithm_plus_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
     where T : Copy + Display + ops::Add<T, Output=T> {
   
-  match (lhs_vec, rhs_vec) {
-    (true, true) => map_plus_vv::<T>,
-    (true, false) => map_plus_vc::<T>,
-    (false, true) => map_plus_cv::<T>,
+  match (lhs_const, rhs_const) {
+    (true, false) => map_plus_cv::<T>,
+    (false, true) => map_plus_vc::<T>,
+    (false, false) => map_plus_vv::<T>,   
     _ => panic!("plus operation between const and const is not supported yet.")
   }
 }
 
-fn get_arithm_sub_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+fn get_arithm_sub_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
     where T : Copy + Display + ops::Sub<T, Output=T> {
   
-  match (lhs_vec, rhs_vec) {
-    (true, true) => map_sub_vv::<T>,
-    (true, false) => map_sub_vc::<T>,
-    (false, true) => map_sub_cv::<T>,
-    _ => panic!("plus operation between const and const is not supported yet.")
+  match (lhs_const, rhs_const) {
+    (true, false) => map_sub_cv::<T>,
+    (false, true) => map_sub_vc::<T>,    
+    (false, false) => map_sub_vv::<T>,    
+    _ => panic!("sub operation between const and const is not supported yet.")
   }
 }
 
-fn get_arithm_mul_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+fn get_arithm_mul_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
     where T : Copy + Display + ops::Mul<T, Output=T> {
   
-  match (lhs_vec, rhs_vec) {
-    (true, true) => map_mul_vv::<T>,
-    (true, false) => map_mul_vc::<T>,
-    (false, true) => map_mul_cv::<T>,
-    _ => panic!("plus operation between const and const is not supported yet.")
+  match (lhs_const, rhs_const) {
+    (true, false) => map_mul_cv::<T>,
+    (false, true) => map_mul_vc::<T>,    
+    (false, false) => map_mul_vv::<T>,    
+    _ => panic!("mul operation between const and const is not supported yet.")
   }
 }
 
-fn get_arithm_div_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+fn get_arithm_div_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
     where T : Copy + Display + ops::Div<T, Output=T> {
   
-  match (lhs_vec, rhs_vec) {
-    (true, true) => map_div_vv::<T>,
-    (true, false) => map_div_vc::<T>,
-    (false, true) => map_div_cv::<T>,
-    _ => panic!("plus operation between const and const is not supported yet.")
+  match (lhs_const, rhs_const) {
+    (true, false) => map_div_cv::<T>,
+    (false, true) => map_div_vc::<T>,    
+    (false, false) => map_div_vv::<T>,    
+    _ => panic!("div operation between const and const is not supported yet.")
   }
 }
 
-fn get_arithm_rem_vec_or_const<T>(lhs_vec: bool, rhs_vec: bool)     
+fn get_arithm_rem_vec_or_const<T>(lhs_const: bool, rhs_const: bool)     
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
     where T : Copy + Display + ops::Rem<T, Output=T> {
   
-  match (lhs_vec, rhs_vec) {
-    (true, true) => map_rem_vv::<T>,
-    (true, false) => map_rem_vc::<T>,
-    (false, true) => map_rem_cv::<T>,
-    _ => panic!("plus operation between const and const is not supported yet.")
+  match (lhs_const, rhs_const) {
+    (true, false) => map_rem_cv::<T>,
+    (false, true) => map_rem_vc::<T>,
+    (false, false) => map_rem_vv::<T>,    
+    _ => panic!("rem operation between const and const is not supported yet.")
   }
 }
