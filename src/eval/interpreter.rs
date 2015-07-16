@@ -21,9 +21,6 @@ pub struct Not {child: Box<Eval>}
 pub struct IsNull {child: Box<Eval>}
 
 // Binary Comparison Expressions
-pub struct And {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct Or {lhs: Box<Eval>, rhs: Box<Eval>}
-
 pub struct AndEval<'a> {
   res_ty: DataTy, // TODO - to be replaced by a a singleton instance
   lhs: Box<MapEval>,
@@ -66,6 +63,8 @@ impl<'a> HasDataTy for AndEval<'a> {
     &self.res_ty
   }
 }
+
+pub struct Or {lhs: Box<Eval>, rhs: Box<Eval>}
 
 pub struct CompEval<'a> {
   op: CompOp,
@@ -152,17 +151,6 @@ impl<'a> ArithmMapEval<'a> {
   }
 }
 
-// String operators or pattern matching predicates
-pub struct Concatenate {lhs: Box<Eval>, rhs: Box<Eval>}
-pub struct Like {pattern: String, child: Box<Eval>}
-pub struct SimilarTo {pattern: String, child: Box<Eval>}
-pub struct RegexMatch {pattern: String, child: Box<Eval>}
-
-pub struct Between {pred: Box<Eval>, begin: Box<Eval>, end: Box<Eval>}
-pub struct In {pred: Box<Eval>, row: Box<Row>}
-
-pub struct Row {values: Vec<Box<Eval>>}
-
 impl<'a> Eval for ArithmMapEval<'a> {
 
   fn bind(&mut self, schema: &Schema) -> Void {
@@ -198,6 +186,19 @@ impl<'a> MapEval for ArithmMapEval<'a> {
                     None);
     self.result.as_ref().unwrap()
   }
+}
+
+// String operators or pattern matching predicates
+pub struct Concatenate {lhs: Box<Eval>, rhs: Box<Eval>}
+pub struct Like {pattern: String, child: Box<Eval>}
+pub struct SimilarTo {pattern: String, child: Box<Eval>}
+pub struct RegexMatch {pattern: String, child: Box<Eval>}
+
+pub struct Between {pred: Box<Eval>, begin: Box<Eval>, end: Box<Eval>}
+pub struct In<'a> {pred: Box<Eval>, row: Box<Row<'a>>}
+
+pub struct Row<'a> {
+  values: ArrayVector<'a>
 }
 
 impl Field {
