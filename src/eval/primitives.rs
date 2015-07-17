@@ -9,7 +9,7 @@ use rows::vector;
 use rows::vector::{as_mut_array, as_array, first_value, Vector};
 use types::BOOL_T;
 
-// And -----------------------------------------------------------
+// Map::And ------------------------------------------------------------------
 pub fn map_and_vv(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) {
   let t: &mut [BOOL_T] = as_mut_array(res);
@@ -82,7 +82,7 @@ pub fn map_and_cv(res: &mut Vector, lhs: &Vector, rhs: &Vector,
   }
 }
 
-// Comp Eq -----------------------------------------------------------
+// Map::Comp::Eq -------------------------------------------------------------
 pub fn map_eq_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) 
                                 where T : Copy + Display + PartialEq {
@@ -160,7 +160,7 @@ pub fn map_eq_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
   }
 }
 
-// Comp Ne -----------------------------------------------------------
+// Map::Comp::Ne -------------------------------------------------------------
 pub fn map_ne_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) 
                                 where T : Copy + Display + PartialEq {
@@ -238,7 +238,7 @@ pub fn map_ne_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
   }
 }
 
-// Comp Lt -----------------------------------------------------------
+// Map::Comp::Lt -------------------------------------------------------------
 pub fn map_lt_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) 
                                 where T : Copy + Display + PartialOrd {
@@ -316,7 +316,7 @@ pub fn map_lt_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
   }
 }
 
-// Comp Le -----------------------------------------------------------
+// Map::Comp::Le -------------------------------------------------------------
 pub fn map_le_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) 
                                 where T : Copy + Display + PartialOrd {
@@ -395,7 +395,7 @@ pub fn map_le_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
 }
 
 
-// Comp Gt -----------------------------------------------------------
+// Map::Comp::Gt -------------------------------------------------------------
 pub fn map_gt_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) 
                                 where T : Copy + Display + PartialOrd {
@@ -474,7 +474,7 @@ pub fn map_gt_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
 }
 
 
-// Comp Ge -----------------------------------------------------------
+// Map::Comp::Ge -------------------------------------------------------------
 pub fn map_ge_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) 
                                 where T : Copy + Display + PartialOrd {
