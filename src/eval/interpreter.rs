@@ -8,7 +8,7 @@ use std::fmt::Display;
 
 use common::constant::VECTOR_SIZE;
 use common::err::{Error, TResult, Void, void_ok};
-use eval::{Eval, MapEval};
+use eval::{Eval, MapEval, FilterEval};
 use eval::primitives::*;
 use expr::*;
 use rows::RowBlock;
@@ -276,20 +276,20 @@ impl MapEval for ConstEval {
 }
 
 pub fn compile_map_eval(expr: &Expr) -> Box<MapEval> {
-  let mut compiler = Box::new(MapInterpreterCompiler::new());
+  let mut compiler = Box::new(MapCompiler::new());
   walk_expr(&mut *compiler, expr);
 
   compiler.tree.unwrap()
 }
 
-pub struct MapInterpreterCompiler {
+pub struct MapCompiler {
   tree: Option<Box<MapEval>>,
   node_num: u32
 }
 
-impl MapInterpreterCompiler {
-  fn new() -> MapInterpreterCompiler {
-    InterpreterCompiler {
+impl MapCompiler {
+  fn new() -> MapCompiler {
+    MapCompiler {
       tree: None,
       node_num: 0
     }
@@ -307,7 +307,7 @@ impl MapInterpreterCompiler {
   }
 }
 
-impl<'v> Visitor<'v> for InterpreterCompiler {
+impl<'v> Visitor<'v> for MapCompiler {
   fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {    
     let childs = self.walk_and_take_bin_expr(lhs, rhs);
 
@@ -330,6 +330,31 @@ impl<'v> Visitor<'v> for InterpreterCompiler {
 
   fn visit_const(&mut self, d: &'v Datum) {
     self.tree = Some(Box::new(ConstEval::new(d)));
+  }
+}
+
+pub struct FilterCompiler {
+  tree: Option<Box<FilterEval>>,
+  node_num: u32
+}
+
+impl FilterCompiler {
+  fn new() -> FilterCompiler {
+    FilterCompiler {
+      tree: None,
+      node_num: 0
+    }
+  } 
+}
+
+impl<'v> Visitor<'v> for FilterCompiler {
+  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {    
+    let lhs_map = compile_map_eval(lhs);
+    let rhs_map = compile_map_eval(rhs);
+
+    // self.tree = Some(
+    //   Box::new(CompEval::new(*op, childs.0, childs.1))
+    // );
   }
 }
 
