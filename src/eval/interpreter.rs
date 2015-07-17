@@ -277,11 +277,17 @@ impl MapEval for ConstEval {
 
 pub struct InterpreterCompiler {
   tree: Option<Box<MapEval>>,
-  err: Option<Error>,
   node_num: u32
 }
 
 impl InterpreterCompiler {
+  pub fn new() -> InterpreterCompiler {
+    InterpreterCompiler {
+      tree: None,
+      node_num: 0
+    }
+  }
+
   fn walk_and_take_bin_expr(&mut self, lhs: &Expr, rhs: &Expr) -> 
       (Box<MapEval>, Box<MapEval>) {
 
@@ -292,6 +298,11 @@ impl InterpreterCompiler {
 
     (lhs.unwrap(), rhs.unwrap())
   }
+}
+
+pub fn compile_interpreter(expr: &Expr) {
+  let mut compiler = Box::new(InterpreterCompiler::new());
+  walk_expr(&mut *compiler, expr);
 }
 
 impl<'v> Visitor<'v> for InterpreterCompiler {
