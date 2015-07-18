@@ -552,6 +552,38 @@ pub fn map_ge_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
   }
 }
 
+// Filter::Comp::Lt -------------------------------------------------------------
+pub fn filter_lt_vv<T>(res: &mut [usize], lhs: &Vector, rhs: &Vector, 
+                                selected: Option<&[usize]>, num: usize) 
+                                where T : Copy + Display + PartialOrd {
+  let l: &[T] = as_array(lhs);
+  let r: &[T] = as_array(rhs);
+
+  let mut matched: usize = 0;
+
+  if selected.is_some() {
+    let sel_vec = selected.unwrap();
+    unsafe {
+      let mut sel_id: usize;
+
+      for i in 0..sel_vec.len() {
+        sel_id = sel_vec[i];        
+        *res.get_unchecked_mut(matched) = sel_id;
+        matched = matched + 
+          if *l.get_unchecked(sel_id) < *r.get_unchecked(sel_id) { 1 } else { 0 };
+      }
+    }
+  } else {
+    unsafe {
+      for i in 0..num {
+        *res.get_unchecked_mut(matched) = i;
+        matched = matched + 
+          if *l.get_unchecked(i) < *r.get_unchecked(i) { 1 } else { 0 };
+      }
+    }
+  }
+}
+
 // Arithmetic Plus -----------------------------------------------------------
 
 pub fn map_plus_vv<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
