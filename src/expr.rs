@@ -49,16 +49,19 @@ impl HasTy for Datum {
 }
 
 /// Function Declaration
+#[derive(Clone)]
 pub struct FnDecl {
   signature: String
 }
 
 /// Aggregation Function Declaration
+#[derive(Clone)]
 pub struct AggFnDecl {
   signature: String 
 }
 
 /// Window Function Declaration
+#[derive(Clone)]
 pub struct WinFnDecl {
   signature: String  
 }
@@ -85,12 +88,14 @@ pub enum ArithmOp {
 }
 
 /// Expression Element
+#[derive(Clone)]
 pub struct Expr {
   data_ty: DataTy,
   node: ExprSpec
 }
 
 /// Expression Specific Element
+#[derive(Clone)]
 pub enum ExprSpec {
   // Unary Expressions
   Not(Box<Expr>),
@@ -125,22 +130,37 @@ pub enum ExprSpec {
 
   // values  
   Row(Vec<Box<Expr>>),  
-  Field(Box<Column>),
-  Const(Box<Datum>)
+  Field(Column),
+  Const(Datum)
 }
 
 impl Expr {
-  pub fn new_field(column: &Column) -> Expr {
+  pub fn from_column(column: &Column) -> Expr {
     Expr {
       data_ty: column.data_ty.clone(),
-      node: ExprSpec::Field(Box::new(column.clone()))
+      node: ExprSpec::Field(column.clone())
     }
   }
-  
-  pub fn new_arithm(op: ArithmOp, lhs: Box<Expr>, rhs: Box<Expr>) -> Expr {
+
+  pub fn column<T: AsRef<str>>(name: T, ty: Ty) -> Expr {
+    Expr {
+      data_ty: DataTy::new(ty.clone()),
+      node: ExprSpec::Field(Column::new(name, ty.clone()))
+    }
+  }
+
+  pub fn plus(&self, rhs: &Expr) -> Expr {
+    Expr::new_arithm(ArithmOp::Plus, &self, rhs)
+  }
+
+  pub fn mul(&self, rhs: &Expr) -> Expr {
+    Expr::new_arithm(ArithmOp::Mul, &self, rhs)
+  }
+
+  fn new_arithm(op: ArithmOp, lhs: &Expr, rhs: &Expr) -> Expr {
     Expr {
       data_ty: result_data_ty(lhs.data_ty(), rhs.data_ty()),
-      node: ExprSpec::Arithm(op, lhs, rhs)
+      node: ExprSpec::Arithm(op, Box::new(lhs.clone()), Box::new(rhs.clone()))
     }
   }
 }
@@ -148,6 +168,19 @@ impl Expr {
 impl HasDataTy for Expr {
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
+  }
+}
+
+pub trait AsExpr {
+  fn as_expr(&self) -> Expr;
+}
+
+impl AsExpr for Column {
+  fn as_expr(&self) -> Expr {
+    Expr {
+      data_ty: self.data_ty.clone(),
+      node: ExprSpec::Field(self.clone())
+    }
   }
 }
 

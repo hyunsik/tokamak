@@ -36,20 +36,12 @@ fn test_visit_arithm() {
   let col3 = Column::new("c2", Ty::Int4);
   let col4 = Column::new("c3", Ty::Int4);
   
-  let lhs1 : Box<Expr> = Box::new(Expr::new_field(&col1));
-  let rhs2 : Box<Expr> = Box::new(Expr::new_field(&col2));
-  
-  let plus1: Box<Expr> = Box::new(Expr::new_arithm(ArithmOp::Plus, lhs1, rhs2));
-
-  let lhs2 : Box<Expr> = Box::new(Expr::new_field(&col3));
-  let rhs2 : Box<Expr> = Box::new(Expr::new_field(&col4));
-
-  let plus2: Box<Expr> = Box::new(Expr::new_arithm(ArithmOp::Plus, lhs2, rhs2));
-
-  let plus3: Box<Expr> = Box::new(Expr::new_arithm(ArithmOp::Mul, plus1, plus2));
+  let plus1 = col1.as_expr().plus(&col2.as_expr());
+  let plus2 = col3.as_expr().plus(&col4.as_expr());
+  let plus3 = plus1.mul(&plus2);
  
   let mut visitor = VisitOrder{order: Vec::new()};  
-  walk_expr(&mut visitor, &*plus3);
+  walk_expr(&mut visitor, &plus3);
 
   assert_eq!(vec!["c0", "c1", "plus", "c2", "c3", "plus", "mul"], visitor.order);
 }
