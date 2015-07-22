@@ -2,6 +2,8 @@
 //! Expression Plan Representation for Tajo Kernel
 //!
 
+use std::ops::{Add, Sub, Mul, Div, Rem};
+
 use types::{DataTy, HasTy, HasDataTy, Ty, result_data_ty};
 use schema::Column;
 use common::P;
@@ -147,27 +149,67 @@ impl Expr {
       data_ty: DataTy::new(ty.clone()),
       node: ExprSpec::Field(Column::new(name, ty.clone()))
     }
-  }
-
-  pub fn plus(&self, rhs: &Expr) -> Expr {
-    Expr::new_arithm(ArithmOp::Plus, &self, rhs)
-  }
-
-  pub fn mul(&self, rhs: &Expr) -> Expr {
-    Expr::new_arithm(ArithmOp::Mul, &self, rhs)
-  }
-
-  fn new_arithm(op: ArithmOp, lhs: &Expr, rhs: &Expr) -> Expr {
-    Expr {
-      data_ty: result_data_ty(lhs.data_ty(), rhs.data_ty()),
-      node: ExprSpec::Arithm(op, Box::new(lhs.clone()), Box::new(rhs.clone()))
-    }
-  }
+  }  
 }
 
 impl HasDataTy for Expr {
   fn data_ty(&self) -> &DataTy {
     &self.data_ty
+  }
+}
+
+impl Add for Expr {
+  type Output = Expr;
+
+  fn add(self, rhs: Expr) -> Expr {
+    Expr {
+      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      node: ExprSpec::Arithm(ArithmOp::Plus, Box::new(self), Box::new(rhs))
+    }
+  }
+}
+
+impl Sub for Expr {
+  type Output = Expr;
+
+  fn sub(self, rhs: Expr) -> Expr {
+    Expr {
+      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      node: ExprSpec::Arithm(ArithmOp::Sub, Box::new(self), Box::new(rhs))
+    }
+  }
+}
+
+impl Mul for Expr {
+  type Output = Expr;
+
+  fn mul(self, rhs: Expr) -> Expr {
+    Expr {
+      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      node: ExprSpec::Arithm(ArithmOp::Mul, Box::new(self), Box::new(rhs))
+    }
+  }
+}
+
+impl Div for Expr {
+  type Output = Expr;
+
+  fn div(self, rhs: Expr) -> Expr {
+    Expr {
+      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      node: ExprSpec::Arithm(ArithmOp::Div, Box::new(self), Box::new(rhs))
+    }
+  }
+}
+
+impl Rem for Expr {
+  type Output = Expr;
+
+  fn rem(self, rhs: Expr) -> Expr {
+    Expr {
+      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      node: ExprSpec::Arithm(ArithmOp::Rem, Box::new(self), Box::new(rhs))
+    }
   }
 }
 

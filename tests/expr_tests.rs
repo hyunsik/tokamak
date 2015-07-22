@@ -36,9 +36,9 @@ fn test_visit_arithm() {
   let col3 = Column::new("c2", Ty::Int4);
   let col4 = Column::new("c3", Ty::Int4);
   
-  let plus1 = col1.as_expr().plus(&col2.as_expr());
-  let plus2 = col3.as_expr().plus(&col4.as_expr());
-  let plus3 = plus1.mul(&plus2);
+  let plus1 = col1.as_expr() + col2.as_expr();
+  let plus2 = col3.as_expr() + col4.as_expr();
+  let plus3 = plus1 * plus2;
  
   let mut visitor = VisitOrder{order: Vec::new()};  
   walk_expr(&mut visitor, &plus3);
