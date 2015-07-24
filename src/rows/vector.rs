@@ -89,18 +89,18 @@ impl ConstVector {
         Datum::Bool(v) => ptr::write(value.as_ptr() as *mut BOOL, v),
         Datum::Int1(v) => ptr::write(value.as_ptr() as *mut INT1, v),
         Datum::Int2(v) => ptr::write(value.as_ptr() as *mut INT2, v),
-        Datum::Int4(v) => ptr::write(value.as_ptr() as *mut INT4_T, v),
-        Datum::Int8(v) => ptr::write(value.as_ptr() as *mut INT8_T, v),
-        Datum::Float4(v) => ptr::write(value.as_ptr() as *mut FLOAT4_T, v),
-        Datum::Float8(v) => ptr::write(value.as_ptr() as *mut FLOAT8_T, v),
-        Datum::Time(v) => ptr::write(value.as_ptr() as *mut TIME_T, v),        
-        Datum::Date(v) => ptr::write(value.as_ptr() as *mut DATE_T, v),  
-        Datum::Timestamp(v) => ptr::write(value.as_ptr() as *mut TIMESTAMP_T, v),  
+        Datum::Int4(v) => ptr::write(value.as_ptr() as *mut INT4, v),
+        Datum::Int8(v) => ptr::write(value.as_ptr() as *mut INT8, v),
+        Datum::Float4(v) => ptr::write(value.as_ptr() as *mut FLOAT4, v),
+        Datum::Float8(v) => ptr::write(value.as_ptr() as *mut FLOAT8, v),
+        Datum::Time(v) => ptr::write(value.as_ptr() as *mut TIME, v),        
+        Datum::Date(v) => ptr::write(value.as_ptr() as *mut DATE, v),  
+        Datum::Timestamp(v) => ptr::write(value.as_ptr() as *mut TIMESTAMP, v),  
         // Datum::Interval(v) => ptr::write(value.as_ptr() as *mut INTERVAL_T, v),  
         // Datum::Char(v) => ptr::write(value.as_ptr() , v),  
         Datum::Text(ref v) => {
-          let text: TEXT_T = StringSlice::new_from_str(v.as_str());
-          ptr::write(value.as_ptr() as *mut TEXT_T, text);
+          let text: TEXT = StringSlice::new_from_str(v.as_str());
+          ptr::write(value.as_ptr() as *mut TEXT, text);
         }
         // Datum::Varchar(v) => ptr::write(value.as_ptr(), v),  
         // Datum::Blob(v) => ptr::write(value.as_ptr(), v),  

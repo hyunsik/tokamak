@@ -75,7 +75,7 @@ fn test_field_eval() {
 
   assert!(field.bind(&schema).is_ok());
   let v: &Vector = field.eval(r.as_reader());
-  let array: &[INT4_T] = as_array(v);
+  let array: &[INT4] = as_array(v);
 
   assert_eq!(Ty::Int4, v.data_ty().ty());
   assert_eq!(1024, array.iter().count());

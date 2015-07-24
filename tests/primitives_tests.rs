@@ -92,7 +92,7 @@ fn test_primitive<T>(f: fn(&mut Vector, &Vector, &Vector, Option<&[usize]>),
 #[test]
 fn test_map_plus() {
   test_primitive(
-    map_plus_vv::<INT4_T>, 
+    map_plus_vv::<INT4>, 
     &INT4_TY, 
     vec![1,2,3,4], vec![1,2,3,4], 
     None, 

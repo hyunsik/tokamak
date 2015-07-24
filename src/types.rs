@@ -48,21 +48,21 @@ pub type INT1      = i8;
 #[allow(non_camel_case_types)]
 pub type INT2      = i16;
 #[allow(non_camel_case_types)]
-pub type INT4_T      = i32;
+pub type INT4      = i32;
 #[allow(non_camel_case_types)]
-pub type INT8_T      = i64;
+pub type INT8      = i64;
 #[allow(non_camel_case_types)]
-pub type FLOAT4_T    = f32;
+pub type FLOAT4    = f32;
 #[allow(non_camel_case_types)]
-pub type FLOAT8_T    = f64;
+pub type FLOAT8    = f64;
 #[allow(non_camel_case_types)]
-pub type DATE_T      = i32;
+pub type DATE      = i32;
 #[allow(non_camel_case_types)]
-pub type TIME_T      = i64;
+pub type TIME      = i64;
 #[allow(non_camel_case_types)]
-pub type TIMESTAMP_T = i64;
+pub type TIMESTAMP = i64;
 #[allow(non_camel_case_types)]
-pub type TEXT_T      = StringSlice;
+pub type TEXT      = StringSlice;
 
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -101,7 +101,7 @@ impl DataTy {
       Ty::Timestamp => 8,
       Ty::Interval => 12,
       Ty::Char => data_type.len,
-      Ty::Text => mem::size_of::<TEXT_T>()as u32,
+      Ty::Text => mem::size_of::<TEXT>() as u32,
       Ty::Varchar | Ty::Blob => 12,
     }
   }

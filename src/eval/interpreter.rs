@@ -379,13 +379,13 @@ fn get_arithm_prim(op: &ArithmOp,
 
   match lhs_dty.ty() {
     Ty::Int2      => get_arithm_vec_or_const::<INT2>     (op, lhs_vec, rhs_vec),
-    Ty::Int4      => get_arithm_vec_or_const::<INT4_T>     (op, lhs_vec, rhs_vec),
-    Ty::Int8      => get_arithm_vec_or_const::<INT8_T>     (op, lhs_vec, rhs_vec),
-    Ty::Float4    => get_arithm_vec_or_const::<FLOAT4_T>   (op, lhs_vec, rhs_vec),
-    Ty::Float8    => get_arithm_vec_or_const::<FLOAT8_T>   (op, lhs_vec, rhs_vec),
-    Ty::Time      => get_arithm_vec_or_const::<TIME_T>     (op, lhs_vec, rhs_vec),
-    Ty::Date      => get_arithm_vec_or_const::<DATE_T>     (op, lhs_vec, rhs_vec),
-    Ty::Timestamp => get_arithm_vec_or_const::<TIMESTAMP_T>(op, lhs_vec, rhs_vec),
+    Ty::Int4      => get_arithm_vec_or_const::<INT4>     (op, lhs_vec, rhs_vec),
+    Ty::Int8      => get_arithm_vec_or_const::<INT8>     (op, lhs_vec, rhs_vec),
+    Ty::Float4    => get_arithm_vec_or_const::<FLOAT4>   (op, lhs_vec, rhs_vec),
+    Ty::Float8    => get_arithm_vec_or_const::<FLOAT8>   (op, lhs_vec, rhs_vec),
+    Ty::Time      => get_arithm_vec_or_const::<TIME>     (op, lhs_vec, rhs_vec),
+    Ty::Date      => get_arithm_vec_or_const::<DATE>     (op, lhs_vec, rhs_vec),
+    Ty::Timestamp => get_arithm_vec_or_const::<TIMESTAMP>(op, lhs_vec, rhs_vec),
     _ => panic!("unsupported data type")
   }
 }
@@ -453,14 +453,14 @@ fn get_comp_primitive(op: &CompOp,
 
   match (lhs_dty.ty) {
     Ty::Int2      => get_comp_vec_or_const::<INT2>     (op, lhs_const, rhs_const),
-    Ty::Int4      => get_comp_vec_or_const::<INT4_T>     (op, lhs_const, rhs_const),
-    Ty::Int8      => get_comp_vec_or_const::<INT8_T>     (op, lhs_const, rhs_const),
-    Ty::Float4    => get_comp_vec_or_const::<FLOAT4_T>   (op, lhs_const, rhs_const),
-    Ty::Float8    => get_comp_vec_or_const::<FLOAT8_T>   (op, lhs_const, rhs_const),
-    Ty::Time      => get_comp_vec_or_const::<TIME_T>     (op, lhs_const, rhs_const),
-    Ty::Date      => get_comp_vec_or_const::<DATE_T>     (op, lhs_const, rhs_const),
-    Ty::Timestamp => get_comp_vec_or_const::<TIMESTAMP_T>(op, lhs_const, rhs_const),
-    Ty::Text      => get_comp_vec_or_const::<TEXT_T>     (op, lhs_const, rhs_const),
+    Ty::Int4      => get_comp_vec_or_const::<INT4>     (op, lhs_const, rhs_const),
+    Ty::Int8      => get_comp_vec_or_const::<INT8>     (op, lhs_const, rhs_const),
+    Ty::Float4    => get_comp_vec_or_const::<FLOAT4>   (op, lhs_const, rhs_const),
+    Ty::Float8    => get_comp_vec_or_const::<FLOAT8>   (op, lhs_const, rhs_const),
+    Ty::Time      => get_comp_vec_or_const::<TIME>     (op, lhs_const, rhs_const),
+    Ty::Date      => get_comp_vec_or_const::<DATE>     (op, lhs_const, rhs_const),
+    Ty::Timestamp => get_comp_vec_or_const::<TIMESTAMP>(op, lhs_const, rhs_const),
+    Ty::Text      => get_comp_vec_or_const::<TEXT>     (op, lhs_const, rhs_const),
     _             => panic!("unsupported data type")
   }
 }
