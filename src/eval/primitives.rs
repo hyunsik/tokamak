@@ -7,14 +7,14 @@ use std::fmt::Display;
 use common::constant::VECTOR_SIZE;
 use rows::vector;
 use rows::vector::{as_mut_array, as_array, first_value, Vector};
-use types::BOOL_T;
+use types::BOOL;
 
 // Map::And ------------------------------------------------------------------
 pub fn map_and_vv(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) {
-  let t: &mut [BOOL_T] = as_mut_array(res);
-  let l: &[BOOL_T] = as_array(lhs);
-  let r: &[BOOL_T] = as_array(rhs);
+  let t: &mut [BOOL] = as_mut_array(res);
+  let l: &[BOOL] = as_array(lhs);
+  let r: &[BOOL] = as_array(rhs);
 
   if selected.is_some() {
     let sel_vec = selected.unwrap();
@@ -36,9 +36,9 @@ pub fn map_and_vv(res: &mut Vector, lhs: &Vector, rhs: &Vector,
 
 pub fn map_and_vc(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) {
-  let t: &mut [BOOL_T] = as_mut_array(res);
-  let l: &[BOOL_T] = as_array(lhs);
-  let r: BOOL_T = *first_value(rhs);
+  let t: &mut [BOOL] = as_mut_array(res);
+  let l: &[BOOL] = as_array(lhs);
+  let r: BOOL = *first_value(rhs);
 
   if selected.is_some() {
     let sel_vec = selected.unwrap();
@@ -60,9 +60,9 @@ pub fn map_and_vc(res: &mut Vector, lhs: &Vector, rhs: &Vector,
 
 pub fn map_and_cv(res: &mut Vector, lhs: &Vector, rhs: &Vector, 
                                 selected: Option<&[usize]>) {
-  let t: &mut [BOOL_T] = as_mut_array(res);
-  let l: BOOL_T = *first_value(lhs);
-  let r: &[BOOL_T] = as_array(rhs);
+  let t: &mut [BOOL] = as_mut_array(res);
+  let l: BOOL = *first_value(lhs);
+  let r: &[BOOL] = as_array(rhs);
 
   if selected.is_some() {
     let sel_vec = selected.unwrap();

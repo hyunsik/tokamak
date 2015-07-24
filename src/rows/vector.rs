@@ -86,7 +86,7 @@ impl ConstVector {
     let value: [u8; 16] = unsafe { mem::zeroed() };
     unsafe {
       match datum {
-        Datum::Bool(v) => ptr::write(value.as_ptr() as *mut BOOL_T, v),
+        Datum::Bool(v) => ptr::write(value.as_ptr() as *mut BOOL, v),
         Datum::Int1(v) => ptr::write(value.as_ptr() as *mut INT1_T, v),
         Datum::Int2(v) => ptr::write(value.as_ptr() as *mut INT2_T, v),
         Datum::Int4(v) => ptr::write(value.as_ptr() as *mut INT4_T, v),

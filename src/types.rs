@@ -29,8 +29,20 @@ pub trait HasDataTy {
   fn data_ty(&self) -> &DataTy;
 }
 
+pub const BOOL_TY     : DataTy = DataTy::new(Ty::Bool);
+pub const INT1_TY     : DataTy = DataTy::new(Ty::Int1);
+pub const INT2_TY     : DataTy = DataTy::new(Ty::Int2);
+pub const INT4_TY     : DataTy = DataTy::new(Ty::Int4);
+pub const INT8_TY     : DataTy = DataTy::new(Ty::Int8);
+pub const FLOAT4_TY   : DataTy = DataTy::new(Ty::Float4);
+pub const FLOAT8_TY   : DataTy = DataTy::new(Ty::Float8);
+pub const DATE_TY     : DataTy = DataTy::new(Ty::Date);
+pub const TIME_TY     : DataTy = DataTy::new(Ty::Time);
+pub const TIMESTAMP_TY: DataTy = DataTy::new(Ty::Timestamp);
+pub const TEXT_TY     : DataTy = DataTy::new(Ty::Text);
+
 #[allow(non_camel_case_types)]
-pub type BOOL_T      = bool;
+pub type BOOL      = bool;
 #[allow(non_camel_case_types)]
 pub type INT1_T      = i8;
 #[allow(non_camel_case_types)]
@@ -62,12 +74,12 @@ pub struct DataTy {
 }
 
 impl DataTy {
-  pub fn new (ty : Ty) -> DataTy {
-    return DataTy {ty: ty, len : 0, precision: 0, scale: 0};
+  pub const fn new (ty : Ty) -> DataTy {
+    DataTy {ty: ty, len : 0, precision: 0, scale: 0}
   }
 
   pub fn new_vartype(ty : Ty, len: u32) -> DataTy {
-    return DataTy {ty: ty, len : len, precision: 0, scale: 0};
+    DataTy {ty: ty, len : len, precision: 0, scale: 0}
   }
 
   pub fn bytes_len(&self) -> u32 {
