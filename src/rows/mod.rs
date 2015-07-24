@@ -38,7 +38,7 @@ struct VectorDesc {
 }
 
 pub trait RowBlockWriter : RowBlock {
-  fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1_T);
+  fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1);
 
   fn put_int2(&mut self, row_id: usize, col_id: usize, value: INT2_T);
 
@@ -74,7 +74,7 @@ pub trait RowBlock : AsRowBlock {
 
   fn selected_mut(&mut self) -> &mut Vec<bool>;
 
-  fn get_int1(&self, row_id: usize, col_id: usize) -> INT1_T;  
+  fn get_int1(&self, row_id: usize, col_id: usize) -> INT1;  
 
   fn get_int2(&self, row_id: usize, col_id: usize) -> INT2_T;  
 

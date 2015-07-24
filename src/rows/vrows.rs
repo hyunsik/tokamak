@@ -64,8 +64,8 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1_T {      
-    let v : &[INT1_T] = as_array(self.vectors[col_id]);
+  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1 {      
+    let v : &[INT1] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
     }
@@ -249,8 +249,8 @@ impl<'a> AsRowBlock for HeapVRowBlock<'a> {
 
 impl<'a> RowBlockWriter for HeapVRowBlock<'a> {
   #[inline]
-  fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1_T) {      
-    let v : &mut [INT1_T] = as_mut_array(&mut self.vectors[col_id]);
+  fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1) {      
+    let v : &mut [INT1] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
       (*v.get_unchecked_mut(row_id)) = value;        
     }
@@ -353,8 +353,8 @@ impl<'a> RowBlock for HeapVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1_T {      
-    let v : &[INT1_T] = as_array(&self.vectors[col_id]);
+  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1 {      
+    let v : &[INT1] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
     }

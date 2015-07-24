@@ -44,7 +44,7 @@ pub const TEXT_TY     : DataTy = DataTy::new(Ty::Text);
 #[allow(non_camel_case_types)]
 pub type BOOL      = bool;
 #[allow(non_camel_case_types)]
-pub type INT1_T      = i8;
+pub type INT1      = i8;
 #[allow(non_camel_case_types)]
 pub type INT2_T      = i16;
 #[allow(non_camel_case_types)]
