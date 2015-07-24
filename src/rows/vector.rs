@@ -10,7 +10,6 @@ use expr::Datum;
 use intrinsics::sse;
 use types::*;
 
-
 pub trait Vector : HasDataTy {
   fn size(&self) -> usize;
   fn as_ptr(&self) -> *const u8;
@@ -38,7 +37,7 @@ impl<'a> ArrayVector<'a> {
       data_ty: data_ty,
       _marker: marker::PhantomData
     }
-  }
+  }  
 }
 
 impl<'a> Drop for ArrayVector<'a> {
@@ -162,6 +161,21 @@ pub fn as_mut_array<T>(v: &mut Vector) -> &mut [T] {
   unsafe {
     slice::from_raw_parts_mut(v.as_mut_ptr() as *mut T, VECTOR_SIZE)
   }    
+}
+
+/// Return a filled array vector from a list of values
+pub fn from_vec<'a, T>(data_ty: &DataTy, values: Vec<T>) -> ArrayVector<'a>
+  where T: Copy {
+
+  let mut vec = ArrayVector::new(data_ty.clone());
+  {
+    let mut array: &mut [T] = as_mut_array(&mut vec);
+    for x in 0..values.len() {
+      array[x] = values[x];
+    }
+  }
+
+  vec
 }
 
 #[test]

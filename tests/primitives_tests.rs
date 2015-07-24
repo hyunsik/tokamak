@@ -1,6 +1,7 @@
 extern crate tajo;
 
 use std::{i8,i16};
+use std::fmt::Debug;
 
 use tajo::common::StringSlice;
 use tajo::schema::*;
@@ -9,7 +10,7 @@ use tajo::eval::{Eval, MapEval};
 use tajo::eval::interpreter::*;
 use tajo::eval::primitives::*;
 use tajo::rows::*;
-use tajo::rows::vector::{ArrayVector, as_array};
+use tajo::rows::vector::{ArrayVector, as_array, as_mut_array, from_vec};
 use tajo::types::*;
 
 pub fn make_test_schema() -> Schema {
@@ -65,8 +66,38 @@ fn verify_vector_block(rowblock: &RowBlock) {
   }
 }
 
+fn test_primitive<T>(f: fn(&mut Vector, &Vector, &Vector, Option<&[usize]>),
+                data_ty: &DataTy, 
+                lv: Vec<T>, 
+                rv: Vec<T>,
+                sel: Option<Vec<usize>>,
+                expected: Vec<T>) where T: Debug + PartialEq {
+
+  let mut l = from_vec(data_ty, vec![1,2,3,4]);
+  let mut r = from_vec(data_ty, vec![1,2,3,4]);
+
+  let mut result = ArrayVector::new(data_ty.clone());
+  { f(&mut result, &mut l, &mut r, None); }
+    // match sel {
+    //   Some(s) => sel.as_array(),
+    //   None => None
+    // })
+
+  let r: &[T] = as_array(&result);
+  for x in 0..lv.len() {
+    assert_eq!(expected[x], r[x]);
+  }
+}
+
 #[test]
 fn test_map_plus() {
+  test_primitive(
+    map_plus_vv::<INT4_T>, 
+    &DataTy::new(Ty::Int4), 
+    vec![1,2,3,4], vec![1,2,3,4], 
+    None, 
+    vec![2,4,6,8]
+  );
 }
 
 #[test]

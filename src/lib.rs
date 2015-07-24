@@ -5,6 +5,7 @@
 #![feature(collections)] 
 #![feature(core)]
 #![feature(libc)]
+#![feature(const_fn)]
 extern crate alloc;
 extern crate bytesize;
 #[macro_use]
