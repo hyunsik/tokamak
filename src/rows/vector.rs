@@ -88,7 +88,7 @@ impl ConstVector {
       match datum {
         Datum::Bool(v) => ptr::write(value.as_ptr() as *mut BOOL, v),
         Datum::Int1(v) => ptr::write(value.as_ptr() as *mut INT1, v),
-        Datum::Int2(v) => ptr::write(value.as_ptr() as *mut INT2_T, v),
+        Datum::Int2(v) => ptr::write(value.as_ptr() as *mut INT2, v),
         Datum::Int4(v) => ptr::write(value.as_ptr() as *mut INT4_T, v),
         Datum::Int8(v) => ptr::write(value.as_ptr() as *mut INT8_T, v),
         Datum::Float4(v) => ptr::write(value.as_ptr() as *mut FLOAT4_T, v),

@@ -46,7 +46,7 @@ pub type BOOL      = bool;
 #[allow(non_camel_case_types)]
 pub type INT1      = i8;
 #[allow(non_camel_case_types)]
-pub type INT2_T      = i16;
+pub type INT2      = i16;
 #[allow(non_camel_case_types)]
 pub type INT4_T      = i32;
 #[allow(non_camel_case_types)]

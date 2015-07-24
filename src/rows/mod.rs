@@ -40,7 +40,7 @@ struct VectorDesc {
 pub trait RowBlockWriter : RowBlock {
   fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1);
 
-  fn put_int2(&mut self, row_id: usize, col_id: usize, value: INT2_T);
+  fn put_int2(&mut self, row_id: usize, col_id: usize, value: INT2);
 
   fn put_int4(&mut self, row_id: usize, col_id: usize, value: INT4_T);
 
@@ -76,7 +76,7 @@ pub trait RowBlock : AsRowBlock {
 
   fn get_int1(&self, row_id: usize, col_id: usize) -> INT1;  
 
-  fn get_int2(&self, row_id: usize, col_id: usize) -> INT2_T;  
+  fn get_int2(&self, row_id: usize, col_id: usize) -> INT2;  
 
   fn get_int4(&self, row_id: usize, col_id: usize) -> INT4_T;  
 

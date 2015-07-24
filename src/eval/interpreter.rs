@@ -378,7 +378,7 @@ fn get_arithm_prim(op: &ArithmOp,
   assert_eq!(lhs_dty, rhs_dty);
 
   match lhs_dty.ty() {
-    Ty::Int2      => get_arithm_vec_or_const::<INT2_T>     (op, lhs_vec, rhs_vec),
+    Ty::Int2      => get_arithm_vec_or_const::<INT2>     (op, lhs_vec, rhs_vec),
     Ty::Int4      => get_arithm_vec_or_const::<INT4_T>     (op, lhs_vec, rhs_vec),
     Ty::Int8      => get_arithm_vec_or_const::<INT8_T>     (op, lhs_vec, rhs_vec),
     Ty::Float4    => get_arithm_vec_or_const::<FLOAT4_T>   (op, lhs_vec, rhs_vec),
@@ -452,7 +452,7 @@ fn get_comp_primitive(op: &CompOp,
   assert_eq!(lhs_dty, rhs_dty);
 
   match (lhs_dty.ty) {
-    Ty::Int2      => get_comp_vec_or_const::<INT2_T>     (op, lhs_const, rhs_const),
+    Ty::Int2      => get_comp_vec_or_const::<INT2>     (op, lhs_const, rhs_const),
     Ty::Int4      => get_comp_vec_or_const::<INT4_T>     (op, lhs_const, rhs_const),
     Ty::Int8      => get_comp_vec_or_const::<INT8_T>     (op, lhs_const, rhs_const),
     Ty::Float4    => get_comp_vec_or_const::<FLOAT4_T>   (op, lhs_const, rhs_const),
