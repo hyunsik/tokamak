@@ -164,7 +164,7 @@ pub fn as_mut_array<T>(v: &mut Vector) -> &mut [T] {
 }
 
 /// Return a filled array vector from a list of values
-pub fn from_vec<'a, T>(data_ty: &DataTy, values: Vec<T>) -> ArrayVector<'a>
+pub fn from_vec<'a, T>(data_ty: &DataTy, values: &Vec<T>) -> ArrayVector<'a>
   where T: Copy {
 
   let mut vec = ArrayVector::new(data_ty.clone());
