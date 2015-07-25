@@ -26,14 +26,14 @@ fn assert_map<T>(f: fn(&mut Vector, &Vector, &Vector, Option<&[usize]>),
       "The lengths of expected values and selection vector must be the same.")
   }
 
-  let mut l = from_vec(data_ty, &lv);
-  let mut r = from_vec(data_ty, &rv);
+  let l = from_vec(data_ty, &lv);
+  let r = from_vec(data_ty, &rv);
 
   let mut result = ArrayVector::new(data_ty.clone());
   { 
     f(&mut result, 
-      &mut l, 
-      &mut r, 
+      &l, 
+      &r, 
       match sel 
       { 
         Some(ref s) => Some(s),
@@ -42,24 +42,78 @@ fn assert_map<T>(f: fn(&mut Vector, &Vector, &Vector, Option<&[usize]>),
     );
   }
   
-  let r: &[T] = as_array(&result);
+  let res: &[T] = as_array(&result);
 
   if sel.is_none() 
   {
     for x in 0..lv.len() 
     {
-      if expected[x] != r[x] 
+      if expected[x] != res[x] 
       {
         assert!(false, 
-          format!("{}th - expected {:?} but actual value {:?}", x, expected[x], r[x]));
+          format!("{}th - expected {:?} but actual value {:?}", x, expected[x], res[x]));
       }
     }
   } else {
     for x in 0 .. sel.as_ref().unwrap().len() {
       let sel_id = sel.as_ref().unwrap()[x];
-      if expected[x] != r[sel_id] {
-        format!("{}th - expected {:?} but actual value {:?}", sel_id, expected[x], r[sel_id]);
+      if expected[x] != res[sel_id] {
+        format!("{}th - expected {:?} but actual value {:?}", sel_id, expected[x], res[sel_id]);
       }
+    }
+  }
+}
+
+fn assert_filter<T>(
+                f: fn(&mut [usize], &Vector, &Vector, Option<&[usize]>, usize) 
+                    -> usize,
+                data_ty: &DataTy, 
+                lv: Vec<T>, 
+                rv: Vec<T>,
+                expected: Vec<usize>,
+                sel: Option<Vec<usize>>) 
+                where T: Copy + Debug + PartialEq
+{
+  assert!(lv.len() == rv.len(), 
+    "Both input vectors must have the same length.");
+
+  if sel.is_some() 
+  {
+    assert!(sel.as_ref().unwrap().len() < lv.len(), 
+      "The length of selection vector must be less than or equal to that of input vectors");
+    assert!(sel.as_ref().unwrap().len() == expected.len(),
+      "The lengths of expected values and selection vector must be the same.");
+
+    // getting the maximum selected idx and check its out of range.
+    let max_sel_idx = *(sel.as_ref().unwrap().iter().max().unwrap());
+    assert!(max_sel_idx < lv.len(),
+      "Some index in selection vector is out of range.");
+  }
+
+  let mut l = from_vec(data_ty, &lv);
+  let mut r = from_vec(data_ty, &rv);
+
+  let mut res_sel: [usize;1024] = [0;1024];
+  let selected = { 
+    f(&mut res_sel, 
+      &l, 
+      &r, 
+      match sel { 
+        Some(ref s) => Some(s),
+        None => None
+      },
+      lv.len()
+    ) 
+  };
+
+  assert!(selected == expected.len(), 
+    format!("selected rows number is different: expected {}, actual {}", 
+      expected.len(), selected));
+
+  for x in 0 .. expected.len() {
+    if res_sel[x] != expected[x] {
+      assert!(false, 
+        format!("{}th - expected {:?} but actual value {:?}", x, expected[x], res_sel[x]));
     }
   }
 }
@@ -103,4 +157,11 @@ fn test_map_sub()
 #[test]
 fn test_filter_lt() 
 {
+  assert_filter(
+    filter_lt_vv::<INT4>, 
+    &INT4_TY, 
+    vec![4,3,2,1], vec![1,2,3,4], 
+    vec![2,3],
+    None    
+  );
 }

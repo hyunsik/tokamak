@@ -554,7 +554,7 @@ pub fn map_ge_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
 
 // Filter::Comp::Lt -------------------------------------------------------------
 pub fn filter_lt_vv<T>(res: &mut [usize], lhs: &Vector, rhs: &Vector, 
-                                selected: Option<&[usize]>, num: usize) 
+                                selected: Option<&[usize]>, num: usize) -> usize
                                 where T : Copy + Display + PartialOrd {
   let l: &[T] = as_array(lhs);
   let r: &[T] = as_array(rhs);
@@ -582,6 +582,8 @@ pub fn filter_lt_vv<T>(res: &mut [usize], lhs: &Vector, rhs: &Vector,
       }
     }
   }
+
+  matched
 }
 
 // Arithmetic Plus -----------------------------------------------------------
