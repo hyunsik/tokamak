@@ -35,7 +35,7 @@ pub type TResult<T> = Result<T, Error>;
 pub type Void = Result<(), Error>;
 
 #[inline]
-pub fn void_ok() -> Void {
+pub const fn void_ok() -> Void {
   Ok(())
 }
 

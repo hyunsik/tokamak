@@ -144,49 +144,67 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
 
     TyKind::Int1 => {
       match rhs_ty.kind() {
-        TyKind::Int1 | TyKind::Int2 | TyKind::Int4 | TyKind::Int8 | 
-        TyKind::Float4 | TyKind::Float8 =>{
-          rhs_ty.clone()
-        },
+        TyKind::Int1   | 
+        TyKind::Int2   | 
+        TyKind::Int4   | 
+        TyKind::Int8   | 
+        TyKind::Float4 | 
+        TyKind::Float8 => rhs_ty.clone(),
         _ => panic!("Undefined Operator")
       }
     },
 
     TyKind::Int2 => {
       match rhs_ty.kind() {
-        TyKind::Int2 | TyKind::Int4 | TyKind::Int8 | TyKind::Float4 | 
-        TyKind::Float8 => {
-          rhs_ty.clone()
-        },
-        TyKind::Int1 => lhs_ty.clone(),
+        TyKind::Int2   | 
+        TyKind::Int4   | 
+        TyKind::Int8   | 
+        TyKind::Float4 | 
+        TyKind::Float8 => rhs_ty.clone(),
+
+        TyKind::Int1   => lhs_ty.clone(),
         _ => panic!("Undefined Operator")
       }
     },
 
     TyKind::Int4 => {
       match rhs_ty.kind() {
-        TyKind::Int4 | TyKind::Int8 | TyKind::Float4 | TyKind::Float8 => {
-          rhs_ty.clone()
-        },
-        TyKind::Int1 | TyKind::Int2 => lhs_ty.clone(),
+        TyKind::Int4   | 
+        TyKind::Int8   | 
+        TyKind::Float4 | 
+        TyKind::Float8 => rhs_ty.clone(),
+
+        TyKind::Int1 | 
+        TyKind::Int2 => lhs_ty.clone(),
+
         _ => panic!("Undefined Operator")
       }
     },
 
     TyKind::Int8 => {
       match rhs_ty.kind() {
-        TyKind::Int8 | TyKind::Float4 | TyKind::Float8 => rhs_ty.clone(),
-        TyKind::Int1 | TyKind::Int2 | TyKind::Int4 => lhs_ty.clone(),
+        TyKind::Int8   | 
+        TyKind::Float4 | 
+        TyKind::Float8 => rhs_ty.clone(),
+
+        TyKind::Int1 | 
+        TyKind::Int2 | 
+        TyKind::Int4 => lhs_ty.clone(),
+
         _ => panic!("Undefined Operator")
       }
     },
 
     TyKind::Float4 => {
       match rhs_ty.kind() {
-        TyKind::Float4 | TyKind::Float8 => rhs_ty.clone(),
-        TyKind::Int1 | TyKind::Int2 | TyKind::Int4 | TyKind::Int8 => {
-          lhs_ty.clone()
-        }
+        TyKind::Float4 | 
+        TyKind::Float8 => rhs_ty.clone(),
+
+        TyKind::Int1 | 
+        TyKind::Int2 | 
+        TyKind::Int4 | 
+        TyKind::Int8 => lhs_ty.clone(),
+
         _ => panic!("Undefined Operator")
       }
     },
@@ -194,10 +212,13 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
     TyKind::Float8 => {
       match rhs_ty.kind() {
         TyKind::Float8 => rhs_ty.clone(),
-        TyKind::Int1 | TyKind::Int2 | TyKind::Int4 | TyKind::Int8 | 
-        TyKind::Float4 => {
-          lhs_ty.clone()
-        }
+
+        TyKind::Int1   | 
+        TyKind::Int2   | 
+        TyKind::Int4   | 
+        TyKind::Int8   | 
+        TyKind::Float4 => lhs_ty.clone(),
+
         _ => panic!("Undefined Operator")
       }
     },
@@ -225,6 +246,7 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
     TyKind::Text => {
       match rhs_ty.kind() {
         TyKind::Text => rhs_ty.clone(),
+        
         _ => panic!("Undefined Operator")
       }
     },

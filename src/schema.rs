@@ -74,8 +74,7 @@ pub mod util {
   use schema::Schema;
 
   /// Find target column indexes
-  pub fn finds_target_indexes(schema: &Schema, target: &Schema) 
-      -> Vec<usize> {
+  pub fn finds_target_indexes(schema: &Schema, target: &Schema) -> Vec<usize> {
     let mut indexes: Vec<usize> = Vec::new();
 
     for c in target.iter() {

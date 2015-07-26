@@ -6,7 +6,6 @@ use std::ops::{Add, Sub, Mul, Div, Rem};
 
 use types::*;
 use schema::Column;
-use common::P;
 
 /// Datum representation for a single value
 #[derive(Clone)]
