@@ -1,3 +1,6 @@
+use std::slice::Iter;
+use std::vec::Vec;
+
 use types::{Ty, DataTy, HasDataTy, HasTy};
 
 #[derive(Clone, PartialEq, Debug)]
@@ -67,5 +70,28 @@ impl Schema {
 
   pub fn get_by_name(&self, name : &str) -> Option<&Column> {
     self.columns.iter().filter(|&c| c.name == name).next()
+  }
+
+  pub fn iter(&self) -> Iter<Column> {
+    self.columns.iter()
+  }
+}
+
+pub mod util {
+  use schema::Schema;
+
+  /// Find target column indexes
+  pub fn finds_target_indexes(schema: &Schema, target: &Schema) 
+      -> Vec<usize> {
+    let mut indexes: Vec<usize> = Vec::new();
+
+    for c in target.iter() {
+      match schema.column_id(&c.name) {
+        Some(idx) => indexes.push(idx),
+        None => {}
+      }
+    }
+
+    indexes
   }
 }

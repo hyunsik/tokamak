@@ -6,7 +6,6 @@ use exec::Executor;
 use io::stream::*;
 use rows::RowBlock;
 
-//#[derive(Debug)]
 pub struct DelimTextScanner<'a> {
   //path: &'a str,
   line_delim: u8,
@@ -28,6 +27,14 @@ impl<'a> Executor for DelimTextScanner<'a> {
   fn close(&self) -> Void {
     void_ok()
   }
+
+  // fn in_schema(&self) -> &'a Schema {
+  //   self.schema;
+  // }
+
+  // fn out_Schema(&self) -> &'a Schema {
+  //   self.schema
+  // }
 }
 
 impl<'a> DelimTextScanner<'a> {
