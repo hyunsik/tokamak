@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::mem;
 
+use common::constant::VECTOR_SIZE;
 use common::err::*;
 use exec::Executor;
 use io::stream::*;
@@ -14,7 +15,11 @@ pub struct DelimTextScanner<'a> {
   line_delim  : u8,
   field_delim : u8,
   reader      : Box<StreamReader>,
-  marker      : PhantomData<&'a ()>
+  marker      : PhantomData<&'a ()>,
+
+  // variable
+  last_read_len: usize,
+  should_parse_line: bool
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {
@@ -23,7 +28,21 @@ impl<'a> Executor for DelimTextScanner<'a> {
     void_ok()
   }
 
-  fn next(&self, rowblock: &mut RowBlock) -> Void {
+  fn next(&self, rowblock: &mut RowBlock) -> Void {   
+
+    let mut row_idx: usize = 0;
+
+    loop {
+
+      if self.should_parse_line {
+        //next_line_indexes()
+      }
+
+      if self.last_read_len < 1 || row_idx >= VECTOR_SIZE {
+        break;
+      }
+    } 
+
     void_ok()
   }
 
@@ -58,7 +77,10 @@ impl<'a> DelimTextScanner<'a> {
       field_delim: field_delim,
 
       reader: stream,
-      marker: PhantomData
+      marker: PhantomData,
+
+      last_read_len: 0,
+      should_parse_line: true
     }
   }
 
