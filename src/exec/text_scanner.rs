@@ -31,13 +31,16 @@ impl<'a> Executor for DelimTextScanner<'a> {
     void_ok()
   }
 
-  // fn in_schema(&self) -> &'a Schema {
-  //   self.schema;
-  // }
+  fn in_schema(&self) -> &Schema {
+    &self.data_schema
+  }
 
-  // fn out_Schema(&self) -> &'a Schema {
-  //   self.schema
-  // }
+  fn out_schema(&self) -> &Schema {
+    match self.read_fields {
+      Some(ref s) => s,
+      None => &self.data_schema
+    }
+  }
 }
 
 impl<'a> DelimTextScanner<'a> {

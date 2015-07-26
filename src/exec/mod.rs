@@ -16,8 +16,8 @@ pub trait Executor {
   fn next(&self, rowblock: &mut RowBlock) -> Void;
   fn close(&self) -> Void;
 
-  // fn in_schema() -> &'a Schema;
-  // fn out_schema() -> &'a Schema;
+  fn in_schema(&self) -> &Schema;
+  fn out_schema(&self) -> &Schema;
 }
 
 pub struct Projection {
