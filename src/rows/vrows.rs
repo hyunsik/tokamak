@@ -149,12 +149,12 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
 pub struct PtrVector<'a> {
   ptr: *mut u8,
   size: usize,
-  data_type: DataTy,
+  data_type: Ty,
   _marker: marker::PhantomData<&'a ()>
 }
 
 impl<'a> PtrVector<'a> {
-  pub fn new(ptr: *mut u8, size: usize, data_type: DataTy) -> PtrVector<'a> {
+  pub fn new(ptr: *mut u8, size: usize, data_type: Ty) -> PtrVector<'a> {
     PtrVector {
       ptr: ptr, 
       size: size,
@@ -181,8 +181,8 @@ impl<'a> Vector for PtrVector<'a> {
   fn is_const(&self) -> bool { false }
 }
 
-impl<'a> HasDataTy for PtrVector<'a> {
-  fn data_ty(&self) -> &DataTy {
+impl<'a> HasTy for PtrVector<'a> {
+  fn data_ty(&self) -> &Ty {
     &self.data_type
   }
 }

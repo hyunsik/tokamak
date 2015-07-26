@@ -10,7 +10,7 @@ use expr::Datum;
 use intrinsics::sse;
 use types::*;
 
-pub trait Vector : HasDataTy {
+pub trait Vector : HasTy {
   fn size(&self) -> usize;
   fn as_ptr(&self) -> *const u8;
   fn as_mut_ptr(&mut self) ->*mut u8;
@@ -19,12 +19,12 @@ pub trait Vector : HasDataTy {
 
 pub struct ArrayVector<'a> {
   ptr: *mut u8,
-  data_ty: DataTy,
+  data_ty: Ty,
   _marker: marker::PhantomData<&'a ()>
 }
 
 impl<'a> ArrayVector<'a> {
-  pub fn new(data_ty: DataTy) -> ArrayVector<'a> {
+  pub fn new(data_ty: Ty) -> ArrayVector<'a> {
     let alloc_size = sse::compute_aligned_size(
       data_ty.bytes_len() as usize * VECTOR_SIZE);
 
@@ -69,15 +69,15 @@ impl<'a> Vector for ArrayVector<'a> {
   fn is_const(&self) -> bool { false }
 }
 
-impl<'a> HasDataTy for ArrayVector<'a> {
-  fn data_ty(&self) -> &DataTy {
+impl<'a> HasTy for ArrayVector<'a> {
+  fn data_ty(&self) -> &Ty {
     &self.data_ty
   }
 }
 
 pub struct ConstVector {
   value: [u8; 16],
-  data_ty: DataTy,
+  data_ty: Ty,
   datum: Datum
 }
 
@@ -116,8 +116,8 @@ impl ConstVector {
   }
 }
 
-impl HasDataTy for ConstVector {
-  fn data_ty(&self) -> &DataTy {
+impl HasTy for ConstVector {
+  fn data_ty(&self) -> &Ty {
     &self.data_ty
   }
 }
@@ -164,7 +164,7 @@ pub fn as_mut_array<T>(v: &mut Vector) -> &mut [T] {
 }
 
 /// Return a filled array vector from a list of values
-pub fn from_vec<'a, T>(data_ty: &DataTy, values: &Vec<T>) -> ArrayVector<'a>
+pub fn from_vec<'a, T>(data_ty: &Ty, values: &Vec<T>) -> ArrayVector<'a>
   where T: Copy {
 
   let mut vec = ArrayVector::new(data_ty.clone());

@@ -5,12 +5,12 @@
 use common::err::{TResult, Void};
 use rows::RowBlock;
 use rows::vector::Vector;
-use types::{HasDataTy};
+use types::{HasTy};
 use schema::{Schema};
 use expr::Expr;
 
 /// Common Trait of All Expression Evaluators  
-pub trait Eval : HasDataTy {
+pub trait Eval : HasTy {
   fn bind(&mut self, schema: &Schema) -> Void;
 
   fn is_const(&self) -> bool;

@@ -1,16 +1,16 @@
 use std::slice::Iter;
 use std::vec::Vec;
 
-use types::{DataTy, HasDataTy};
+use types::{Ty, HasTy};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Column {
   pub name: String,
-  pub ty: DataTy,
+  pub ty: Ty,
 }
 
 impl Column {
-  pub fn new<T: AsRef<str>>(name: T, ty: DataTy) -> Column {
+  pub fn new<T: AsRef<str>>(name: T, ty: Ty) -> Column {
     Column {
       name: name.as_ref().to_owned(), 
       ty: ty
@@ -18,8 +18,8 @@ impl Column {
   }
 }
 
-impl HasDataTy for Column {
-  fn data_ty(&self) -> &DataTy { &self.ty }
+impl HasTy for Column {
+  fn data_ty(&self) -> &Ty { &self.ty }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -44,7 +44,7 @@ impl Schema {
     self.columns.push(c);
   }
 
-  pub fn add_column(&mut self, name : &str, ty: DataTy) {
+  pub fn add_column(&mut self, name : &str, ty: Ty) {
     self.columns.push(Column::new(name, ty));
   }
 

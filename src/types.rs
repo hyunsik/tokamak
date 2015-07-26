@@ -21,23 +21,23 @@ pub enum TyKind {
   Blob
 }
 
-pub trait HasDataTy {
-  fn data_ty(&self) -> &DataTy;
+pub trait HasTy {
+  fn data_ty(&self) -> &Ty;
 }
 
-pub const BOOL_TY     : &'static DataTy = &DataTy::new(TyKind::Bool);
-pub const INT1_TY     : &'static DataTy = &DataTy::new(TyKind::Int1);
-pub const INT2_TY     : &'static DataTy = &DataTy::new(TyKind::Int2);
-pub const INT4_TY     : &'static DataTy = &DataTy::new(TyKind::Int4);
-pub const INT8_TY     : &'static DataTy = &DataTy::new(TyKind::Int8);
-pub const FLOAT4_TY   : &'static DataTy = &DataTy::new(TyKind::Float4);
-pub const FLOAT8_TY   : &'static DataTy = &DataTy::new(TyKind::Float8);
-pub const DATE_TY     : &'static DataTy = &DataTy::new(TyKind::Date);
-pub const TIME_TY     : &'static DataTy = &DataTy::new(TyKind::Time);
-pub const TIMESTAMP_TY: &'static DataTy = &DataTy::new(TyKind::Timestamp);
-pub const TEXT_TY     : &'static DataTy = &DataTy::new(TyKind::Text);
-pub const INTERVAL_TY : &'static DataTy = &DataTy::new(TyKind::Interval);
-pub const CHAR_TY     : &'static DataTy = &DataTy::new_vartype(TyKind::Char, 255);
+pub const BOOL_TY     : &'static Ty = &Ty::new(TyKind::Bool);
+pub const INT1_TY     : &'static Ty = &Ty::new(TyKind::Int1);
+pub const INT2_TY     : &'static Ty = &Ty::new(TyKind::Int2);
+pub const INT4_TY     : &'static Ty = &Ty::new(TyKind::Int4);
+pub const INT8_TY     : &'static Ty = &Ty::new(TyKind::Int8);
+pub const FLOAT4_TY   : &'static Ty = &Ty::new(TyKind::Float4);
+pub const FLOAT8_TY   : &'static Ty = &Ty::new(TyKind::Float8);
+pub const DATE_TY     : &'static Ty = &Ty::new(TyKind::Date);
+pub const TIME_TY     : &'static Ty = &Ty::new(TyKind::Time);
+pub const TIMESTAMP_TY: &'static Ty = &Ty::new(TyKind::Timestamp);
+pub const TEXT_TY     : &'static Ty = &Ty::new(TyKind::Text);
+pub const INTERVAL_TY : &'static Ty = &Ty::new(TyKind::Interval);
+pub const CHAR_TY     : &'static Ty = &Ty::new_vartype(TyKind::Char, 255);
 
 #[allow(non_camel_case_types)]
 pub type BOOL      = bool;
@@ -64,20 +64,20 @@ pub type TEXT      = StringSlice;
 
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct DataTy {
+pub struct Ty {
   pub kind : TyKind, 
   pub len : u32, // for CHAR, VARCHAR
   pub precision : u8, // for numeric or decimal
   pub scale : u8 // for numeric or decimal
 }
 
-impl DataTy {
-  pub const fn new (kind : TyKind) -> DataTy {
-    DataTy {kind: kind, len : 0, precision: 0, scale: 0}
+impl Ty {
+  pub const fn new (kind : TyKind) -> Ty {
+    Ty {kind: kind, len : 0, precision: 0, scale: 0}
   }
 
-  pub const fn new_vartype(kind : TyKind, len: u32) -> DataTy {
-    DataTy {kind: kind, len : len, precision: 0, scale: 0}
+  pub const fn new_vartype(kind : TyKind, len: u32) -> Ty {
+    Ty {kind: kind, len : len, precision: 0, scale: 0}
   }
 
   pub fn kind(&self) -> TyKind {
@@ -85,11 +85,11 @@ impl DataTy {
   }
 
   pub fn bytes_len(&self) -> u32 {
-    DataTy::size_of(self)
+    Ty::size_of(self)
   }
 
   #[inline(always)]
-  pub fn size_of(data_type: &DataTy) -> u32 {
+  pub fn size_of(data_type: &Ty) -> u32 {
     match data_type.kind {
       TyKind::Bool      => 1,        
       TyKind::Int1      => 1,
@@ -108,14 +108,14 @@ impl DataTy {
     }
   }
 
-  pub fn has_length(data_type: &DataTy) -> bool {
+  pub fn has_length(data_type: &Ty) -> bool {
     match data_type.kind {
       TyKind::Char | TyKind::Varchar | TyKind::Blob => true,
       _ => false
     }
   }
 
-  pub fn is_variable(data_type: &DataTy) -> bool {
+  pub fn is_variable(data_type: &Ty) -> bool {
     match data_type.kind {
       TyKind::Varchar | TyKind::Blob => true,
       _ => false
@@ -123,15 +123,15 @@ impl DataTy {
   }
 }
 
-impl HasDataTy for DataTy {
+impl HasTy for Ty {
   #[inline]
-  fn data_ty(&self) -> &DataTy {
+  fn data_ty(&self) -> &Ty {
     &self
   }
 }
 
 /// Determine a result data type from two expression data types.
-pub fn result_data_ty(&lhs_ty: &DataTy, &rhs_ty: &DataTy) -> DataTy {
+pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
   match lhs_ty.kind() {
     
     TyKind::Bool => {

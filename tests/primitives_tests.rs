@@ -7,7 +7,7 @@ use tajo::rows::vector::{ArrayVector, Vector, as_array, from_vec};
 use tajo::types::*;
 
 fn assert_map<T>(f: fn(&mut Vector, &Vector, &Vector, Option<&[usize]>),
-                data_ty: &DataTy, 
+                data_ty: &Ty, 
                 lv: Vec<T>, 
                 rv: Vec<T>,
                 expected: Vec<T>,
@@ -66,7 +66,7 @@ fn assert_map<T>(f: fn(&mut Vector, &Vector, &Vector, Option<&[usize]>),
 fn assert_filter<T>(
                 f: fn(&mut [usize], &Vector, &Vector, Option<&[usize]>, usize) 
                     -> usize,
-                data_ty: &DataTy, 
+                data_ty: &Ty, 
                 lv: Vec<T>, 
                 rv: Vec<T>,
                 expected: Vec<usize>,

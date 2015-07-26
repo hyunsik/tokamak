@@ -22,7 +22,7 @@ pub struct IsNull {child: Box<Eval>}
 
 // Binary Comparison Expressions
 pub struct AndEval<'a> {
-  res_ty: DataTy, // TODO - to be replaced by a a singleton instance
+  res_ty: Ty, // TODO - to be replaced by a a singleton instance
   lhs: Box<MapEval>,
   rhs: Box<MapEval>,
   result: ArrayVector<'a>,
@@ -58,8 +58,8 @@ impl<'a> Eval for AndEval<'a> {
   fn is_const(&self) -> bool { false }
 }
 
-impl<'a> HasDataTy for AndEval<'a> {
-  fn data_ty(&self) -> &DataTy {
+impl<'a> HasTy for AndEval<'a> {
+  fn data_ty(&self) -> &Ty {
     &self.res_ty
   }
 }
@@ -68,7 +68,7 @@ pub struct Or {lhs: Box<Eval>, rhs: Box<Eval>}
 
 pub struct CompEval<'a> {
   op: CompOp,
-  res_ty: DataTy,
+  res_ty: Ty,
   lhs: Box<MapEval>,
   rhs: Box<MapEval>,
   result: ArrayVector<'a>,
@@ -110,8 +110,8 @@ impl<'a> Eval for CompEval<'a> {
   fn is_const(&self) -> bool { false }
 }
 
-impl<'a> HasDataTy for CompEval<'a> {
-  fn data_ty(&self) -> &DataTy {
+impl<'a> HasTy for CompEval<'a> {
+  fn data_ty(&self) -> &Ty {
     &self.res_ty
   }
 }
@@ -129,7 +129,7 @@ impl<'a> MapEval for CompEval<'a> {
 // Binary Arithmetic Evalessions
 pub struct ArithmMapEval<'a> {
   pub op: ArithmOp, 
-  pub data_ty: Option<DataTy>, 
+  pub data_ty: Option<Ty>, 
   pub lhs: Box<MapEval>,
   pub rhs: Box<MapEval>,
   pub result: Option<ArrayVector<'a>>,
@@ -172,8 +172,8 @@ impl<'a> Eval for ArithmMapEval<'a> {
   fn is_const(&self) -> bool { false }
 }
 
-impl<'a> HasDataTy for ArithmMapEval<'a> {
-  fn data_ty(&self) -> &DataTy {
+impl<'a> HasTy for ArithmMapEval<'a> {
+  fn data_ty(&self) -> &Ty {
     self.data_ty.as_ref().unwrap()
   }
 }
@@ -210,8 +210,8 @@ impl Field {
   }
 }
 
-impl HasDataTy for Field {
-  fn data_ty(&self) -> &DataTy {
+impl HasTy for Field {
+  fn data_ty(&self) -> &Ty {
     &self.column.ty
   }
 }
@@ -254,8 +254,8 @@ impl ConstEval {
   }
 }
 
-impl HasDataTy for ConstEval {
-  fn data_ty(&self) -> &DataTy {
+impl HasTy for ConstEval {
+  fn data_ty(&self) -> &Ty {
     &self.v.data_ty()
   }
 }
@@ -370,9 +370,9 @@ fn get_and_primitive(lhs_const: bool, rhs_const: bool) ->
 }
 
 fn get_arithm_prim(op: &ArithmOp, 
-                   res_ty: &DataTy, 
-                   lhs_dty: &DataTy, lhs_vec: bool,
-                   rhs_dty: &DataTy, rhs_vec: bool) 
+                   res_ty: &Ty, 
+                   lhs_dty: &Ty, lhs_vec: bool,
+                   rhs_dty: &Ty, rhs_vec: bool) 
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {
 
   assert_eq!(lhs_dty, rhs_dty);
@@ -445,8 +445,8 @@ fn get_arithm_vec_or_const<T>(op: &ArithmOp, lhs_const: bool, rhs_const: bool)
 }
 
 fn get_comp_primitive(op: &CompOp,                       
-                      lhs_dty: &DataTy, lhs_const: bool,
-                      rhs_dty: &DataTy, rhs_const: bool) 
+                      lhs_dty: &Ty, lhs_const: bool,
+                      rhs_dty: &Ty, rhs_const: bool) 
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {
 
   assert_eq!(lhs_dty, rhs_dty);

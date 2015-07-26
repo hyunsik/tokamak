@@ -28,8 +28,8 @@ pub enum Datum {
   Blob(Vec<u8>)
 }
 
-impl HasDataTy for Datum {
-  fn data_ty(&self) -> &DataTy {
+impl HasTy for Datum {
+  fn data_ty(&self) -> &Ty {
     match *self {
       Datum::Bool(ref x) => &BOOL_TY,
       Datum::Int1(ref x) => &INT1_TY,
@@ -93,7 +93,7 @@ pub enum ArithmOp {
 /// Expression Element
 #[derive(Clone)]
 pub struct Expr {
-  ty: DataTy,
+  ty: Ty,
   node: ExprSpec
 }
 
@@ -104,7 +104,7 @@ pub enum ExprSpec {
   Not(Box<Expr>),
   IsNull(Box<Expr>, bool), // bool - 'is null' if true. 'is not null' if false.
   Sign(Box<Expr>, bool), // true - Plus, false - Minus
-  Cast(Box<Expr>, Box<DataTy>, Box<DataTy>),
+  Cast(Box<Expr>, Box<Ty>, Box<Ty>),
 
   // Binary Arithmetic Expressions
   And(Box<Expr>,Box<Expr>),
@@ -145,7 +145,7 @@ impl Expr {
     }
   }
 
-  pub fn column<T: AsRef<str>>(name: T, ty: DataTy) -> Expr {
+  pub fn column<T: AsRef<str>>(name: T, ty: Ty) -> Expr {
     Expr {
       ty: ty.clone(),
       node: ExprSpec::Field(Column::new(name, ty.clone()))
@@ -153,8 +153,8 @@ impl Expr {
   }  
 }
 
-impl HasDataTy for Expr {
-  fn data_ty(&self) -> &DataTy {
+impl HasTy for Expr {
+  fn data_ty(&self) -> &Ty {
     &self.ty
   }
 }
@@ -238,8 +238,8 @@ pub trait Visitor<'v>: Sized {
   fn visit_sign(&mut self, child: &'v Expr, not: bool) {
     walk_expr(self, child);
   }
-  fn visit_cast(&mut self, expr: &'v Expr, from: &'v DataTy, 
-    to: &'v DataTy) {
+  fn visit_cast(&mut self, expr: &'v Expr, from: &'v Ty, 
+    to: &'v Ty) {
     walk_expr(self, expr);
   }
 
