@@ -32,10 +32,10 @@ pub struct AndEval<'a> {
 impl<'a> AndEval<'a> {
   pub fn new(lhs: Box<MapEval>, rhs: Box<MapEval>) -> AndEval<'a> {
     AndEval {
-      res_ty: DataTy::new(Ty::Bool),
+      res_ty: *BOOL_TY,
       lhs: lhs,
       rhs: rhs,
-      result: ArrayVector::new(DataTy::new(Ty::Bool)),
+      result: ArrayVector::new(*BOOL_TY),
       f: None
     }
   }
@@ -47,8 +47,8 @@ impl<'a> Eval for AndEval<'a> {
     try!(self.lhs.bind(schema));
     try!(self.rhs.bind(schema));
 
-    assert_eq!(Ty::Bool, self.lhs.data_ty().kind());
-    assert_eq!(Ty::Bool, self.rhs.data_ty().kind());
+    assert_eq!(BOOL_TY, self.lhs.data_ty());
+    assert_eq!(BOOL_TY, self.rhs.data_ty());
 
     self.f = Some(get_and_primitive(self.lhs.is_const(),self.rhs.is_const()));
 
@@ -82,10 +82,10 @@ impl<'a> CompEval<'a> {
 
     CompEval {
       op: op,
-      res_ty: DataTy::new(Ty::Bool),
+      res_ty: *BOOL_TY,
       lhs: lhs,
       rhs: rhs,
-      result: ArrayVector::new(DataTy::new(Ty::Bool)),
+      result: ArrayVector::new(*BOOL_TY),
       f: None
     }
   }
@@ -378,14 +378,14 @@ fn get_arithm_prim(op: &ArithmOp,
   assert_eq!(lhs_dty, rhs_dty);
 
   match lhs_dty.kind() {
-    Ty::Int2      => get_arithm_vec_or_const::<INT2>     (op, lhs_vec, rhs_vec),
-    Ty::Int4      => get_arithm_vec_or_const::<INT4>     (op, lhs_vec, rhs_vec),
-    Ty::Int8      => get_arithm_vec_or_const::<INT8>     (op, lhs_vec, rhs_vec),
-    Ty::Float4    => get_arithm_vec_or_const::<FLOAT4>   (op, lhs_vec, rhs_vec),
-    Ty::Float8    => get_arithm_vec_or_const::<FLOAT8>   (op, lhs_vec, rhs_vec),
-    Ty::Time      => get_arithm_vec_or_const::<TIME>     (op, lhs_vec, rhs_vec),
-    Ty::Date      => get_arithm_vec_or_const::<DATE>     (op, lhs_vec, rhs_vec),
-    Ty::Timestamp => get_arithm_vec_or_const::<TIMESTAMP>(op, lhs_vec, rhs_vec),
+    TyKind::Int2      => get_arithm_vec_or_const::<INT2>     (op, lhs_vec, rhs_vec),
+    TyKind::Int4      => get_arithm_vec_or_const::<INT4>     (op, lhs_vec, rhs_vec),
+    TyKind::Int8      => get_arithm_vec_or_const::<INT8>     (op, lhs_vec, rhs_vec),
+    TyKind::Float4    => get_arithm_vec_or_const::<FLOAT4>   (op, lhs_vec, rhs_vec),
+    TyKind::Float8    => get_arithm_vec_or_const::<FLOAT8>   (op, lhs_vec, rhs_vec),
+    TyKind::Time      => get_arithm_vec_or_const::<TIME>     (op, lhs_vec, rhs_vec),
+    TyKind::Date      => get_arithm_vec_or_const::<DATE>     (op, lhs_vec, rhs_vec),
+    TyKind::Timestamp => get_arithm_vec_or_const::<TIMESTAMP>(op, lhs_vec, rhs_vec),
     _ => panic!("unsupported data type")
   }
 }
@@ -452,15 +452,15 @@ fn get_comp_primitive(op: &CompOp,
   assert_eq!(lhs_dty, rhs_dty);
 
   match (lhs_dty.kind) {
-    Ty::Int2      => get_comp_vec_or_const::<INT2>     (op, lhs_const, rhs_const),
-    Ty::Int4      => get_comp_vec_or_const::<INT4>     (op, lhs_const, rhs_const),
-    Ty::Int8      => get_comp_vec_or_const::<INT8>     (op, lhs_const, rhs_const),
-    Ty::Float4    => get_comp_vec_or_const::<FLOAT4>   (op, lhs_const, rhs_const),
-    Ty::Float8    => get_comp_vec_or_const::<FLOAT8>   (op, lhs_const, rhs_const),
-    Ty::Time      => get_comp_vec_or_const::<TIME>     (op, lhs_const, rhs_const),
-    Ty::Date      => get_comp_vec_or_const::<DATE>     (op, lhs_const, rhs_const),
-    Ty::Timestamp => get_comp_vec_or_const::<TIMESTAMP>(op, lhs_const, rhs_const),
-    Ty::Text      => get_comp_vec_or_const::<TEXT>     (op, lhs_const, rhs_const),
+    TyKind::Int2      => get_comp_vec_or_const::<INT2>     (op, lhs_const, rhs_const),
+    TyKind::Int4      => get_comp_vec_or_const::<INT4>     (op, lhs_const, rhs_const),
+    TyKind::Int8      => get_comp_vec_or_const::<INT8>     (op, lhs_const, rhs_const),
+    TyKind::Float4    => get_comp_vec_or_const::<FLOAT4>   (op, lhs_const, rhs_const),
+    TyKind::Float8    => get_comp_vec_or_const::<FLOAT8>   (op, lhs_const, rhs_const),
+    TyKind::Time      => get_comp_vec_or_const::<TIME>     (op, lhs_const, rhs_const),
+    TyKind::Date      => get_comp_vec_or_const::<DATE>     (op, lhs_const, rhs_const),
+    TyKind::Timestamp => get_comp_vec_or_const::<TIMESTAMP>(op, lhs_const, rhs_const),
+    TyKind::Text      => get_comp_vec_or_const::<TEXT>     (op, lhs_const, rhs_const),
     _             => panic!("unsupported data type")
   }
 }

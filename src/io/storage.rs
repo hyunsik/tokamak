@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use common::err::*;
-use types::Ty;
+use types::TyKind;
 use exec::Executor;
 use io::stream::*;
 use schema::Schema;
@@ -132,7 +132,7 @@ pub trait DataFormat {
 
 	fn indexable() -> bool;
 
-	fn supported_types() -> Vec<Ty>;
+	fn supported_types() -> Vec<TyKind>;
 }
 
 /// Manages TableSpaces

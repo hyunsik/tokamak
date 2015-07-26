@@ -181,42 +181,42 @@ pub fn from_vec<'a, T>(data_ty: &DataTy, values: &Vec<T>) -> ArrayVector<'a>
 #[test]
 fn test_const_vector() {
   let bool_vec: &Vector = &ConstVector::new(Datum::Bool(true));
-  assert_eq!(Ty::Bool, bool_vec.data_ty().kind());
+  assert_eq!(BOOL_TY, bool_vec.data_ty());
   assert_eq!(1, bool_vec.size());
   assert_eq!(true, *first_value(bool_vec));
 
   let int1_vec: &Vector = &ConstVector::new(Datum::Int1(7));
-  assert_eq!(Ty::Int1, int1_vec.data_ty().kind());
+  assert_eq!(INT1_TY, int1_vec.data_ty());
   assert_eq!(1, int1_vec.size());
   assert_eq!(7, *first_value(int1_vec));
 
   let int2_vec: &Vector = &ConstVector::new(Datum::Int2(17));
-  assert_eq!(Ty::Int2, int2_vec.data_ty().kind());
+  assert_eq!(INT2_TY, int2_vec.data_ty());
   assert_eq!(1, int2_vec.size());
   assert_eq!(17, *first_value(int2_vec));
 
   let int4_vec: &Vector = &ConstVector::new(Datum::Int4(178910));
-  assert_eq!(Ty::Int4, int4_vec.data_ty().kind());
+  assert_eq!(INT4_TY, int4_vec.data_ty());
   assert_eq!(1, int4_vec.size());
   assert_eq!(178910, *first_value(int4_vec));
 
   let int8_vec: &Vector = &ConstVector::new(Datum::Int8(981627341));
-  assert_eq!(Ty::Int8, int8_vec.data_ty().kind());
+  assert_eq!(INT8_TY, int8_vec.data_ty());
   assert_eq!(1, int8_vec.size());
   assert_eq!(981627341, *first_value(int8_vec));
 
   let float4_vec: &Vector = &ConstVector::new(Datum::Float4(3.14f32));
-  assert_eq!(Ty::Float4, float4_vec.data_ty().kind());
+  assert_eq!(FLOAT4_TY, float4_vec.data_ty());
   assert_eq!(1, float4_vec.size());
   assert_eq!(3.14f32, *first_value(float4_vec));
 
   let float8_vec: &Vector = &ConstVector::new(Datum::Float8(87123.1452f64));
-  assert_eq!(Ty::Float8, float8_vec.data_ty().kind());
+  assert_eq!(FLOAT8_TY, float8_vec.data_ty());
   assert_eq!(1, float8_vec.size());
   assert_eq!(87123.1452f64, *first_value(float8_vec));
 
   let text_vec: &Vector = &ConstVector::new(Datum::Text("hyunsik".to_string()));
-  assert_eq!(Ty::Text, text_vec.data_ty().kind());
+  assert_eq!(TEXT_TY, text_vec.data_ty());
   assert_eq!(1, text_vec.size());
   let expected = StringSlice::new_from_str("hyunsik");
   assert_eq!(expected, *first_value(text_vec));
