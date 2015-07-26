@@ -19,12 +19,13 @@ pub struct DelimTextScanner<'a> {
 
   // variable
   last_read_len: usize,
-  should_parse_line: bool
+  should_parse_line: bool,
+  //buf: Buf
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {
   fn init(&mut self) -> Void {
-    self.reader.read();
+    //self.buf = try!(self.reader.read());
     void_ok()
   }
 
@@ -84,8 +85,8 @@ impl<'a> DelimTextScanner<'a> {
     }
   }
 
-  fn find_first_record_index(&self, text: &str) -> Option<usize> {
-    let bytes : &[u8] = unsafe { mem::transmute(text) };
+  fn find_first_record_index(&self, bytes: &[u8]) -> Option<usize> {
+    //let bytes : &[u8] = unsafe { mem::transmute(text) };
 
     let mut pos : usize = 0;
     let mut found : bool = false;
@@ -108,11 +109,11 @@ impl<'a> DelimTextScanner<'a> {
   /// Return the last index of fields, which will be used for the 
   /// following call
   fn next_line_indexes(&self, 
-    text: &str, 
+    bytes: &[u8], 
     delim_indexes: &mut Vec<usize>, 
     max_row_num: usize) -> (usize, usize) {
 
-    let bytes : &[u8] = unsafe { mem::transmute(text) };
+    //let bytes : &[u8] = unsafe { mem::transmute(text) };
     let mut cur_delim_idx: usize = 0;
     let mut cur_pos: usize = 0;
 
@@ -144,10 +145,10 @@ fn test_find_first_record_index() {
   let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
   let s = DelimTextScanner::new(s, None, fin, '\n' as u8);
 
-  assert_eq!(4, s.find_first_record_index("abc\nbb").unwrap());
-  assert_eq!(1, s.find_first_record_index("\nabc\nbb").unwrap());
-  assert_eq!(2, s.find_first_record_index("\r\nabc\nbb").unwrap());
-  assert!(s.find_first_record_index("aaaaabcabbb").is_none());
+  assert_eq!(4, s.find_first_record_index("abc\nbb".as_bytes()).unwrap());
+  assert_eq!(1, s.find_first_record_index("\nabc\nbb".as_bytes()).unwrap());
+  assert_eq!(2, s.find_first_record_index("\r\nabc\nbb".as_bytes()).unwrap());
+  assert!(s.find_first_record_index("aaaaabcabbb".as_bytes()).is_none());
 }
 
 #[test]
@@ -161,7 +162,7 @@ fn test_next_line_indxes() {
 
   let mut delim_indexes:Vec<usize> = Vec::new();
   let r1 = 
-    s.next_line_indexes("abc\nbb\nabcdef\nabcd", &mut delim_indexes, 10);
+    s.next_line_indexes("abc\nbb\nabcdef\nabcd".as_bytes(), &mut delim_indexes, 10);
   assert_eq!(3, r1.0);
   assert_eq!(13, r1.1);
 
@@ -169,7 +170,7 @@ fn test_next_line_indxes() {
   delim_indexes.clear();
 
   let r2 = 
-    s.next_line_indexes("a\nb\nabcde\n", &mut delim_indexes, 10);
+    s.next_line_indexes("a\nb\nabcde\n".as_bytes(), &mut delim_indexes, 10);
   assert_eq!(3, r2.0);
   assert_eq!(9, r2.1);
 }

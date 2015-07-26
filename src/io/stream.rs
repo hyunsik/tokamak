@@ -40,8 +40,6 @@ pub static DEFAULT_BUF_SIZE:usize = 4096;
 
 pub struct FileInputStream<'a> {
   path: String,
-  buf_size: usize,
-
   buf: Vec<u8>,
 
   file: Option<File>,
@@ -59,7 +57,6 @@ impl<'a> FileInputStream<'a> {
   pub fn new_with_bufsize(path: String, buf_size: usize) -> FileInputStream<'a> {
     FileInputStream {
       path: path,
-      buf_size: buf_size,
 
       buf: Vec::with_capacity(buf_size), 
       marker: PhantomData,
