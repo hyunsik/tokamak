@@ -116,8 +116,8 @@ impl<'a> DelimTextScanner<'a> {
 #[test]
 fn test_find_first_record_index() {
   let mut s = Schema::new();
-  s.add_column("c1", Ty::Text);
-  s.add_column("c2", Ty::Text);
+  s.add_column("c1", TEXT_TY);
+  s.add_column("c2", TEXT_TY);
 
   let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
   let s = DelimTextScanner::new(s, None, fin, '\n' as u8);
@@ -131,8 +131,8 @@ fn test_find_first_record_index() {
 #[test]
 fn test_next_line_indxes() {
   let mut schema = Schema::new();
-  schema.add_column("c1", Ty::Text);
-  schema.add_column("c2", Ty::Text);
+  schema.add_column("c1", TEXT_TY);
+  schema.add_column("c2", TEXT_TY);
 
   let mut fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
   let s = DelimTextScanner::new(schema, None, fin, '\n' as u8);

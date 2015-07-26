@@ -1,10 +1,9 @@
 extern crate tajo;
 
-use std::{i8,i16};
 use std::fmt::Debug;
 
 use tajo::eval::primitives::*;
-use tajo::rows::vector::{ArrayVector, Vector, as_array, as_mut_array, from_vec};
+use tajo::rows::vector::{ArrayVector, Vector, as_array, from_vec};
 use tajo::types::*;
 
 fn assert_map<T>(f: fn(&mut Vector, &Vector, &Vector, Option<&[usize]>),
@@ -90,8 +89,8 @@ fn assert_filter<T>(
       "Some index in selection vector is out of range.");
   }
 
-  let mut l = from_vec(data_ty, &lv);
-  let mut r = from_vec(data_ty, &rv);
+  let l = from_vec(data_ty, &lv);
+  let r = from_vec(data_ty, &rv);
 
   let mut res_sel: [usize;1024] = [0;1024];
   let selected = { 

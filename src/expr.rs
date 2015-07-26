@@ -92,7 +92,7 @@ pub enum ArithmOp {
 /// Expression Element
 #[derive(Clone)]
 pub struct Expr {
-  data_ty: DataTy,
+  ty: DataTy,
   node: ExprSpec
 }
 
@@ -139,14 +139,14 @@ pub enum ExprSpec {
 impl Expr {
   pub fn from_column(column: &Column) -> Expr {
     Expr {
-      data_ty: column.data_ty.clone(),
+      ty: column.ty.clone(),
       node: ExprSpec::Field(column.clone())
     }
   }
 
-  pub fn column<T: AsRef<str>>(name: T, ty: Ty) -> Expr {
+  pub fn column<T: AsRef<str>>(name: T, ty: DataTy) -> Expr {
     Expr {
-      data_ty: DataTy::new(ty.clone()),
+      ty: ty.clone(),
       node: ExprSpec::Field(Column::new(name, ty.clone()))
     }
   }  
@@ -154,7 +154,7 @@ impl Expr {
 
 impl HasDataTy for Expr {
   fn data_ty(&self) -> &DataTy {
-    &self.data_ty
+    &self.ty
   }
 }
 
@@ -163,7 +163,7 @@ impl Add for Expr {
 
   fn add(self, rhs: Expr) -> Expr {
     Expr {
-      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      ty: result_data_ty(self.data_ty(), rhs.data_ty()),
       node: ExprSpec::Arithm(ArithmOp::Plus, Box::new(self), Box::new(rhs))
     }
   }
@@ -174,7 +174,7 @@ impl Sub for Expr {
 
   fn sub(self, rhs: Expr) -> Expr {
     Expr {
-      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      ty: result_data_ty(self.data_ty(), rhs.data_ty()),
       node: ExprSpec::Arithm(ArithmOp::Sub, Box::new(self), Box::new(rhs))
     }
   }
@@ -185,7 +185,7 @@ impl Mul for Expr {
 
   fn mul(self, rhs: Expr) -> Expr {
     Expr {
-      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      ty: result_data_ty(self.data_ty(), rhs.data_ty()),
       node: ExprSpec::Arithm(ArithmOp::Mul, Box::new(self), Box::new(rhs))
     }
   }
@@ -196,7 +196,7 @@ impl Div for Expr {
 
   fn div(self, rhs: Expr) -> Expr {
     Expr {
-      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      ty: result_data_ty(self.data_ty(), rhs.data_ty()),
       node: ExprSpec::Arithm(ArithmOp::Div, Box::new(self), Box::new(rhs))
     }
   }
@@ -207,7 +207,7 @@ impl Rem for Expr {
 
   fn rem(self, rhs: Expr) -> Expr {
     Expr {
-      data_ty: result_data_ty(self.data_ty(), rhs.data_ty()),
+      ty: result_data_ty(self.data_ty(), rhs.data_ty()),
       node: ExprSpec::Arithm(ArithmOp::Rem, Box::new(self), Box::new(rhs))
     }
   }
@@ -220,7 +220,7 @@ pub trait AsExpr {
 impl AsExpr for Column {
   fn as_expr(&self) -> Expr {
     Expr {
-      data_ty: self.data_ty.clone(),
+      ty: self.ty.clone(),
       node: ExprSpec::Field(self.clone())
     }
   }

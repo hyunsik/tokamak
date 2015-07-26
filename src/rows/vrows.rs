@@ -204,7 +204,7 @@ impl<'a> HeapVRowBlock<'a> {
     let mut type_lengths: Vec<u32> = Vec::new();
 
     for c in schema.columns() {
-      let bytes_len = c.data_ty.bytes_len();      
+      let bytes_len = c.ty.bytes_len();      
       type_lengths.push(bytes_len);
 
       fixed_area_size += 
@@ -221,10 +221,10 @@ impl<'a> HeapVRowBlock<'a> {
 
     for x in 0..schema.size() {      
       vectors.push(
-        PtrVector::new(last_ptr as *mut u8, VECTOR_SIZE, schema.column(x).data_ty));
+        PtrVector::new(last_ptr as *mut u8, VECTOR_SIZE, schema.column(x).ty));
 
       let vector_size = 
-        sse::compute_aligned_size(schema.column(x).data_ty.bytes_len() as usize * VECTOR_SIZE);
+        sse::compute_aligned_size(schema.column(x).ty.bytes_len() as usize * VECTOR_SIZE);
       last_ptr = last_ptr + vector_size;
     }
 

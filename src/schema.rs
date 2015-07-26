@@ -6,27 +6,20 @@ use types::{Ty, DataTy, HasDataTy, HasTy};
 #[derive(Clone, PartialEq, Debug)]
 pub struct Column {
   pub name: String,
-  pub data_ty: DataTy,
+  pub ty: DataTy,
 }
 
 impl Column {
-  pub fn new<T: AsRef<str>>(name: T, ty: Ty) -> Column {
+  pub fn new<T: AsRef<str>>(name: T, ty: DataTy) -> Column {
     Column {
       name: name.as_ref().to_owned(), 
-      data_ty: DataTy::new(ty)
-    }
-  }
-
-  pub fn new_with_len<T: AsRef<str>>(name: T, ty: Ty, len: u32) -> Column {
-    Column {
-      name: name.as_ref().to_owned(), 
-      data_ty: DataTy::new_vartype(ty, len)
+      ty: ty
     }
   }
 }
 
 impl HasDataTy for Column {
-  fn data_ty(&self) -> &DataTy { &self.data_ty }
+  fn data_ty(&self) -> &DataTy { &self.ty }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -51,7 +44,7 @@ impl Schema {
     self.columns.push(c);
   }
 
-  pub fn add_column(&mut self, name : &str, ty: Ty) {
+  pub fn add_column(&mut self, name : &str, ty: DataTy) {
     self.columns.push(Column::new(name, ty));
   }
 

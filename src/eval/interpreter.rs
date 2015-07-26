@@ -212,7 +212,7 @@ impl Field {
 
 impl HasDataTy for Field {
   fn data_ty(&self) -> &DataTy {
-    &self.column.data_ty
+    &self.column.ty
   }
 }
 

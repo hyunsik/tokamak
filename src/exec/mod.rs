@@ -2,7 +2,6 @@ pub use self::text_scanner::DelimTextScanner;
 
 mod text_scanner;
 pub mod text_splitter;
-pub mod util;
 
 use std::result;
 
