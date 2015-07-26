@@ -30,11 +30,11 @@ impl<'v> Visitor<'v> for VisitOrder {
 #[test]
 fn test_visit_arithm() {
 
-  let col1 = Column::new("c0", INT8_TY);
-  let col2 = Column::new("c1", INT4_TY);
+  let col1 = Column::new("c0", *INT8_TY);
+  let col2 = Column::new("c1", *INT4_TY);
 
-  let col3 = Column::new("c2", INT4_TY);
-  let col4 = Column::new("c3", INT4_TY);
+  let col3 = Column::new("c2", *INT4_TY);
+  let col4 = Column::new("c3", *INT4_TY);
   
   let plus1 = col1.as_expr() + col2.as_expr();
   let plus2 = col3.as_expr() + col4.as_expr();

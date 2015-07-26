@@ -47,8 +47,8 @@ impl<'a> Eval for AndEval<'a> {
     try!(self.lhs.bind(schema));
     try!(self.rhs.bind(schema));
 
-    assert_eq!(Ty::Bool, self.lhs.data_ty().ty());
-    assert_eq!(Ty::Bool, self.rhs.data_ty().ty());
+    assert_eq!(Ty::Bool, self.lhs.data_ty().kind());
+    assert_eq!(Ty::Bool, self.rhs.data_ty().kind());
 
     self.f = Some(get_and_primitive(self.lhs.is_const(),self.rhs.is_const()));
 
@@ -377,7 +377,7 @@ fn get_arithm_prim(op: &ArithmOp,
 
   assert_eq!(lhs_dty, rhs_dty);
 
-  match lhs_dty.ty() {
+  match lhs_dty.kind() {
     Ty::Int2      => get_arithm_vec_or_const::<INT2>     (op, lhs_vec, rhs_vec),
     Ty::Int4      => get_arithm_vec_or_const::<INT4>     (op, lhs_vec, rhs_vec),
     Ty::Int8      => get_arithm_vec_or_const::<INT8>     (op, lhs_vec, rhs_vec),
@@ -451,7 +451,7 @@ fn get_comp_primitive(op: &CompOp,
 
   assert_eq!(lhs_dty, rhs_dty);
 
-  match (lhs_dty.ty) {
+  match (lhs_dty.kind) {
     Ty::Int2      => get_comp_vec_or_const::<INT2>     (op, lhs_const, rhs_const),
     Ty::Int4      => get_comp_vec_or_const::<INT4>     (op, lhs_const, rhs_const),
     Ty::Int8      => get_comp_vec_or_const::<INT8>     (op, lhs_const, rhs_const),
