@@ -4,14 +4,17 @@ use std::mem;
 use common::err::*;
 use exec::Executor;
 use io::stream::*;
+use schema::Schema;
 use rows::RowBlock;
+use types::*;
 
 pub struct DelimTextScanner<'a> {
-  //path: &'a str,
-  line_delim: u8,
-  field_delim: u8,
-  reader: Box<StreamReader>,
-  marker: PhantomData<&'a ()>
+  data_schema : Schema,
+  read_fields : Option<Schema>,
+  line_delim  : u8,
+  field_delim : u8,
+  reader      : Box<StreamReader>,
+  marker      : PhantomData<&'a ()>
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {
@@ -38,8 +41,16 @@ impl<'a> Executor for DelimTextScanner<'a> {
 }
 
 impl<'a> DelimTextScanner<'a> {
-  pub fn new(stream: Box<StreamReader>, field_delim: u8) -> DelimTextScanner<'a> {
+  pub fn new(
+        data_schema: Schema,
+        read_fields: Option<Schema>,
+        stream: Box<StreamReader>, 
+        field_delim: u8) -> DelimTextScanner<'a> {
+
     DelimTextScanner {
+      data_schema: data_schema,
+      read_fields: read_fields,
+
       line_delim: '\n' as u8,
       field_delim: field_delim,
 
@@ -101,8 +112,12 @@ impl<'a> DelimTextScanner<'a> {
 
 #[test]
 fn test_find_first_record_index() {
+  let mut s = Schema::new();
+  s.add_column("c1", Ty::Text);
+  s.add_column("c2", Ty::Text);
+
   let fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
-  let s = DelimTextScanner::new(fin, '\n' as u8);
+  let s = DelimTextScanner::new(s, None, fin, '\n' as u8);
 
   assert_eq!(4, s.find_first_record_index("abc\nbb").unwrap());
   assert_eq!(1, s.find_first_record_index("\nabc\nbb").unwrap());
@@ -112,8 +127,12 @@ fn test_find_first_record_index() {
 
 #[test]
 fn test_next_line_indxes() {
+  let mut schema = Schema::new();
+  schema.add_column("c1", Ty::Text);
+  schema.add_column("c2", Ty::Text);
+
   let mut fin = Box::new(FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
-  let s = DelimTextScanner::new(fin, '\n' as u8);
+  let s = DelimTextScanner::new(schema, None, fin, '\n' as u8);
 
   let mut delim_indexes:Vec<usize> = Vec::new();
   let r1 = 

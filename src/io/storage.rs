@@ -8,6 +8,7 @@ use common::err::*;
 use types::Ty;
 use exec::Executor;
 use io::stream::*;
+use schema::Schema;
 
 use exec::DelimTextScanner;
 
@@ -51,7 +52,10 @@ pub trait TableSpace<'a> {
 
 	fn total_capacity(&self) -> u64;
 
-	fn new_scanner(&self, url: &str, format_type: &str) -> TResult<Box<Executor>>;
+	fn new_scanner(&self, url: &str, 
+												format_type: &str, 
+												schema: Schema, 
+												target: Option<Schema>) -> TResult<Box<Executor>>;
 
 	fn new_appender(&self, url: &str, format_type: &str) -> TResult<Box<Executor>>;
 }
@@ -99,12 +103,15 @@ impl<'a> TableSpace<'a> for LocalFS {
 		0
 	}
 
-	fn new_scanner(&self, url: &str, format_type: &str) -> TResult<Box<Executor>> {
+	fn new_scanner(&self, url: &str, 
+												format_type: &str, 
+												schema: Schema,
+												target: Option<Schema>) -> TResult<Box<Executor>> {
 		
 		let mut fin = Box::new(FileInputStream::new(url.to_owned()));
 		
 		match format_type {
-			"TEXT" => Ok(Box::new(DelimTextScanner::new(fin, '\n' as u8))),
+			"TEXT" => Ok(Box::new(DelimTextScanner::new(schema, target, fin, '\n' as u8))),
 			_ => Err(Error::UnsupportedTableFormat)
 		}
 	}
@@ -164,5 +171,7 @@ impl<'a> TableSpaceMgr<'a> {
 pub fn tablespace_mgr_tests() {
   let tbMgr = TableSpaceMgr::new();
   let space = tbMgr.get("file:///").unwrap();
-  let executor = space.new_scanner("/home/hyunsik/tpch/lineitem/lineitem.tbl", "text");
+  let schema = Schema::new();
+  let executor = space.new_scanner("/home/hyunsik/tpch/lineitem/lineitem.tbl", "text",
+  																schema, None);
 }
