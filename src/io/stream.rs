@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 use std::marker::PhantomData;
 use std::option::Option;
@@ -7,27 +7,9 @@ use std::str;
 
 use common::err::*;
 
-pub struct Buf<'a> {
-  ptr: &'a [u8],
-  len: usize
-}
-
-impl<'a> Buf<'a> {
-
-  #[inline]
-  pub fn as_slice(&self) -> &'a [u8] {
-    self.ptr
-  }
-
-  #[inline]
-  pub fn len(&self) -> usize {
-    self.len
-  }
-}
-
 pub trait StreamReader {
   fn open(&mut self) -> Void;
-  fn read(&mut self) -> TResult<Buf>;  
+  fn read(&mut self, &mut [u8]) -> TResult<usize>;  
   fn close(&self) -> Void;
 
   fn len(&self) -> TResult<u64>;
@@ -40,8 +22,6 @@ pub static DEFAULT_BUF_SIZE:usize = 4096;
 
 pub struct FileInputStream<'a> {
   path: String,
-  buf: Vec<u8>,
-
   file: Option<File>,
   len: u64,
   pos: u64,
@@ -51,14 +31,8 @@ pub struct FileInputStream<'a> {
 
 impl<'a> FileInputStream<'a> {
   pub fn new(path: String) -> FileInputStream<'a> {
-    FileInputStream::new_with_bufsize(path, DEFAULT_BUF_SIZE)
-  }
-
-  pub fn new_with_bufsize(path: String, buf_size: usize) -> FileInputStream<'a> {
     FileInputStream {
-      path: path,
-
-      buf: Vec::with_capacity(buf_size), 
+      path: path, 
       marker: PhantomData,
 
       file: None,
@@ -73,10 +47,12 @@ impl<'a> StreamReader for FileInputStream<'a> {
   fn open(&mut self) -> Void {    
 
     match File::open(&(self.path)) {
-      Ok(file) => {
+      Ok(mut file) => {        
+        file.seek(SeekFrom::Start(0u64));
+        self.len = try!(file.metadata()).len();
+        
         self.file = Some(file);
-        self.len = try!(self.file.as_mut().unwrap().metadata()).len();
-        self.pos = 0;
+        self.pos = 0;       
 
         void_ok()
       },
@@ -85,13 +61,13 @@ impl<'a> StreamReader for FileInputStream<'a> {
   }
 
   #[inline]
-  fn read(&mut self) -> TResult<Buf>  {
+  fn read(&mut self, buf: &mut [u8]) -> TResult<usize>  {
     debug_assert!(self.file.is_some(), "File must be opened before calling read()");    
     
-    match self.file.as_mut().unwrap().read(&mut self.buf) {
+    match self.file.as_mut().unwrap().read(buf) {
       Ok(read_len) => {
         self.pos = self.pos + read_len as u64;
-        Ok(Buf {ptr: &self.buf, len: read_len})
+        Ok(read_len)
       },
       Err(e) => Err(Error::Unknown)
     }
@@ -126,17 +102,20 @@ impl<'a> StreamReader for FileInputStream<'a> {
 #[test]
 pub fn test_file_read() {
 
-  let mut fin = FileInputStream::new("/home/hyunsik/tpch/lineitem/lineitem.tbl".to_string());
+  let mut fin = FileInputStream::new("/Users/hyunsik/tpch/lineitem/lineitem.tbl".to_string());
   let mut reader:&mut StreamReader = &mut fin;
   
-  let r = reader.open();
-  assert!(r.is_ok());
+  assert!(reader.open().is_ok());
 
-  let read = reader.read();
-  assert!(read.is_ok());
+  println!("file len: {}", reader.len().unwrap());
 
-  let buf = read.ok().unwrap();
-  println!("{}", buf.len());  
-  let s = str::from_utf8(buf.as_slice()).ok().unwrap();
-  println!("{}", s);
+  let mut buf: [u8;4096] = unsafe {mem::zeroed()};
+  let read_len = reader.read(&mut buf);
+  assert!(read_len.is_ok());
+
+  let len = read_len.ok().unwrap();
+  println!("len: {}, pos: {}", len, reader.pos().unwrap());  
+  let s = str::from_utf8(&buf).ok().unwrap();
+  println!("contents: {}", s);
+  reader.close();
 }
