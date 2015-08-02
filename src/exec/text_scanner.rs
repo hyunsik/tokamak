@@ -5,6 +5,7 @@
 use alloc::heap;
 use std::marker::PhantomData;
 use std::mem;
+use std::ptr::copy_nonoverlapping;
 use std::slice;
 
 use common::constant::VECTOR_SIZE;
@@ -14,7 +15,7 @@ use io::stream::*;
 use schema::Schema;
 use rows::RowBlock;
 use types::*;
-use util::str::StrSlice;
+use util::str::{StrSlice,split_str_slice};
 
 const BUF_SIZE: usize = 65536;
 
@@ -33,9 +34,9 @@ pub struct DelimTextScanner<'a> {
   line_slices_ptr: *mut StrSlice,
   line_slices: &'a mut [StrSlice],
   fields_slices_ptr: *mut StrSlice,
-  fields_slices: &'a mut [StrSlice],
-  last_read_len: usize,
-  
+  fields_slices: &'a mut [StrSlice],  
+  parsed_batch_len: usize,
+  read_len: usize,  
 }
 
 impl<'a> DelimTextScanner<'a> {
@@ -81,7 +82,8 @@ impl<'a> DelimTextScanner<'a> {
       line_slices: line_slices,
       fields_slices_ptr: fields_slices_ptr,
       fields_slices: fields_slices,
-      last_read_len: 0  
+      parsed_batch_len: 0,
+      read_len: 0  
     }
   }
 
@@ -116,7 +118,7 @@ impl<'a> DelimTextScanner<'a> {
 
   /// Return the last index of fields, which will be used for the following call.
   /// It will return a tuple consisting of found line number and last delim index.
-  fn read_line_batch(&mut self) -> usize {
+  fn read_line_batch(&mut self) {
 
     self.read_line_num      = 0; // read line counter
     let mut last_pos: usize = 0; // keep the start offset
@@ -141,63 +143,85 @@ impl<'a> DelimTextScanner<'a> {
       cur_pos = cur_pos + 1;      
     }
 
-    (last_pos - 1)
+    self.parsed_batch_len = last_pos
   }
 
-  #[inline]
-  fn parse_fields(&mut self, line_idx: usize) {
-    let mut last_pos: usize = 0; // keep the start offset
-    let mut cur_pos : usize = 0; // the current offset
-    let mut field_idx: usize = 0;    
-
-    let slice = self.line_slices[line_idx];
-    let line_len = slice.len() as usize;
-
-    while (cur_pos < line_len && field_idx < self.data_schema.size()) {
-      let c: u8 = unsafe { *slice.as_ptr().offset(cur_pos as isize) };
-
-      // check if the character is line delimiter
-      if c == self.field_delim {
-        self.fields_slices[field_idx].set_ptr(unsafe {slice.as_ptr().offset(last_pos as isize)});
-        self.fields_slices[field_idx].set_len((cur_pos - last_pos) as i32);
-
-        last_pos = cur_pos + 1;
-        field_idx = field_idx + 1;
-      }
-
-      cur_pos = cur_pos + 1;
+  fn fill_vector(&mut self, row_idx: usize, split_num: usize) {
+  }
+  
+  fn refill_readbuf(&mut self) -> Void {
+  
+    let remain_len = self.read_len - self.parsed_batch_len;
+    debug_assert!(remain_len >= 0, "remain length must be positive number.");
+    
+    // move the remain bytes into the head of the readbuf
+    unsafe {    
+      copy_nonoverlapping(
+        self.readbuf_ptr.offset(self.parsed_batch_len as isize), 
+        self.readbuf_ptr, 
+        remain_len);
     }
-  }
-
-  fn fill_vector() {
-
+    
+    // refill the readbuf
+    self.read_len = try!(
+      self.reader.read(
+        unsafe {
+          slice::from_raw_parts_mut(
+            self.readbuf_ptr.offset(remain_len as isize), 
+            BUF_SIZE - remain_len
+          )
+        },
+      )
+    );
+    
+    self.read_len = self.read_len + remain_len;    
+    
+    void_ok()
   }
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {  
 
   fn init(&mut self) -> Void {
-    self.reader.read(
+    self.read_len = try!(self.reader.read(
       unsafe {slice::from_raw_parts_mut(self.readbuf_ptr, BUF_SIZE)}
-    );
+    ));
 
     void_ok()
   }
 
   fn next(&mut self, rowblock: &mut RowBlock) -> Void {   
 
-    let mut row_idx: usize = 0;
-    let mut r: usize;
+    let mut row_num: usize = 0;
+    let mut field_parse_res: (usize, usize);
     loop {
 
+      // parse lines in batch
       if self.should_parse_line {
-        r = self.read_line_batch();
+        self.read_line_batch();        
+        self.should_parse_line = false;
       }
-
-      // self.reader.read(
-      //   unsafe {slice::from_raw_parts_mut(self.readbuf_ptr, BUF_SIZE)}
-      // );
-    } 
+      
+      unsafe {      
+      for line_idx in 0..self.read_line_num {
+          // parse each line slice into field slices
+          field_parse_res = split_str_slice(
+            &mut self.line_slices[line_idx],
+            self.fields_slices,
+            self.field_delim
+          );
+          
+          self.fill_vector(row_num, field_parse_res.1);          
+          row_num = row_num + 1;
+        }
+      }
+      
+      if row_num < VECTOR_SIZE {
+        // compact and fill read buffer 
+        self.refill_readbuf();        
+        self.should_parse_line = true;        
+      }
+    } // outmost loop 
 
     void_ok()
   }
