@@ -5,10 +5,10 @@ use std::slice;
 use std::ptr;
 
 use common::constant::VECTOR_SIZE;
-use common::StringSlice;
 use expr::Datum;
 use intrinsics::sse;
 use types::*;
+use util::str::StrSlice;
 
 pub trait Vector : HasTy {
   fn size(&self) -> usize;
@@ -99,7 +99,7 @@ impl ConstVector {
         // Datum::Interval(v) => ptr::write(value.as_ptr() as *mut INTERVAL_T, v),  
         // Datum::Char(v) => ptr::write(value.as_ptr() , v),  
         Datum::Text(ref v) => {
-          let text: TEXT = StringSlice::new_from_str(v.as_str());
+          let text: TEXT = StrSlice::new_from_str(v.as_str());
           ptr::write(value.as_ptr() as *mut TEXT, text);
         }
         // Datum::Varchar(v) => ptr::write(value.as_ptr(), v),  
@@ -218,6 +218,6 @@ fn test_const_vector() {
   let text_vec: &Vector = &ConstVector::new(Datum::Text("hyunsik".to_string()));
   assert_eq!(TEXT_TY, text_vec.data_ty());
   assert_eq!(1, text_vec.size());
-  let expected = StringSlice::new_from_str("hyunsik");
+  let expected = StrSlice::new_from_str("hyunsik");
   assert_eq!(expected, *first_value(text_vec));
 }

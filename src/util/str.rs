@@ -1,16 +1,16 @@
 //! A slice for bytes array representing a string
 //!
-//! StringSlice is designed for zero-copy string operations. 
+//! StrSlice is designed for zero-copy string operations. 
 //! It should be carefully used because it just contains borrowed contents.
-//! StringSlice looks similar to rust's `str`, but it just handles a sequence of 
+//! StrSlice looks similar to rust's `str`, but it just handles a sequence of 
 //! bytes instead of unicode. In other words, it does not consider any encoding.
 //! Also, it internally uses highly low-level optimization techniques like SSE 4.2.
 //!
 //! # Examples
 //!
 //! ```ignore
-//! let str1 = StringSlice::new_from_str("aaaaa");
-//! let str2 = StringSlice::new_from_str("aaaaa");
+//! let str1 = StrSlice::new_from_str("aaaaa");
+//! let str2 = StrSlice::new_from_str("aaaaa");
 //! let cmp = str1 >= str2
 //! ...
 //! ```
@@ -30,22 +30,22 @@ use std::str;
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 #[allow(raw_pointer_derive)]
-pub struct StringSlice {
+pub struct StrSlice {
   ptr: *const u8,
   len: i32,
 }
 
-impl StringSlice {  
+impl StrSlice {  
   #[inline]
-  pub fn new(ptr: *const u8, len: i32) -> StringSlice {
-    StringSlice {
+  pub fn new(ptr: *const u8, len: i32) -> StrSlice {
+    StrSlice {
       ptr: ptr,
       len: len
     }
   }
   #[inline]
-  pub fn new_from_str<'a>(s: &str) -> StringSlice {
-    StringSlice {
+  pub fn new_from_str<'a>(s: &str) -> StrSlice {
+    StrSlice {
       ptr: s.as_ptr(),
       len: s.len() as i32
     }
@@ -90,20 +90,20 @@ impl StringSlice {
   }
 }
 
-impl Display for StringSlice {
+impl Display for StrSlice {
   fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
     Display::fmt(self.to_str(), f)
   }
 }
 
-impl PartialEq for StringSlice {
+impl PartialEq for StrSlice {
   #[inline]
-  fn eq(&self, other: &StringSlice) -> bool {
+  fn eq(&self, other: &StrSlice) -> bool {
     self.len() == other.len() && rawcmp(self.ptr, other.ptr, self.len) == 0
   }
 
   #[inline]
-  fn ne(&self, other: &StringSlice) -> bool {
+  fn ne(&self, other: &StrSlice) -> bool {
     !(self.eq(other))
   }
 }
@@ -119,14 +119,14 @@ fn rawcmp(x: *const u8, y: *const u8, len: i32) -> i32 {
   }
 }
 
-impl PartialOrd for StringSlice {
+impl PartialOrd for StrSlice {
     #[inline]
-    fn partial_cmp(&self, other: &StringSlice) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &StrSlice) -> Option<Ordering> {
       None
     }
 
     #[inline]
-    fn lt(&self, other: &StringSlice) -> bool {      
+    fn lt(&self, other: &StrSlice) -> bool {      
       let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
       match cmp {
         0 => (self.len() - other.len()) < 0,
@@ -135,7 +135,7 @@ impl PartialOrd for StringSlice {
     }
 
     #[inline]
-    fn le(&self, other: &StringSlice) -> bool {
+    fn le(&self, other: &StrSlice) -> bool {
       let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
       match cmp {
         0 => (self.len() - other.len()) <= 0,
@@ -144,7 +144,7 @@ impl PartialOrd for StringSlice {
     }
 
     #[inline]
-    fn gt(&self, other: &StringSlice) -> bool { 
+    fn gt(&self, other: &StrSlice) -> bool { 
       let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
       match cmp {
         0 => (self.len() - other.len()) > 0,
@@ -153,7 +153,7 @@ impl PartialOrd for StringSlice {
     }
 
     #[inline]
-    fn ge(&self, other: &StringSlice) -> bool { 
+    fn ge(&self, other: &StrSlice) -> bool { 
       let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
       match cmp {
         0 => (self.len() - other.len()) >= 0,

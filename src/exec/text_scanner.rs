@@ -9,12 +9,12 @@ use std::slice;
 
 use common::constant::VECTOR_SIZE;
 use common::err::*;
-use common::StringSlice;
 use exec::Executor;
 use io::stream::*;
 use schema::Schema;
 use rows::RowBlock;
 use types::*;
+use util::str::StrSlice;
 
 const BUF_SIZE: usize = 65536;
 
@@ -30,10 +30,10 @@ pub struct DelimTextScanner<'a> {
   readbuf_ptr: *mut u8,
   should_parse_line: bool, // parse lines from read buffer 
   read_line_num: usize,    // number of read lines for each next
-  line_slices_ptr: *mut StringSlice,
-  line_slices: &'a mut [StringSlice],
-  fields_slices_ptr: *mut StringSlice,
-  fields_slices: &'a mut [StringSlice],
+  line_slices_ptr: *mut StrSlice,
+  line_slices: &'a mut [StrSlice],
+  fields_slices_ptr: *mut StrSlice,
+  fields_slices: &'a mut [StrSlice],
   last_read_len: usize,
   
 }
@@ -46,22 +46,22 @@ impl<'a> DelimTextScanner<'a> {
         field_delim: u8) -> DelimTextScanner<'a> {
 
     let mut line_slices_ptr = unsafe { 
-      heap::allocate(mem::size_of::<StringSlice>() * 1024, mem::min_align_of::<StringSlice>())           
-    } as *mut StringSlice;
+      heap::allocate(mem::size_of::<StrSlice>() * 1024, mem::min_align_of::<StrSlice>())           
+    } as *mut StrSlice;
 
-    let mut line_slices: &mut [StringSlice] = unsafe {
-      slice::from_raw_parts_mut(line_slices_ptr as *mut StringSlice, 1024)
+    let mut line_slices: &mut [StrSlice] = unsafe {
+      slice::from_raw_parts_mut(line_slices_ptr as *mut StrSlice, 1024)
     };
 
     let mut fields_slices_ptr = unsafe { 
       heap::allocate(
-        mem::size_of::<StringSlice>() * data_schema.size(), 
-        mem::min_align_of::<StringSlice>()
+        mem::size_of::<StrSlice>() * data_schema.size(), 
+        mem::min_align_of::<StrSlice>()
       )           
-    } as *mut StringSlice;
+    } as *mut StrSlice;
 
-    let mut fields_slices: &mut [StringSlice] = unsafe {
-      slice::from_raw_parts_mut(fields_slices_ptr as *mut StringSlice, data_schema.size())
+    let mut fields_slices: &mut [StrSlice] = unsafe {
+      slice::from_raw_parts_mut(fields_slices_ptr as *mut StrSlice, data_schema.size())
     };
 
     DelimTextScanner {
@@ -89,7 +89,7 @@ impl<'a> DelimTextScanner<'a> {
     self.read_line_num
   }
 
-  fn line_slices(&self) -> &[StringSlice] {
+  fn line_slices(&self) -> &[StrSlice] {
     self.line_slices
   }
 
@@ -130,7 +130,7 @@ impl<'a> DelimTextScanner<'a> {
       // check if the character is line delimiter
       if c == self.line_delim {
 
-        // if found, set each StringSlice with the start offset and the current position
+        // if found, set each StrSlice with the start offset and the current position
         self.line_slices[self.read_line_num].set_ptr(unsafe {self.readbuf_ptr.offset(last_pos as isize)});
         self.line_slices[self.read_line_num].set_len((cur_pos - last_pos) as i32);
 

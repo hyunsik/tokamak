@@ -2,7 +2,6 @@ extern crate tajo;
 
 use std::{i8,i16};
 
-use tajo::common::StringSlice;
 use tajo::schema::*;
 use tajo::expr::ArithmOp;
 use tajo::eval::{Eval, MapEval};
@@ -11,6 +10,7 @@ use tajo::eval::primitives::*;
 use tajo::rows::*;
 use tajo::rows::vector::{ArrayVector, as_array};
 use tajo::types::*;
+use tajo::util::str::StrSlice;
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();
@@ -61,7 +61,7 @@ fn verify_vector_block(rowblock: &RowBlock) {
     assert_eq!(rowblock.get_timestamp(i, 9), i as i64);
 
     assert_eq!(
-      *(rowblock.get_text(i, 10)), StringSlice::new_from_str("Rust"));
+      *(rowblock.get_text(i, 10)), StrSlice::new_from_str("Rust"));
   }
 }
 

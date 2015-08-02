@@ -1,6 +1,6 @@
 use std::mem;
 use common::err::TResult;
-use common::string_slice::StringSlice;
+use util::str::StrSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TyKind {
@@ -60,7 +60,7 @@ pub type TIME      = i64;
 #[allow(non_camel_case_types)]
 pub type TIMESTAMP = i64;
 #[allow(non_camel_case_types)]
-pub type TEXT      = StringSlice;
+pub type TEXT      = StrSlice;
 
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]
