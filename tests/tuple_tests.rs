@@ -3,7 +3,6 @@ extern crate tajo;
 use std::{i8,i16};
 use std::boxed::Box;
 
-use tajo::common::*;
 use tajo::types::*;
 use tajo::schema::*;
 use tajo::rows::*;
@@ -58,7 +57,7 @@ fn verify_vector_block(rowblock: &RowBlock) {
     assert_eq!(rowblock.get_timestamp(i, 9), i as i64);
 
     assert_eq!(
-      *(rowblock.get_text(i, 10)), StrSlice::new_from_str("Rust"));
+      *(rowblock.get_text(i, 10)), StrSlice::from_str("Rust"));
   }
 }
 

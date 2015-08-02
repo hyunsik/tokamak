@@ -15,6 +15,7 @@
 //! ...
 //! ```
 
+use alloc::heap;
 use libc::funcs::c95::string::memcmp;
 use libc::types::common::c95::c_void;
 use std::cmp;
@@ -44,7 +45,7 @@ impl StrSlice {
     }
   }
   #[inline]
-  pub fn new_from_str<'a>(s: &str) -> StrSlice {
+  pub fn from_str<'a>(s: &str) -> StrSlice {
     StrSlice {
       ptr: s.as_ptr(),
       len: s.len() as i32
@@ -72,7 +73,7 @@ impl StrSlice {
   }
 
   #[inline]
-  pub fn to_slice<'a>(&'a self) -> &'a [u8] {
+  pub fn as_slice<'a>(&'a self) -> &'a [u8] {
     let slice = Slice {data: self.ptr, len: (self.len as usize)};
     unsafe {
       mem::transmute(slice)
@@ -80,19 +81,42 @@ impl StrSlice {
   }
 
   #[inline]
-  pub fn to_str<'a>(&'a self) -> &'a str {
-    str::from_utf8(self.to_slice()).unwrap()
+  pub fn as_slice_mut<'a>(&'a self) -> &'a mut [u8] {
+    let slice = Slice {data: self.ptr, len: (self.len as usize)};
+    unsafe {
+      mem::transmute(slice)
+    }
+  }
+
+  #[inline]
+  pub fn as_str<'a>(&'a self) -> &'a str {
+    str::from_utf8(self.as_slice()).unwrap()
   }
 
   #[inline]
   pub fn to_string(&self) -> String {
-    String::from_str(self.to_str())
+    String::from_str(self.as_str())
   }
+}
+
+pub unsafe fn alloc_str_slice(len: usize, align: usize) -> StrSlice {
+  StrSlice {
+    ptr: heap::allocate(len, align),
+    len: len as i32
+  }
+}
+
+/// Deallocate the pointer contained in the StrSlice with the align size
+/// After deallocation, do not use this StrSlice
+pub unsafe fn dealloc_str_slice(slice: &mut StrSlice, align: usize) {
+  heap::deallocate(slice.as_ptr() as *mut u8, slice.len() as usize, align);
+  slice.set_ptr(0 as *mut u8);
+  slice.set_len(0 as i32);
 }
 
 impl Display for StrSlice {
   fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-    Display::fmt(self.to_str(), f)
+    Display::fmt(self.as_str(), f)
   }
 }
 
