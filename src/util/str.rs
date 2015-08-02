@@ -144,44 +144,112 @@ fn rawcmp(x: *const u8, y: *const u8, len: i32) -> i32 {
 }
 
 impl PartialOrd for StrSlice {
-    #[inline]
-    fn partial_cmp(&self, other: &StrSlice) -> Option<Ordering> {
-      None
+  #[inline]
+  fn partial_cmp(&self, other: &StrSlice) -> Option<Ordering> {
+    None
+  }
+
+  #[inline]
+  fn lt(&self, other: &StrSlice) -> bool {      
+    let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
+    match cmp {
+      0 => (self.len() - other.len()) < 0,
+      _ => cmp < 0
+    }
+  }
+
+  #[inline]
+  fn le(&self, other: &StrSlice) -> bool {
+    let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
+    match cmp {
+      0 => (self.len() - other.len()) <= 0,
+      _ => cmp <= 0
+    }
+  }
+
+  #[inline]
+  fn gt(&self, other: &StrSlice) -> bool { 
+    let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
+    match cmp {
+      0 => (self.len() - other.len()) > 0,
+      _ => cmp > 0
+    }
+  }
+
+  #[inline]
+  fn ge(&self, other: &StrSlice) -> bool { 
+    let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
+    match cmp {
+      0 => (self.len() - other.len()) >= 0,
+      _ => cmp >= 0
+    }
+  }
+}
+
+/// Split a slice with the delimiter into multiple slices. 
+/// Return tuple contains the length involved in the output slices 
+/// and how many slices are filled in out_slices.
+#[inline] 
+pub unsafe fn split_str_slice(slice: &mut StrSlice, 
+                   out_slices: &mut [StrSlice], 
+                   delim: u8) -> (usize, usize) {
+  let mut final_split: bool = false;
+  let mut split_idx  : usize = 0;
+  let mut last_pos   : usize = 0; // keep the start offset
+  let mut cur_pos    : usize = 0; // the current offset      
+  
+  let line_len = slice.len() as usize;
+  
+  while cur_pos < line_len && split_idx < out_slices.len() {
+    let c: u8 = *slice.as_ptr().offset(cur_pos as isize);
+
+    // check two cases:
+    // * if the character is line delimiter
+    // * if this position is the last position in this line
+    if c == delim || cur_pos == (line_len - 1) {
+      // set the str slice
+      out_slices[split_idx].set_ptr(slice.as_ptr().offset(last_pos as isize));
+      out_slices[split_idx].set_len((cur_pos - last_pos) as i32);
+      
+      // move forward the indices
+      last_pos = cur_pos + 1;
+      split_idx = split_idx + 1;
     }
 
-    #[inline]
-    fn lt(&self, other: &StrSlice) -> bool {      
-      let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
-      match cmp {
-        0 => (self.len() - other.len()) < 0,
-        _ => cmp < 0
-      }
-    }
+    cur_pos = cur_pos + 1;
+  }
+  
+  // 1) the splitted length 2) how many splits are found?  
+  (last_pos, split_idx)
+}
 
-    #[inline]
-    fn le(&self, other: &StrSlice) -> bool {
-      let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
-      match cmp {
-        0 => (self.len() - other.len()) <= 0,
-        _ => cmp <= 0
-      }
-    }
+#[test]
+fn test_split_str_slice_case1() {
+  // less than num of output slices
+  let mut input = StrSlice::from_str("aaa,bbb,ccc,ddd,eee");  
+  let mut slices: [StrSlice;6] = unsafe { mem::zeroed() };  
+  let res = unsafe {split_str_slice(&mut input, &mut slices, ',' as u8)};
+  assert_eq!(input.len() as usize, res.0);
+  assert_eq!(5, res.1);  
+}
 
-    #[inline]
-    fn gt(&self, other: &StrSlice) -> bool { 
-      let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
-      match cmp {
-        0 => (self.len() - other.len()) > 0,
-        _ => cmp > 0
-      }
-    }
+#[test]
+fn test_split_str_slice_case2() {
+  // equal to num of output slices
+  let mut input = StrSlice::from_str("aaa,bbb,ccc,ddd,eee,fff");  
+  let mut slices: [StrSlice;6] = unsafe { mem::zeroed() };  
+  let res = unsafe {split_str_slice(&mut input, &mut slices, ',' as u8)};
+  assert_eq!(input.len() as usize, res.0);
+  assert_eq!(6, res.1);
+}
 
-    #[inline]
-    fn ge(&self, other: &StrSlice) -> bool { 
-      let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
-      match cmp {
-        0 => (self.len() - other.len()) >= 0,
-        _ => cmp >= 0
-      }
-    }
+#[test]
+fn test_split_str_slice_case3() {
+  // greater than num of output slices
+  let mut input = StrSlice::from_str("aaa,bbb,ccc,ddd,eee,fff,ggg,hhh");
+                                   // 0123456789012345678901234567890
+  let mut slices: [StrSlice;6] = unsafe { mem::zeroed() };  
+  let res = unsafe {split_str_slice(&mut input, &mut slices, ',' as u8)};
+  assert_eq!(24 as usize, res.0);
+  assert_eq!(6, res.1);
 }
