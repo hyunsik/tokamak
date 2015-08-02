@@ -36,14 +36,14 @@ pub struct StringSlice {
 }
 
 impl StringSlice {  
-
+  #[inline]
   pub fn new(ptr: *const u8, len: i32) -> StringSlice {
     StringSlice {
       ptr: ptr,
       len: len
     }
   }
-
+  #[inline]
   pub fn new_from_str<'a>(s: &str) -> StringSlice {
     StringSlice {
       ptr: s.as_ptr(),
@@ -51,22 +51,27 @@ impl StringSlice {
     }
   }
 
+  #[inline]
   pub fn set_ptr(&mut self, ptr: *const u8) {
     self.ptr = ptr;
   }
 
+  #[inline]
   pub fn set_len(&mut self, len: i32) {
     self.len = len;
   }
 
+  #[inline]
   pub fn as_ptr(&self) -> *const u8 {
     self.ptr
   }
 
+  #[inline]
   pub fn len(&self) -> i32 {
     self.len
   }
 
+  #[inline]
   pub fn to_slice<'a>(&'a self) -> &'a [u8] {
     let slice = Slice {data: self.ptr, len: (self.len as usize)};
     unsafe {
@@ -74,10 +79,12 @@ impl StringSlice {
     }
   }
 
+  #[inline]
   pub fn to_str<'a>(&'a self) -> &'a str {
     str::from_utf8(self.to_slice()).unwrap()
   }
 
+  #[inline]
   pub fn to_string(&self) -> String {
     String::from_str(self.to_str())
   }

@@ -12,8 +12,8 @@ use rows::RowBlock;
 
 pub trait Executor {
   fn init(&mut self) -> Void;
-  fn next(&self, rowblock: &mut RowBlock) -> Void;
-  fn close(&self) -> Void;
+  fn next(&mut self, rowblock: &mut RowBlock) -> Void;
+  fn close(&mut self) -> Void;
 
   fn in_schema(&self) -> &Schema;
   fn out_schema(&self) -> &Schema;
