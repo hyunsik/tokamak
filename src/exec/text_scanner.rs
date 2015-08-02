@@ -1,3 +1,7 @@
+///
+/// 
+///
+
 use alloc::heap;
 use std::marker::PhantomData;
 use std::mem;
@@ -24,11 +28,14 @@ pub struct DelimTextScanner<'a> {
 
   // variable
   readbuf_ptr: *mut u8,
-  read_line_num: usize,
+  should_parse_line: bool, // parse lines from read buffer 
+  read_line_num: usize,    // number of read lines for each next
   line_slices_ptr: *mut StringSlice,
   line_slices: &'a mut [StringSlice],
+  fields_slices_ptr: *mut StringSlice,
+  fields_slices: &'a mut [StringSlice],
   last_read_len: usize,
-  should_parse_line: bool,  
+  
 }
 
 impl<'a> DelimTextScanner<'a> {
@@ -46,6 +53,17 @@ impl<'a> DelimTextScanner<'a> {
       slice::from_raw_parts_mut(line_slices_ptr as *mut StringSlice, 1024)
     };
 
+    let mut fields_slices_ptr = unsafe { 
+      heap::allocate(
+        mem::size_of::<StringSlice>() * data_schema.size(), 
+        mem::min_align_of::<StringSlice>()
+      )           
+    } as *mut StringSlice;
+
+    let mut fields_slices: &mut [StringSlice] = unsafe {
+      slice::from_raw_parts_mut(fields_slices_ptr as *mut StringSlice, data_schema.size())
+    };
+
     DelimTextScanner {
       data_schema: data_schema,
       read_fields: read_fields,
@@ -57,11 +75,13 @@ impl<'a> DelimTextScanner<'a> {
       marker: PhantomData,
 
       readbuf_ptr: unsafe { heap::allocate(BUF_SIZE, 16) },
+      should_parse_line: true,
       read_line_num: 0,
       line_slices_ptr: line_slices_ptr,
       line_slices: line_slices,
-      last_read_len: 0,
-      should_parse_line: true      
+      fields_slices_ptr: fields_slices_ptr,
+      fields_slices: fields_slices,
+      last_read_len: 0  
     }
   }
 
@@ -123,6 +143,35 @@ impl<'a> DelimTextScanner<'a> {
 
     (last_pos - 1)
   }
+
+  #[inline]
+  fn parse_fields(&mut self, line_idx: usize) {
+    let mut last_pos: usize = 0; // keep the start offset
+    let mut cur_pos : usize = 0; // the current offset
+    let mut field_idx: usize = 0;    
+
+    let slice = self.line_slices[line_idx];
+    let line_len = slice.len() as usize;
+
+    while (cur_pos < line_len && field_idx < self.data_schema.size()) {
+      let c: u8 = unsafe { *slice.as_ptr().offset(cur_pos as isize) };
+
+      // check if the character is line delimiter
+      if c == self.field_delim {
+        self.fields_slices[field_idx].set_ptr(unsafe {slice.as_ptr().offset(last_pos as isize)});
+        self.fields_slices[field_idx].set_len((cur_pos - last_pos) as i32);
+
+        last_pos = cur_pos + 1;
+        field_idx = field_idx + 1;
+      }
+
+      cur_pos = cur_pos + 1;
+    }
+  }
+
+  fn fill_vector() {
+
+  }
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {  
@@ -145,9 +194,9 @@ impl<'a> Executor for DelimTextScanner<'a> {
         r = self.read_line_batch();
       }
 
-      if self.last_read_len < 1 || row_idx >= VECTOR_SIZE {
-        break;
-      }
+      // self.reader.read(
+      //   unsafe {slice::from_raw_parts_mut(self.readbuf_ptr, BUF_SIZE)}
+      // );
     } 
 
     void_ok()
@@ -211,7 +260,7 @@ fn test_str_array() {
 }
 
 #[test]
-fn test_next_line_indxes() {
+fn test_read_line_batch() {
   let mut schema = Schema::new();
   schema.add_column("c1", *TEXT_TY);
   schema.add_column("c2", *TEXT_TY);
@@ -221,10 +270,6 @@ fn test_next_line_indxes() {
   let mut s = DelimTextScanner::new(schema, None, fin, '\n' as u8);
   assert!(s.init().is_ok());
   let res = s.read_line_batch();
-
-  for x in 0..s.read_line_num() {
-    println!("{}", s.line_slices()[x]);
-  }
 }
   // let mut delim_indexes:Vec<usize> = Vec::new();
   // let r1 = 
