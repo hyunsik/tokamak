@@ -68,11 +68,15 @@ pub trait RowBlock : AsRowBlock {
 
   fn schema(&self) -> &Schema;  
 
-  fn vector(&self, usize) -> &Vector;
+  fn vector(&self, col_idx: usize) -> &Vector;
 
   fn selected(&self) -> &Vec<bool>;
 
   fn selected_mut(&mut self) -> &mut Vec<bool>;
+  
+  fn row_num(&self) -> usize;
+  
+  fn set_row_num(&mut self, row_num: usize);
 
   fn get_int1(&self, row_id: usize, col_id: usize) -> INT1;  
 

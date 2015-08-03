@@ -4,7 +4,7 @@
 use std::ops;
 use std::fmt::Display;
 
-use common::constant::VECTOR_SIZE;
+use common::constant::ROWBLOCK_SIZE;
 use rows::vector;
 use rows::vector::{as_mut_array, as_array, first_value, Vector};
 use types::BOOL;
@@ -27,7 +27,7 @@ pub fn map_and_vv(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) && *r.get_unchecked(i);
       }
     }
@@ -51,7 +51,7 @@ pub fn map_and_vc(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) && r;
       }
     }
@@ -75,7 +75,7 @@ pub fn map_and_cv(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l && *r.get_unchecked(i);
       }
     }
@@ -101,7 +101,7 @@ pub fn map_eq_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) == *r.get_unchecked(i);
       }
     }
@@ -127,7 +127,7 @@ pub fn map_eq_vc<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) == r;
       }
     }
@@ -153,7 +153,7 @@ pub fn map_eq_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l == *r.get_unchecked(i);
       }
     }
@@ -179,7 +179,7 @@ pub fn map_ne_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) != *r.get_unchecked(i);
       }
     }
@@ -205,7 +205,7 @@ pub fn map_ne_vc<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) != r;
       }
     }
@@ -231,7 +231,7 @@ pub fn map_ne_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l != *r.get_unchecked(i);
       }
     }
@@ -257,7 +257,7 @@ pub fn map_lt_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) < *r.get_unchecked(i);
       }
     }
@@ -283,7 +283,7 @@ pub fn map_lt_vc<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) < r;
       }
     }
@@ -309,7 +309,7 @@ pub fn map_lt_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l < *r.get_unchecked(i);
       }
     }
@@ -335,7 +335,7 @@ pub fn map_le_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) <= *r.get_unchecked(i);
       }
     }
@@ -361,7 +361,7 @@ pub fn map_le_vc<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) <= r;
       }
     }
@@ -387,7 +387,7 @@ pub fn map_le_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l <= *r.get_unchecked(i);
       }
     }
@@ -414,7 +414,7 @@ pub fn map_gt_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) > *r.get_unchecked(i);
       }
     }
@@ -440,7 +440,7 @@ pub fn map_gt_vc<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) > r;
       }
     }
@@ -466,7 +466,7 @@ pub fn map_gt_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l > *r.get_unchecked(i);
       }
     }
@@ -493,7 +493,7 @@ pub fn map_ge_vv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) >= *r.get_unchecked(i);
       }
     }
@@ -519,7 +519,7 @@ pub fn map_ge_vc<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) >= r;
       }
     }
@@ -545,7 +545,7 @@ pub fn map_ge_cv<T>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l >= *r.get_unchecked(i);
       }
     }
@@ -607,7 +607,7 @@ pub fn map_plus_vv<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) + *r.get_unchecked(i);
       }
     }
@@ -634,7 +634,7 @@ pub fn map_plus_vc<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) + r;
       }
     }
@@ -660,7 +660,7 @@ pub fn map_plus_cv<T: ops::Add>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l + *r.get_unchecked(i);
       }
     }
@@ -688,7 +688,7 @@ pub fn map_sub_vv<T: ops::Sub>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) - *r.get_unchecked(i);
       }
     }
@@ -714,7 +714,7 @@ pub fn map_sub_vc<T: ops::Sub>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) - r;
       }
     }
@@ -740,7 +740,7 @@ pub fn map_sub_cv<T: ops::Sub>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l - *r.get_unchecked(i);
       }
     }
@@ -769,7 +769,7 @@ pub fn map_mul_vv<T: ops::Mul>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) * *r.get_unchecked(i);
       }
     }
@@ -795,7 +795,7 @@ pub fn map_mul_vc<T: ops::Mul>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) * r;
       }
     }
@@ -821,7 +821,7 @@ pub fn map_mul_cv<T: ops::Mul>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l * *r.get_unchecked(i);
       }
     }
@@ -849,7 +849,7 @@ pub fn map_div_vv<T: ops::Div>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) / *r.get_unchecked(i);
       }
     }
@@ -875,7 +875,7 @@ pub fn map_div_vc<T: ops::Div>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) / r;
       }
     }
@@ -901,7 +901,7 @@ pub fn map_div_cv<T: ops::Div>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l / *r.get_unchecked(i);
       }
     }
@@ -930,7 +930,7 @@ pub fn map_rem_vv<T: ops::Rem>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) % *r.get_unchecked(i);
       }
     }
@@ -956,7 +956,7 @@ pub fn map_rem_vc<T: ops::Rem>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = *l.get_unchecked(i) % r;
       }
     }
@@ -982,7 +982,7 @@ pub fn map_rem_cv<T: ops::Rem>(res: &mut Vector, lhs: &Vector, rhs: &Vector,
     }
   } else {
     unsafe {
-      for i in 0..VECTOR_SIZE {
+      for i in 0..ROWBLOCK_SIZE {
         *t.get_unchecked_mut(i) = l % *r.get_unchecked(i);
       }
     }

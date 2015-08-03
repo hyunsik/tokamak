@@ -1,6 +1,6 @@
 use bytesize::ByteSize;
 use types::*;
-use common::constant::VECTOR_SIZE;
+use common::constant::ROWBLOCK_SIZE;
 use intrinsics::sse;
 use memutil::Arena;
 use schema::Schema;
@@ -15,7 +15,8 @@ use std::slice;
 pub struct BorrowedVRowBlock<'a> {
   schema: Schema,
   vectors: Vec<&'a Vector>,
-  selected: Vec<bool>
+  selected: Vec<bool>,
+  row_num: usize,
 }
 
 impl<'a> BorrowedVRowBlock<'a> {
@@ -23,7 +24,8 @@ impl<'a> BorrowedVRowBlock<'a> {
     BorrowedVRowBlock {
       schema: schema.clone(), 
       vectors: Vec::new(), 
-      selected: Vec::new()
+      selected: Vec::new(),
+      row_num: 0
     }
   }
 
@@ -54,13 +56,25 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   fn vector(&self, col_id: usize) -> &Vector {
     self.vectors[col_id]
   }
-
+  
+  #[inline]
   fn selected(&self) -> &Vec<bool> {
     &self.selected
   }
 
+  #[inline]
   fn selected_mut(&mut self) -> &mut Vec<bool> {
     &mut self.selected
+  }
+  
+  #[inline]
+  fn row_num(&self) -> usize {
+    self.row_num
+  }
+  
+  #[inline]
+  fn set_row_num(&mut self, row_num: usize) {
+    self.row_num = row_num;
   }
 
   #[inline]
@@ -193,6 +207,7 @@ pub struct HeapVRowBlock<'a> {
   ptr: *mut u8,
   vectors: Vec<PtrVector<'a>>,
   selected: Vec<bool>,
+  row_num: usize,
   arena: Arena<'a>
 }
 
@@ -208,7 +223,7 @@ impl<'a> HeapVRowBlock<'a> {
       type_lengths.push(bytes_len);
 
       fixed_area_size += 
-        sse::compute_aligned_size(bytes_len as usize * VECTOR_SIZE);
+        sse::compute_aligned_size(bytes_len as usize * ROWBLOCK_SIZE);
     }
 
     let fixed_area_ptr = unsafe {
@@ -221,10 +236,10 @@ impl<'a> HeapVRowBlock<'a> {
 
     for x in 0..schema.size() {      
       vectors.push(
-        PtrVector::new(last_ptr as *mut u8, VECTOR_SIZE, schema.column(x).ty));
+        PtrVector::new(last_ptr as *mut u8, ROWBLOCK_SIZE, schema.column(x).ty));
 
       let vector_size = 
-        sse::compute_aligned_size(schema.column(x).ty.bytes_len() as usize * VECTOR_SIZE);
+        sse::compute_aligned_size(schema.column(x).ty.bytes_len() as usize * ROWBLOCK_SIZE);
       last_ptr = last_ptr + vector_size;
     }
 
@@ -234,6 +249,7 @@ impl<'a> HeapVRowBlock<'a> {
       ptr: fixed_area_ptr, 
       vectors: vectors,
       selected: Vec::new(),
+      row_num: 0,
       arena: Arena::new(ByteSize::kb(4).as_usize())
     }
   }  
@@ -332,24 +348,39 @@ impl<'a> RowBlockWriter for HeapVRowBlock<'a> {
 }
 
 impl<'a> RowBlock for HeapVRowBlock<'a> {
+  #[inline]
   fn schema(&self) -> &Schema {
     &self.schema
   }
 
+  #[inline]
   fn column_num(&self) -> usize {
     self.schema.size()
   }
 
+  #[inline]
   fn vector(&self, col_id: usize) -> &Vector {
     &self.vectors[col_id]
   }
 
+  #[inline]
   fn selected(&self) -> &Vec<bool> {
     &self.selected
   }
 
+  #[inline]
   fn selected_mut(&mut self) -> &mut Vec<bool> {
     &mut self.selected
+  }
+  
+  #[inline]
+  fn row_num(&self) -> usize {
+    self.row_num
+  }
+  
+  #[inline]
+  fn set_row_num(&mut self, row_num: usize) {
+    self.row_num = row_num;
   }
 
   #[inline]

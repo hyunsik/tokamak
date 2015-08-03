@@ -4,7 +4,7 @@ use std::mem;
 use std::slice;
 use std::ptr;
 
-use common::constant::VECTOR_SIZE;
+use common::constant::ROWBLOCK_SIZE;
 use expr::Datum;
 use intrinsics::sse;
 use types::*;
@@ -26,7 +26,7 @@ pub struct ArrayVector<'a> {
 impl<'a> ArrayVector<'a> {
   pub fn new(data_ty: Ty) -> ArrayVector<'a> {
     let alloc_size = sse::compute_aligned_size(
-      data_ty.bytes_len() as usize * VECTOR_SIZE);
+      data_ty.bytes_len() as usize * ROWBLOCK_SIZE);
 
     let ptr = unsafe {
       heap::allocate(alloc_size, sse::ALIGNED_SIZE)
@@ -44,7 +44,7 @@ impl<'a> Drop for ArrayVector<'a> {
   fn drop(&mut self) {
     unsafe {
       let alloc_size = sse::compute_aligned_size(
-        self.data_ty.bytes_len() as usize * VECTOR_SIZE);
+        self.data_ty.bytes_len() as usize * ROWBLOCK_SIZE);
 
       heap::deallocate(self.ptr as *mut u8, alloc_size, sse::ALIGNED_SIZE);
     }
@@ -53,7 +53,7 @@ impl<'a> Drop for ArrayVector<'a> {
 
 impl<'a> Vector for ArrayVector<'a> {
   #[inline]
-  fn size(&self) -> usize { VECTOR_SIZE }
+  fn size(&self) -> usize { ROWBLOCK_SIZE }
 
   #[inline]
   fn as_ptr(&self) -> *const u8 {
@@ -152,14 +152,14 @@ pub fn first_value<T>(v: &Vector) -> &T {
 #[inline]
 pub fn as_array<T>(v: &Vector) -> &[T] {
   unsafe {
-    slice::from_raw_parts(v.as_ptr() as *const T, VECTOR_SIZE)
+    slice::from_raw_parts(v.as_ptr() as *const T, ROWBLOCK_SIZE)
   }    
 }
 
 #[inline]
 pub fn as_mut_array<T>(v: &mut Vector) -> &mut [T] {
   unsafe {
-    slice::from_raw_parts_mut(v.as_mut_ptr() as *mut T, VECTOR_SIZE)
+    slice::from_raw_parts_mut(v.as_mut_ptr() as *mut T, ROWBLOCK_SIZE)
   }    
 }
 

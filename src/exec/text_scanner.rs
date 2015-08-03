@@ -8,7 +8,7 @@ use std::mem;
 use std::ptr::copy_nonoverlapping;
 use std::slice;
 
-use common::constant::VECTOR_SIZE;
+use common::constant::ROWBLOCK_SIZE;
 use common::err::*;
 use exec::Executor;
 use io::stream::*;
@@ -125,7 +125,7 @@ impl<'a> DelimTextScanner<'a> {
     let mut cur_pos : usize = 0; // the current offset
 
 
-    while (cur_pos < BUF_SIZE && self.read_line_num < VECTOR_SIZE) {
+    while (cur_pos < BUF_SIZE && self.read_line_num < ROWBLOCK_SIZE) {
       // for each character
       let c: u8  = unsafe { *self.readbuf_ptr.offset(cur_pos as isize) };
 
@@ -146,10 +146,11 @@ impl<'a> DelimTextScanner<'a> {
     self.parsed_batch_len = last_pos
   }
 
-  fn fill_vector(&mut self, row_idx: usize, split_num: usize) {
+  fn add_row(&mut self, row_idx: usize, split_num: usize) {
   }
   
-  fn refill_readbuf(&mut self) -> Void {
+  /// move the remain bytes into the header of buffer and fill the buffer.
+  fn compact_and_refill_readbuf(&mut self) -> Void {
   
     let remain_len = self.read_len - self.parsed_batch_len;
     debug_assert!(remain_len >= 0, "remain length must be positive number.");
@@ -177,7 +178,7 @@ impl<'a> DelimTextScanner<'a> {
     self.read_len = self.read_len + remain_len;    
     
     void_ok()
-  }
+  }    
 }
 
 impl<'a> Executor for DelimTextScanner<'a> {  
@@ -194,7 +195,8 @@ impl<'a> Executor for DelimTextScanner<'a> {
 
     let mut row_num: usize = 0;
     let mut field_parse_res: (usize, usize);
-    loop {
+    
+    loop { // this loop continues until rowblock is filled or 
 
       // parse lines in batch
       if self.should_parse_line {
@@ -203,24 +205,30 @@ impl<'a> Executor for DelimTextScanner<'a> {
       }
       
       unsafe {      
-      for line_idx in 0..self.read_line_num {
-          // parse each line slice into field slices
+      for line_idx in row_num..self.read_line_num {
+          // split each line slice into field slices
           field_parse_res = split_str_slice(
             &mut self.line_slices[line_idx],
             self.fields_slices,
             self.field_delim
           );
           
-          self.fill_vector(row_num, field_parse_res.1);          
+          // convert the field slices into a row and set
+          self.add_row(row_num, field_parse_res.1);          
           row_num = row_num + 1;
         }
       }
       
-      if row_num < VECTOR_SIZE {
+      if row_num < ROWBLOCK_SIZE {
         // compact and fill read buffer 
-        self.refill_readbuf();        
+        self.compact_and_refill_readbuf();        
         self.should_parse_line = true;        
       }
+      
+      if row_num >= ROWBLOCK_SIZE || // row block is full 
+         self.read_len < 1         // there is no more read bytes
+      { break; }
+            
     } // outmost loop 
 
     void_ok()

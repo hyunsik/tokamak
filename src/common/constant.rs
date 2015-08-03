@@ -1,2 +1,2 @@
 pub static LANGUAGE: &'static str = "Rust";
-pub static VECTOR_SIZE: usize = 1024;
+pub static ROWBLOCK_SIZE: usize = 1024;

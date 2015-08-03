@@ -6,7 +6,7 @@ use std::boxed::Box;
 use std::ops;
 use std::fmt::Display;
 
-use common::constant::VECTOR_SIZE;
+use common::constant::ROWBLOCK_SIZE;
 use common::err::{Error, TResult, Void, void_ok};
 use eval::{Eval, MapEval, FilterEval};
 use eval::primitives::*;
