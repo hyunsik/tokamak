@@ -13,7 +13,7 @@ use rows::{BorrowedVRowBlock, RowBlock};
 
 pub trait Executor {
   fn init(&mut self) -> Void;
-  fn next<'b>(&mut self, rowblock: &'b mut BorrowedVRowBlock<'b>) -> TResult<bool>;
+  fn next<'a>(&'a mut self, rowblock: &'a mut BorrowedVRowBlock<'a>) -> TResult<bool>;
   fn close(&mut self) -> Void;
 
   fn in_schema(&self) -> &Schema;

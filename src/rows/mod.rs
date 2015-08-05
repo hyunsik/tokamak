@@ -102,7 +102,7 @@ pub trait RowBlock : AsRowBlock {
 }
 
 #[inline]
-pub fn shallow_copy<'a, 'b>(src: &'a RowBlock, dest: &'b mut BorrowedVRowBlock<'b>) {
+pub fn copy_vectors<'a>(src: &'a RowBlock, dest: &'a mut BorrowedVRowBlock<'a>) {
   debug_assert!(src.column_num() == dest.column_num(),
     "source and destination rowblocks must have the same width");
     

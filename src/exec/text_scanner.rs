@@ -33,7 +33,6 @@ pub struct DelimTextScanner<'a> {
   field_delim : u8,
     
   reader      : Box<StreamReader>,
-  marker      : PhantomData<&'a ()>,
 
   // variable
   readbuf_ptr      : *mut u8,           // readbuf
@@ -98,7 +97,6 @@ impl<'a> DelimTextScanner<'a> {
       field_delim: field_delim,
 
       reader: stream,
-      marker: PhantomData,
 
       readbuf_ptr: unsafe { heap::allocate(BUF_SIZE, 16) },
       consumed_len: 0,
@@ -230,7 +228,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
     void_ok()
   }
 
-  fn next<'b>(&mut self, rowblock: &'b mut BorrowedVRowBlock<'b>) -> TResult<bool> {   
+  fn next<'b>(&'b mut self, rowblock: &'b mut BorrowedVRowBlock<'b>) -> TResult<bool> {   
 
     // check if all data are consumed
     if (try!(self.reader.pos()) >= try!(self.reader.len())) {
@@ -283,7 +281,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
     } // outmost loop     
 
     self.owned_rowblock.set_row_num(row_num);
-    shallow_copy(&self.owned_rowblock, rowblock);    
+    copy_vectors(&self.owned_rowblock, rowblock); 
     Ok(row_num > 0)
   }
 
@@ -346,14 +344,13 @@ fn test_str_array() {
 fn test_read_line_batch() {
   let mut schema = Schema::new();
   schema.add_column("c1", *TEXT_TY);
-  schema.add_column("c2", *TEXT_TY);
-
-  let mut rowblock = BorrowedVRowBlock::new(&schema);
+  schema.add_column("c2", *TEXT_TY); 
 
   let mut fin = Box::new(FileInputStream::new("/Users/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
   assert!(fin.open().is_ok());
-  let mut s = DelimTextScanner::new(schema, None, fin, '\n' as u8);
+  let mut s = DelimTextScanner::new(schema.clone(), None, fin, '\n' as u8);
   assert!(s.init().is_ok());
+  let mut rowblock = BorrowedVRowBlock::new(&schema);  
   
   let mut sum = 0;
   while(s.next(&mut rowblock).unwrap()) {    
