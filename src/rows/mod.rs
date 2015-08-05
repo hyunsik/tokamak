@@ -57,6 +57,8 @@ pub trait RowBlockWriter : RowBlock {
   fn put_timestamp(&mut self, row_id: usize, col_id: usize, value: TIMESTAMP);
 
   fn put_text(&mut self, row_id: usize, col_id: usize, value: &str);
+  
+  //fn put_text_from_slice(&mut self, row_id: usize, col_id: usize, value: &TEXT);
 }
 
 pub trait AsRowBlock {

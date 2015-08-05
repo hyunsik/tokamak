@@ -337,7 +337,7 @@ impl<'a> RowBlockWriter for HeapVRowBlock<'a> {
     }
   }
 
-    fn put_text(&mut self, row_id: usize, col_id: usize, value: &str) {
+  fn put_text(&mut self, row_id: usize, col_id: usize, value: &str) {
     let v : &mut [TEXT] = as_mut_array(&mut self.vectors[col_id]);
 
     let str_ptr = self.arena.alloc_str(value);

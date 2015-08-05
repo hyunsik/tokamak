@@ -14,7 +14,8 @@ use common::err::*;
 use exec::Executor;
 use io::stream::*;
 use schema::Schema;
-use rows::RowBlock;
+use schema::util::finds_target_indexes;
+use rows::{RowBlock, RowBlockWriter};
 use rows::vrows::BorrowedVRowBlock;
 use types::*;
 use util::str::{StrSlice,split_str_slice};
@@ -24,10 +25,13 @@ const BUF_SIZE: usize = 65536;
 
 pub struct DelimTextScanner<'a> {
   // constants
-  data_schema : Schema,
-  read_fields : Option<Schema>,
+  data_schema     : Schema,
+  read_fields     : Option<Schema>,
+  read_fields_idxs: Vec<usize>,
+  
   line_delim  : u8,
   field_delim : u8,
+    
   reader      : Box<StreamReader>,
   marker      : PhantomData<&'a ()>,
 
@@ -42,7 +46,7 @@ pub struct DelimTextScanner<'a> {
   line_slices      : &'a mut [StrSlice],// line slice array
   
   fields_slices_ptr: *mut StrSlice,     // ptr for field slice array
-  fields_slices    : &'a mut [StrSlice] // field slice array  
+  fields_slices    : &'a mut [StrSlice] // field slice array    
 }
 
 impl<'a> DelimTextScanner<'a> {
@@ -51,6 +55,11 @@ impl<'a> DelimTextScanner<'a> {
         read_fields: Option<Schema>,
         stream: Box<StreamReader>, 
         field_delim: u8) -> DelimTextScanner<'a> {
+
+    let read_fields_idxs = match read_fields {
+      Some(ref s) => finds_target_indexes(&data_schema, s),
+      None        => finds_target_indexes(&data_schema, &data_schema), 
+    };
 
     let mut line_slices_ptr = unsafe { 
       heap::allocate(mem::size_of::<StrSlice>() * 1024, mem::min_align_of::<StrSlice>())           
@@ -72,8 +81,9 @@ impl<'a> DelimTextScanner<'a> {
     };
 
     DelimTextScanner {
-      data_schema: data_schema,
+      data_schema: data_schema,      
       read_fields: read_fields,
+      read_fields_idxs: read_fields_idxs,      
 
       line_delim: '\n' as u8,
       field_delim: field_delim,
@@ -154,7 +164,20 @@ impl<'a> DelimTextScanner<'a> {
     self.line_slices_idx = 0;
   }
 
-  fn add_row(&mut self, row_idx: usize, split_num: usize) {
+  fn add_row(&self, row_idx: usize, split_num: usize, 
+             row_writer: &mut RowBlock) {
+    
+    //self.read_fields_idxs.iter().map(|x| x);
+    
+    let mut actual_id: usize; 
+    for x in 0..self.read_fields_idxs.len() {
+      actual_id = self.read_fields_idxs[x];
+      
+      match self.data_schema.column(actual_id).data_ty().kind() {
+        //TyKind::Text => row_writer.put_text(row_idx, x, self.fields_slices[actual_id]), 
+        _ => {}
+      } 
+    }
   }
   
   /// move the remain bytes into the header of buffer and fill the buffer.
@@ -233,7 +256,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
           );
           
           // the second value of parse result tuple is number of fields
-          self.add_row(row_num, parse_result.1);      
+          self.add_row(row_num, parse_result.1, rowblock);      
           
           cur_line_idx   = cur_line_idx + 1;
           row_num        = row_num + 1;          
