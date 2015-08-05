@@ -21,17 +21,22 @@ pub struct BorrowedVRowBlock<'a> {
 
 impl<'a> BorrowedVRowBlock<'a> {
   pub fn new(schema: &Schema) -> BorrowedVRowBlock<'a> {
+    
+    let mut vectors: Vec<&'a Vector> = Vec::with_capacity(schema.size());
+    unsafe { vectors.set_len(schema.size()); }
+        
+  
     BorrowedVRowBlock {
       schema: schema.clone(), 
-      vectors: Vec::new(), 
+      vectors: vectors, 
       selected: Vec::new(),
       row_num: 0
     }
   }
 
   #[inline]
-  fn set_vector(&mut self, vec: &'a Vector) {
-    self.vectors.push(vec);
+  pub fn set_vector(&mut self, column_idx: usize, vec: &'a Vector) {
+    self.vectors[column_idx] = vec;
   }
 }
 
@@ -336,8 +341,17 @@ impl<'a> RowBlockWriter for HeapVRowBlock<'a> {
       (*v.get_unchecked_mut(row_id)) = value;        
     }
   }
+  
+  #[inline]
+  fn put_text(&mut self, row_id: usize, col_id: usize, value: &TEXT) {
+    let v : &mut [TEXT] = as_mut_array(&mut self.vectors[col_id]);
+    
+    v[row_id].set_ptr(value.as_ptr());
+    v[row_id].set_len(value.len());
+  }
 
-  fn put_text(&mut self, row_id: usize, col_id: usize, value: &str) {
+  #[inline]
+  fn put_text_from_str(&mut self, row_id: usize, col_id: usize, value: &str) {
     let v : &mut [TEXT] = as_mut_array(&mut self.vectors[col_id]);
 
     let str_ptr = self.arena.alloc_str(value);

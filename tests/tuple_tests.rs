@@ -40,7 +40,7 @@ pub fn fill_vector_block(rowblock: &mut RowBlockWriter) {
     rowblock.put_time(i, 8, i as i64);
     rowblock.put_timestamp(i, 9, i as i64);
     
-    rowblock.put_text(i, 10, &"Rust");
+    rowblock.put_text(i, 10, &StrSlice::from_str("Rust"));
   }
 }
 

@@ -56,9 +56,9 @@ pub trait RowBlockWriter : RowBlock {
 
   fn put_timestamp(&mut self, row_id: usize, col_id: usize, value: TIMESTAMP);
 
-  fn put_text(&mut self, row_id: usize, col_id: usize, value: &str);
+  fn put_text(&mut self, row_id: usize, col_id: usize, value: &TEXT);
   
-  //fn put_text_from_slice(&mut self, row_id: usize, col_id: usize, value: &TEXT);
+  fn put_text_from_str(&mut self, row_id: usize, col_id: usize, value: &str);
 }
 
 pub trait AsRowBlock {
@@ -99,4 +99,16 @@ pub trait RowBlock : AsRowBlock {
   fn get_timestamp(&self, row_id: usize, col_id: usize) -> TIMESTAMP;  
 
   fn get_text(&self, row_id: usize, col_id: usize) -> &TEXT;
+}
+
+#[inline]
+pub fn shallow_copy<'a, 'b>(src: &'a RowBlock, dest: &'b mut BorrowedVRowBlock<'b>) {
+  debug_assert!(src.column_num() == dest.column_num(),
+    "source and destination rowblocks must have the same width");
+    
+  for x in 0..src.column_num() {
+    dest.set_vector(x, src.vector(x));
+  }
+  
+  dest.set_row_num(src.row_num());
 }

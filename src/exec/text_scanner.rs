@@ -15,8 +15,8 @@ use exec::Executor;
 use io::stream::*;
 use schema::Schema;
 use schema::util::finds_target_indexes;
-use rows::{RowBlock, RowBlockWriter};
-use rows::vrows::BorrowedVRowBlock;
+use rows::{shallow_copy, RowBlock, RowBlockWriter};
+use rows::vrows::{BorrowedVRowBlock, HeapVRowBlock};
 use types::*;
 use util::str::{StrSlice,split_str_slice};
 
@@ -46,7 +46,9 @@ pub struct DelimTextScanner<'a> {
   line_slices      : &'a mut [StrSlice],// line slice array
   
   fields_slices_ptr: *mut StrSlice,     // ptr for field slice array
-  fields_slices    : &'a mut [StrSlice] // field slice array    
+  fields_slices    : &'a mut [StrSlice],// field slice array
+  
+  owned_rowblock   : HeapVRowBlock<'a>    
 }
 
 impl<'a> DelimTextScanner<'a> {
@@ -79,6 +81,13 @@ impl<'a> DelimTextScanner<'a> {
     let mut fields_slices: &mut [StrSlice] = unsafe {
       slice::from_raw_parts_mut(fields_slices_ptr as *mut StrSlice, data_schema.size())
     };
+    
+    let rowblock = HeapVRowBlock::new(
+      match read_fields {
+        Some(ref s) => s,
+        None        => &data_schema 
+      }
+    );
 
     DelimTextScanner {
       data_schema: data_schema,      
@@ -101,7 +110,9 @@ impl<'a> DelimTextScanner<'a> {
       line_slices: line_slices,
       
       fields_slices_ptr: fields_slices_ptr,
-      fields_slices: fields_slices      
+      fields_slices: fields_slices,
+      
+      owned_rowblock: rowblock      
     }
   }
 
@@ -164,8 +175,7 @@ impl<'a> DelimTextScanner<'a> {
     self.line_slices_idx = 0;
   }
 
-  fn add_row(&self, row_idx: usize, split_num: usize, 
-             row_writer: &mut RowBlock) {
+  fn add_row(&mut self, row_idx: usize, split_num: usize) {
     
     //self.read_fields_idxs.iter().map(|x| x);
     
@@ -174,7 +184,7 @@ impl<'a> DelimTextScanner<'a> {
       actual_id = self.read_fields_idxs[x];
       
       match self.data_schema.column(actual_id).data_ty().kind() {
-        //TyKind::Text => row_writer.put_text(row_idx, x, self.fields_slices[actual_id]), 
+        TyKind::Text => self.owned_rowblock.put_text(row_idx, x, &self.fields_slices[actual_id]), 
         _ => {}
       } 
     }
@@ -220,7 +230,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
     void_ok()
   }
 
-  fn next(&mut self, rowblock: &mut RowBlock) -> TResult<bool> {   
+  fn next<'b>(&mut self, rowblock: &'b mut BorrowedVRowBlock<'b>) -> TResult<bool> {   
 
     // check if all data are consumed
     if (try!(self.reader.pos()) >= try!(self.reader.len())) {
@@ -256,7 +266,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
           );
           
           // the second value of parse result tuple is number of fields
-          self.add_row(row_num, parse_result.1, rowblock);      
+          self.add_row(row_num, parse_result.1);      
           
           cur_line_idx   = cur_line_idx + 1;
           row_num        = row_num + 1;          
@@ -272,7 +282,8 @@ impl<'a> Executor for DelimTextScanner<'a> {
       }                  
     } // outmost loop     
 
-    rowblock.set_row_num(row_num);
+    self.owned_rowblock.set_row_num(row_num);
+    shallow_copy(&self.owned_rowblock, rowblock);    
     Ok(row_num > 0)
   }
 
