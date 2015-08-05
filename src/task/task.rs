@@ -21,7 +21,7 @@ impl TaskAttempt {
       progress: Mutex::new(0f32),
       stat: TaskStat {start_time: 0f64, end_time: 0f64}
     }
-  }
+  } 
 
   #[allow(dead_code)]
   fn start() {}

@@ -25,7 +25,7 @@ extern "C" {
 
 #[test]
 fn test_statvfs() {
-
+	
   let path = CString::new("/etc/passwd");
   unsafe {
     let mut buf = mem::zeroed();

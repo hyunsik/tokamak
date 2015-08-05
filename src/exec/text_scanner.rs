@@ -1,11 +1,12 @@
 ///
-/// 
+/// Text Scanner
 ///
 
 use alloc::heap;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr::copy_nonoverlapping;
+use std::result::Result;
 use std::slice;
 
 use common::constant::ROWBLOCK_SIZE;
@@ -14,6 +15,7 @@ use exec::Executor;
 use io::stream::*;
 use schema::Schema;
 use rows::RowBlock;
+use rows::vrows::BorrowedVRowBlock;
 use types::*;
 use util::str::{StrSlice,split_str_slice};
 
@@ -29,7 +31,8 @@ pub struct DelimTextScanner<'a> {
 
   // variable
   readbuf_ptr: *mut u8,
-  should_parse_line: bool, // parse lines from read buffer 
+  should_parse_line: bool, // parse lines from read buffer
+  parsed_line_idx: usize, 
   read_line_num: usize,    // number of read lines for each next
   line_slices_ptr: *mut StrSlice,
   line_slices: &'a mut [StrSlice],
@@ -77,6 +80,7 @@ impl<'a> DelimTextScanner<'a> {
 
       readbuf_ptr: unsafe { heap::allocate(BUF_SIZE, 16) },
       should_parse_line: true,
+      parsed_line_idx: 0,
       read_line_num: 0,
       line_slices_ptr: line_slices_ptr,
       line_slices: line_slices,
@@ -125,7 +129,7 @@ impl<'a> DelimTextScanner<'a> {
     let mut cur_pos : usize = 0; // the current offset
 
 
-    while (cur_pos < BUF_SIZE && self.read_line_num < ROWBLOCK_SIZE) {
+    while (cur_pos < self.read_len && self.read_line_num < ROWBLOCK_SIZE) {
       // for each character
       let c: u8  = unsafe { *self.readbuf_ptr.offset(cur_pos as isize) };
 
@@ -143,7 +147,9 @@ impl<'a> DelimTextScanner<'a> {
       cur_pos = cur_pos + 1;      
     }
 
-    self.parsed_batch_len = last_pos
+    self.parsed_batch_len = last_pos;
+    self.should_parse_line = false;
+    self.parsed_line_idx = 0;
   }
 
   fn add_row(&mut self, row_idx: usize, split_num: usize) {
@@ -151,7 +157,10 @@ impl<'a> DelimTextScanner<'a> {
   
   /// move the remain bytes into the header of buffer and fill the buffer.
   fn compact_and_refill_readbuf(&mut self) -> Void {
-  
+    //println!("compact enter!");
+    if self.read_len < self.parsed_batch_len {
+      println!("read_len: {}, parsed_batch_len: {}", self.read_len, self.parsed_batch_len);
+    }
     let remain_len = self.read_len - self.parsed_batch_len;
     debug_assert!(remain_len >= 0, "remain length must be positive number.");
     
@@ -175,8 +184,8 @@ impl<'a> DelimTextScanner<'a> {
       )
     );
     
-    self.read_len = self.read_len + remain_len;    
-    
+    self.read_len = self.read_len + remain_len;
+    self.should_parse_line = true;
     void_ok()
   }    
 }
@@ -191,21 +200,27 @@ impl<'a> Executor for DelimTextScanner<'a> {
     void_ok()
   }
 
-  fn next(&mut self, rowblock: &mut RowBlock) -> Void {   
+  fn next(&mut self, rowblock: &mut RowBlock) -> TResult<bool> {   
+
+    if (try!(self.reader.pos()) >= try!(self.reader.len())) {
+      rowblock.set_row_num(0);
+      return Ok(false);
+    }
 
     let mut row_num: usize = 0;
     let mut field_parse_res: (usize, usize);
-    
+    let mut need_more_rows = true;
     loop { // this loop continues until rowblock is filled or 
 
       // parse lines in batch
       if self.should_parse_line {
         self.read_line_batch();        
-        self.should_parse_line = false;
       }
       
       unsafe {      
-      for line_idx in row_num..self.read_line_num {
+        let mut line_idx = self.parsed_line_idx;
+        while line_idx < self.read_line_num && need_more_rows {
+          
           // split each line slice into field slices
           field_parse_res = split_str_slice(
             &mut self.line_slices[line_idx],
@@ -213,25 +228,32 @@ impl<'a> Executor for DelimTextScanner<'a> {
             self.field_delim
           );
           
-          // convert the field slices into a row and set
-          self.add_row(row_num, field_parse_res.1);          
-          row_num = row_num + 1;
+          
+          line_idx = line_idx + 1;
+          row_num = row_num + 1;          
+          need_more_rows = row_num < ROWBLOCK_SIZE;
         }
-      }
+        
+        // record parsed line index
+        self.parsed_line_idx = line_idx;   
+      }      
       
-      if row_num < ROWBLOCK_SIZE {
+      if need_more_rows {
         // compact and fill read buffer 
         self.compact_and_refill_readbuf();        
-        self.should_parse_line = true;        
+                
+        if self.read_len < 1 {
+          break;
+        }                
+      } else {
+        break;
       }
-      
-      if row_num >= ROWBLOCK_SIZE || // row block is full 
-         self.read_len < 1         // there is no more read bytes
-      { break; }
             
-    } // outmost loop 
-
-    void_ok()
+    } // outmost loop     
+    
+    println!("pos: {}, file_len: {}", try!(self.reader.pos()), try!(self.reader.len()));
+    rowblock.set_row_num(row_num);
+    Ok(row_num > 0)
   }
 
   fn close(&mut self) -> Void {
@@ -297,11 +319,20 @@ fn test_read_line_batch() {
   schema.add_column("c1", *TEXT_TY);
   schema.add_column("c2", *TEXT_TY);
 
+  let mut rowblock = BorrowedVRowBlock::new(&schema);
+
   let mut fin = Box::new(FileInputStream::new("/Users/hyunsik/tpch/lineitem/lineitem.tbl".to_string()));
   assert!(fin.open().is_ok());
   let mut s = DelimTextScanner::new(schema, None, fin, '\n' as u8);
   assert!(s.init().is_ok());
-  let res = s.read_line_batch();
+  
+  let mut sum = 0;
+  while(s.next(&mut rowblock).unwrap()) {    
+    sum = sum + rowblock.row_num();
+    println!("acc: {}, rows: {}", sum, rowblock.row_num());
+  }
+  
+  println!("{}", sum);
 }
   // let mut delim_indexes:Vec<usize> = Vec::new();
   // let r1 = 

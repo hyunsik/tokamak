@@ -6,13 +6,14 @@ pub mod text_splitter;
 use std::result;
 
 use common::Void;
+use common::err::TResult;
 use schema::Schema;
 use eval::MapEval;
 use rows::RowBlock;
 
 pub trait Executor {
   fn init(&mut self) -> Void;
-  fn next(&mut self, rowblock: &mut RowBlock) -> Void;
+  fn next(&mut self, rowblock: &mut RowBlock) -> TResult<bool>;
   fn close(&mut self) -> Void;
 
   fn in_schema(&self) -> &Schema;
