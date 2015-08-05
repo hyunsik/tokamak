@@ -1,5 +1,5 @@
 ///
-/// Text Scanner
+/// Delimited Text Scanner for comma/tab separated value formats
 ///
 
 use alloc::heap;
@@ -19,9 +19,11 @@ use rows::vrows::BorrowedVRowBlock;
 use types::*;
 use util::str::{StrSlice,split_str_slice};
 
+/// default buffer size
 const BUF_SIZE: usize = 65536;
 
 pub struct DelimTextScanner<'a> {
+  // constants
   data_schema : Schema,
   read_fields : Option<Schema>,
   line_delim  : u8,
@@ -30,15 +32,17 @@ pub struct DelimTextScanner<'a> {
   marker      : PhantomData<&'a ()>,
 
   // variable
-  readbuf_ptr          : *mut u8,
-  line_slices_idx      : usize, 
-  read_line_num        : usize,    // number of read lines for each next
-  line_slices_ptr      : *mut StrSlice,
-  line_slices          : &'a mut [StrSlice],
-  fields_slices_ptr    : *mut StrSlice,
-  fields_slices        : &'a mut [StrSlice],  
-  parsed_batch_len     : usize,
-  read_len             : usize,  
+  readbuf_ptr      : *mut u8,           // readbuf
+  read_len         : usize,             // length of read bytes
+  consumed_len     : usize,             // actually consumed bytes length for line slices 
+  
+  line_slices_idx  : usize,             // current line slice for reading
+  line_slices_num  : usize,             // number of filled line slices
+  line_slices_ptr  : *mut StrSlice,     // ptr for line slice array
+  line_slices      : &'a mut [StrSlice],// line slice array
+  
+  fields_slices_ptr: *mut StrSlice,     // ptr for field slice array
+  fields_slices    : &'a mut [StrSlice] // field slice array  
 }
 
 impl<'a> DelimTextScanner<'a> {
@@ -78,19 +82,21 @@ impl<'a> DelimTextScanner<'a> {
       marker: PhantomData,
 
       readbuf_ptr: unsafe { heap::allocate(BUF_SIZE, 16) },
+      consumed_len: 0,
+      read_len: 0,  
+      
       line_slices_idx: 0,
-      read_line_num: 0,
+      line_slices_num: 0,
       line_slices_ptr: line_slices_ptr,
       line_slices: line_slices,
+      
       fields_slices_ptr: fields_slices_ptr,
-      fields_slices: fields_slices,
-      parsed_batch_len: 0,
-      read_len: 0  
+      fields_slices: fields_slices      
     }
   }
 
-  fn read_line_num(&self) -> usize {
-    self.read_line_num
+  fn line_slices_num(&self) -> usize {
+    self.line_slices_num
   }
 
   fn line_slices(&self) -> &[StrSlice] {
@@ -98,8 +104,6 @@ impl<'a> DelimTextScanner<'a> {
   }
 
   fn find_first_record_index(&self, bytes: &[u8]) -> Option<usize> {
-    //let bytes : &[u8] = unsafe { mem::transmute(text) };
-
     let mut pos : usize = 0;
     let mut found : bool = false;
 
@@ -122,12 +126,12 @@ impl<'a> DelimTextScanner<'a> {
   /// It will return a tuple consisting of found line number and last delim index.
   fn fill_line_slices(&mut self) {
 
-    self.read_line_num      = 0; // read line counter
+    let mut line_num: usize = 0;
     let mut last_pos: usize = 0; // keep the start offset
     let mut cur_pos : usize = 0; // the current offset
 
 
-    while (cur_pos < self.read_len && self.read_line_num < ROWBLOCK_SIZE) {
+    while (cur_pos < self.read_len && line_num < ROWBLOCK_SIZE) {
       // for each character
       let c: u8  = unsafe { *self.readbuf_ptr.offset(cur_pos as isize) };
 
@@ -135,17 +139,18 @@ impl<'a> DelimTextScanner<'a> {
       if c == self.line_delim {
 
         // if found, set each StrSlice with the start offset and the current position
-        self.line_slices[self.read_line_num].set_ptr(unsafe {self.readbuf_ptr.offset(last_pos as isize)});
-        self.line_slices[self.read_line_num].set_len((cur_pos - last_pos) as i32);
+        self.line_slices[line_num].set_ptr(unsafe {self.readbuf_ptr.offset(last_pos as isize)});
+        self.line_slices[line_num].set_len((cur_pos - last_pos) as i32);
 
         last_pos = cur_pos + 1; // to skip the delimiter character
-        self.read_line_num = self.read_line_num + 1; // increase the line number
+        line_num = line_num + 1; // increase the line number
       }
 
       cur_pos = cur_pos + 1;      
     }
 
-    self.parsed_batch_len = last_pos;    
+    self.line_slices_num  = line_num; // read line counter
+    self.consumed_len = last_pos;    
     self.line_slices_idx = 0;
   }
 
@@ -154,7 +159,7 @@ impl<'a> DelimTextScanner<'a> {
   
   /// move the remain bytes into the header of buffer and fill the buffer.
   fn fill_readbuf(&mut self) -> Void {
-    let remain_len = self.read_len - self.parsed_batch_len;
+    let remain_len = self.read_len - self.consumed_len;
     debug_assert!(remain_len >= 0, "remain length must be positive number.");
     
     // check if buffer should be compact.
@@ -162,7 +167,7 @@ impl<'a> DelimTextScanner<'a> {
     if remain_len > 0 {
       unsafe {    
         copy_nonoverlapping(
-          self.readbuf_ptr.offset(self.parsed_batch_len as isize), 
+          self.readbuf_ptr.offset(self.consumed_len as isize), 
           self.readbuf_ptr, 
           remain_len);
       }
@@ -200,13 +205,13 @@ impl<'a> Executor for DelimTextScanner<'a> {
       return Ok(false); // return false to stop iteration
     }
 
-    let mut row_num: usize = 0;
-    let mut field_parse_res: (usize, usize);
-    let mut need_more_rows = true;
-    loop { // this loop continues until rowblock is filled or 
-
+    let mut row_num: usize = 0; // number of rows which are set to rowblock.    
+    let mut need_more_rows = true; // indicate whether rowblock is not full or not.
+    let mut parse_result: (usize, usize);
+    
+    loop { // this loop continues until rowblock is filled or EOS
       
-      if self.line_slices_idx >= self.read_line_num { // need more line slices
+      if self.line_slices_idx >= self.line_slices_num { // need more line slices
         // compact and fill read buffer
         self.fill_readbuf();        
         if self.read_len < 1 { // there is no readable buffer 
@@ -217,18 +222,21 @@ impl<'a> Executor for DelimTextScanner<'a> {
       
       unsafe {      
         let mut cur_line_idx = self.line_slices_idx;
-        while cur_line_idx < self.read_line_num && need_more_rows {
+                
+        while cur_line_idx < self.line_slices_num && need_more_rows {
           
           // split each line slice into field slices
-          field_parse_res = split_str_slice(
+          parse_result = split_str_slice(
             &mut self.line_slices[cur_line_idx],
             self.fields_slices,
             self.field_delim
           );
           
+          // the second value of parse result tuple is number of fields
+          self.add_row(row_num, parse_result.1);      
           
-          cur_line_idx = cur_line_idx + 1;
-          row_num = row_num + 1;          
+          cur_line_idx   = cur_line_idx + 1;
+          row_num        = row_num + 1;          
           need_more_rows = row_num < ROWBLOCK_SIZE;
         }
         
@@ -238,11 +246,9 @@ impl<'a> Executor for DelimTextScanner<'a> {
       
       if !need_more_rows {
         break;
-      }
-            
+      }                  
     } // outmost loop     
-    
-    println!("pos: {}, file_len: {}", try!(self.reader.pos()), try!(self.reader.len()));
+
     rowblock.set_row_num(row_num);
     Ok(row_num > 0)
   }
@@ -300,8 +306,6 @@ fn test_str_array() {
   };
 
   slices[0] = "abc";
-
-  //slices[0] = "abc";
 }
 
 #[test]
@@ -320,10 +324,10 @@ fn test_read_line_batch() {
   let mut sum = 0;
   while(s.next(&mut rowblock).unwrap()) {    
     sum = sum + rowblock.row_num();
-    println!("acc: {}, rows: {}", sum, rowblock.row_num());
+    //println!("acc: {}, rows: {}", sum, rowblock.row_num());
   }
   
-  println!("{}", sum);
+  assert_eq!(6001216, sum);
 }
   // let mut delim_indexes:Vec<usize> = Vec::new();
   // let r1 = 
