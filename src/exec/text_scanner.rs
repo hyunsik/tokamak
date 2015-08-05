@@ -31,7 +31,6 @@ pub struct DelimTextScanner<'a> {
 
   // variable
   readbuf_ptr          : *mut u8,
-  need_more_line_slices: bool, // parse lines from read buffer
   line_slices_idx      : usize, 
   read_line_num        : usize,    // number of read lines for each next
   line_slices_ptr      : *mut StrSlice,
@@ -79,7 +78,6 @@ impl<'a> DelimTextScanner<'a> {
       marker: PhantomData,
 
       readbuf_ptr: unsafe { heap::allocate(BUF_SIZE, 16) },
-      need_more_line_slices: true,
       line_slices_idx: 0,
       read_line_num: 0,
       line_slices_ptr: line_slices_ptr,
@@ -147,8 +145,7 @@ impl<'a> DelimTextScanner<'a> {
       cur_pos = cur_pos + 1;      
     }
 
-    self.parsed_batch_len = last_pos;
-    self.need_more_line_slices = false;    
+    self.parsed_batch_len = last_pos;    
     self.line_slices_idx = 0;
   }
 
@@ -156,15 +153,12 @@ impl<'a> DelimTextScanner<'a> {
   }
   
   /// move the remain bytes into the header of buffer and fill the buffer.
-  fn compact_and_refill_readbuf(&mut self) -> Void {
-    //println!("compact enter!");
-    if self.read_len < self.parsed_batch_len {
-      println!("read_len: {}, parsed_batch_len: {}", self.read_len, self.parsed_batch_len);
-    }
+  fn fill_readbuf(&mut self) -> Void {
     let remain_len = self.read_len - self.parsed_batch_len;
     debug_assert!(remain_len >= 0, "remain length must be positive number.");
     
-    // move the remain bytes into the head of the readbuf
+    // check if buffer should be compact.
+    // If true, move the remain bytes into the head of the readbuf.
     if remain_len > 0 {
       unsafe {    
         copy_nonoverlapping(
@@ -174,7 +168,7 @@ impl<'a> DelimTextScanner<'a> {
       }
     }
     
-    // refill the readbuf
+    // fill readbuf
     self.read_len = try!(
       self.reader.read(
         unsafe {
@@ -187,7 +181,7 @@ impl<'a> DelimTextScanner<'a> {
     );
     
     self.read_len = self.read_len + remain_len;
-    self.need_more_line_slices = true;
+    
     void_ok()
   }    
 }
@@ -195,18 +189,15 @@ impl<'a> DelimTextScanner<'a> {
 impl<'a> Executor for DelimTextScanner<'a> {  
 
   fn init(&mut self) -> Void {
-    self.read_len = try!(self.reader.read(
-      unsafe {slice::from_raw_parts_mut(self.readbuf_ptr, BUF_SIZE)}
-    ));
-
     void_ok()
   }
 
   fn next(&mut self, rowblock: &mut RowBlock) -> TResult<bool> {   
 
+    // check if all data are consumed
     if (try!(self.reader.pos()) >= try!(self.reader.len())) {
       rowblock.set_row_num(0);
-      return Ok(false);
+      return Ok(false); // return false to stop iteration
     }
 
     let mut row_num: usize = 0;
@@ -214,40 +205,38 @@ impl<'a> Executor for DelimTextScanner<'a> {
     let mut need_more_rows = true;
     loop { // this loop continues until rowblock is filled or 
 
-      // parse lines in batch
-      if self.need_more_line_slices {
+      
+      if self.line_slices_idx >= self.read_line_num { // need more line slices
+        // compact and fill read buffer
+        self.fill_readbuf();        
+        if self.read_len < 1 { // there is no readable buffer 
+          break;
+        }
         self.fill_line_slices();        
       }
       
       unsafe {      
-        let mut line_idx = self.line_slices_idx;
-        while line_idx < self.read_line_num && need_more_rows {
+        let mut cur_line_idx = self.line_slices_idx;
+        while cur_line_idx < self.read_line_num && need_more_rows {
           
           // split each line slice into field slices
           field_parse_res = split_str_slice(
-            &mut self.line_slices[line_idx],
+            &mut self.line_slices[cur_line_idx],
             self.fields_slices,
             self.field_delim
           );
           
           
-          line_idx = line_idx + 1;
+          cur_line_idx = cur_line_idx + 1;
           row_num = row_num + 1;          
           need_more_rows = row_num < ROWBLOCK_SIZE;
         }
         
         // record parsed line index
-        self.line_slices_idx = line_idx;   
+        self.line_slices_idx = cur_line_idx;   
       }      
       
-      if need_more_rows {
-        // compact and fill read buffer 
-        self.compact_and_refill_readbuf();        
-                
-        if self.read_len < 1 {
-          break;
-        }                
-      } else {
+      if !need_more_rows {
         break;
       }
             
