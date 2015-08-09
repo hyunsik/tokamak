@@ -7,7 +7,6 @@ use alloc::heap;
 use buffer::Buf;
 use std::cmp;
 use std::ptr;
-use std::marker;
 use std::mem;
 
 // only considered the memory aligned size of Intel x86
@@ -15,25 +14,24 @@ pub static DEFAULT_ALIGNED_SIZE: usize = 16;
 
 #[derive(Copy, Clone)]
 #[allow(raw_pointer_derive)]
-struct Chunk<'a> {  
+struct Chunk {  
   ptr: *const u8,
   size: usize,
-  _marker: marker::PhantomData<&'a ()>
 }
 
-pub struct Arena<'a> {
+pub struct Arena {
   default_page_size: usize,
   aligned_size: usize,
-  head: Chunk<'a>,
+  head: Chunk,
   offset: usize,  
-  chunks: Vec<Chunk<'a>>,
+  chunks: Vec<Chunk>,
 
   // stats
   allocated_size: usize,
   used_size: usize
 }
 
-impl<'a> Drop for Arena<'a> {
+impl Drop for Arena {
   fn drop(&mut self) {
     unsafe {
       // free head
@@ -49,13 +47,13 @@ impl<'a> Drop for Arena<'a> {
   }
 }
 
-impl<'a> Arena<'a> {
+impl Arena {
 
-  pub fn new(page_size: usize) -> Arena<'a> {
+  pub fn new(page_size: usize) -> Arena {
     Arena::new_with_aligned(page_size, DEFAULT_ALIGNED_SIZE)
   }
 
-  pub fn new_with_aligned(page_size: usize, aligned_size: usize) -> Arena<'a> {
+  pub fn new_with_aligned(page_size: usize, aligned_size: usize) -> Arena {
     let allocated: *mut u8 = unsafe {
       heap::allocate(page_size, aligned_size) as *mut u8
     };
@@ -63,7 +61,7 @@ impl<'a> Arena<'a> {
     Arena {
       default_page_size: page_size,
       aligned_size: aligned_size,
-      head: Chunk{ptr: allocated, size: page_size, _marker: marker::PhantomData},
+      head: Chunk{ptr: allocated, size: page_size},
       offset: 0,
       chunks: Vec::new(),
 
@@ -84,7 +82,7 @@ impl<'a> Arena<'a> {
     self.used_size + self.offset
   }
 
-  pub fn alloc(&mut self, size: usize) -> Buf<'a> {
+  pub fn alloc<'a>(&mut self, size: usize) -> Buf<'a> {
     if self.need_grow(size) {
       self.new_chunk(size);
     }
@@ -152,6 +150,6 @@ impl<'a> Arena<'a> {
     self.head = Chunk{
       ptr: allocated, 
       size: actual_size, 
-      _marker: marker::PhantomData};
+    };
   }
 }

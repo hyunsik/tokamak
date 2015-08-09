@@ -47,7 +47,7 @@ pub struct DelimTextScanner<'a> {
   fields_slices_ptr: *mut StrSlice,     // ptr for field slice array
   fields_slices    : &'a mut [StrSlice],// field slice array
   
-  owned_rowblock   : HeapVRowBlock<'a>    
+  owned_rowblock   : HeapVRowBlock    
 }
 
 impl<'a> DelimTextScanner<'a> {
@@ -228,7 +228,7 @@ impl<'a> Executor for DelimTextScanner<'a> {
     void_ok()
   }
 
-  fn next<'b>(&'b mut self, rowblock: &'b mut BorrowedVRowBlock<'b>) -> TResult<bool> {   
+  fn next(&mut self, rowblock: &mut BorrowedVRowBlock) -> TResult<bool> {   
 
     // check if all data are consumed
     if (try!(self.reader.pos()) >= try!(self.reader.len())) {
@@ -281,7 +281,8 @@ impl<'a> Executor for DelimTextScanner<'a> {
     } // outmost loop     
 
     self.owned_rowblock.set_row_num(row_num);
-    copy_vectors(&self.owned_rowblock, rowblock); 
+    rowblock.set_row_num(row_num);
+    //copy_vectors(&self.owned_rowblock, rowblock); 
     Ok(row_num > 0)
   }
 

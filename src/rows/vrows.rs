@@ -165,25 +165,23 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
 
 
 /// Borrowed vector
-pub struct PtrVector<'a> {
+pub struct PtrVector {
   ptr: *mut u8,
   size: usize,
-  data_type: Ty,
-  _marker: marker::PhantomData<&'a ()>
+  data_type: Ty
 }
 
-impl<'a> PtrVector<'a> {
-  pub fn new(ptr: *mut u8, size: usize, data_type: Ty) -> PtrVector<'a> {
+impl PtrVector {
+  pub fn new(ptr: *mut u8, size: usize, data_type: Ty) -> PtrVector {
     PtrVector {
       ptr: ptr, 
       size: size,
-      data_type: data_type, 
-      _marker: marker::PhantomData
+      data_type: data_type
     }
   }  
 }
 
-impl<'a> Vector for PtrVector<'a> {
+impl Vector for PtrVector {
   #[inline]
   fn size(&self) -> usize {self.size}
 
@@ -200,25 +198,25 @@ impl<'a> Vector for PtrVector<'a> {
   fn is_const(&self) -> bool { false }
 }
 
-impl<'a> HasTy for PtrVector<'a> {
+impl HasTy for PtrVector {
   fn data_ty(&self) -> &Ty {
     &self.data_type
   }
 }
 
-pub struct HeapVRowBlock<'a> {
+pub struct HeapVRowBlock {
   schema: Schema,  
   type_lengths: Vec<u32>,
   ptr: *mut u8,
-  vectors: Vec<PtrVector<'a>>,
+  vectors: Vec<PtrVector>,
   selected: Vec<bool>,
   row_num: usize,
-  arena: Arena<'a>
+  arena: Arena
 }
 
-impl<'a> HeapVRowBlock<'a> {
+impl HeapVRowBlock {
 
-  pub fn new(schema: &Schema) -> HeapVRowBlock<'a> {
+  pub fn new(schema: &Schema) -> HeapVRowBlock {
 
     let mut fixed_area_size: usize = 0;    
     let mut type_lengths: Vec<u32> = Vec::new();
@@ -260,7 +258,7 @@ impl<'a> HeapVRowBlock<'a> {
   }  
 }
 
-impl<'a> AsRowBlock for HeapVRowBlock<'a> {
+impl AsRowBlock for HeapVRowBlock {
   fn as_reader(&self) -> &RowBlock {
     self
   }
@@ -268,7 +266,7 @@ impl<'a> AsRowBlock for HeapVRowBlock<'a> {
 
 
 
-impl<'a> RowBlockWriter for HeapVRowBlock<'a> {
+impl RowBlockWriter for HeapVRowBlock {
   #[inline]
   fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1) {      
     let v : &mut [INT1] = as_mut_array(&mut self.vectors[col_id]);
@@ -361,7 +359,7 @@ impl<'a> RowBlockWriter for HeapVRowBlock<'a> {
   }
 }
 
-impl<'a> RowBlock for HeapVRowBlock<'a> {
+impl RowBlock for HeapVRowBlock {
   #[inline]
   fn schema(&self) -> &Schema {
     &self.schema
