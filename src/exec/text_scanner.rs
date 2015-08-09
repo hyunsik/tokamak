@@ -15,7 +15,7 @@ use exec::Executor;
 use io::stream::*;
 use schema::Schema;
 use schema::util::finds_target_indexes;
-use rows::{shallow_copy, RowBlock, RowBlockWriter};
+use rows::{copy_vectors, RowBlock, RowBlockWriter};
 use rows::vrows::{BorrowedVRowBlock, HeapVRowBlock};
 use types::*;
 use util::str::{StrSlice,split_str_slice};
