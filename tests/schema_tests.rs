@@ -1,7 +1,7 @@
-extern crate ikernel_common;
+extern crate tajo;
 
-use ikernel_common::schema::*;
-use ikernel_common::types::*;
+use tajo::schema::*;
+use tajo::types::*;
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();
@@ -39,3 +39,4 @@ fn test_column_id() {
 
   assert!(schema.column_id("err").is_none());
 }
+

@@ -1,15 +1,16 @@
 use std::mem;
-use str::StrSlice;
+use common::err::TResult;
+use util::str::StrSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TyKind {
-  Bool,
+  Bool,  
   Int1,
   Int2,
   Int4,
   Int8,
   Float4,
-  Float8,
+  Float8,  
   Date,
   Time,
   Timestamp,
@@ -64,7 +65,7 @@ pub type TEXT      = StrSlice;
 /// Data Domain for each field
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Ty {
-  pub kind : TyKind,
+  pub kind : TyKind, 
   pub len : u32, // for CHAR, VARCHAR
   pub precision : u8, // for numeric or decimal
   pub scale : u8 // for numeric or decimal
@@ -90,7 +91,7 @@ impl Ty {
   #[inline(always)]
   pub fn size_of(data_type: &Ty) -> u32 {
     match data_type.kind {
-      TyKind::Bool      => 1,
+      TyKind::Bool      => 1,        
       TyKind::Int1      => 1,
       TyKind::Int2      => 2,
       TyKind::Int4      => 4,
@@ -132,7 +133,7 @@ impl HasTy for Ty {
 /// Determine a result data type from two expression data types.
 pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
   match lhs_ty.kind() {
-
+    
     TyKind::Bool => {
       match rhs_ty.kind() {
         TyKind::Bool => rhs_ty.clone(),
@@ -143,11 +144,11 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
 
     TyKind::Int1 => {
       match rhs_ty.kind() {
-        TyKind::Int1   |
-        TyKind::Int2   |
-        TyKind::Int4   |
-        TyKind::Int8   |
-        TyKind::Float4 |
+        TyKind::Int1   | 
+        TyKind::Int2   | 
+        TyKind::Int4   | 
+        TyKind::Int8   | 
+        TyKind::Float4 | 
         TyKind::Float8 => rhs_ty.clone(),
         _ => panic!("Undefined Operator")
       }
@@ -155,10 +156,10 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
 
     TyKind::Int2 => {
       match rhs_ty.kind() {
-        TyKind::Int2   |
-        TyKind::Int4   |
-        TyKind::Int8   |
-        TyKind::Float4 |
+        TyKind::Int2   | 
+        TyKind::Int4   | 
+        TyKind::Int8   | 
+        TyKind::Float4 | 
         TyKind::Float8 => rhs_ty.clone(),
 
         TyKind::Int1   => lhs_ty.clone(),
@@ -168,12 +169,12 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
 
     TyKind::Int4 => {
       match rhs_ty.kind() {
-        TyKind::Int4   |
-        TyKind::Int8   |
-        TyKind::Float4 |
+        TyKind::Int4   | 
+        TyKind::Int8   | 
+        TyKind::Float4 | 
         TyKind::Float8 => rhs_ty.clone(),
 
-        TyKind::Int1 |
+        TyKind::Int1 | 
         TyKind::Int2 => lhs_ty.clone(),
 
         _ => panic!("Undefined Operator")
@@ -182,12 +183,12 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
 
     TyKind::Int8 => {
       match rhs_ty.kind() {
-        TyKind::Int8   |
-        TyKind::Float4 |
+        TyKind::Int8   | 
+        TyKind::Float4 | 
         TyKind::Float8 => rhs_ty.clone(),
 
-        TyKind::Int1 |
-        TyKind::Int2 |
+        TyKind::Int1 | 
+        TyKind::Int2 | 
         TyKind::Int4 => lhs_ty.clone(),
 
         _ => panic!("Undefined Operator")
@@ -196,12 +197,12 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
 
     TyKind::Float4 => {
       match rhs_ty.kind() {
-        TyKind::Float4 |
+        TyKind::Float4 | 
         TyKind::Float8 => rhs_ty.clone(),
 
-        TyKind::Int1 |
-        TyKind::Int2 |
-        TyKind::Int4 |
+        TyKind::Int1 | 
+        TyKind::Int2 | 
+        TyKind::Int4 | 
         TyKind::Int8 => lhs_ty.clone(),
 
         _ => panic!("Undefined Operator")
@@ -212,17 +213,17 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
       match rhs_ty.kind() {
         TyKind::Float8 => rhs_ty.clone(),
 
-        TyKind::Int1   |
-        TyKind::Int2   |
-        TyKind::Int4   |
-        TyKind::Int8   |
+        TyKind::Int1   | 
+        TyKind::Int2   | 
+        TyKind::Int4   | 
+        TyKind::Int8   | 
         TyKind::Float4 => lhs_ty.clone(),
 
         _ => panic!("Undefined Operator")
       }
     },
 
-    TyKind::Time => {
+    TyKind::Time => {      
       panic!("Undefined Operator")
     },
 
@@ -245,7 +246,7 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
     TyKind::Text => {
       match rhs_ty.kind() {
         TyKind::Text => rhs_ty.clone(),
-
+        
         _ => panic!("Undefined Operator")
       }
     },
@@ -253,5 +254,5 @@ pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
     TyKind::Blob => {
       panic!("Undefined Operator")
     }
-  }
+  } 
 }
