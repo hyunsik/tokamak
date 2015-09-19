@@ -13,7 +13,6 @@ path = "src/lib.rs"
 
 [dependencies]
 bytesize = "*"
-llvmint = "*"
 log = "*"
 url = "*"
 

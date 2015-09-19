@@ -6,9 +6,8 @@ use tajo::schema::*;
 use tajo::expr::ArithmOp;
 use tajo::eval::{Eval, MapEval};
 use tajo::eval::interpreter::*;
-use tajo::eval::primitives::*;
 use tajo::rows::*;
-use tajo::rows::vector::{ArrayVector, as_array};
+use tajo::rows::vector::as_array;
 use tajo::types::*;
 use tajo::util::str::StrSlice;
 
@@ -43,7 +42,7 @@ pub fn fill_vector_block(rowblock: &mut RowBlockWriter) {
     rowblock.put_date(i, 7, i as i32);
     rowblock.put_time(i, 8, i as i64);
     rowblock.put_timestamp(i, 9, i as i64);
-    
+
     rowblock.put_text(i, 10, &StrSlice::from_str("Rust"));
   }
 }
@@ -68,10 +67,10 @@ fn verify_vector_block(rowblock: &RowBlock) {
 #[test]
 fn test_field_eval() {
   let schema = make_test_schema();
-  
+
   let mut field: Box<MapEval> = Box::new(Field::new(&Column::new("c3".to_string(), *INT4_TY)));
   let mut r: Box<RowBlockWriter> = Box::new(HeapVRowBlock::new(&schema));
-  fill_vector_block(&mut *r);  
+  fill_vector_block(&mut *r);
 
   assert!(field.bind(&schema).is_ok());
   let v: &Vector = field.eval(r.as_reader());
