@@ -192,8 +192,7 @@ impl PartialOrd for StrSlice {
 #[inline]
 pub unsafe fn split_str_slice(slice: &mut StrSlice,
                    out_slices: &mut [StrSlice],
-                   delim: u8) -> (usize, usize) {
-  let final_split: bool = false;
+                   delim: u8) -> (usize, usize) {  
   let mut split_idx  : usize = 0;
   let mut last_pos   : usize = 0; // keep the start offset
   let mut cur_pos    : usize = 0; // the current offset
