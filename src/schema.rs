@@ -12,7 +12,7 @@ pub struct Column {
 impl Column {
   pub fn new<T: AsRef<str>>(name: T, ty: Ty) -> Column {
     Column {
-      name: name.as_ref().to_owned(), 
+      name: name.as_ref().to_owned(),
       ty: ty
     }
   }
