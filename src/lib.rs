@@ -8,6 +8,7 @@
 #![feature(const_fn)]
 extern crate alloc;
 extern crate bytesize;
+extern crate itertools;
 #[macro_use]
 extern crate log;
 extern crate libc;

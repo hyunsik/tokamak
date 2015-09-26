@@ -16,5 +16,5 @@ fn test_schema1() {
 
     let r = Record::new(fields);
 
-    //print_record(&r);
+    println!("{}", r);
 }

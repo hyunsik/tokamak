@@ -15,6 +15,7 @@ path = "src/lib.rs"
 bytesize = "*"
 log = "*"
 url = "*"
+itertools = "0.4.0"
 
 [dependencies.memutil]
 path = "memutil"
