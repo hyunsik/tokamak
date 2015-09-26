@@ -363,6 +363,7 @@ fn test_read_line_batch() {
 //    sum = sum + rowblock.row_num();
     //println!("acc: {}, rows: {}", sum, rowblock.row_num());
   //}
+  /*
   {
     s.next(&mut rowblock);
   }
@@ -371,6 +372,8 @@ fn test_read_line_batch() {
   //s.next(&mut rowblock).unwrap();
 
   assert_eq!(6001216, sum);
+
+  */
 }
   // let mut delim_indexes:Vec<usize> = Vec::new();
   // let r1 =

@@ -2,7 +2,7 @@
 #![feature(raw)]
 #![feature(alloc)]
 #![feature(convert)]
-#![feature(collections)] 
+#![feature(collections)]
 #![feature(core)]
 #![feature(libc)]
 #![feature(const_fn)]
@@ -27,3 +27,5 @@ pub mod task;
 pub mod types;
 pub mod rows;
 pub mod util;
+
+pub mod record_schema;
