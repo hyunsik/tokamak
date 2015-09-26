@@ -9,7 +9,7 @@ use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 use std::slice;
 
-use common::constant::ROWBLOCK_SIZE;
+use constant::ROWBLOCK_SIZE;
 use common::err::*;
 use exec::Executor;
 use io::stream::*;
@@ -17,8 +17,8 @@ use schema::Schema;
 use schema::util::finds_target_indexes;
 use rows::{copy_vectors, RowBlock, RowBlockWriter};
 use rows::vrows::{BorrowedVRowBlock, HeapVRowBlock};
-use types::*;
-use util::str::{StrSlice,split_str_slice};
+use common::types::*;
+use common::str::{StrSlice,split_str_slice};
 
 /// default buffer size
 const BUF_SIZE: usize = 65536;

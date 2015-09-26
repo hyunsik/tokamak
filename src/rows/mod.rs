@@ -28,7 +28,7 @@ pub mod vector;
 pub use self::vector::{Vector};
 
 use schema::Schema;
-use types::*;
+use common::types::*;
 
 pub trait RowBlockWriter : RowBlock {
   fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1);

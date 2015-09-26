@@ -1,7 +1,7 @@
 use std::slice::Iter;
 use std::vec::Vec;
 
-use types::{Ty, HasTy};
+use common::types::{Ty, HasTy};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Column {

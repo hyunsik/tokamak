@@ -1,7 +1,8 @@
 extern crate tajo;
+extern crate common;
 
-use tajo::record_schema::*;
-use tajo::types::*;
+use common::schema::*;
+use common::types::*;
 
 #[test]
 fn test_schema1() {

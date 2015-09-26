@@ -6,7 +6,7 @@ use std::boxed::Box;
 use std::ops;
 use std::fmt::Display;
 
-use common::constant::ROWBLOCK_SIZE;
+use constant::ROWBLOCK_SIZE;
 use common::err::{Error, TResult, Void, void_ok};
 use eval::{Eval, MapEval, FilterEval};
 use eval::primitives::*;
@@ -14,7 +14,7 @@ use expr::*;
 use rows::RowBlock;
 use rows::vector::{ArrayVector, ConstVector, Vector};
 use schema::{Column, Schema};
-use types::*;
+use common::types::*;
 
 // Unary Expressions
 pub struct Not {child: Box<Eval>}
@@ -26,7 +26,7 @@ pub struct AndEval<'a> {
   lhs: Box<MapEval>,
   rhs: Box<MapEval>,
   result: ArrayVector<'a>,
-  f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>  
+  f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>
 }
 
 impl<'a> AndEval<'a> {
@@ -43,7 +43,7 @@ impl<'a> AndEval<'a> {
 
 impl<'a> Eval for AndEval<'a> {
 
-  fn bind(&mut self, schema: &Schema) -> Void {    
+  fn bind(&mut self, schema: &Schema) -> Void {
     try!(self.lhs.bind(schema));
     try!(self.rhs.bind(schema));
 
@@ -53,8 +53,8 @@ impl<'a> Eval for AndEval<'a> {
     self.f = Some(get_and_primitive(self.lhs.is_const(),self.rhs.is_const()));
 
     void_ok()
-  }  
-  
+  }
+
   fn is_const(&self) -> bool { false }
 }
 
@@ -77,7 +77,7 @@ pub struct CompEval<'a> {
 }
 
 impl<'a> CompEval<'a> {
-  pub fn new(op: CompOp, lhs: Box<MapEval>, rhs: Box<MapEval>) 
+  pub fn new(op: CompOp, lhs: Box<MapEval>, rhs: Box<MapEval>)
       -> CompEval<'a> {
 
     CompEval {
@@ -93,7 +93,7 @@ impl<'a> CompEval<'a> {
 
 impl<'a> Eval for CompEval<'a> {
 
-  fn bind(&mut self, schema: &Schema) -> Void {    
+  fn bind(&mut self, schema: &Schema) -> Void {
     try!(self.lhs.bind(schema));
     try!(self.rhs.bind(schema));
 
@@ -105,8 +105,8 @@ impl<'a> Eval for CompEval<'a> {
                     &self.rhs.data_ty(), self.rhs.is_const()));
 
     void_ok()
-  }  
-  
+  }
+
   fn is_const(&self) -> bool { false }
 }
 
@@ -118,9 +118,9 @@ impl<'a> HasTy for CompEval<'a> {
 
 impl<'a> MapEval for CompEval<'a> {
   fn eval<'r>(&'r mut self, r: &'r RowBlock) -> &'r Vector {
-    self.f.unwrap()(&mut self.result as &mut Vector, 
-                    self.lhs.eval(r), 
-                    self.rhs.eval(r), 
+    self.f.unwrap()(&mut self.result as &mut Vector,
+                    self.lhs.eval(r),
+                    self.rhs.eval(r),
                     None);
     &self.result
   }
@@ -128,16 +128,16 @@ impl<'a> MapEval for CompEval<'a> {
 
 // Binary Arithmetic Evalessions
 pub struct ArithmMapEval<'a> {
-  pub op: ArithmOp, 
-  pub data_ty: Option<Ty>, 
+  pub op: ArithmOp,
+  pub data_ty: Option<Ty>,
   pub lhs: Box<MapEval>,
   pub rhs: Box<MapEval>,
   pub result: Option<ArrayVector<'a>>,
-  pub f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>  
+  pub f: Option<fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)>
 }
 
 impl<'a> ArithmMapEval<'a> {
-  pub fn new(op: ArithmOp, lhs: Box<MapEval>, rhs: Box<MapEval>) 
+  pub fn new(op: ArithmOp, lhs: Box<MapEval>, rhs: Box<MapEval>)
       -> ArithmMapEval<'a> {
 
     ArithmMapEval {
@@ -155,7 +155,7 @@ impl<'a> Eval for ArithmMapEval<'a> {
 
   fn bind(&mut self, schema: &Schema) -> Void {
     self.data_ty = Some(result_data_ty(self.lhs.data_ty(), self.rhs.data_ty()));
-    
+
     try!(self.lhs.bind(schema));
     try!(self.rhs.bind(schema));
 
@@ -167,8 +167,8 @@ impl<'a> Eval for ArithmMapEval<'a> {
                                   &self.rhs.data_ty(), self.rhs.is_const()));
 
     void_ok()
-  }  
-  
+  }
+
   fn is_const(&self) -> bool { false }
 }
 
@@ -180,9 +180,9 @@ impl<'a> HasTy for ArithmMapEval<'a> {
 
 impl<'a> MapEval for ArithmMapEval<'a> {
   fn eval<'r>(&'r mut self, r: &'r RowBlock) -> &'r Vector {
-    self.f.unwrap()(self.result.as_mut().unwrap(), 
-                    self.lhs.eval(r), 
-                    self.rhs.eval(r), 
+    self.f.unwrap()(self.result.as_mut().unwrap(),
+                    self.lhs.eval(r),
+                    self.rhs.eval(r),
                     None);
     self.result.as_ref().unwrap()
   }
@@ -219,21 +219,21 @@ impl HasTy for Field {
 pub struct Field {column: Column, field_id: usize}
 
 impl Eval for Field {
-  
+
   fn bind(&mut self, schema: &Schema) -> Void {
-      
+
     match schema.column_id(&self.column.name) {
-        
+
      Some(id) => {
       self.field_id = id;
       void_ok()
      },
-     
+
      None => Err(Error::UndefinedColumn)
-    }    
-  }  
-  
-  fn is_const(&self) -> bool { false }  
+    }
+  }
+
+  fn is_const(&self) -> bool { false }
 }
 
 impl MapEval for Field {
@@ -261,11 +261,11 @@ impl HasTy for ConstEval {
 }
 
 impl Eval for ConstEval {
-  
-  fn bind(&mut self, schema: &Schema) -> Void {    
+
+  fn bind(&mut self, schema: &Schema) -> Void {
     void_ok()
-  }  
-  
+  }
+
   fn is_const(&self) -> bool { true }
 }
 
@@ -293,9 +293,9 @@ impl MapCompiler {
       tree: None,
       node_num: 0
     }
-  }  
+  }
 
-  fn walk_and_take_bin_expr(&mut self, lhs: &Expr, rhs: &Expr) -> 
+  fn walk_and_take_bin_expr(&mut self, lhs: &Expr, rhs: &Expr) ->
       (Box<MapEval>, Box<MapEval>) {
 
     walk_expr(self, lhs);
@@ -308,7 +308,7 @@ impl MapCompiler {
 }
 
 impl<'v> Visitor<'v> for MapCompiler {
-  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {    
+  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {
     let childs = self.walk_and_take_bin_expr(lhs, rhs);
 
     self.tree = Some(
@@ -316,7 +316,7 @@ impl<'v> Visitor<'v> for MapCompiler {
     );
   }
 
-  fn visit_arithm(&mut self, op: &ArithmOp, lhs: &'v Expr, rhs: &'v Expr) {    
+  fn visit_arithm(&mut self, op: &ArithmOp, lhs: &'v Expr, rhs: &'v Expr) {
     let childs = self.walk_and_take_bin_expr(lhs, rhs);
 
     self.tree = Some(
@@ -326,7 +326,7 @@ impl<'v> Visitor<'v> for MapCompiler {
 
   fn visit_field(&mut self, c: &'v Column) {
     self.tree = Some(Box::new(Field::new(c)));
-  } 
+  }
 
   fn visit_const(&mut self, d: &'v Datum) {
     self.tree = Some(Box::new(ConstEval::new(d)));
@@ -344,11 +344,11 @@ impl FilterCompiler {
       tree: None,
       node_num: 0
     }
-  } 
+  }
 }
 
 impl<'v> Visitor<'v> for FilterCompiler {
-  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {    
+  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {
     let lhs_map = compile_map_eval(lhs);
     let rhs_map = compile_map_eval(rhs);
 
@@ -358,7 +358,7 @@ impl<'v> Visitor<'v> for FilterCompiler {
   }
 }
 
-fn get_and_primitive(lhs_const: bool, rhs_const: bool) -> 
+fn get_and_primitive(lhs_const: bool, rhs_const: bool) ->
     fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {
 
   match (lhs_const, rhs_const) {
@@ -369,10 +369,10 @@ fn get_and_primitive(lhs_const: bool, rhs_const: bool) ->
   }
 }
 
-fn get_arithm_prim(op: &ArithmOp, 
-                   res_ty: &Ty, 
+fn get_arithm_prim(op: &ArithmOp,
+                   res_ty: &Ty,
                    lhs_dty: &Ty, lhs_vec: bool,
-                   rhs_dty: &Ty, rhs_vec: bool) 
+                   rhs_dty: &Ty, rhs_vec: bool)
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {
 
   assert_eq!(lhs_dty, rhs_dty);
@@ -391,17 +391,17 @@ fn get_arithm_prim(op: &ArithmOp,
 }
 
 fn get_arithm_vec_or_const<T>(op: &ArithmOp, lhs_const: bool, rhs_const: bool)
-  -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) 
+  -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)
   where T : Copy + Display + ops::Add<T, Output=T> + ops::Sub<T, Output=T> +
             ops::Mul<T, Output=T> + ops::Div<T, Output=T> + ops::Rem<T, Output=T> {
 
   match *op {
-    
+
     ArithmOp::Plus => {
       match (lhs_const, rhs_const) {
         (true, false) => map_plus_cv::<T>,
         (false, true) => map_plus_vc::<T>,
-        (false, false) => map_plus_vv::<T>,   
+        (false, false) => map_plus_vv::<T>,
         _ => panic!("plus operation between const and const is not supported yet.")
       }
     },
@@ -409,8 +409,8 @@ fn get_arithm_vec_or_const<T>(op: &ArithmOp, lhs_const: bool, rhs_const: bool)
     ArithmOp::Sub => {
       match (lhs_const, rhs_const) {
         (true, false) => map_sub_cv::<T>,
-        (false, true) => map_sub_vc::<T>,    
-        (false, false) => map_sub_vv::<T>,    
+        (false, true) => map_sub_vc::<T>,
+        (false, false) => map_sub_vv::<T>,
         _ => panic!("sub operation between const and const is not supported yet.")
       }
     },
@@ -418,8 +418,8 @@ fn get_arithm_vec_or_const<T>(op: &ArithmOp, lhs_const: bool, rhs_const: bool)
     ArithmOp::Mul => {
       match (lhs_const, rhs_const) {
         (true, false) => map_mul_cv::<T>,
-        (false, true) => map_mul_vc::<T>,    
-        (false, false) => map_mul_vv::<T>,    
+        (false, true) => map_mul_vc::<T>,
+        (false, false) => map_mul_vv::<T>,
         _ => panic!("mul operation between const and const is not supported yet.")
       }
     },
@@ -427,8 +427,8 @@ fn get_arithm_vec_or_const<T>(op: &ArithmOp, lhs_const: bool, rhs_const: bool)
     ArithmOp::Div => {
       match (lhs_const, rhs_const) {
         (true, false) => map_div_cv::<T>,
-        (false, true) => map_div_vc::<T>,    
-        (false, false) => map_div_vv::<T>,    
+        (false, true) => map_div_vc::<T>,
+        (false, false) => map_div_vv::<T>,
         _ => panic!("div operation between const and const is not supported yet.")
       }
     },
@@ -437,16 +437,16 @@ fn get_arithm_vec_or_const<T>(op: &ArithmOp, lhs_const: bool, rhs_const: bool)
       match (lhs_const, rhs_const) {
         (true, false) => map_rem_cv::<T>,
         (false, true) => map_rem_vc::<T>,
-        (false, false) => map_rem_vv::<T>,    
+        (false, false) => map_rem_vv::<T>,
         _ => panic!("rem operation between const and const is not supported yet.")
       }
     }
   }
 }
 
-fn get_comp_primitive(op: &CompOp,                       
+fn get_comp_primitive(op: &CompOp,
                       lhs_dty: &Ty, lhs_const: bool,
-                      rhs_dty: &Ty, rhs_const: bool) 
+                      rhs_dty: &Ty, rhs_const: bool)
     -> fn(&mut Vector, &Vector, &Vector, Option<&[usize]>) {
 
   assert_eq!(lhs_dty, rhs_dty);
@@ -465,10 +465,10 @@ fn get_comp_primitive(op: &CompOp,
   }
 }
 
-fn get_comp_vec_or_const<T>(op: &CompOp, lhs_const: bool, rhs_const: bool) -> 
+fn get_comp_vec_or_const<T>(op: &CompOp, lhs_const: bool, rhs_const: bool) ->
     fn(&mut Vector, &Vector, &Vector, Option<&[usize]>)
     where T: Copy + Display + PartialEq + PartialOrd {
-  
+
   match *op {
     CompOp::Eq => {
       match (lhs_const, rhs_const) {

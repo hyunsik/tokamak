@@ -1,6 +1,7 @@
 extern crate tajo;
+extern crate common;
 
-use tajo::util::str::StrSlice;
+use self::common::str::StrSlice;
 
 #[test]
 fn test_init() {

@@ -1,6 +1,6 @@
 use bytesize::ByteSize;
-use types::*;
-use common::constant::ROWBLOCK_SIZE;
+use common::types::*;
+use constant::ROWBLOCK_SIZE;
 use intrinsics::sse;
 use memutil::Arena;
 use schema::Schema;
@@ -21,14 +21,14 @@ pub struct BorrowedVRowBlock<'a> {
 
 impl<'a> BorrowedVRowBlock<'a> {
   pub fn new(schema: &Schema) -> BorrowedVRowBlock<'a> {
-    
+
     let mut vectors: Vec<&'a Vector> = Vec::with_capacity(schema.size());
     unsafe { vectors.set_len(schema.size()); }
-        
-  
+
+
     BorrowedVRowBlock {
-      schema: schema.clone(), 
-      vectors: vectors, 
+      schema: schema.clone(),
+      vectors: vectors,
       selected: Vec::new(),
       row_num: 0
     }
@@ -61,7 +61,7 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   fn vector(&self, col_id: usize) -> &Vector {
     self.vectors[col_id]
   }
-  
+
   #[inline]
   fn selected(&self) -> &Vec<bool> {
     &self.selected
@@ -71,27 +71,27 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   fn selected_mut(&mut self) -> &mut Vec<bool> {
     &mut self.selected
   }
-  
+
   #[inline]
   fn row_num(&self) -> usize {
     self.row_num
   }
-  
+
   #[inline]
   fn set_row_num(&mut self, row_num: usize) {
     self.row_num = row_num;
   }
 
   #[inline]
-  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1 {      
+  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1 {
     let v : &[INT1] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
     }
-  }  
+  }
 
   #[inline]
-  fn get_int2(&self, row_id: usize, col_id: usize ) -> INT2 {      
+  fn get_int2(&self, row_id: usize, col_id: usize ) -> INT2 {
     let v : &[INT2] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -99,7 +99,7 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_int4(&self, row_id: usize, col_id: usize ) -> INT4 {      
+  fn get_int4(&self, row_id: usize, col_id: usize ) -> INT4 {
     let v : &[INT4] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -107,7 +107,7 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_int8(&self, row_id: usize, col_id: usize ) -> INT8 {      
+  fn get_int8(&self, row_id: usize, col_id: usize ) -> INT8 {
     let v : &[INT8] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -115,7 +115,7 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_float4(&self, row_id: usize, col_id: usize ) -> FLOAT4 {      
+  fn get_float4(&self, row_id: usize, col_id: usize ) -> FLOAT4 {
     let v : &[FLOAT4] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -123,7 +123,7 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_float8(&self, row_id: usize, col_id: usize ) -> FLOAT8 {      
+  fn get_float8(&self, row_id: usize, col_id: usize ) -> FLOAT8 {
     let v : &[FLOAT8] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -131,7 +131,7 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_date(&self, row_id: usize, col_id: usize ) -> DATE {      
+  fn get_date(&self, row_id: usize, col_id: usize ) -> DATE {
     let v : &[DATE] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -139,7 +139,7 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_time(&self, row_id: usize, col_id: usize ) -> TIME {      
+  fn get_time(&self, row_id: usize, col_id: usize ) -> TIME {
     let v : &[TIME] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -147,7 +147,7 @@ impl<'a> RowBlock for BorrowedVRowBlock<'a> {
   }
 
   #[inline]
-  fn get_timestamp(&self, row_id: usize, col_id: usize ) -> TIMESTAMP {      
+  fn get_timestamp(&self, row_id: usize, col_id: usize ) -> TIMESTAMP {
     let v : &[TIMESTAMP] = as_array(self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -174,11 +174,11 @@ pub struct PtrVector {
 impl PtrVector {
   pub fn new(ptr: *mut u8, size: usize, data_type: Ty) -> PtrVector {
     PtrVector {
-      ptr: ptr, 
+      ptr: ptr,
       size: size,
       data_type: data_type
     }
-  }  
+  }
 }
 
 impl Vector for PtrVector {
@@ -205,7 +205,7 @@ impl HasTy for PtrVector {
 }
 
 pub struct HeapVRowBlock {
-  schema: Schema,  
+  schema: Schema,
   type_lengths: Vec<u32>,
   ptr: *mut u8,
   vectors: Vec<PtrVector>,
@@ -218,14 +218,14 @@ impl HeapVRowBlock {
 
   pub fn new(schema: &Schema) -> HeapVRowBlock {
 
-    let mut fixed_area_size: usize = 0;    
+    let mut fixed_area_size: usize = 0;
     let mut type_lengths: Vec<u32> = Vec::new();
 
     for c in schema.columns() {
-      let bytes_len = c.ty.bytes_len();      
+      let bytes_len = c.ty.bytes_len();
       type_lengths.push(bytes_len);
 
-      fixed_area_size += 
+      fixed_area_size +=
         sse::compute_aligned_size(bytes_len as usize * ROWBLOCK_SIZE);
     }
 
@@ -233,29 +233,29 @@ impl HeapVRowBlock {
       heap::allocate(fixed_area_size, sse::ALIGNED_SIZE)
     };
 
-    
+
     let mut vectors: Vec<PtrVector> = Vec::with_capacity(schema.size());
     let mut last_ptr = fixed_area_ptr as usize;
 
-    for x in 0..schema.size() {      
+    for x in 0..schema.size() {
       vectors.push(
         PtrVector::new(last_ptr as *mut u8, ROWBLOCK_SIZE, schema.column(x).ty));
 
-      let vector_size = 
+      let vector_size =
         sse::compute_aligned_size(schema.column(x).ty.bytes_len() as usize * ROWBLOCK_SIZE);
       last_ptr = last_ptr + vector_size;
     }
 
     HeapVRowBlock {
-      schema: schema.clone(), 
-      type_lengths: type_lengths, 
-      ptr: fixed_area_ptr, 
+      schema: schema.clone(),
+      type_lengths: type_lengths,
+      ptr: fixed_area_ptr,
       vectors: vectors,
       selected: Vec::new(),
       row_num: 0,
       arena: Arena::new(ByteSize::kb(4).as_usize())
     }
-  }  
+  }
 }
 
 impl AsRowBlock for HeapVRowBlock {
@@ -268,82 +268,82 @@ impl AsRowBlock for HeapVRowBlock {
 
 impl RowBlockWriter for HeapVRowBlock {
   #[inline]
-  fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1) {      
+  fn put_int1(&mut self, row_id: usize, col_id: usize, value: INT1) {
     let v : &mut [INT1] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
 
   #[inline]
-  fn put_int2(&mut self, row_id: usize, col_id: usize, value: INT2) {      
+  fn put_int2(&mut self, row_id: usize, col_id: usize, value: INT2) {
     let v : &mut [INT2] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
 
     #[inline]
-  fn put_int4(&mut self, row_id: usize, col_id: usize, value: INT4) {      
+  fn put_int4(&mut self, row_id: usize, col_id: usize, value: INT4) {
     let v : &mut [INT4] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
 
   #[inline]
-  fn put_int8(&mut self, row_id: usize, col_id: usize, value: INT8) {      
+  fn put_int8(&mut self, row_id: usize, col_id: usize, value: INT8) {
     let v : &mut [INT8] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
 
     #[inline]
-  fn put_float4(&mut self, row_id: usize, col_id: usize, value: FLOAT4) {      
+  fn put_float4(&mut self, row_id: usize, col_id: usize, value: FLOAT4) {
     let v : &mut [FLOAT4] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
 
     #[inline]
-  fn put_float8(&mut self, row_id: usize, col_id: usize, value: FLOAT8) {      
+  fn put_float8(&mut self, row_id: usize, col_id: usize, value: FLOAT8) {
     let v : &mut [FLOAT8] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
 
     #[inline]
-  fn put_date(&mut self, row_id: usize, col_id: usize, value: DATE) {      
+  fn put_date(&mut self, row_id: usize, col_id: usize, value: DATE) {
     let v : &mut [DATE] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
 
     #[inline]
-  fn put_time(&mut self, row_id: usize, col_id: usize, value: TIME) {      
+  fn put_time(&mut self, row_id: usize, col_id: usize, value: TIME) {
     let v : &mut [TIME] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
 
 
   #[inline]
-  fn put_timestamp(&mut self, row_id: usize, col_id: usize, value: TIMESTAMP) {      
+  fn put_timestamp(&mut self, row_id: usize, col_id: usize, value: TIMESTAMP) {
     let v : &mut [TIMESTAMP] = as_mut_array(&mut self.vectors[col_id]);
     unsafe{
-      (*v.get_unchecked_mut(row_id)) = value;        
+      (*v.get_unchecked_mut(row_id)) = value;
     }
   }
-  
+
   #[inline]
   fn put_text(&mut self, row_id: usize, col_id: usize, value: &TEXT) {
     let v : &mut [TEXT] = as_mut_array(&mut self.vectors[col_id]);
-    
+
     v[row_id].set_ptr(value.as_ptr());
     v[row_id].set_len(value.len());
   }
@@ -384,27 +384,27 @@ impl RowBlock for HeapVRowBlock {
   fn selected_mut(&mut self) -> &mut Vec<bool> {
     &mut self.selected
   }
-  
+
   #[inline]
   fn row_num(&self) -> usize {
     self.row_num
   }
-  
+
   #[inline]
   fn set_row_num(&mut self, row_num: usize) {
     self.row_num = row_num;
   }
 
   #[inline]
-  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1 {      
+  fn get_int1(&self, row_id: usize, col_id: usize ) -> INT1 {
     let v : &[INT1] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
     }
-  }  
+  }
 
   #[inline]
-  fn get_int2(&self, row_id: usize, col_id: usize ) -> INT2 {      
+  fn get_int2(&self, row_id: usize, col_id: usize ) -> INT2 {
     let v : &[INT2] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -412,7 +412,7 @@ impl RowBlock for HeapVRowBlock {
   }
 
   #[inline]
-  fn get_int4(&self, row_id: usize, col_id: usize ) -> INT4 {      
+  fn get_int4(&self, row_id: usize, col_id: usize ) -> INT4 {
     let v : &[INT4] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -420,7 +420,7 @@ impl RowBlock for HeapVRowBlock {
   }
 
   #[inline]
-  fn get_int8(&self, row_id: usize, col_id: usize ) -> INT8 {      
+  fn get_int8(&self, row_id: usize, col_id: usize ) -> INT8 {
     let v : &[INT8] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -428,7 +428,7 @@ impl RowBlock for HeapVRowBlock {
   }
 
   #[inline]
-  fn get_float4(&self, row_id: usize, col_id: usize ) -> FLOAT4 {      
+  fn get_float4(&self, row_id: usize, col_id: usize ) -> FLOAT4 {
     let v : &[FLOAT4] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -436,7 +436,7 @@ impl RowBlock for HeapVRowBlock {
   }
 
   #[inline]
-  fn get_float8(&self, row_id: usize, col_id: usize ) -> FLOAT8 {      
+  fn get_float8(&self, row_id: usize, col_id: usize ) -> FLOAT8 {
     let v : &[FLOAT8] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -444,7 +444,7 @@ impl RowBlock for HeapVRowBlock {
   }
 
   #[inline]
-  fn get_date(&self, row_id: usize, col_id: usize) -> DATE {      
+  fn get_date(&self, row_id: usize, col_id: usize) -> DATE {
     let v : &[DATE] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -452,7 +452,7 @@ impl RowBlock for HeapVRowBlock {
   }
 
   #[inline]
-  fn get_time(&self, row_id: usize, col_id: usize) -> TIME {      
+  fn get_time(&self, row_id: usize, col_id: usize) -> TIME {
     let v : &[TIME] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
@@ -460,14 +460,14 @@ impl RowBlock for HeapVRowBlock {
   }
 
   #[inline]
-  fn get_timestamp(&self, row_id: usize, col_id: usize) -> TIMESTAMP {      
+  fn get_timestamp(&self, row_id: usize, col_id: usize) -> TIMESTAMP {
     let v : &[TIMESTAMP] = as_array(&self.vectors[col_id]);
     unsafe {
       *v.get_unchecked(row_id)
     }
   }
 
-  fn get_text(&self, row_id: usize, col_id: usize) -> &TEXT {    
+  fn get_text(&self, row_id: usize, col_id: usize) -> &TEXT {
     let v : &[TEXT] = as_array(&self.vectors[col_id]);
     unsafe {
       v.get_unchecked(row_id)

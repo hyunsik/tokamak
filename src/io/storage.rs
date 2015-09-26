@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use common::err::*;
-use types::TyKind;
+use common::types::TyKind;
 use exec::Executor;
 use io::stream::*;
 use schema::Schema;
@@ -52,9 +52,9 @@ pub trait TableSpace<'a> {
 
 	fn total_capacity(&self) -> u64;
 
-	fn new_scanner(&self, url: &str, 
-												format_type: &str, 
-												schema: Schema, 
+	fn new_scanner(&self, url: &str,
+												format_type: &str,
+												schema: Schema,
 												target: Option<Schema>) -> TResult<Box<Executor>>;
 
 	fn new_appender(&self, url: &str, format_type: &str) -> TResult<Box<Executor>>;
@@ -79,11 +79,11 @@ impl<'a> TableSpace<'a> for LocalFS {
 		void_ok()
 	}
 
-	fn create_table(&self) -> Void {		
+	fn create_table(&self) -> Void {
 		void_ok()
 	}
 
-	fn drop_table(&self, purge: bool) -> Void {		
+	fn drop_table(&self, purge: bool) -> Void {
 		void_ok()
 	}
 
@@ -99,17 +99,17 @@ impl<'a> TableSpace<'a> for LocalFS {
 		0
 	}
 
-	fn total_capacity(&self) -> u64 {		
+	fn total_capacity(&self) -> u64 {
 		0
 	}
 
-	fn new_scanner(&self, url: &str, 
-												format_type: &str, 
+	fn new_scanner(&self, url: &str,
+												format_type: &str,
 												schema: Schema,
 												target: Option<Schema>) -> TResult<Box<Executor>> {
-		
+
 		let mut fin = Box::new(FileInputStream::new(url.to_owned()));
-		
+
 		match format_type {
 			"TEXT" => Ok(Box::new(DelimTextScanner::new(schema, target, fin, '\n' as u8))),
 			_ => Err(Error::UnsupportedTableFormat)
@@ -148,7 +148,7 @@ impl<'a> TableSpaceMgr<'a> {
 	}
 
 	pub fn new_with_handler(space_handler: fn(uri: Url) -> TResult<Box<TableSpace<'a>>>) -> TableSpaceMgr<'a> {
-		
+
 		let mut url_parser = UrlParser::new();
     url_parser.scheme_type_mapper(hdfs_scheme_handler);
 

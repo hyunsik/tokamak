@@ -1,11 +1,11 @@
-use common::Error;
+use common::err::Error;
 
 /// Field Delimiter Trait
 pub trait FieldSplitterTrait {
   fn parse<'a>(
     &self,
-    line: &'a [u8], 
-    fields: &mut Vec<&'a [u8]>, 
+    line: &'a [u8],
+    fields: &mut Vec<&'a [u8]>,
     fields_num: u32) -> Result<u32, Error>;
 }
 
@@ -16,8 +16,8 @@ pub struct FieldSplitter<R> {
 impl<R: FieldSplitterTrait> FieldSplitter<R> {
   fn parse<'a>(
     &self,
-    line: &'a [u8], 
-    fields: &mut Vec<&'a [u8]>, 
+    line: &'a [u8],
+    fields: &mut Vec<&'a [u8]>,
     fields_num: u32) -> Result<u32, Error> {
 
     self.instance.parse(line, fields, fields_num)
@@ -33,8 +33,8 @@ impl FieldSplitterTrait for SingleCharSplitter {
   /// Return value - the number of parsed fields
   fn parse<'a>(
     &self,
-    line: &'a [u8], 
-    fields: &mut Vec<&'a [u8]>, 
+    line: &'a [u8],
+    fields: &mut Vec<&'a [u8]>,
     fields_num: u32) -> Result<u32, Error> {
 
     let y = self.delim;

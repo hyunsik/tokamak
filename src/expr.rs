@@ -4,13 +4,13 @@
 
 use std::ops::{Add, Sub, Mul, Div, Rem};
 
-use types::*;
+use common::types::*;
 use schema::Column;
 
 /// Datum representation for a single value
 #[derive(Clone)]
 pub enum Datum {
-  Bool(bool),  
+  Bool(bool),
   Int1(i8),
   Int2(i16),
   Int4(i32),
@@ -59,13 +59,13 @@ pub struct FnDecl {
 /// Aggregation Function Declaration
 #[derive(Clone)]
 pub struct AggFnDecl {
-  signature: String 
+  signature: String
 }
 
 /// Window Function Declaration
 #[derive(Clone)]
 pub struct WinFnDecl {
-  signature: String  
+  signature: String
 }
 
 /// Comparison Operator Type
@@ -86,7 +86,7 @@ pub enum ArithmOp {
   Sub,
   Mul,
   Div,
-  Rem,  
+  Rem,
 }
 
 /// Expression Element
@@ -117,10 +117,10 @@ pub enum ExprSpec {
   AggFn(Box<AggFnDecl>, Vec<Box<Expr>>),
   WinFn(Box<WinFnDecl>, Vec<Box<Expr>>),
 
-  // String operators or pattern matching predicates: lhs - pattern, rhs - value  
-  Like(Box<Expr>,Box<Expr>, bool), 
+  // String operators or pattern matching predicates: lhs - pattern, rhs - value
+  Like(Box<Expr>,Box<Expr>, bool),
   SimilarTo(Box<Expr>,Box<Expr>, bool),
-  RegexMatch(Box<Expr>,Box<Expr>, bool),  
+  RegexMatch(Box<Expr>,Box<Expr>, bool),
 
   // Other predicates
   Between(Box<Expr>,Box<Expr>,Box<Expr>), // predicand, begin, end
@@ -128,10 +128,10 @@ pub enum ExprSpec {
 
   // condition
   Case(Vec<Box<Expr>>, Box<Expr>), // multiple conditions, else return value
-  IfThen(Box<Expr>, Box<Expr>), // condition, return value  
+  IfThen(Box<Expr>, Box<Expr>), // condition, return value
 
-  // values  
-  Row(Vec<Box<Expr>>),  
+  // values
+  Row(Vec<Box<Expr>>),
   Field(Column),
   Const(Datum)
 }
@@ -149,7 +149,7 @@ impl Expr {
       ty: ty.clone(),
       node: ExprSpec::Field(Column::new(name, ty.clone()))
     }
-  }  
+  }
 }
 
 impl HasTy for Expr {
@@ -230,14 +230,14 @@ impl AsExpr for Column {
 pub trait Visitor<'v>: Sized {
   fn visit_not(&mut self, child: &'v Expr) {
     walk_expr(self, child);
-  } 
+  }
   fn visit_is_null(&mut self, child: &'v Expr, not: bool) {
     walk_expr(self, child);
   }
   fn visit_sign(&mut self, child: &'v Expr, not: bool) {
     walk_expr(self, child);
   }
-  fn visit_cast(&mut self, expr: &'v Expr, from: &'v Ty, 
+  fn visit_cast(&mut self, expr: &'v Expr, from: &'v Ty,
     to: &'v Ty) {
     walk_expr(self, expr);
   }
@@ -251,7 +251,7 @@ pub trait Visitor<'v>: Sized {
   fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {
     walk_bin_expr(self, lhs, rhs)
   }
-  fn visit_arithm(&mut self, op: &ArithmOp, 
+  fn visit_arithm(&mut self, op: &ArithmOp,
     lhs: &'v Expr, rhs: &'v Expr) {
     walk_bin_expr(self, lhs, rhs)
   }
@@ -304,7 +304,7 @@ pub trait Visitor<'v>: Sized {
   fn visit_if_then(&mut self, ifcond: &'v Expr, result: &'v Expr) {
     walk_expr(self, ifcond);
     walk_expr(self, result);
-  }  
+  }
 
   fn visit_row(&mut self, values: &'v Vec<Box<Expr>>) {
     for ref v in values {
@@ -361,7 +361,7 @@ pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
     ExprSpec::Fn(ref fd, ref args) => {
       visitor.visit_fn(fd, args);
     },
-    
+
     ExprSpec::AggFn(ref fd, ref args) => {
       visitor.visit_aggfn(fd, args);
     },
@@ -400,7 +400,7 @@ pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
     ExprSpec::IfThen(ref ifcond, ref result) => {
       visitor.visit_if_then(ifcond, result)
     },
-    
+
 
     ExprSpec::Row(ref values) => visitor.visit_row(values),
 
@@ -412,8 +412,8 @@ pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
 
 /// Walker for Binary Expr
 #[inline]
-pub fn walk_bin_expr<'v, V: Visitor<'v>>(visitor: &mut V, 
-                                         lhs: &'v Expr, 
+pub fn walk_bin_expr<'v, V: Visitor<'v>>(visitor: &mut V,
+                                         lhs: &'v Expr,
                                          rhs: &'v Expr) {
   walk_expr(visitor, lhs);
   walk_expr(visitor, rhs);

@@ -17,5 +17,8 @@ log = "*"
 url = "*"
 itertools = "0.4.0"
 
+[dependencies.common]
+path = "common"
+
 [dependencies.memutil]
 path = "memutil"

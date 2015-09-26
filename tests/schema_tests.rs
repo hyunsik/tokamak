@@ -1,7 +1,9 @@
 extern crate tajo;
+extern crate common;
 
+use self::common::types::*;
 use tajo::schema::*;
-use tajo::types::*;
+
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();
@@ -39,4 +41,3 @@ fn test_column_id() {
 
   assert!(schema.column_id("err").is_none());
 }
-

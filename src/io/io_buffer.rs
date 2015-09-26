@@ -1,4 +1,4 @@
-use common::Error;
+use common::err::Error;
 
 pub struct ReadBuffer {
   buf: *const u8,
@@ -6,7 +6,7 @@ pub struct ReadBuffer {
 
   /// the end of the scan range
   eosr: bool,
-  /// error 
+  /// error
   err: Option<Error>,
 }
 

@@ -1,4 +1,4 @@
-use common::Error;
+use common::err::Error;
 
 
 enum RequestType {
@@ -31,12 +31,12 @@ impl IoMgr {
 
   fn cancel_context(ctx: &mut RequestContext) {}
 
-  /// Adds the scan ranges to the queue. This call is non-blocking. 
-  /// The caller must not deallocate the scan range pointers before 
+  /// Adds the scan ranges to the queue. This call is non-blocking.
+  /// The caller must not deallocate the scan range pointers before
   /// unregister_context.
-  /// 
-  /// If immediately is true, the range are immediately put 
-  /// on the read queue (i.e., the caller should not/cannot call GetNextRange 
+  ///
+  /// If immediately is true, the range are immediately put
+  /// on the read queue (i.e., the caller should not/cannot call GetNextRange
   /// for these ranges, as in the case for columnar formats.
   fn add_scan_ranges(ctx: &mut RequestContext, immediately: bool) -> Result<bool, Error> {
     Ok(true)
@@ -46,7 +46,7 @@ impl IoMgr {
     Ok(true)
   }
 
-  fn read(ctx: &mut RequestContext) -> Result<bool, Error> {    
+  fn read(ctx: &mut RequestContext) -> Result<bool, Error> {
     Ok(true)
   }
 }

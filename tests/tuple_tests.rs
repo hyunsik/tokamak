@@ -1,12 +1,13 @@
 extern crate tajo;
+extern crate common;
 
 use std::{i8,i16};
 use std::boxed::Box;
 
-use tajo::types::*;
+use self::common::types::*;
+use self::common::str::StrSlice;
 use tajo::schema::*;
 use tajo::rows::*;
-use tajo::util::str::StrSlice;
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();
@@ -39,7 +40,7 @@ pub fn fill_vector_block(rowblock: &mut RowBlockWriter) {
     rowblock.put_date(i, 7, i as i32);
     rowblock.put_time(i, 8, i as i64);
     rowblock.put_timestamp(i, 9, i as i64);
-    
+
     rowblock.put_text(i, 10, &StrSlice::from_str("Rust"));
   }
 }
@@ -62,9 +63,9 @@ fn verify_vector_block(rowblock: &RowBlock) {
 }
 
 #[test]
-fn allocated_vector_init() { 
+fn allocated_vector_init() {
   let schema = make_test_schema();
-  
+
   let mut rowblock = HeapVRowBlock::new(&schema);
   fill_vector_block(&mut rowblock);
   verify_vector_block(&rowblock);
@@ -78,7 +79,7 @@ fn test_rowblock() {
   columns.push(Column::new("c3".to_string(), *FLOAT4_TY));
 
   let schema = Schema::from_vec(columns);
-  let rowblock: Box<RowBlock> = Box::new(BorrowedVRowBlock::new(&schema));  
+  let rowblock: Box<RowBlock> = Box::new(BorrowedVRowBlock::new(&schema));
 
   assert_eq!(rowblock.column_num(), 3);
 }

@@ -5,11 +5,11 @@
 use common::err::{TResult, Void};
 use rows::RowBlock;
 use rows::vector::Vector;
-use types::{HasTy};
+use common::types::{HasTy};
 use schema::{Schema};
 use expr::Expr;
 
-/// Common Trait of All Expression Evaluators  
+/// Common Trait of All Expression Evaluators
 pub trait Eval : HasTy {
   fn bind(&mut self, schema: &Schema) -> Void;
 
@@ -33,7 +33,7 @@ pub trait MapEvalCompiler<'a> {
 
 /// Filter Expression Evaluator Compiler
 pub trait FilterEvalCompiler<'a> {
-  fn compile(expr: &'a Expr) -> TResult<Box<FilterEval>>;   
+  fn compile(expr: &'a Expr) -> TResult<Box<FilterEval>>;
 }
 
 /// Interpreter Compiler for Expressions

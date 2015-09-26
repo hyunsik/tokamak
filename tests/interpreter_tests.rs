@@ -1,15 +1,17 @@
 extern crate tajo;
+extern crate common;
 
 use std::{i8,i16};
 
+use common::types::*;
+use common::str::StrSlice;
 use tajo::schema::*;
 use tajo::expr::ArithmOp;
 use tajo::eval::{Eval, MapEval};
 use tajo::eval::interpreter::*;
 use tajo::rows::*;
 use tajo::rows::vector::as_array;
-use tajo::types::*;
-use tajo::util::str::StrSlice;
+
 
 fn make_test_schema() -> Schema {
   let mut columns = Vec::new();

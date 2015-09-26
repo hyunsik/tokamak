@@ -1,8 +1,8 @@
 use std::fmt;
 use std::mem;
 
-use common::err::TResult;
-use util::str::StrSlice;
+use err::TResult;
+use str::StrSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TyKind {

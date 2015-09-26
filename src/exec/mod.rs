@@ -5,7 +5,7 @@ pub mod text_splitter;
 
 use std::result;
 
-use common::Void;
+use common::err::Void;
 use common::err::TResult;
 use schema::Schema;
 use eval::MapEval;
@@ -28,8 +28,8 @@ pub struct Projection {
 }
 
 impl Projection {
-  pub fn new(in_schema: Schema, 
-             out_schema: Schema, 
+  pub fn new(in_schema: Schema,
+             out_schema: Schema,
              evals: Vec<Box<MapEval>>) -> Projection {
     Projection {
       evals: evals,

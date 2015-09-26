@@ -4,11 +4,11 @@ use std::mem;
 use std::slice;
 use std::ptr;
 
-use common::constant::ROWBLOCK_SIZE;
+use constant::ROWBLOCK_SIZE;
 use expr::Datum;
 use intrinsics::sse;
-use types::*;
-use util::str::StrSlice;
+use common::types::*;
+use common::str::StrSlice;
 
 pub trait Vector : HasTy {
   fn size(&self) -> usize;
@@ -37,7 +37,7 @@ impl<'a> ArrayVector<'a> {
       data_ty: data_ty,
       _marker: marker::PhantomData
     }
-  }  
+  }
 }
 
 impl<'a> Drop for ArrayVector<'a> {
@@ -93,23 +93,23 @@ impl ConstVector {
         Datum::Int8(v) => ptr::write(value.as_ptr() as *mut INT8, v),
         Datum::Float4(v) => ptr::write(value.as_ptr() as *mut FLOAT4, v),
         Datum::Float8(v) => ptr::write(value.as_ptr() as *mut FLOAT8, v),
-        Datum::Time(v) => ptr::write(value.as_ptr() as *mut TIME, v),        
-        Datum::Date(v) => ptr::write(value.as_ptr() as *mut DATE, v),  
-        Datum::Timestamp(v) => ptr::write(value.as_ptr() as *mut TIMESTAMP, v),  
-        // Datum::Interval(v) => ptr::write(value.as_ptr() as *mut INTERVAL_T, v),  
-        // Datum::Char(v) => ptr::write(value.as_ptr() , v),  
+        Datum::Time(v) => ptr::write(value.as_ptr() as *mut TIME, v),
+        Datum::Date(v) => ptr::write(value.as_ptr() as *mut DATE, v),
+        Datum::Timestamp(v) => ptr::write(value.as_ptr() as *mut TIMESTAMP, v),
+        // Datum::Interval(v) => ptr::write(value.as_ptr() as *mut INTERVAL_T, v),
+        // Datum::Char(v) => ptr::write(value.as_ptr() , v),
         Datum::Text(ref v) => {
           let text: TEXT = StrSlice::from_str(v.as_str());
           ptr::write(value.as_ptr() as *mut TEXT, text);
         }
-        // Datum::Varchar(v) => ptr::write(value.as_ptr(), v),  
-        // Datum::Blob(v) => ptr::write(value.as_ptr(), v),  
+        // Datum::Varchar(v) => ptr::write(value.as_ptr(), v),
+        // Datum::Blob(v) => ptr::write(value.as_ptr(), v),
         _ => panic!("not support type")
       }
     }
-    
+
     ConstVector {
-      value: value,      
+      value: value,
       data_ty: datum.data_ty().clone(),
       datum: datum
     }
@@ -153,14 +153,14 @@ pub fn first_value<T>(v: &Vector) -> &T {
 pub fn as_array<T>(v: &Vector) -> &[T] {
   unsafe {
     slice::from_raw_parts(v.as_ptr() as *const T, ROWBLOCK_SIZE)
-  }    
+  }
 }
 
 #[inline]
 pub fn as_mut_array<T>(v: &mut Vector) -> &mut [T] {
   unsafe {
     slice::from_raw_parts_mut(v.as_mut_ptr() as *mut T, ROWBLOCK_SIZE)
-  }    
+  }
 }
 
 /// Return a filled array vector from a list of values

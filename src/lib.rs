@@ -8,14 +8,14 @@
 #![feature(const_fn)]
 extern crate alloc;
 extern crate bytesize;
-extern crate itertools;
+extern crate common;
 #[macro_use]
 extern crate log;
 extern crate libc;
 extern crate memutil;
 extern crate url;
 
-pub mod common;
+pub mod constant;
 pub mod exec;
 pub mod expr;
 pub mod eval;
@@ -25,8 +25,4 @@ pub mod native;
 pub mod plan;
 pub mod schema;
 pub mod task;
-pub mod types;
 pub mod rows;
-pub mod util;
-
-pub mod record_schema;
