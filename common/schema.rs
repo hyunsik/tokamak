@@ -10,21 +10,42 @@ use types::*;
 pub type ColumnId = usize;
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum Field {
-  Scalar (String, Ty),
-  Record (String, Vec<Field>),
-  Array (String, Vec<Field>),
-  Map (String, Ty, Vec<Field>)
+pub struct Field {
+  pub name: String,
+  pub decl: FieldDecl
 }
 
 impl Field {
-  pub fn name(&self) -> &str {
-    match *self {
-      Field::Scalar(ref name, ref ty)              => name,
-      Field::Record(ref name, ref fields)          => name,
-      Field::Array(ref name, ref fields)           => name,
-      Field::Map(ref name, ref key_ty, ref fields) => name
+  pub fn scalar(name: String, ty: Ty) -> Field {
+    Field {
+      name: name,
+      decl: FieldDecl::Scalar(ty)
     }
+  }
+
+  pub fn record(name: String, r: Record) -> Field {
+    Field {
+      name: name,
+      decl: FieldDecl::Record(r)
+    }
+  }
+
+  pub fn array(name: String, decl: FieldDecl) -> Field {
+    Field {
+      name: name,
+      decl: decl
+    }
+  }
+
+  pub fn map(name: String, key_ty: FieldDecl, val_ty: FieldDecl) -> Field {
+    Field {
+      name: name,
+      decl: FieldDecl::Map(Box::new(key_ty), Box::new(val_ty))
+    }
+  }
+
+  pub fn name(&self) -> &str {
+    &self.name
   }
 }
 
@@ -34,6 +55,34 @@ impl fmt::Display for Field {
   }
 }
 
+fn display_field(f: &Field) -> String {
+  format!("{} {}", f.name, f.decl)
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum FieldDecl {
+  Scalar (Ty),
+  Record (Record),
+  Array  (Box<FieldDecl>),
+  Map    (Box<FieldDecl>, Box<FieldDecl>)
+}
+
+impl fmt::Display for FieldDecl {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", display_field_decl(self))
+  }
+}
+
+fn display_field_decl(decl: &FieldDecl) -> String {
+  match *decl {
+    FieldDecl::Scalar(ref ty)         => ty.name().to_owned(),
+    FieldDecl::Record(ref r)          => format!("record ({})", r),
+    FieldDecl::Array (ref vt)         => format!("array<{}>", vt),
+    FieldDecl::Map   (ref kt, ref vt) => format!("map<{},{}>", kt, vt)
+  }
+}
+
+#[derive(Clone, PartialEq, Debug)]
 pub struct Record {
   fields: Vec<Field>
 }
@@ -48,11 +97,11 @@ impl Record {
   }
 
   pub fn find_id(&self, name: &str) -> Option<ColumnId> {
-    self.fields.iter().position(|f| f.name() == name)
+    self.fields.iter().position(|f| f.name == name)
   }
 
   pub fn find_by_name(&self, name : &str) -> Option<&Field> {
-    self.fields.iter().filter(|&f| f.name() == name).next()
+    self.fields.iter().filter(|&f| f.name == name).next()
   }
 
   pub fn iter(&self) -> Iter<Field> {
@@ -70,23 +119,7 @@ impl Index<ColumnId> for Record {
 
 impl fmt::Display for Record {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", display_record(self))
-  }
-}
-
-#[inline]
-pub fn display_record(r: &Record) -> String {
-  display_fields(&r.fields)
-}
-
-fn display_field(f: &Field) -> String {
-  match *f {
-    Field::Scalar(ref name, ref ty)     => format!("{} {}", name, ty),
-    Field::Record(ref name, ref fields) => format!("{} record ({})", name, display_fields(fields)),
-    Field::Array(ref name, ref fields)  => format!("{} array<{}>", name, display_fields(fields)),
-    Field::Map(ref name, ref key_ty, ref fields) => {
-        format!("{} map<{},{}>", name, key_ty, display_fields(fields))
-    }
+    write!(f, "{}", display_fields(&self.fields))
   }
 }
 
@@ -95,7 +128,7 @@ fn display_fields(fields: &Vec<Field>) -> String {
   fields.iter().map(|f| display_field(f)).join(", ")
 }
 
-
+/*
 #[test]
 fn test_creation() {
     let mut fields = Vec::new();
@@ -108,3 +141,4 @@ fn test_creation() {
     let r = Record::new(fields);
     println!("{}", r);
 }
+*/
