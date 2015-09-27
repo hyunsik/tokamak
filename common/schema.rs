@@ -10,16 +10,25 @@ use types::*;
 pub type ColumnId = usize;
 
 #[derive(Clone, PartialEq, Debug)]
+pub struct Constraint {
+  nullable: bool,
+  unique: bool,
+  sorted: bool
+}
+
+#[derive(Clone, PartialEq, Debug)]
 pub struct Field {
   pub name: String,
-  pub decl: FieldDecl
+  pub decl: FieldDecl,
+  pub cstr: Option<Constraint> 
 }
 
 impl Field {
   pub fn new<T: AsRef<str>>(name: T, decl: FieldDecl) -> Field {
     Field {
       name: name.as_ref().to_string(),
-      decl: decl
+      decl: decl,
+      cstr: None,
     }
   }
   
@@ -40,10 +49,7 @@ impl Field {
   }
   
   pub fn record_from_vec<T: AsRef<str>>(name: T, fields: Vec<Field>) -> Field {
-    Field {
-      name: name.as_ref().to_string(),
-      decl: FieldDecl::Record(Record::new(fields))
-    }
+    Field::new(name, FieldDecl::Record(Record::new(fields)))
   }
   
   pub fn name(&self) -> &str {
