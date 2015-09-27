@@ -74,7 +74,7 @@ impl FieldDecl {
     FieldDecl::Scalar(ty)
   }
   
-  pub fn record_from_fields(fields: Vec<Field>) -> FieldDecl {
+  pub fn record_from_vec(fields: Vec<Field>) -> FieldDecl {
     FieldDecl::Record(Record::new(fields))
   }
 }
@@ -154,7 +154,7 @@ fn create_test_schema() -> Record {
         Field::array("col7", FieldDecl::scalar(*INT8_TY)),
       ]
     ),
-    Field::map("col8", FieldDecl::scalar(*INT4_TY), FieldDecl::record_from_fields(
+    Field::map("col8", FieldDecl::scalar(*INT4_TY), FieldDecl::record_from_vec(
       vec![
         Field::scalar("col9",  *TEXT_TY),
         Field::scalar("col10", *TEXT_TY),
