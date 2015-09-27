@@ -166,7 +166,8 @@ fn create_test_schema() -> Record {
 #[test]
 fn test_schema_creation() {
   let schema = create_test_schema();
-  assert_eq!(
-    "col1 int4, col2 record (col3 int4, col4 int4), col5 record (col6 array<int8>, col7 array<int8>), col8 map<int4,record (col9 text, col10 text)>".to_string(), 
-    format!("{}", schema)); 
+  assert_eq!(vec![
+    "col1 int4, col2 record (col3 int4, col4 int4), col5 record (col6 array<int8>, ",
+    "col7 array<int8>), col8 map<int4,record (col9 text, col10 text)>"
+    ].concat(), format!("{}", schema)); 
 }
