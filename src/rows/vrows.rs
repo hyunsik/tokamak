@@ -1,3 +1,5 @@
+use alloc::heap;
+
 use bytesize::ByteSize;
 use common::types::*;
 use constant::ROWBLOCK_SIZE;
@@ -6,10 +8,6 @@ use memory::Arena;
 use schema::Schema;
 use rows::vector::{Vector, as_array, as_mut_array};
 use rows::{AsRowBlock, RowBlock, RowBlockWriter};
-
-use alloc::heap;
-use std::marker;
-use std::slice;
 
 
 pub struct BorrowedVRowBlock<'a> {
