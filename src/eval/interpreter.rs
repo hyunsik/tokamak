@@ -6,8 +6,7 @@ use std::boxed::Box;
 use std::ops;
 use std::fmt::Display;
 
-use constant::ROWBLOCK_SIZE;
-use common::err::{Error, TResult, Void, void_ok};
+use common::err::{Error, Void, void_ok};
 use eval::{Eval, MapEval, FilterEval};
 use eval::primitives::*;
 use expr::*;
@@ -451,7 +450,7 @@ fn get_comp_primitive(op: &CompOp,
 
   assert_eq!(lhs_dty, rhs_dty);
 
-  match (lhs_dty.kind) {
+  match lhs_dty.kind {
     TyKind::Int2      => get_comp_vec_or_const::<INT2>     (op, lhs_const, rhs_const),
     TyKind::Int4      => get_comp_vec_or_const::<INT4>     (op, lhs_const, rhs_const),
     TyKind::Int8      => get_comp_vec_or_const::<INT8>     (op, lhs_const, rhs_const),

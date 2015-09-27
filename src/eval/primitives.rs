@@ -5,7 +5,6 @@ use std::ops;
 use std::fmt::Display;
 
 use constant::ROWBLOCK_SIZE;
-use rows::vector;
 use rows::vector::{as_mut_array, as_array, first_value, Vector};
 use common::types::BOOL;
 

@@ -1,8 +1,4 @@
-use std::cell::UnsafeCell;
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
 
 use common::err::*;
 use common::types::TyKind;
