@@ -9,12 +9,37 @@ use types::*;
 
 pub type ColumnId = usize;
 
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct Constraint {
-  nullable: bool,
-  unique: bool,
-  sorted: bool
+  pub nullable: bool,
+  pub unique: bool,
+  pub sorted: bool
 }
+
+
+pub struct Identifier {
+  pub name: String,
+  pub quoted: bool
+}
+
+impl Identifier {
+  
+  pub fn new<T: AsRef<str>>(name: T) -> Identifier {
+    Identifier {
+      name: name.as_ref().to_string(), 
+      quoted: false
+    }
+  }
+    
+  pub fn new_quoted<T: AsRef<str>>(name: T, quoted: bool) -> Identifier {
+    Identifier {
+      name: name.as_ref().to_string(), 
+      quoted: quoted
+    }
+  }
+}
+
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Field {
@@ -24,6 +49,7 @@ pub struct Field {
 }
 
 impl Field {
+  
   pub fn new<T: AsRef<str>>(name: T, decl: FieldDecl) -> Field {
     Field {
       name: name.as_ref().to_string(),
@@ -52,20 +78,29 @@ impl Field {
     Field::new(name, FieldDecl::Record(Record::new(fields)))
   }
   
+  #[inline]
   pub fn name(&self) -> &str {
     &self.name
   }
 }
 
 impl fmt::Display for Field {
+  
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "{}", display_field(self))
   }
 }
 
+#[inline]
 fn display_field(f: &Field) -> String {
   format!("{} {}", f.name, f.decl)
 }
+
+#[inline]
+fn display_fields(fields: &Vec<Field>) -> String {
+  fields.iter().map(|f| display_field(f)).join(", ")
+}
+
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum FieldDecl {
@@ -76,6 +111,7 @@ pub enum FieldDecl {
 }
 
 impl FieldDecl {
+  
   pub fn scalar(ty: Ty) -> FieldDecl {
     FieldDecl::Scalar(ty)
   }
@@ -99,6 +135,7 @@ fn display_field_decl(decl: &FieldDecl) -> String {
     FieldDecl::Map   (ref kt, ref vt) => format!("map<{},{}>", kt, vt)
   }
 }
+
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Record {
@@ -141,10 +178,6 @@ impl fmt::Display for Record {
   }
 }
 
-#[inline]
-fn display_fields(fields: &Vec<Field>) -> String {
-  fields.iter().map(|f| display_field(f)).join(", ")
-}
 
 #[allow(dead_code)]
 fn create_test_schema() -> Record {
