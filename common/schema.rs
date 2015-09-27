@@ -33,7 +33,7 @@ impl Field {
   pub fn array(name: String, decl: FieldDecl) -> Field {
     Field {
       name: name,
-      decl: decl
+      decl: FieldDecl::Array(Box::new(decl))
     }
   }
 
@@ -65,6 +65,12 @@ pub enum FieldDecl {
   Record (Record),
   Array  (Box<FieldDecl>),
   Map    (Box<FieldDecl>, Box<FieldDecl>)
+}
+
+impl FieldDecl {
+  pub fn from_fields(fields: Vec<Field>) -> FieldDecl {
+    FieldDecl::Record(Record::new(fields))
+  }
 }
 
 impl fmt::Display for FieldDecl {
@@ -128,15 +134,36 @@ fn display_fields(fields: &Vec<Field>) -> String {
   fields.iter().map(|f| display_field(f)).join(", ")
 }
 
-#[test]
-fn test_schema1() {
-    let mut fields = Vec::new();
-    fields.push(Field::scalar("col1".to_owned(), *INT4_TY));
-    fields.push(Field::record("col2".to_owned(), Record::new(vec![
+#[allow(dead_code)]
+fn create_test_schema() -> Record {
+	Record::new(vec![
+    Field::scalar("col1".to_owned(), *INT4_TY),
+    Field::record("col2".to_owned(), Record::new(
+      vec![
         Field::scalar("col3".to_owned(), *INT4_TY),
         Field::scalar("col4".to_owned(), *INT4_TY)
-    ])));
+      ])
+    ),
+    Field::record(
+        "col5".to_owned(), Record::new(
+      vec![
+        Field::array("col6".to_owned(), FieldDecl::Scalar(*INT8_TY)),
+        Field::array("col7".to_owned(), FieldDecl::Scalar(*INT8_TY)),
+      ])
+    ),
+    Field::map("col8".to_owned(), FieldDecl::Scalar(*INT4_TY), FieldDecl::from_fields(
+      vec![
+        Field::scalar("col9".to_owned(), *TEXT_TY),
+        Field::scalar("col10".to_owned(), *TEXT_TY),
+      ])
+    )
+  ])
+}
 
-    let r = Record::new(fields);
-    println!("{}", r);
+#[test]
+fn test_schema_creation() {
+  let schema = create_test_schema();
+  assert_eq!(
+    "col1 int4, col2 record (col3 int4, col4 int4), col5 record (col6 array<int8>, col7 array<int8>), col8 map<int4,record (col9 text, col10 text)>".to_string(), 
+    format!("{}", schema)); 
 }
