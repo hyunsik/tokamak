@@ -12,7 +12,7 @@ extern crate common;
 #[macro_use]
 extern crate log;
 extern crate libc;
-extern crate memutil;
+extern crate memory;
 extern crate url;
 
 pub mod constant;

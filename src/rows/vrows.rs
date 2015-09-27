@@ -2,7 +2,7 @@ use bytesize::ByteSize;
 use common::types::*;
 use constant::ROWBLOCK_SIZE;
 use intrinsics::sse;
-use memutil::Arena;
+use memory::Arena;
 use schema::Schema;
 use rows::vector::{Vector, as_array, as_mut_array};
 use rows::{AsRowBlock, RowBlock, RowBlockWriter};

@@ -1,10 +1,10 @@
 [package]
-name = "memutil"
+name = "memory"
 version = "0.0.1"
 authors = ["Hyunsik Choi <hyunsik.choi@gmail.org>"]
 
 [lib]
-name = "memutil"
+name = "memory"
 path = "lib.rs"
 
 [dependencies]
