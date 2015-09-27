@@ -27,32 +27,28 @@ impl Field {
     Field::new(name, FieldDecl::Scalar(ty))
   }
   
+  pub fn array<T: AsRef<str>>(name: T, decl: FieldDecl) -> Field {
+    Field::new(name, FieldDecl::Array(Box::new(decl)))
+  }
+  
+  pub fn map<T: AsRef<str>>(name: T, key_ty: FieldDecl, val_ty: FieldDecl) -> Field {
+    Field::new(name, FieldDecl::Map(Box::new(key_ty), Box::new(val_ty)))
+  }
+  
+  pub fn record<T: AsRef<str>>(name: T, r: Record) -> Field {
+    Field::new(name, FieldDecl::Record(r))
+  }
+  
+  pub fn record_from_vec<T: AsRef<str>>(name: T, fields: Vec<Field>) -> Field {
+    Field {
+      name: name.as_ref().to_string(),
+      decl: FieldDecl::Record(Record::new(fields))
+    }
+  }
+  
   pub fn name(&self) -> &str {
     &self.name
   }
-}
-
-pub fn array<T: AsRef<str>>(name: T, decl: FieldDecl) -> Field {
-  Field::new(name, FieldDecl::Array(Box::new(decl)))
-}
-
-pub fn scalar_decl(ty: Ty) -> FieldDecl {
-  FieldDecl::Scalar(ty)
-}
-
-pub fn record<T: AsRef<str>>(name: T, r: Record) -> Field {
-  Field::new(name, FieldDecl::Record(r))
-}
-
-pub fn record_from_vec<T: AsRef<str>>(name: T, fields: Vec<Field>) -> Field {
-  Field {
-    name: name.as_ref().to_string(),
-    decl: FieldDecl::Record(Record::new(fields))
-  }
-}
-
-pub fn map<T: AsRef<str>>(name: T, key_ty: FieldDecl, val_ty: FieldDecl) -> Field {
-  Field::new(name, FieldDecl::Map(Box::new(key_ty), Box::new(val_ty)))
 }
 
 impl fmt::Display for Field {
@@ -74,7 +70,11 @@ pub enum FieldDecl {
 }
 
 impl FieldDecl {
-  pub fn from_fields(fields: Vec<Field>) -> FieldDecl {
+  pub fn scalar(ty: Ty) -> FieldDecl {
+    FieldDecl::Scalar(ty)
+  }
+  
+  pub fn record_from_fields(fields: Vec<Field>) -> FieldDecl {
     FieldDecl::Record(Record::new(fields))
   }
 }
@@ -144,18 +144,17 @@ fn display_fields(fields: &Vec<Field>) -> String {
 fn create_test_schema() -> Record {
 	Record::new(vec![
     Field::scalar("col1", *INT4_TY),
-    record_from_vec("col2", vec![
+    Field::record_from_vec("col2", vec![
         Field::scalar("col3", *INT4_TY),
         Field::scalar("col4", *INT4_TY)
       ]
     ),
-    record_from_vec(
-        "col5", vec![
-        array("col6", scalar_decl(*INT8_TY)),
-        array("col7", scalar_decl(*INT8_TY)),
+    Field::record_from_vec("col5", vec![
+        Field::array("col6", FieldDecl::scalar(*INT8_TY)),
+        Field::array("col7", FieldDecl::scalar(*INT8_TY)),
       ]
     ),
-    map("col8", scalar_decl(*INT4_TY), FieldDecl::from_fields(
+    Field::map("col8", FieldDecl::scalar(*INT4_TY), FieldDecl::record_from_fields(
       vec![
         Field::scalar("col9",  *TEXT_TY),
         Field::scalar("col10", *TEXT_TY),
