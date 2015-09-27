@@ -128,17 +128,15 @@ fn display_fields(fields: &Vec<Field>) -> String {
   fields.iter().map(|f| display_field(f)).join(", ")
 }
 
-/*
 #[test]
-fn test_creation() {
+fn test_schema1() {
     let mut fields = Vec::new();
-    fields.push(Field::Scalar("col1".to_owned(), *INT4_TY));
-    fields.push(Field::Record("col2".to_owned(), vec![
-        Field::Scalar("col3".to_owned(), *INT4_TY),
-        Field::Scalar("col4".to_owned(), *INT4_TY)
-    ]));
+    fields.push(Field::scalar("col1".to_owned(), *INT4_TY));
+    fields.push(Field::record("col2".to_owned(), Record::new(vec![
+        Field::scalar("col3".to_owned(), *INT4_TY),
+        Field::scalar("col4".to_owned(), *INT4_TY)
+    ])));
 
     let r = Record::new(fields);
     println!("{}", r);
 }
-*/

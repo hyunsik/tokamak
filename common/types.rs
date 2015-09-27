@@ -1,7 +1,6 @@
 use std::fmt;
 use std::mem;
 
-use err::TResult;
 use str::StrSlice;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
