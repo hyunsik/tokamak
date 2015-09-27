@@ -1,7 +1,11 @@
 [package]
 name = "memutil"
 version = "0.0.1"
-authors = ["Hyunsik Choi <hyunsik@apache.org>"]
+authors = ["Hyunsik Choi <hyunsik.choi@gmail.org>"]
+
+[lib]
+name = "memutil"
+path = "lib.rs"
 
 [dependencies]
 bytesize = "0.0.1"
