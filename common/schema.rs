@@ -18,7 +18,7 @@ pub struct Constraint
   pub sorted: bool
 }
 
-
+#[derive(Clone, PartialEq, Debug)]
 pub struct Identifier 
 {
   pub name: String,
@@ -42,55 +42,70 @@ impl Identifier
       quoted: quoted
     }
   }
+  
+  pub fn as_str(&self) -> &str { &self.name }
+}
+
+#[inline]
+pub fn name<T: AsRef<str>>(name: T) -> Identifier { Identifier::new(name.as_ref()) }
+
+impl fmt::Display for Identifier 
+{
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result 
+  {
+    write!(f, "{}", self.name)
+  }
 }
 
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Field 
 {
-  pub name: String,
+  pub name: Identifier,
   pub decl: FieldDecl,
   pub cstr: Option<Constraint> 
 }
 
 impl Field 
 {
-  pub fn new<T: AsRef<str>>(name: T, decl: FieldDecl) -> Field 
+  pub fn new(name: Identifier, decl: FieldDecl) -> Field 
   {
     Field {
-      name: name.as_ref().to_string(),
+      name: name,
       decl: decl,
       cstr: None,
     }
   }
   
-  pub fn scalar<T: AsRef<str>>(name: T, ty: Ty) -> Field 
+  pub fn scalar(name: Identifier, ty: Ty) -> Field 
   {
     Field::new(name, FieldDecl::Scalar(ty))
   }
   
-  pub fn array<T: AsRef<str>>(name: T, decl: FieldDecl) -> Field 
+  pub fn array(name: Identifier, decl: FieldDecl) -> Field 
   {
     Field::new(name, FieldDecl::Array(Box::new(decl)))
   }
   
-  pub fn map<T: AsRef<str>>(name: T, key_ty: FieldDecl, val_ty: FieldDecl) -> Field 
+  pub fn map(name: Identifier, key_ty: FieldDecl, val_ty: FieldDecl) -> Field 
   {
     Field::new(name, FieldDecl::Map(Box::new(key_ty), Box::new(val_ty)))
   }
   
-  pub fn record<T: AsRef<str>>(name: T, r: Record) -> Field 
+  pub fn record(name: Identifier, r: Record) -> Field 
   {
     Field::new(name, FieldDecl::Record(r))
   }
   
-  pub fn record_from_vec<T: AsRef<str>>(name: T, fields: Vec<Field>) -> Field 
+  pub fn record_from_vec(name: Identifier, fields: Vec<Field>) -> Field 
   {
     Field::new(name, FieldDecl::Record(Record::new(fields)))
   }
   
   #[inline]
-  pub fn name(&self) -> &str { &self.name }
+  pub fn name(&self) -> &str { &self.name.as_str() }
+  
+  pub fn identifier(&self) -> &Identifier { &self.name }
 }
 
 
@@ -161,12 +176,12 @@ impl Record
 
   pub fn find_id(&self, name: &str) -> Option<ColumnId> 
   {
-    self.fields.iter().position(|f| f.name == name)
+    self.fields.iter().position(|f| f.name() == name)
   }
 
   pub fn find_by_name(&self, name : &str) -> Option<&Field> 
   {
-    self.fields.iter().filter(|&f| f.name == name).next()
+    self.fields.iter().filter(|&f| f.name() == name).next()
   }
 
   pub fn iter(&self) -> Iter<Field> 
@@ -198,21 +213,21 @@ impl fmt::Display for Record
 fn create_test_schema() -> Record 
 {
 	Record::new(vec![
-    Field::scalar("col1", *INT4_TY),
-    Field::record_from_vec("col2", vec![
-        Field::scalar("col3", *INT4_TY),
-        Field::scalar("col4", *INT4_TY)
+    Field::scalar(name("col1"), *INT4_TY),
+    Field::record_from_vec(name("col2"), vec![
+        Field::scalar(name("col3"), *INT4_TY),
+        Field::scalar(name("col4"), *INT4_TY)
       ]
     ),
-    Field::record_from_vec("col5", vec![
-        Field::array("col6", FieldDecl::scalar(*INT8_TY)),
-        Field::array("col7", FieldDecl::scalar(*INT8_TY)),
+    Field::record_from_vec(name("col5"), vec![
+        Field::array(name("col6"), FieldDecl::scalar(*INT8_TY)),
+        Field::array(name("col7"), FieldDecl::scalar(*INT8_TY)),
       ]
     ),
-    Field::map("col8", FieldDecl::scalar(*INT4_TY), FieldDecl::record_from_vec(
+    Field::map(name("col8"), FieldDecl::scalar(*INT4_TY), FieldDecl::record_from_vec(
       vec![
-        Field::scalar("col9",  *TEXT_TY),
-        Field::scalar("col10", *TEXT_TY),
+        Field::scalar(name("col9"),  *TEXT_TY),
+        Field::scalar(name("col10"), *TEXT_TY),
       ])
     )
   ])
