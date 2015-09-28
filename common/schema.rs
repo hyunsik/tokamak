@@ -1,5 +1,4 @@
 use std::fmt;
-use std::ops::Index;
 use std::slice::Iter;
 use std::vec::Vec;
 
@@ -169,6 +168,12 @@ impl Schema
 
   pub fn size(&self) -> usize { self.fields.len() }
 
+  pub fn field<'a>(&'a self, id: ColumnId) -> &'a Field
+  {
+    debug_assert!(id < self.fields.len(), "Field index is out of range");
+    &self.fields[id]
+  }
+
   pub fn find_id(&self, name: &str) -> Option<ColumnId> 
   {
     self.fields.iter().position(|f| f.name() == name)
@@ -182,16 +187,6 @@ impl Schema
   pub fn iter(&self) -> Iter<Field> 
   {
     self.fields.iter()
-  }
-}
-
-impl Index<ColumnId> for Schema 
-{
-  type Output = Field;
-  fn index<'a>(&'a self, id: ColumnId) -> &'a Field 
-  {
-    debug_assert!(id < self.fields.len(), "Field index is out of range");
-    &self.fields[id]
   }
 }
 
