@@ -57,7 +57,6 @@ impl fmt::Display for Identifier
   }
 }
 
-
 #[derive(Clone, PartialEq, Debug)]
 pub struct Field 
 {
@@ -92,14 +91,9 @@ impl Field
     Field::new(name, FieldDecl::Map(Box::new(key_ty), Box::new(val_ty)))
   }
   
-  pub fn record(name: Identifier, r: Record) -> Field 
+  pub fn record(name: Identifier, fields: Vec<Field>) -> Field 
   {
-    Field::new(name, FieldDecl::Record(r))
-  }
-  
-  pub fn record_from_vec(name: Identifier, fields: Vec<Field>) -> Field 
-  {
-    Field::new(name, FieldDecl::Record(Record::new(fields)))
+    Field::new(name, FieldDecl::Record(fields))
   }
   
   #[inline]
@@ -131,7 +125,7 @@ fn display_fields(fields: &Vec<Field>) -> String
 pub enum FieldDecl 
 {
   Scalar (Ty),
-  Record (Record),
+  Record (Vec<Field>),
   Array  (Box<FieldDecl>),
   Map    (Box<FieldDecl>, Box<FieldDecl>)
 }
@@ -140,9 +134,9 @@ impl FieldDecl
 {
   pub fn scalar(ty: Ty) -> FieldDecl { FieldDecl::Scalar(ty) }
   
-  pub fn record_from_vec(fields: Vec<Field>) -> FieldDecl 
+  pub fn record(fields: Vec<Field>) -> FieldDecl 
   { 
-    FieldDecl::Record(Record::new(fields))
+    FieldDecl::Record(fields)
   }
 }
 
@@ -158,19 +152,20 @@ fn display_field_decl(decl: &FieldDecl) -> String
 {
   match *decl {
     FieldDecl::Scalar(ref ty)         => ty.name().to_owned(),
-    FieldDecl::Record(ref r)          => format!("record ({})", r),
+    FieldDecl::Record(ref fields)     => format!("record ({})", display_fields(fields)),
     FieldDecl::Array (ref vt)         => format!("array<{}>", vt),
     FieldDecl::Map   (ref kt, ref vt) => format!("map<{},{}>", kt, vt)
   }
 }
 
 
+/// Root schema
 #[derive(Clone, PartialEq, Debug)]
-pub struct Record { fields: Vec<Field> }
+pub struct Schema { fields: Vec<Field> }
 
-impl Record 
+impl Schema 
 {
-  pub fn new(fields: Vec<Field>) -> Record { Record {fields: fields} }
+  pub fn new(fields: Vec<Field>) -> Schema { Schema {fields: fields} }
 
   pub fn size(&self) -> usize { self.fields.len() }
 
@@ -190,7 +185,7 @@ impl Record
   }
 }
 
-impl Index<ColumnId> for Record 
+impl Index<ColumnId> for Schema 
 {
   type Output = Field;
   fn index<'a>(&'a self, id: ColumnId) -> &'a Field 
@@ -200,7 +195,7 @@ impl Index<ColumnId> for Record
   }
 }
 
-impl fmt::Display for Record 
+impl fmt::Display for Schema 
 {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result 
   {
@@ -210,21 +205,21 @@ impl fmt::Display for Record
 
 
 #[allow(dead_code)]
-fn create_test_schema() -> Record 
+fn create_test_schema() -> Schema 
 {
-	Record::new(vec![
+	Schema::new(vec![
     Field::scalar(name("col1"), *INT4_TY),
-    Field::record_from_vec(name("col2"), vec![
+    Field::record(name("col2"), vec![
         Field::scalar(name("col3"), *INT4_TY),
         Field::scalar(name("col4"), *INT4_TY)
       ]
     ),
-    Field::record_from_vec(name("col5"), vec![
+    Field::record(name("col5"), vec![
         Field::array(name("col6"), FieldDecl::scalar(*INT8_TY)),
         Field::array(name("col7"), FieldDecl::scalar(*INT8_TY)),
       ]
     ),
-    Field::map(name("col8"), FieldDecl::scalar(*INT4_TY), FieldDecl::record_from_vec(
+    Field::map(name("col8"), FieldDecl::scalar(*INT4_TY), FieldDecl::record(
       vec![
         Field::scalar(name("col9"),  *TEXT_TY),
         Field::scalar(name("col10"), *TEXT_TY),
