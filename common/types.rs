@@ -1,10 +1,14 @@
 use std::fmt;
 use std::mem;
 
+use itertools::Itertools;
+
 use str::StrSlice;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum TyKind {
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum Ty 
+{
   Bool,
   Int1,
   Int2,
@@ -12,47 +16,92 @@ pub enum TyKind {
   Int8,
   Float4,
   Float8,
+  Numeric(u8, Option<u8>), // precision (1~38), scale (0 <= scale <= precision)
   Date,
   Time,
+  Timez,
   Timestamp,
+  Timestampz,
   Interval,
-  Char,
-  Varchar,
-  Text,
-  Blob
+  Char(u8),                // its maximum length is 127
+  Binary(u8),              // its maximum length is 127
+  Clob,
+  Blob,
+  Array(Box<Ty>),
+  Struct(Vec<Ty>),
+  Map(Box<Ty>, Box<Ty>)
 }
 
-pub trait HasTy {
-  fn data_ty(&self) -> &Ty;
+impl Ty 
+{
+  pub fn size_of(&self) -> u32 {
+    match *self {
+      Ty::Bool                  => 1,
+      Ty::Int1                  => 1,
+      Ty::Int2                  => 2,
+      Ty::Int4                  => 4,
+      Ty::Int8                  => 8,
+      Ty::Float4                => 4,
+      Ty::Float8                => 8,
+      Ty::Numeric(ref p, ref s) => panic!("numeric is not supported yet"),
+      Ty::Date                  => 4,
+      Ty::Time                  => 8,
+      Ty::Timez                 => 12,
+      Ty::Timestamp             => 8,
+      Ty::Timestampz            => 12,
+      Ty::Interval              => 12,
+      Ty::Char(len)             => len as u32,
+      Ty::Binary(len)           => len as u32,
+      Ty::Clob                  => mem::size_of::<TEXT>() as u32,
+      Ty::Blob                  => mem::size_of::<TEXT>() as u32,
+      Ty::Array(ref ty)         => panic!("array is not supported yet"),
+      Ty::Struct(ref tys)       => panic!("array is not supported yet"),
+      Ty::Map(ref kt, ref vt)   => panic!("map is not supported yet"),
+    }
+  }
+  
+  pub fn is_variable(&self) -> bool {
+    match *self {
+      Ty::Char(len) | Ty::Binary(len) => true,
+      _ => false
+    }
+  }
 }
 
-pub const BOOL_TY     : &'static Ty = &Ty::new(TyKind::Bool);
-pub const INT1_TY     : &'static Ty = &Ty::new(TyKind::Int1);
-pub const INT2_TY     : &'static Ty = &Ty::new(TyKind::Int2);
-pub const INT4_TY     : &'static Ty = &Ty::new(TyKind::Int4);
-pub const INT8_TY     : &'static Ty = &Ty::new(TyKind::Int8);
-pub const FLOAT4_TY   : &'static Ty = &Ty::new(TyKind::Float4);
-pub const FLOAT8_TY   : &'static Ty = &Ty::new(TyKind::Float8);
-pub const DATE_TY     : &'static Ty = &Ty::new(TyKind::Date);
-pub const TIME_TY     : &'static Ty = &Ty::new(TyKind::Time);
-pub const TIMESTAMP_TY: &'static Ty = &Ty::new(TyKind::Timestamp);
-pub const INTERVAL_TY : &'static Ty = &Ty::new(TyKind::Interval);
-pub const TEXT_TY     : &'static Ty = &Ty::new(TyKind::Text);
-pub const CHAR_TY     : &'static Ty = &Ty::new_vartype(TyKind::Char, 255);
-
-pub const BOOL_STR     : &'static str = "bool";
-pub const INT1_STR     : &'static str = "int1";
-pub const INT2_STR     : &'static str = "int2";
-pub const INT4_STR     : &'static str = "int4";
-pub const INT8_STR     : &'static str = "int8";
-pub const FLOAT4_STR   : &'static str = "float4";
-pub const FLOAT8_STR   : &'static str = "float8";
-pub const DATE_STR     : &'static str = "date";
-pub const TIME_STR     : &'static str = "time";
-pub const TIMESTAMP_STR: &'static str = "timestamp";
-pub const INTERVAL_STR : &'static str = "interval";
-pub const TEXT_STR     : &'static str = "text";
-pub const CHAR_STR     : &'static str = "char";
+impl fmt::Display for Ty {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    match *self {
+      Ty::Bool                    => write!(f, "bool"),
+      Ty::Int1                    => write!(f, "int1"),
+      Ty::Int2                    => write!(f, "int2"),
+      Ty::Int4                    => write!(f, "int4"),
+      Ty::Int8                    => write!(f, "int8"),
+      Ty::Float4                  => write!(f, "float4"),
+      Ty::Float8                  => write!(f, "float8"),
+      Ty::Numeric(ref p,ref s)    => {
+        match *s {
+          Some(ref scale) => write!(f, "numeric ({}, {})", p, scale),
+          None            => write!(f, "numeric ({})", p) 
+        }
+      }
+      Ty::Date                    => write!(f, "date"),
+      Ty::Time                    => write!(f, "time"),
+      Ty::Timez                   => write!(f, "time with timezone"),
+      Ty::Timestamp               => write!(f, "timestamp"),
+      Ty::Timestampz              => write!(f, "timeztamp with timezone"),
+      Ty::Interval                => write!(f, "interval"),
+      Ty::Char(ref len)           => write!(f, "char({})", len),
+      Ty::Binary(ref len)         => write!(f, "binary({})", len),
+      Ty::Clob                    => write!(f, "clob"),
+      Ty::Blob                    => write!(f, "blob"),
+      Ty::Array(ref ty)           => write!(f, "array<{}>", ty),
+      Ty::Struct(ref tys)         => {
+        write!(f, "struct({})", tys.iter().map(|f| format!("{}", f)).join(", "))
+      },        
+      Ty::Map (ref kty, ref vty)  => write!(f, "map<{},{}>", kty, vty)
+    }
+  }
+}
 
 #[allow(non_camel_case_types)]
 pub type BOOL      = bool;
@@ -75,223 +124,160 @@ pub type TIME      = i64;
 #[allow(non_camel_case_types)]
 pub type TIMESTAMP = i64;
 #[allow(non_camel_case_types)]
-pub type TEXT      = StrSlice;
+pub type TEXT      = StrSlice;  
 
-/// Data Domain for each field
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Ty {
-  pub kind : TyKind,
-  pub len : u32, // for CHAR, VARCHAR
-  pub precision : u8, // for numeric or decimal
-  pub scale : u8 // for numeric or decimal
-}
-
-impl Ty {
-  pub const fn new (kind : TyKind) -> Ty {
-    Ty {kind: kind, len : 0, precision: 0, scale: 0}
-  }
-
-  pub const fn new_vartype(kind : TyKind, len: u32) -> Ty {
-    Ty {kind: kind, len : len, precision: 0, scale: 0}
-  }
-
-  pub fn kind(&self) -> TyKind {
-    self.kind
-  }
-
-  pub fn bytes_len(&self) -> u32 {
-    Ty::size_of(self)
-  }
-
-  #[inline(always)]
-  pub fn size_of(data_type: &Ty) -> u32 {
-    match data_type.kind {
-      TyKind::Bool      => 1,
-      TyKind::Int1      => 1,
-      TyKind::Int2      => 2,
-      TyKind::Int4      => 4,
-      TyKind::Int8      => 8,
-      TyKind::Float4    => 4,
-      TyKind::Float8    => 8,
-      TyKind::Date      => 4,
-      TyKind::Time      => 8,
-      TyKind::Timestamp => 8,
-      TyKind::Interval  => 12,
-      TyKind::Char      => data_type.len,
-      TyKind::Text      => mem::size_of::<TEXT>() as u32,
-      TyKind::Varchar | TyKind::Blob => 12,
-    }
-  }
-
-  pub fn has_length(data_type: &Ty) -> bool {
-    match data_type.kind {
-      TyKind::Char | TyKind::Varchar | TyKind::Blob => true,
-      _ => false
-    }
-  }
-
-  pub fn is_variable(data_type: &Ty) -> bool {
-    match data_type.kind {
-      TyKind::Varchar | TyKind::Blob => true,
-      _ => false
-    }
-  }
-
-  pub fn name(&self) -> &'static str {
-    match self.kind {
-      TyKind::Bool      => BOOL_STR,
-      TyKind::Int1      => INT1_STR,
-      TyKind::Int2      => INT2_STR,
-      TyKind::Int4      => INT4_STR,
-      TyKind::Int8      => INT8_STR,
-      TyKind::Float4    => FLOAT4_STR,
-      TyKind::Float8    => FLOAT8_STR,
-      TyKind::Time      => TIME_STR,
-      TyKind::Date      => DATE_STR,
-      TyKind::Timestamp => TIMESTAMP_STR,
-      TyKind::Interval  => INTERVAL_STR,
-      TyKind::Text      => TEXT_STR,
-      TyKind::Char      => CHAR_STR,
-      _                 => panic!("Unsupported type")
-    }
-  }
-}
-
-impl HasTy for Ty {
-  #[inline]
-  fn data_ty(&self) -> &Ty {
-    &self
-  }
-}
-
-impl fmt::Display for Ty {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", self.name())
-  }
-}
 
 /// Determine a result data type from two expression data types.
-pub fn result_data_ty(&lhs_ty: &Ty, &rhs_ty: &Ty) -> Ty {
-  match lhs_ty.kind() {
-
-    TyKind::Bool => {
-      match rhs_ty.kind() {
-        TyKind::Bool => rhs_ty.clone(),
+pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
+  match *lhs_ty {
+    Ty::Bool => {
+      match *rhs_ty {
+        Ty::Bool => rhs_ty.clone(),
         _ => panic!("Undefined Operator")
       }
     },
 
 
-    TyKind::Int1 => {
-      match rhs_ty.kind() {
-        TyKind::Int1   |
-        TyKind::Int2   |
-        TyKind::Int4   |
-        TyKind::Int8   |
-        TyKind::Float4 |
-        TyKind::Float8 => rhs_ty.clone(),
+    Ty::Int1 => {
+      match *rhs_ty {
+        Ty::Int1   |
+        Ty::Int2   |
+        Ty::Int4   |
+        Ty::Int8   |
+        Ty::Float4 |
+        Ty::Float8 => rhs_ty.clone(),
         _ => panic!("Undefined Operator")
       }
     },
 
-    TyKind::Int2 => {
-      match rhs_ty.kind() {
-        TyKind::Int2   |
-        TyKind::Int4   |
-        TyKind::Int8   |
-        TyKind::Float4 |
-        TyKind::Float8 => rhs_ty.clone(),
+    Ty::Int2 => {
+      match *rhs_ty {
+        Ty::Int2   |
+        Ty::Int4   |
+        Ty::Int8   |
+        Ty::Float4 |
+        Ty::Float8 => rhs_ty.clone(),
 
-        TyKind::Int1   => lhs_ty.clone(),
+        Ty::Int1   => lhs_ty.clone(),
         _ => panic!("Undefined Operator")
       }
     },
 
-    TyKind::Int4 => {
-      match rhs_ty.kind() {
-        TyKind::Int4   |
-        TyKind::Int8   |
-        TyKind::Float4 |
-        TyKind::Float8 => rhs_ty.clone(),
+    Ty::Int4 => {
+      match *rhs_ty {
+        Ty::Int4   |
+        Ty::Int8   |
+        Ty::Float4 |
+        Ty::Float8 => rhs_ty.clone(),
 
-        TyKind::Int1 |
-        TyKind::Int2 => lhs_ty.clone(),
-
-        _ => panic!("Undefined Operator")
-      }
-    },
-
-    TyKind::Int8 => {
-      match rhs_ty.kind() {
-        TyKind::Int8   |
-        TyKind::Float4 |
-        TyKind::Float8 => rhs_ty.clone(),
-
-        TyKind::Int1 |
-        TyKind::Int2 |
-        TyKind::Int4 => lhs_ty.clone(),
+        Ty::Int1 |
+        Ty::Int2 => lhs_ty.clone(),
 
         _ => panic!("Undefined Operator")
       }
     },
 
-    TyKind::Float4 => {
-      match rhs_ty.kind() {
-        TyKind::Float4 |
-        TyKind::Float8 => rhs_ty.clone(),
+    Ty::Int8 => {
+      match *rhs_ty {
+        Ty::Int8   |
+        Ty::Float4 |
+        Ty::Float8 => rhs_ty.clone(),
 
-        TyKind::Int1 |
-        TyKind::Int2 |
-        TyKind::Int4 |
-        TyKind::Int8 => lhs_ty.clone(),
-
-        _ => panic!("Undefined Operator")
-      }
-    },
-
-    TyKind::Float8 => {
-      match rhs_ty.kind() {
-        TyKind::Float8 => rhs_ty.clone(),
-
-        TyKind::Int1   |
-        TyKind::Int2   |
-        TyKind::Int4   |
-        TyKind::Int8   |
-        TyKind::Float4 => lhs_ty.clone(),
+        Ty::Int1 |
+        Ty::Int2 |
+        Ty::Int4 => lhs_ty.clone(),
 
         _ => panic!("Undefined Operator")
       }
     },
 
-    TyKind::Time => {
+    Ty::Float4 => {
+      match *rhs_ty {
+        Ty::Float4 |
+        Ty::Float8 => rhs_ty.clone(),
+
+        Ty::Int1 |
+        Ty::Int2 |
+        Ty::Int4 |
+        Ty::Int8 => lhs_ty.clone(),
+
+        _ => panic!("Undefined Operator")
+      }
+    },
+
+    Ty::Float8 => {
+      match *rhs_ty {
+        Ty::Float8 => rhs_ty.clone(),
+
+        Ty::Int1   |
+        Ty::Int2   |
+        Ty::Int4   |
+        Ty::Int8   |
+        Ty::Float4 => lhs_ty.clone(),
+
+        _ => panic!("Undefined Operator")
+      }
+    },
+    
+    Ty::Numeric(ref p, ref s) => {
+      panic!("Undefined operator")
+    },
+
+    Ty::Date => {
+      panic!("Undefined Operator")
+    },
+    
+    Ty::Time => {
+      panic!("Undefined Operator")
+    },
+    
+    Ty::Timez => {
       panic!("Undefined Operator")
     },
 
-    TyKind::Date => {
+    Ty::Timestamp => {
+      panic!("Undefined Operator")
+    },
+    
+    Ty::Timestampz => {
       panic!("Undefined Operator")
     },
 
-    TyKind::Timestamp => {
+    Ty::Interval => {
       panic!("Undefined Operator")
     },
 
-    TyKind::Interval => {
+    Ty::Char(ref len) => {
+      panic!("Undefined Operator")
+    },
+    
+    Ty::Binary(ref len) => {
       panic!("Undefined Operator")
     },
 
-    TyKind::Char | TyKind::Varchar => {
-      panic!("Undefined Operator")
-    },
-
-    TyKind::Text => {
-      match rhs_ty.kind() {
-        TyKind::Text => rhs_ty.clone(),
-
+    Ty::Clob => {
+      match *rhs_ty {
+        Ty::Clob => rhs_ty.clone(),
         _ => panic!("Undefined Operator")
       }
     },
-
-    TyKind::Blob => {
+    
+    Ty::Blob => {
+      match *rhs_ty {
+        Ty::Blob => rhs_ty.clone(),
+        _ => panic!("Undefined Operator")
+      }
+    },
+    
+    Ty::Array(ref ty) => {
+      panic!("Undefined Operator")
+    }
+    
+    Ty::Struct(ref tys) => {
+      panic!("Undefined Operator")
+    },
+    
+    Ty::Map(ref kty, ref vty) => {
       panic!("Undefined Operator")
     }
   }

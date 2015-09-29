@@ -8,7 +8,7 @@ use types::*;
 
 pub type ColumnId = usize;
 
-
+/*
 #[derive(Clone, PartialEq, Debug)]
 pub struct Constraint 
 {
@@ -232,3 +232,4 @@ fn test_schema_creation()
     "col7 array<int8>), col8 map<int4,record (col9 text, col10 text)>"
     ].concat(), format!("{}", schema)); 
 }
+*/
