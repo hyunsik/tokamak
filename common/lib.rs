@@ -10,4 +10,6 @@ extern crate libc;
 pub mod err;
 pub mod str;
 pub mod schema;
+pub mod mm;
 pub mod types;
+pub mod rows;

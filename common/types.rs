@@ -3,7 +3,60 @@ use std::mem;
 
 use itertools::Itertools;
 
+use rows::{Page, MiniPage, FMiniPage};
 use str::StrSlice;
+
+// globally unique id
+#[derive(Clone, PartialEq, Debug)]
+pub struct TypeId {
+  name: &'static str
+}  
+
+pub trait HashFn<T> {
+  fn hash(v: &MiniPage, keys: &mut [T]);
+}
+
+pub trait HashFnFactory
+{
+  fn hash32_fn() -> Box<FnMut(i32, &mut [i32])>;
+  fn create_hash32_block() -> Box<Fn() -> Box<MiniPage>>;
+}
+
+pub trait Type 
+{
+  fn type_id           (&self) -> &TypeId;
+  fn display_name      (&self) -> &str;
+  fn is_comparable     (&self) -> bool;
+  fn is_orderable      (&self) -> bool;
+  fn type_params       (&self) -> Vec<&Type>;
+  //fn hash32_fn         (&self) -> Box<FnMut(&MiniPage, &mut [u32])>;
+  fn create_minipage   (&self) -> Box<MiniPage>;
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct Int4Type;
+
+pub static INT4: TypeId = TypeId {name: "int4"};
+
+impl Type for Int4Type {
+  #[inline]
+  fn type_id(&self) -> &TypeId { &INT4 }
+  #[inline]
+  fn display_name(&self) -> &str { &INT4.name }
+  #[inline]
+  fn is_comparable(&self) -> bool { true }
+  #[inline]
+  fn is_orderable(&self) -> bool { true }
+  #[inline]
+  fn type_params(&self) -> Vec<&Type> { Vec::new() }
+//  #[inline]
+//  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
+  #[inline]
+  fn create_minipage (&self) -> Box<MiniPage> {
+    Box::new(FMiniPage::new(Box::new(Int4Type)))
+  }
+}
+
 
 
 #[derive(Clone, PartialEq, Debug)]
@@ -34,6 +87,7 @@ pub enum Ty
 
 impl Ty 
 {
+  #[allow(unused_variables)]
   pub fn size_of(&self) -> u32 {
     match *self {
       Ty::Bool                  => 1,
@@ -60,6 +114,7 @@ impl Ty
     }
   }
   
+  #[allow(unused_variables)]
   pub fn is_variable(&self) -> bool {
     match *self {
       Ty::Char(len) | Ty::Binary(len) => true,
@@ -128,6 +183,7 @@ pub type TEXT      = StrSlice;
 
 
 /// Determine a result data type from two expression data types.
+#[allow(unused_variables)]
 pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
   match *lhs_ty {
     Ty::Bool => {
