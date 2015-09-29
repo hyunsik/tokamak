@@ -36,6 +36,13 @@ impl TypeRegistry
         .collect::<BTreeMap<TypeId, Box<Type>>>()    
     }
   }
+  
+  fn default() -> TypeRegistry {
+    let standard_types = vec![
+      
+    ];
+    TypeRegistry::new(standard_types)
+  }
 }
 
 impl TypeManager for TypeRegistry {
