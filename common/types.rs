@@ -3,7 +3,7 @@ use std::mem;
 
 use itertools::Itertools;
 
-use rows::MiniPage;
+use rows::Vector;
 use str::StrSlice;
 
 // globally unique id
@@ -19,13 +19,13 @@ pub trait TypeManager
 }
 
 pub trait HashFn<T> {
-  fn hash(v: &MiniPage, keys: &mut [T]);
+  fn hash(v: &Vector, keys: &mut [T]);
 }
 
 pub trait HashFnFactory
 {
   fn hash32_fn() -> Box<FnMut(i32, &mut [i32])>;
-  fn create_hash32_block() -> Box<Fn() -> Box<MiniPage>>;
+  fn create_hash32_block() -> Box<Fn() -> Box<Vector>>;
 }
 
 pub trait Type 
@@ -35,8 +35,8 @@ pub trait Type
   fn is_comparable     (&self) -> bool;
   fn is_orderable      (&self) -> bool;
   fn type_params       (&self) -> Vec<&Type>;
-  //fn hash32_fn         (&self) -> Box<FnMut(&MiniPage, &mut [u32])>;
-  fn create_minipage   (&self) -> Box<MiniPage>;
+  //fn hash32_fn         (&self) -> Box<FnMut(&Vector, &mut [u32])>;
+  fn create_vector     (&self) -> Box<Vector>;
 }
 
 

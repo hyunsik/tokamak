@@ -21,7 +21,7 @@ pub fn compute_aligned_size(size: usize) -> usize {
 }  
 
 pub trait PageBuilder {
-  fn get_minipage(&self, cid: ColumnId) -> &MiniPage;
+  fn get_Vector(&self, cid: ColumnId) -> &Vector;
   fn build(&mut self) -> &mut Page;
 }
 
@@ -36,9 +36,9 @@ impl DefaultPageBuilder
     let mini_pages = types
       .iter()
       .map(|ty| {
-        ty.create_minipage()
+        ty.create_vector()
       })
-      .collect::<Vec<Box<MiniPage>>>();
+      .collect::<Vec<Box<Vector>>>();
     
     DefaultPageBuilder {
       page: Page { mini_pages: mini_pages }
@@ -47,7 +47,7 @@ impl DefaultPageBuilder
 }
 
 impl PageBuilder for DefaultPageBuilder {
-  fn get_minipage(&self, cid: ColumnId) -> &MiniPage {
+  fn get_Vector(&self, cid: ColumnId) -> &Vector {
     &*self.page.mini_pages[cid as usize]
   }
   
@@ -57,30 +57,30 @@ impl PageBuilder for DefaultPageBuilder {
 }
 
 pub struct Page {
-  mini_pages: Vec<Box<MiniPage>> 
+  mini_pages: Vec<Box<Vector>> 
 }
 
 impl Page {
   fn column_num(&self) -> u32 { self.mini_pages.len() as u32 }
 }
 
-pub trait MiniPage {
+pub trait Vector {
   fn size_in_bytes(&self) -> u32;
 }
 
-pub struct FMiniPage<'a> {
+pub struct FixedLenVector<'a> {
   ptr: *mut u8,
   len: u32,
   _marker: marker::PhantomData<&'a ()>  
 }
 
-impl<'a> FMiniPage<'a> {
-  pub fn new(ty: Box<Type>) -> FMiniPage<'a> {
+impl<'a> FixedLenVector<'a> {
+  pub fn new(ty: Box<Type>) -> FixedLenVector<'a> {
     let alloc_size = compute_aligned_size(4 as usize * 1024);
 
     let ptr = unsafe { heap::allocate(alloc_size, 16) };
 
-    FMiniPage {
+    FixedLenVector {
       ptr: ptr,
       len: alloc_size as u32,
       _marker: marker::PhantomData
@@ -88,7 +88,7 @@ impl<'a> FMiniPage<'a> {
   }
 }
 
-impl<'a> Drop for FMiniPage<'a> {
+impl<'a> Drop for FixedLenVector<'a> {
   fn drop(&mut self) {
     unsafe {
       heap::deallocate(self.ptr as *mut u8, self.len as usize, 16);
@@ -96,7 +96,7 @@ impl<'a> Drop for FMiniPage<'a> {
   }
 }
 
-impl<'a> MiniPage for FMiniPage<'a> {
+impl<'a> Vector for FixedLenVector<'a> {
   fn size_in_bytes(&self) -> u32 {
     self.len
   }
