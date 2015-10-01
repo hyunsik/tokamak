@@ -3,11 +3,9 @@ use std::io;
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 pub enum Error {
-  Unknown,
-
   InternalError,
   Notimplemented,
-  FeatureNotSupported,
+  UnsupportedFeature,
   InvalidRpcCall,
   
   UndefinedTablespace,
@@ -42,7 +40,7 @@ pub const fn void_ok() -> Void {
 impl From<io::Error> for Error {
   fn from(e: io::Error) -> Error {
     match e {
-      _ => Error::Unknown
+      _ => Error::InternalError
     }
   }
 }

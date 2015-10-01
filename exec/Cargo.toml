@@ -1,0 +1,17 @@
+[package]
+name = "exec"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "exec"
+path = "lib.rs"
+
+[dependencies]
+itertools = "0.4.0"
+
+[dependencies.common]
+path = "../common"
+
+[dependencies.storage]
+path = "../storage"

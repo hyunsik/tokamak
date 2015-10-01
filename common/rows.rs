@@ -4,9 +4,11 @@
 use alloc::heap;
 use std::marker;
 
-use types::{Type, Int4Type};
+use types::Type;
 
 pub static ALIGNED_SIZE: usize = 16;
+
+pub type ColumnId = u16;
 
 pub fn compute_aligned_size(size: usize) -> usize { 
   let remain = size % ALIGNED_SIZE;
@@ -19,25 +21,47 @@ pub fn compute_aligned_size(size: usize) -> usize {
 }  
 
 pub trait PageBuilder {
-  fn create(&self, types: &Vec<Box<Type>>) -> Page;
+  fn get_minipage(&self, cid: ColumnId) -> &MiniPage;
+  fn build(&mut self) -> &mut Page;
 }
 
-pub struct DefaultPageBuilder;
+pub struct DefaultPageBuilder {
+  page : Page   
+}
+
+impl DefaultPageBuilder 
+{
+  pub fn new(types: &Vec<Box<Type>>) -> DefaultPageBuilder {
+    
+    let mini_pages = types
+      .iter()
+      .map(|ty| {
+        ty.create_minipage()
+      })
+      .collect::<Vec<Box<MiniPage>>>();
+    
+    DefaultPageBuilder {
+      page: Page { mini_pages: mini_pages }
+    }
+  }
+}
 
 impl PageBuilder for DefaultPageBuilder {
-  fn create(&self, types: &Vec<Box<Type>>) -> Page {
-    Page {
-      pages: types.iter().map(|ty| ty.create_minipage()).collect::<Vec<Box<MiniPage>>>()
-    }  
+  fn get_minipage(&self, cid: ColumnId) -> &MiniPage {
+    &*self.page.mini_pages[cid as usize]
+  }
+  
+  fn build(&mut self) -> &mut Page {
+    &mut self.page    
   }
 }
 
 pub struct Page {
-  pages: Vec<Box<MiniPage>> 
+  mini_pages: Vec<Box<MiniPage>> 
 }
 
 impl Page {
-  fn column_num(&self) -> u32 { self.pages.len() as u32 }
+  fn column_num(&self) -> u32 { self.mini_pages.len() as u32 }
 }
 
 pub trait MiniPage {
@@ -76,13 +100,4 @@ impl<'a> MiniPage for FMiniPage<'a> {
   fn size_in_bytes(&self) -> u32 {
     self.len
   }
-}
-
-#[test]
-pub fn test_int4() {
-  let page_builder: Box<PageBuilder> = Box::new(DefaultPageBuilder);
-  let page = page_builder.create(&vec![
-    Box::new(Int4Type)
-  ]);
-  println!("{}", page.column_num());
 }
