@@ -6,7 +6,8 @@ use std::marker;
 
 use types::Type;
 
-pub static ALIGNED_SIZE: usize = 16;
+pub static ALIGNED_SIZE : usize = 16;
+pub static ROWBATCH_SIZE: usize = 1024; 
 
 pub type ColumnId = u16;
 
@@ -68,36 +69,161 @@ pub trait Vector {
   fn size_in_bytes(&self) -> u32;
 }
 
+pub trait VectorBuilder {
+  fn write_i8(&mut self, v: i8);
+  
+  fn write_i16(&mut self, v: i16);
+  
+  fn write_i32(&mut self, v: i32);
+  
+  fn write_i64(&mut self, v: i64);
+  
+  fn write_f32(&mut self, v: f32);
+  
+  fn write_f64(&mut self, v: f64);
+  
+  fn write_bytes(&mut self, v: &[u8]);
+  
+  fn reset(&mut self);
+  
+  fn build(&mut self) -> &Vector;
+}
+
 pub struct FixedLenVector<'a> {
   ptr: *mut u8,
-  len: u32,
+  size: u32,
   _marker: marker::PhantomData<&'a ()>  
 }
 
 impl<'a> FixedLenVector<'a> {
-  pub fn new(ty: Box<Type>) -> FixedLenVector<'a> {
-    let alloc_size = compute_aligned_size(4 as usize * 1024);
+  pub fn new(fixed_len: usize) -> FixedLenVector<'a> {
+    let alloc_size = compute_aligned_size(fixed_len * ROWBATCH_SIZE);
 
     let ptr = unsafe { heap::allocate(alloc_size, 16) };
 
     FixedLenVector {
       ptr: ptr,
-      len: alloc_size as u32,
+      size: alloc_size as u32,
       _marker: marker::PhantomData
     }
+  }
+  
+  #[inline]
+  pub fn as_ptr(&self) -> *const u8 {
+    self.ptr
+  }
+  
+  #[inline]
+  pub fn as_mut_ptr(&mut self) -> *mut u8 {
+    self.ptr
   }
 }
 
 impl<'a> Drop for FixedLenVector<'a> {
   fn drop(&mut self) {
     unsafe {
-      heap::deallocate(self.ptr as *mut u8, self.len as usize, 16);
+      heap::deallocate(self.ptr as *mut u8, self.size as usize, 16);
     }
   }
 }
 
 impl<'a> Vector for FixedLenVector<'a> {
   fn size_in_bytes(&self) -> u32 {
-    self.len
+    self.size
+  }
+}
+
+pub struct FixedLenVectorBuilder<'a> {
+  fixed_len: usize,
+  pos : usize,
+  vector: FixedLenVector<'a>    
+}
+
+impl<'a> FixedLenVectorBuilder<'a> 
+{
+  fn new(fixed_len: usize) -> FixedLenVectorBuilder<'a> {
+    
+    FixedLenVectorBuilder {
+      fixed_len: fixed_len,
+      pos: 0,
+      vector: FixedLenVector::new(fixed_len)
+    }
+  }
+}
+
+use std::slice;
+
+#[inline]
+fn as_array<'a, T>(v: &FixedLenVector<'a>) -> &'a [T] {
+  unsafe {
+    slice::from_raw_parts(v.as_ptr() as *const T, 1024)
+  }
+}
+
+#[inline]
+pub fn as_mut_array<'a, T>(v: &mut FixedLenVector<'a>) -> &'a mut [T] {
+  unsafe {
+    slice::from_raw_parts_mut(v.as_mut_ptr() as *mut T, 1024)
+  }
+}
+
+#[inline]
+fn write_fixed_value<T>(vec: &mut FixedLenVector, pos: usize, val: T) {
+  unsafe {
+    let array: &mut [T] = slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut T, 1024);
+    (*array.get_unchecked_mut(pos)) = val;
+  }
+}
+
+impl<'a> VectorBuilder for FixedLenVectorBuilder<'a> 
+{
+  #[inline]
+  fn write_i8(&mut self, v: i8) {
+    write_fixed_value(&mut self.vector, self.pos, v);
+    self.pos = self.pos + 1;
+  }
+  
+  #[inline]
+  fn write_i16(&mut self, v: i16) {
+    write_fixed_value(&mut self.vector, self.pos, v);
+    self.pos = self.pos + 1;
+  }
+  
+  #[inline]
+  fn write_i32(&mut self, v: i32) {
+    write_fixed_value(&mut self.vector, self.pos, v);
+    self.pos = self.pos + 1;
+  }
+  
+  #[inline]
+  fn write_i64(&mut self, v: i64) {
+    write_fixed_value(&mut self.vector, self.pos, v);
+    self.pos = self.pos + 1;
+  }
+  
+  #[inline]
+  fn write_f32(&mut self, v: f32) {
+    write_fixed_value(&mut self.vector, self.pos, v);
+    self.pos = self.pos + 1;
+  }
+
+  #[inline]  
+  fn write_f64(&mut self, v: f64) {
+    write_fixed_value(&mut self.vector, self.pos, v);
+    self.pos = self.pos + 1;
+  }
+  
+  #[inline]
+  fn write_bytes(&mut self, v: &[u8]) {
+  }
+  
+  #[inline]
+  fn reset(&mut self) {
+    self.pos = 0;
+  }
+  
+  #[inline]
+  fn build(&mut self) -> &Vector {
+    &self.vector
   }
 }
