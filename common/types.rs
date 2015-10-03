@@ -3,7 +3,7 @@ use std::mem;
 
 use itertools::Itertools;
 
-use rows::{Vector};
+use rows::{MiniPage, MiniPageWriter};
 use str::StrSlice;
 
 // globally unique id
@@ -26,13 +26,13 @@ pub trait TypeManager
 }
 
 pub trait HashFn<T> {
-  fn hash(v: &Vector, keys: &mut [T]);
+  fn hash(v: &MiniPage, keys: &mut [T]);
 }
 
 pub trait HashFnFactory
 {
   fn hash32_fn() -> Box<FnMut(i32, &mut [i32])>;
-  fn create_hash32_block() -> Box<Fn() -> Box<Vector>>;
+  fn create_batch_hash32_fn() -> Box<Fn() -> Box<MiniPage>>;
 }
 
 pub trait Type 
@@ -43,9 +43,12 @@ pub trait Type
   fn is_orderable           (&self) -> bool;
   fn type_params            (&self) -> Vec<&Type>;
   //fn hash32_fn            (&self) -> Box<FnMut(&Vector, &mut [u32])>;
-  // fn create_vector_builder  (&self) -> Box<VectorWriter>;
+  fn handler_factory        (&self) -> Box<TypeHandlerFactory>;
 }
 
+pub trait TypeHandlerFactory {
+  fn create_minipage_writer(&self) -> Box<MiniPageWriter>;
+}
 
 /*
 

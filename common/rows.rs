@@ -21,7 +21,7 @@ use alloc::heap;
 use std::marker;
 use std::slice;
 
-use types::Type;
+use types::{Type, TypeHandlerFactory};
 use platform::{CACHE_LINE_SIZE, get_aligned_size};
 
 /// Each executor and operator process a batch of rows at a time for better throughput.
@@ -34,27 +34,26 @@ pub type ColumnId = usize;
 /// Type for row position
 pub type RowId = usize;
 
-pub struct VTupleBatch 
+pub struct Page 
 {
-  vectors: Vec<Box<Vector>>,   // vectors
-  len : RowId,                 // number of rows 
-  selected: Option<Vec<RowId>> // selection positions
+  mini_pages: Vec<Box<MiniPage>>
 }
 
-impl VTupleBatch 
+impl Page 
 {
-  fn vector(&self, cid: ColumnId) -> &Vector 
+  #[inline]
+  fn minipage_num(&self) -> usize { self.mini_pages.len() }
+  
+  #[inline]
+  fn minipage(&self, id: usize) -> &MiniPage 
   {
-    debug_assert!(cid < self.width()); 
-    &*self.vectors[cid] 
+    debug_assert!(id < self.minipage_num());
+     
+    &*self.mini_pages[id] 
   }
-  
-  fn width(&self) -> usize { self.vectors.len() }
-  
-  fn len(&self) -> usize { self.len }
 }
 
-pub trait Vector 
+pub trait MiniPage 
 {
   fn bytesize(&self) -> u32;
   
@@ -74,7 +73,7 @@ pub trait Vector
 /// Writer for Vector. The writer internally must have a cursor to write a value.
 /// For each write, the cursor must move forward the cursor.   
 /// You must call finalize() before reading any value from the Vector.  
-pub trait VectorWriter {
+pub trait MiniPageWriter {
   fn write_i8(&mut self, v: i8);
   
   fn write_i16(&mut self, v: i16);
@@ -94,36 +93,30 @@ pub trait VectorWriter {
   fn finalize(&mut self);
 }
 
-struct VTupleBatchBuilder {
- 
-}
-
-/*
-pub struct PageBuilder {
-  batch: VTupleBatch    
+struct PageBuilder {
+  writers: Vec<Box<MiniPageWriter>>
 }
 
 impl PageBuilder 
 {
   pub fn new(types: &Vec<Box<Type>>) -> PageBuilder {
     
-    let vectors = types
+    let writers = types
       .iter()
       .map(|ty| {
-        ty.create_vector()
+        ty.handler_factory()   
       })
-      .collect::<Vec<Box<Vector>>>();
+      .map(|f| {
+        f.create_minipage_writer()
+      })
+      .collect::<Vec<Box<MiniPageWriter>>>();
     
     PageBuilder {
-      batch: VTupleBatch { 
-        vectors : vectors,
-        len     : 0,
-        selected: None
-      }
+      writers: writers
     }
   }
 }
-
+/*
 impl PageBuilder {
   fn writer(&self, cid: ColumnId) -> &VectorWriter {
     &*self.page.vectors[cid as usize].writer()
