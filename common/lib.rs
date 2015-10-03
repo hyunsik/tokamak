@@ -12,4 +12,5 @@ pub mod str;
 pub mod schema;
 pub mod mm;
 pub mod types;
+pub mod platform;
 pub mod rows;

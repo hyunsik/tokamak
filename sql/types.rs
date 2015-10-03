@@ -1,5 +1,8 @@
+use std::mem;
+
 use common::types::{Type, TypeId};
-use common::rows::{MiniPage, FMiniPage};
+use common::rows::{Vector, FixedLenVector};
+use common::str::{StrSlice};
 
 const BOOL_STR       : &'static str = "bool";
 const INT1_STR       : &'static str = "int1";
@@ -20,33 +23,68 @@ const BINARY_STR     : &'static str = "binary";
 const CLOB_STR       : &'static str = "clob";
 const BLOB_STR       : &'static str = "blob";
 
-pub static BOOL:       TypeId = TypeId {name: BOOL_STR};
-pub static INT1:       TypeId = TypeId {name: INT1_STR};
-pub static INT2:       TypeId = TypeId {name: INT2_STR};
-pub static INT4:       TypeId = TypeId {name: INT4_STR};
-pub static INT8:       TypeId = TypeId {name: INT8_STR};
-pub static FLOAT4:     TypeId = TypeId {name: FLOAT4_STR};
-pub static FLOAT8:     TypeId = TypeId {name: FLOAT8_STR};
-pub static NUMERIC:    TypeId = TypeId {name: NUMERIC_STR};
-pub static DATE:       TypeId = TypeId {name: DATE_STR};
-pub static TIME:       TypeId = TypeId {name: TIME_STR};
-pub static TIMEZ:      TypeId = TypeId {name: TIMEZ_STR};
-pub static TIMESTAMP:  TypeId = TypeId {name: TIMESTAMP_STR};
-pub static TIMESTAMPZ: TypeId = TypeId {name: TIMESTAMPZ_STR};
-pub static INTERVAL:   TypeId = TypeId {name: INTERVAL_STR};
-pub static CHAR:       TypeId = TypeId {name: CHAR_STR};
-pub static BINARY:     TypeId = TypeId {name: BINARY_STR};
-pub static CLOB:       TypeId = TypeId {name: CLOB_STR};
-pub static BLOB:       TypeId = TypeId {name: BLOB_STR};
+//pub const BOOL:       TypeId = TypeId {base: String::from(BOOL_STR)};
+//pub const INT1:       TypeId = TypeId {base: INT1_STR.to_string()};
+//pub const INT2:       TypeId = TypeId {base: INT2_STR.to_string()};
+//pub const INT4:       TypeId = TypeId {base: INT4_STR.to_string()};
+//pub const INT8:       TypeId = TypeId {base: INT8_STR.to_string()};
+//pub const FLOAT4:     TypeId = TypeId {base: FLOAT4_STR.to_string()};
+//pub const FLOAT8:     TypeId = TypeId {base: FLOAT8_STR.to_string()};
+//pub const NUMERIC:    TypeId = TypeId {base: NUMERIC_STR.to_string()};
+//pub const DATE:       TypeId = TypeId {base: DATE_STR.to_string()};
+//pub const TIME:       TypeId = TypeId {base: TIME_STR.to_string()};
+//pub const TIMEZ:      TypeId = TypeId {base: TIMEZ_STR.to_string()};
+//pub const TIMESTAMP:  TypeId = TypeId {base: TIMESTAMP_STR.to_string()};
+//pub const TIMESTAMPZ: TypeId = TypeId {base: TIMESTAMPZ_STR.to_string()};
+//pub const INTERVAL:   TypeId = TypeId {base: INTERVAL_STR.to_string()};
+//pub const CHAR:       TypeId = TypeId {base: CHAR_STR.to_string()};
+//pub const BINARY:     TypeId = TypeId {base: BINARY_STR.to_string()};
+//pub const CLOB:       TypeId = TypeId {base: CLOB_STR.to_string()};
+//pub const BLOB:       TypeId = TypeId {base: BLOB_STR.to_string()};
+
+#[allow(non_camel_case_types)]
+pub type BOOL_T      = bool;
+#[allow(non_camel_case_types)]
+pub type INT1_T      = i8;
+#[allow(non_camel_case_types)]
+pub type INT2_T      = i16;
+#[allow(non_camel_case_types)]
+pub type INT4_T      = i32;
+#[allow(non_camel_case_types)]
+pub type INT8_T      = i64;
+#[allow(non_camel_case_types)]
+pub type FLOAT4_T    = f32;
+#[allow(non_camel_case_types)]
+pub type FLOAT8_T    = f64;
+#[allow(non_camel_case_types)]
+pub type DATE_T      = i32;
+#[allow(non_camel_case_types)]
+pub type TIME_T      = i64;
+#[allow(non_camel_case_types)]
+pub type TIMESTAMP_T = i64;
+#[allow(non_camel_case_types)]
+pub type TEXT_T      = StrSlice;  
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct Int4Type;
+pub struct Int4 {
+  id: TypeId
+}
 
-impl Type for Int4Type {
+impl Int4 {
+  pub fn new() -> Int4 {
+    Int4 {
+      id: TypeId {
+        base: String::from(INT4_STR)
+      }
+    }
+  } 
+}
+
+impl Type for Int4 {
   #[inline]
-  fn id(&self) -> &TypeId { &INT4 }
+  fn id(&self) -> &TypeId { &self.id }
   #[inline]
-  fn display_name(&self) -> &str { &INT4.name }
+  fn display_name(&self) -> &str { &self.id.base }
   #[inline]
   fn is_comparable(&self) -> bool { true }
   #[inline]
@@ -56,19 +94,31 @@ impl Type for Int4Type {
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn create_minipage (&self) -> Box<MiniPage> {
-    Box::new(FMiniPage::new(Box::new(Int4Type)))
+  fn create_vector (&self) -> Box<Vector> {
+    Box::new(FixedLenVector::new(mem::size_of::<INT4_T>()))
   }
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct Float4Type;
+pub struct Float4 {
+  id: TypeId
+}
 
-impl Type for Float4Type {
+impl Int4 {
+  pub fn new() -> Int4 {
+    Int4 {
+      id: TypeId {
+        base: String::from(FLOAT4_STR)
+      }
+    }
+  }
+}
+
+impl Type for Float4 {
   #[inline]
-  fn id(&self) -> &TypeId { &FLOAT4 }
+  fn id(&self) -> &TypeId { &self.id }
   #[inline]
-  fn display_name(&self) -> &str { &FLOAT4.name }
+  fn display_name(&self) -> &str { &self.id.base }
   #[inline]
   fn is_comparable(&self) -> bool { true }
   #[inline]
@@ -78,8 +128,8 @@ impl Type for Float4Type {
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn create_minipage (&self) -> Box<MiniPage> {
-    Box::new(FMiniPage::new(Box::new(Int4Type)))
+  fn create_vector (&self) -> Box<Vector> {
+    Box::new(FixedLenVector::new(mem::size_of::<FLOAT4_T>()))
   }
 }
 

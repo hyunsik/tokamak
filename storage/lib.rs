@@ -1,4 +1,6 @@
 extern crate common;
+extern crate rand;
+extern crate sql;
 
 use common::err::{Void, TResult};
 use common::rows::Page;

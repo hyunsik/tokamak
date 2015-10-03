@@ -3,13 +3,20 @@ use std::mem;
 
 use itertools::Itertools;
 
-use rows::Vector;
+use rows::{Vector};
 use str::StrSlice;
 
 // globally unique id
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TypeId {
-  pub name: &'static str
+  pub base: String
+}
+
+impl TypeId {
+  #[inline]
+  pub fn base(&self) -> &str {
+    &self.base
+  }
 }
 
 pub trait TypeManager 
@@ -30,17 +37,17 @@ pub trait HashFnFactory
 
 pub trait Type 
 {
-  fn id                (&self) -> &TypeId;
-  fn display_name      (&self) -> &str;
-  fn is_comparable     (&self) -> bool;
-  fn is_orderable      (&self) -> bool;
-  fn type_params       (&self) -> Vec<&Type>;
-  //fn hash32_fn         (&self) -> Box<FnMut(&Vector, &mut [u32])>;
-  fn create_vector     (&self) -> Box<Vector>;
+  fn id                     (&self) -> &TypeId;
+  fn display_name           (&self) -> &str;
+  fn is_comparable          (&self) -> bool;
+  fn is_orderable           (&self) -> bool;
+  fn type_params            (&self) -> Vec<&Type>;
+  //fn hash32_fn            (&self) -> Box<FnMut(&Vector, &mut [u32])>;
+  // fn create_vector_builder  (&self) -> Box<VectorWriter>;
 }
 
 
-
+/*
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Ty 
@@ -140,30 +147,6 @@ impl fmt::Display for Ty {
     }
   }
 }
-
-#[allow(non_camel_case_types)]
-pub type BOOL      = bool;
-#[allow(non_camel_case_types)]
-pub type INT1      = i8;
-#[allow(non_camel_case_types)]
-pub type INT2      = i16;
-#[allow(non_camel_case_types)]
-pub type INT4      = i32;
-#[allow(non_camel_case_types)]
-pub type INT8      = i64;
-#[allow(non_camel_case_types)]
-pub type FLOAT4    = f32;
-#[allow(non_camel_case_types)]
-pub type FLOAT8    = f64;
-#[allow(non_camel_case_types)]
-pub type DATE      = i32;
-#[allow(non_camel_case_types)]
-pub type TIME      = i64;
-#[allow(non_camel_case_types)]
-pub type TIMESTAMP = i64;
-#[allow(non_camel_case_types)]
-pub type TEXT      = StrSlice;  
-
 
 /// Determine a result data type from two expression data types.
 #[allow(unused_variables)]
@@ -321,3 +304,4 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
     }
   }
 }
+*/
