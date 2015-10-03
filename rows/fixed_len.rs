@@ -1,19 +1,44 @@
-pub struct FixedLenVector<'a> {
-  ptr: *mut u8,
-  size: u32,     // allocated size
-  _marker: marker::PhantomData<&'a ()>  
+/// FMiniPage is a MiniPage implementation for fixed-length values.
+/// FMiniPage uses a fixed-width dense array, so it is good for cache hits 
+/// and allows SIMD operations.
+
+use alloc::heap;
+use std::marker;
+use std::slice;
+use std::rc::Rc;
+use std::cell::RefCell;
+
+use common::platform::get_aligned_size;
+
+use common::rows::{
+  MiniPage,
+  MiniPageWriter,
+  PageId,
+  PosId,
+  ROWBATCH_SIZE
+};
+
+pub struct FMiniPage<'a> 
+{
+  ptr      : *mut u8,
+  pub bytesize : u32,     // allocated memory size
+  writer: FMiniPageWriter,
+  
+  _marker: marker::PhantomData<&'a ()>,  
 }
 
-impl<'a> FixedLenVector<'a> {
-  pub fn new(fixed_len: usize) -> FixedLenVector<'a> {
-    let alloc_size = compute_aligned_size(fixed_len * ROWBATCH_SIZE);
+impl<'a> FMiniPage<'a> 
+{
+  pub fn new(fixed_len: usize) -> FMiniPage<'a> 
+  {
+    let required_size = get_aligned_size(fixed_len * ROWBATCH_SIZE);
+    let ptr = unsafe { heap::allocate(required_size, 16) };
 
-    let ptr = unsafe { heap::allocate(alloc_size, 16) };
-
-    FixedLenVector {
+    FMiniPage {
       ptr: ptr,
-      size: alloc_size as u32,
-      _marker: marker::PhantomData
+      bytesize: required_size as u32,
+      writer: FMiniPageWriter {ptr: ptr, len: required_size, pos: 0},
+      _marker: marker::PhantomData,
     }
   }
   
@@ -28,16 +53,16 @@ impl<'a> FixedLenVector<'a> {
   }
 }
 
-impl<'a> Drop for FixedLenVector<'a> {
+impl<'a> Drop for FMiniPage<'a> {
   fn drop(&mut self) {
     unsafe {
-      heap::deallocate(self.ptr as *mut u8, self.size as usize, 16);
+      heap::deallocate(self.ptr as *mut u8, self.bytesize as usize, 16);
     }
   }
 }
 
 #[inline]
-fn read_fixed_len_value<T>(ptr: *const u8, pos: RowId) -> T where T: Copy {
+fn read_fixed_len_value<T>(ptr: *const u8, pos: PosId) -> T where T: Copy {
   debug_assert!(pos < ROWBATCH_SIZE);
   unsafe {
     let array: &[T] = slice::from_raw_parts(ptr as *const T, 1024);
@@ -45,98 +70,93 @@ fn read_fixed_len_value<T>(ptr: *const u8, pos: RowId) -> T where T: Copy {
   }
 }
 
-impl<'a> Vector for FixedLenVector<'a> {
-  fn size_in_bytes(&self) -> u32 {
-    self.size
+impl<'a> MiniPage for FMiniPage<'a> {
+  #[inline]
+  fn bytesize(&self) -> u32 {
+    self.bytesize
   }
   
-  fn read_i8(&self, pos: RowId) -> i8 {
+  fn read_i8(&self, pos: PosId) -> i8 {
     read_fixed_len_value(self.ptr, pos)
   }
   
-  fn read_i16(&self, pos: RowId) -> i16 {
+  fn read_i16(&self, pos: PosId) -> i16 {
     read_fixed_len_value(self.ptr, pos)
   }
   
-  fn read_i32(&self, pos: RowId) -> i32 {
+  fn read_i32(&self, pos: PosId) -> i32 {
     read_fixed_len_value(self.ptr, pos)
   }
   
-  fn read_i64(&self, pos: RowId) -> i64 {
+  fn read_i64(&self, pos: PosId) -> i64 {
     read_fixed_len_value(self.ptr, pos)
   }
   
-  fn read_f32(&self, pos: RowId) -> f32 {
+  fn read_f32(&self, pos: PosId) -> f32 {
     read_fixed_len_value(self.ptr, pos)
   }
   
-  fn read_f64(&self, pos: RowId) -> f64 {
+  fn read_f64(&self, pos: PosId) -> f64 {
     read_fixed_len_value(self.ptr, pos)
+  }
+  
+  fn writer(&mut self) -> &MiniPageWriter 
+  {
+    &self.writer
   }
 }
 
-pub struct FixedLenVectorBuilder<'a> {
-  fixed_len: usize,
-  pos : RowId,
-  vector: FixedLenVector<'a>    
-}
 
-impl<'a> FixedLenVectorBuilder<'a> 
-{
-  pub fn new(fixed_len: usize) -> FixedLenVectorBuilder<'a> {
-    
-    FixedLenVectorBuilder {
-      fixed_len: fixed_len,
-      pos: 0,
-      vector: FixedLenVector::new(fixed_len)
-    }
-  }
+pub struct FMiniPageWriter {
+  ptr: *mut u8,
+  len: usize, 
+  pos: PosId   
 }
 
 #[inline]
-fn write_fixed_value<T>(vec: &mut FixedLenVector, pos: usize, val: T) {
+fn write_fixed_value<T>(ptr: *mut u8, pos: usize, val: T) {
   debug_assert!(pos < ROWBATCH_SIZE);
   unsafe {
-    let array: &mut [T] = slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut T, ROWBATCH_SIZE);
+    let array: &mut [T] = slice::from_raw_parts_mut(ptr as *mut T, ROWBATCH_SIZE);
     (*array.get_unchecked_mut(pos)) = val;
   }
 }
 
-impl<'a> VectorWriter for FixedLenVectorBuilder<'a> 
+impl MiniPageWriter for FMiniPageWriter 
 {
   #[inline]
   fn write_i8(&mut self, v: i8) {
-    write_fixed_value(&mut self.vector, self.pos, v);
+    write_fixed_value(self.ptr, self.pos, v);
     self.pos = self.pos + 1;
   }
   
   #[inline]
   fn write_i16(&mut self, v: i16) {
-    write_fixed_value(&mut self.vector, self.pos, v);
+    write_fixed_value(self.ptr, self.pos, v);
     self.pos = self.pos + 1;
   }
   
   #[inline]
   fn write_i32(&mut self, v: i32) {
-    write_fixed_value(&mut self.vector, self.pos, v);
+    write_fixed_value(self.ptr, self.pos, v);
     self.pos = self.pos + 1;
   }
   
   #[inline]
   fn write_i64(&mut self, v: i64) {
-    write_fixed_value(&mut self.vector, self.pos, v);
+    write_fixed_value(self.ptr, self.pos, v);
     self.pos = self.pos + 1;
   }
   
   #[inline]
   fn write_f32(&mut self, v: f32) {
-    write_fixed_value(&mut self.vector, self.pos, v);
+    write_fixed_value(self.ptr, self.pos, v);
     self.pos = self.pos + 1;
   }
 
   #[inline]  
   fn write_f64(&mut self, v: f64) {
-    write_fixed_value(&mut self.vector, self.pos, v);
+    write_fixed_value(self.ptr, self.pos, v);
     self.pos = self.pos + 1;
   }
   
@@ -150,7 +170,6 @@ impl<'a> VectorWriter for FixedLenVectorBuilder<'a>
   }
   
   #[inline]
-  fn finalize(&mut self) {
-    
+  fn finalize(&mut self) {    
   }
 }

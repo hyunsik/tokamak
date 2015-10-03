@@ -1,7 +1,7 @@
 use std::mem;
 
 use common::types::{Type, TypeId};
-use common::rows::{Vector, FixedLenVector};
+use common::rows::{MiniPage, FixedLenVector};
 use common::str::{StrSlice};
 
 const BOOL_STR       : &'static str = "bool";

@@ -17,9 +17,8 @@
 /// * [2] 
 /// * [3] Daniel J. Abadi ea al., Materialization Strategies in a Column-Oriented DBMS, ICDE 2007
 
-use alloc::heap;
 use std::marker;
-use std::slice;
+use std::rc::Rc;
 
 use types::{Type, TypeHandlerFactory};
 use platform::{CACHE_LINE_SIZE, get_aligned_size};
@@ -30,9 +29,9 @@ use platform::{CACHE_LINE_SIZE, get_aligned_size};
 pub static ROWBATCH_SIZE: usize = 1024; 
 
 /// Type for column index
-pub type ColumnId = usize;
+pub type PageId = usize;
 /// Type for row position
-pub type RowId = usize;
+pub type PosId = usize;
 
 pub struct Page 
 {
@@ -45,7 +44,7 @@ impl Page
   fn minipage_num(&self) -> usize { self.mini_pages.len() }
   
   #[inline]
-  fn minipage(&self, id: usize) -> &MiniPage 
+  fn minipage(&self, id: PageId) -> &MiniPage 
   {
     debug_assert!(id < self.minipage_num());
      
@@ -57,17 +56,19 @@ pub trait MiniPage
 {
   fn bytesize(&self) -> u32;
   
-  fn read_i8(&self, pos: RowId) -> i8;
+  fn read_i8(&self, pos: PosId) -> i8;
   
-  fn read_i16(&self, pos: RowId) -> i16;
+  fn read_i16(&self, pos: PosId) -> i16;
   
-  fn read_i32(&self, pos: RowId) -> i32;
+  fn read_i32(&self, pos: PosId) -> i32;
   
-  fn read_i64(&self, pos: RowId) -> i64;
+  fn read_i64(&self, pos: PosId) -> i64;
   
-  fn read_f32(&self, pos: RowId) -> f32;
+  fn read_f32(&self, pos: PosId) -> f32;
   
-  fn read_f64(&self, pos: RowId) -> f64;
+  fn read_f64(&self, pos: PosId) -> f64;
+  
+  fn writer(&mut self) -> &MiniPageWriter;
 }
 
 /// Writer for Vector. The writer internally must have a cursor to write a value.
@@ -93,8 +94,9 @@ pub trait MiniPageWriter {
   fn finalize(&mut self);
 }
 
+/*
 struct PageBuilder {
-  writers: Vec<Box<MiniPageWriter>>
+  page: Page
 }
 
 impl PageBuilder 
@@ -112,20 +114,25 @@ impl PageBuilder
       .collect::<Vec<Box<MiniPageWriter>>>();
     
     PageBuilder {
-      writers: writers
+      writers: writers,
+      _marker: marker::PhantomData
     }
   }
 }
-/*
+
 impl PageBuilder {
-  fn writer(&self, cid: ColumnId) -> &VectorWriter {
-    &*self.page.vectors[cid as usize].writer()
+  fn writer(&self, id: PageId) -> &MiniPageWriter {
+    &*self.writers[id]
   }
   
-  fn build(&mut self) -> &mut Page {
+  fn build(&mut self) -> Page<'a> {
     for v in self.page.vectors {
       v.writer().finalize();
     }
-    &self.page     
+    
+    Page {
+      
+    }     
   }
-}*/
+}
+*/

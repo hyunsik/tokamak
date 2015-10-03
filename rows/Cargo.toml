@@ -6,3 +6,6 @@ authors = ["Hyunsik Choi <hyunsik.choi@gmail.org>"]
 [lib]
 name = "rows"
 path = "lib.rs"
+
+[dependencies.common]
+path = "../common"
