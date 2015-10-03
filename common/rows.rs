@@ -41,10 +41,10 @@ pub struct Page
 impl Page 
 {
   #[inline]
-  fn minipage_num(&self) -> usize { self.mini_pages.len() }
+  pub fn minipage_num(&self) -> usize { self.mini_pages.len() }
   
   #[inline]
-  fn minipage(&self, id: PageId) -> &MiniPage 
+  pub fn minipage(&self, id: PageId) -> &MiniPage 
   {
     debug_assert!(id < self.minipage_num());
      
@@ -68,7 +68,7 @@ pub trait MiniPage
   
   fn read_f64(&self, pos: PosId) -> f64;
   
-  fn writer(&mut self) -> &MiniPageWriter;
+  fn writer(&mut self) -> &mut MiniPageWriter;
 }
 
 /// Writer for Vector. The writer internally must have a cursor to write a value.
@@ -93,3 +93,56 @@ pub trait MiniPageWriter {
   
   fn finalize(&mut self);
 }
+
+
+pub struct PageBuilder 
+{
+  page: Page
+}
+
+impl PageBuilder 
+{
+  pub fn new(types: &Vec<Box<Type>>) -> Self 
+  {
+    let mini_pages = types
+      .iter()
+      .map(|ty| {
+        ty.handler()   
+      })
+      .map(|f| {
+        (f.create_minipage)()
+      })
+      .collect::<Vec<Box<MiniPage>>>();
+    
+    PageBuilder {page: Page {mini_pages: mini_pages}}
+  }
+  
+  pub fn writer(&mut self, id: PageId) -> &mut MiniPageWriter {
+    self.page.mini_pages[id].writer()
+  }
+  
+  pub fn build(&mut self) -> &Page {
+    for v in self.page.mini_pages.iter_mut() {
+      v.writer().finalize();
+    }
+    
+    &self.page
+  }
+}
+/*
+impl PageBuilder {
+  fn writer(&self, id: PageId) -> &MiniPageWriter {
+    &*self.writers[id]
+  }
+  
+  fn build(&mut self) -> Page<'a> {
+    for v in self.page.vectors {
+      v.writer().finalize();
+    }
+    
+    Page {
+      
+    }     
+  }
+}
+*/

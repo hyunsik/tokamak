@@ -95,11 +95,11 @@ impl Type for Int4
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn handler_factory (&self) -> Box<TypeHandler> 
+  fn handler (&self) -> Box<TypeHandler> 
   {
     let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
     
-    Box::new(TypeHandler {create_minipage_writer: Box::new(f)})
+    Box::new(TypeHandler {create_minipage: Box::new(f)})
   }
 }
  
@@ -110,10 +110,10 @@ pub struct Float4
   id: TypeId
 }
 
-impl Int4 
+impl Float4 
 {
   pub fn new() -> Self {
-    Int4 {id: TypeId {base: String::from(FLOAT4_STR)}}
+    Float4 {id: TypeId {base: String::from(FLOAT4_STR)}}
   }
 }
 
@@ -132,10 +132,10 @@ impl Type for Float4
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn handler_factory (&self) -> Box<TypeHandler> 
+  fn handler (&self) -> Box<TypeHandler> 
   {
     let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
     
-    Box::new(TypeHandler {create_minipage_writer: Box::new(f)})
+    Box::new(TypeHandler {create_minipage: Box::new(f)})
   }
 }

@@ -43,11 +43,11 @@ pub trait Type
   fn is_orderable           (&self) -> bool;
   fn type_params            (&self) -> Vec<&Type>;
   //fn hash32_fn            (&self) -> Box<FnMut(&Vector, &mut [u32])>;
-  fn handler_factory        (&self) -> Box<TypeHandler>;
+  fn handler                (&self) -> Box<TypeHandler>;
 }
 
 pub struct TypeHandler {
-  pub create_minipage_writer: Box<Fn() -> Box<MiniPage>>
+  pub create_minipage: Box<Fn() -> Box<MiniPage>>
 }
 
 /*

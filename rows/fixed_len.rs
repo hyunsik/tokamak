@@ -100,9 +100,9 @@ impl<'a> MiniPage for FMiniPage<'a> {
     read_fixed_len_value(self.ptr, pos)
   }
   
-  fn writer(&mut self) -> &MiniPageWriter 
+  fn writer(&mut self) -> &mut MiniPageWriter 
   {
-    &self.writer
+    &mut self.writer
   }
 }
 
