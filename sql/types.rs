@@ -67,21 +67,21 @@ pub type TIMESTAMP_T = i64;
 pub type TEXT_T      = StrSlice;  
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct Int4 {
+pub struct Int4 
+{
   id: TypeId
 }
 
-impl Int4 {
-  pub fn new() -> Int4 {
-    Int4 {
-      id: TypeId {
-        base: String::from(INT4_STR)
-      }
-    }
+impl Int4 
+{
+  pub fn new() -> Self
+  {
+    Int4 {id: TypeId {base: String::from(INT4_STR)} }
   } 
 }
 
-impl Type for Int4 {
+impl Type for Int4 
+{
   #[inline]
   fn id(&self) -> &TypeId { &self.id }
   #[inline]
@@ -95,36 +95,30 @@ impl Type for Int4 {
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn handler_factory (&self) -> Box<TypeHandler> {
-    let f = || -> Box<MiniPage> {
-          Box::new(FMiniPage::new(mem::size_of::<i32>()))
-    };
+  fn handler_factory (&self) -> Box<TypeHandler> 
+  {
+    let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
     
-    Box::new(
-      TypeHandler {
-        create_minipage_writer: Box::new(f)
-      }
-    )
+    Box::new(TypeHandler {create_minipage_writer: Box::new(f)})
   }
 }
  
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct Float4 {
+pub struct Float4 
+{
   id: TypeId
 }
 
-impl Int4 {
-  pub fn new() -> Int4 {
-    Int4 {
-      id: TypeId {
-        base: String::from(FLOAT4_STR)
-      }
-    }
+impl Int4 
+{
+  pub fn new() -> Self {
+    Int4 {id: TypeId {base: String::from(FLOAT4_STR)}}
   }
 }
 
-impl Type for Float4 {
+impl Type for Float4 
+{
   #[inline]
   fn id(&self) -> &TypeId { &self.id }
   #[inline]
@@ -138,24 +132,10 @@ impl Type for Float4 {
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn handler_factory (&self) -> Box<TypeHandler> {
-    let f = || -> Box<MiniPage> {
-          Box::new(FMiniPage::new(mem::size_of::<f32>()))
-    };
+  fn handler_factory (&self) -> Box<TypeHandler> 
+  {
+    let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
     
-    Box::new(
-      TypeHandler {
-        create_minipage_writer: Box::new(f)
-      }
-    )
+    Box::new(TypeHandler {create_minipage_writer: Box::new(f)})
   }
-}
-
-#[test]
-pub fn test_int4() {
-  //let page_builder: Box<PageBuilder> = Box::new(DefaultPageBuilder);
-//  let page = page_builder.create(&vec![
-//    Box::new(Int4Type)
-//  ]);
-//  println!("{}", page.column_num());
 }
