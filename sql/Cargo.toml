@@ -12,3 +12,6 @@ itertools = "0.4.0"
 
 [dependencies.common]
 path = "../common"
+
+[dependencies.rows]
+path = "../rows"

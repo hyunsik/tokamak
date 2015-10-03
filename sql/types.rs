@@ -1,8 +1,9 @@
 use std::mem;
 
-use common::types::{Type, TypeId};
-use common::rows::{MiniPage, FixedLenVector};
+use common::types::{Type, TypeId, TypeHandler};
+use common::rows::{MiniPage};
 use common::str::{StrSlice};
+use rows::fixed_len::FMiniPage;
 
 const BOOL_STR       : &'static str = "bool";
 const INT1_STR       : &'static str = "int1";
@@ -94,10 +95,19 @@ impl Type for Int4 {
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn create_vector (&self) -> Box<Vector> {
-    Box::new(FixedLenVector::new(mem::size_of::<INT4_T>()))
+  fn handler_factory (&self) -> Box<TypeHandler> {
+    let f = || -> Box<MiniPage> {
+          Box::new(FMiniPage::new(mem::size_of::<i32>()))
+    };
+    
+    Box::new(
+      TypeHandler {
+        create_minipage_writer: Box::new(f)
+      }
+    )
   }
 }
+ 
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Float4 {
@@ -128,8 +138,16 @@ impl Type for Float4 {
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn create_vector (&self) -> Box<Vector> {
-    Box::new(FixedLenVector::new(mem::size_of::<FLOAT4_T>()))
+  fn handler_factory (&self) -> Box<TypeHandler> {
+    let f = || -> Box<MiniPage> {
+          Box::new(FMiniPage::new(mem::size_of::<f32>()))
+    };
+    
+    Box::new(
+      TypeHandler {
+        create_minipage_writer: Box::new(f)
+      }
+    )
   }
 }
 

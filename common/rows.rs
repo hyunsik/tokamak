@@ -20,7 +20,7 @@
 use std::marker;
 use std::rc::Rc;
 
-use types::{Type, TypeHandlerFactory};
+use types::Type;
 use platform::{CACHE_LINE_SIZE, get_aligned_size};
 
 /// Each executor and operator process a batch of rows at a time for better throughput.
@@ -93,46 +93,3 @@ pub trait MiniPageWriter {
   
   fn finalize(&mut self);
 }
-
-/*
-struct PageBuilder {
-  page: Page
-}
-
-impl PageBuilder 
-{
-  pub fn new(types: &Vec<Box<Type>>) -> PageBuilder {
-    
-    let writers = types
-      .iter()
-      .map(|ty| {
-        ty.handler_factory()   
-      })
-      .map(|f| {
-        f.create_minipage_writer()
-      })
-      .collect::<Vec<Box<MiniPageWriter>>>();
-    
-    PageBuilder {
-      writers: writers,
-      _marker: marker::PhantomData
-    }
-  }
-}
-
-impl PageBuilder {
-  fn writer(&self, id: PageId) -> &MiniPageWriter {
-    &*self.writers[id]
-  }
-  
-  fn build(&mut self) -> Page<'a> {
-    for v in self.page.vectors {
-      v.writer().finalize();
-    }
-    
-    Page {
-      
-    }     
-  }
-}
-*/
