@@ -13,15 +13,52 @@ use common::rows::{
   MiniPageWriter
 };
 
-
 use super::InputSource;
 
 pub struct RandomTableGenerator 
 {
   types: Rc<Vec<Box<Type>>>,
-  page_builder: Box<PageBuilder>,
+  builder: Box<PageBuilder>,
   write_fns: Vec<Box<Fn(&mut MiniPageWriter)>> 
 }
+
+impl RandomTableGenerator 
+{
+  pub fn new(types: Rc<Vec<Box<Type>>>) -> RandomTableGenerator {
+    
+    RandomTableGenerator {
+      types: types.clone(),
+      builder: Box::new(PageBuilder::new(&*types)),
+      write_fns: types.iter()
+        .map(|ty| choose_random_func(&**ty)) // choose random functions for types
+        .collect::<Vec<Box<Fn(&mut MiniPageWriter)>>>()
+    }
+  }
+}
+
+impl InputSource for RandomTableGenerator 
+{
+  fn init(&mut self) -> Void 
+  { 
+    void_ok()
+  }
+  
+  fn has_next(&mut self) -> bool { true }
+  
+  fn next(&mut self) -> TResult<&Page> 
+  {
+    self.builder.reset();
+    
+    for (gen_fn, writer) in Zip::new((self.write_fns.iter(), self.builder.iter_mut())) {
+      (gen_fn)(writer)
+    }
+    
+    Ok(self.builder.build())
+  }
+  
+  fn close(&mut self) -> Void { void_ok() }
+}
+
 
 fn write_rand_for_i32(builder: &mut MiniPageWriter) 
 {
@@ -37,39 +74,11 @@ fn write_rand_for_f32(builder: &mut MiniPageWriter)
   }
 }
 
-impl RandomTableGenerator 
+fn choose_random_func(ty: &Type) -> Box<Fn(&mut MiniPageWriter)> 
 {
-  pub fn new(types: Rc<Vec<Box<Type>>>) -> RandomTableGenerator {
-    
-    RandomTableGenerator {
-      types: types.clone(),
-      page_builder: Box::new(PageBuilder::new(&*types)),
-      write_fns: Vec::new()
-    }
+  match ty.id().base() {
+    "int4"   => Box::new(write_rand_for_i32),
+    "float4" => Box::new(write_rand_for_f32),
+    _ => panic!("not supported type")
   }
-}
-
-impl InputSource for RandomTableGenerator 
-{
-  fn init(&mut self) -> Void 
-  { 
-    void_ok() 
-  }
-  
-  fn has_next(&mut self) -> bool { true }
-  
-  fn next(&mut self) -> TResult<&Page> 
-  {
-    for (ty, writer) in Zip::new((self.types.iter(), self.page_builder.iter_mut())) {
-      match ty.id().base() {
-        "int4" => write_rand_for_i32(writer),
-        "float4" => write_rand_for_f32(writer),
-        _ => {println!("xxx");}
-      }
-    }
-    
-    Ok(self.page_builder.build())
-  }
-  
-  fn close(&mut self) -> Void { void_ok() }
 }

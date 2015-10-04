@@ -125,15 +125,25 @@ impl PageBuilder
     PageBuilder {page: Page {mini_pages: mini_pages}}
   }
   
+  #[inline]
   pub fn writer(&mut self, id: PageId) -> &mut MiniPageWriter 
   {
     self.page.mini_pages[id].writer()
   }
   
+  #[inline]
   pub fn iter_mut<'a>(&'a mut self) -> Box<Iterator<Item=&'a mut MiniPageWriter> + 'a> {
     Box::new(self.page.mini_pages.iter_mut().map(|m| m.writer()))
   }
   
+  #[inline]
+  pub fn reset(&mut self) {
+    for v in self.page.mini_pages.iter_mut() {
+      v.writer().reset();
+    }
+  }
+  
+  #[inline]
   pub fn build(&mut self) -> &Page 
   {
     for v in self.page.mini_pages.iter_mut() {
