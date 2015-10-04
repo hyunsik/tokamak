@@ -19,6 +19,8 @@
 
 use std::marker;
 use std::rc::Rc;
+use std::slice::IterMut;
+
 
 use types::Type;
 use platform::{CACHE_LINE_SIZE, get_aligned_size};
@@ -126,6 +128,10 @@ impl PageBuilder
   pub fn writer(&mut self, id: PageId) -> &mut MiniPageWriter 
   {
     self.page.mini_pages[id].writer()
+  }
+  
+  pub fn iter_mut<'a>(&'a mut self) -> Box<Iterator<Item=&'a mut MiniPageWriter> + 'a> {
+    Box::new(self.page.mini_pages.iter_mut().map(|m| m.writer()))
   }
   
   pub fn build(&mut self) -> &Page 
