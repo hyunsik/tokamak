@@ -40,7 +40,7 @@ use common::err::{Void, TResult, void_ok, Error};
 use common::rows::{Page, PageBuilder, DefaultPageBuilder};
 use common::types::{Type, Int4Type, Float4Type};
 
-pub trait Operator {
+pub trait Executor {
   fn init      (&mut self) -> Void;
   fn need_input(&self) -> bool;
   fn add_input (&mut self, &Page) -> Void;
