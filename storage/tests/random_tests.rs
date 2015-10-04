@@ -2,11 +2,10 @@ extern crate common;
 extern crate sql;
 extern crate storage;
 
-use std::mem;
 use std::rc::Rc;
 
 use common::types::Type;
-use common::rows::{MiniPage, Page, PageBuilder, ROWBATCH_SIZE};
+use common::rows::{MiniPage, ROWBATCH_SIZE};
 use sql::types::{Int4, Float4};
 use storage::InputSource;
 use storage::random::RandomTableGenerator;
@@ -21,7 +20,7 @@ pub fn test_random_table()
   
   let mut generator = RandomTableGenerator::new(Rc::new(types));
   
-  for num in 0..2 {
+  for _ in 0..2 {
     let page = generator.next().unwrap();
     assert_eq!(8192, page.bytesize());
     let m1: &MiniPage = page.minipage(0);
