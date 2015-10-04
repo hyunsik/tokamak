@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use common::types::{Type, TypeRegistry};
-use sql::types::{Int4Type, Float4Type};
+use common::types::{Type, TypeId, TypeManager};
+use sql::types::{Int4, Float4};
 
 pub struct TypeRegistry 
 {
@@ -14,8 +14,8 @@ impl TypeRegistry
   {
     TypeRegistry {
       types: types.into_iter()
-        .map(|ty: Box<Type>| { 
-            return (*ty.id(), ty) 
+        .map(|ty| { 
+            return (ty.id().clone(), ty) 
         })
         .collect::<BTreeMap<TypeId, Box<Type>>>()    
     }
@@ -23,8 +23,8 @@ impl TypeRegistry
   
   fn default() -> TypeRegistry {
     let standard_types = vec![
-      Box::new(Int4Type) as Box<Type>,
-      Box::new(Float4Type) as Box<Type>
+      Box::new(Int4::new()) as Box<Type>,
+      Box::new(Float4::new()) as Box<Type>
     ];
     TypeRegistry::new(standard_types)
   }

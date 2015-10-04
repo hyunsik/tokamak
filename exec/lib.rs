@@ -30,15 +30,16 @@ extern crate libc;
 
 extern crate common;
 extern crate sql;
+extern crate storage;
 
 pub mod types;
-
+pub mod scan;
 
 use std::rc::Rc;
 
-use common::err::{Void, TResult, void_ok, Error};
-use common::rows::{Page, PageBuilder, DefaultPageBuilder};
-use common::types::{Type, Int4Type, Float4Type};
+use common::err::{Void, TResult, Error};
+use common::rows::{Page, PageBuilder};
+use storage::InputSource;
 
 pub trait Executor {
   fn init      (&mut self) -> Void;
@@ -49,27 +50,18 @@ pub trait Executor {
 }
 
 pub trait OperatorFactory {
-  fn create(&self) -> Box<Operator>;
-}
-
-pub trait InputSourceFactory {
-  fn create(&self) -> Box<InputSource>;
+  fn create(&self) -> Box<Executor>;
 }
 
 pub trait Processor {
   fn process(page: &Page, page_builder: &PageBuilder) -> Void;
 }
 
-struct ScanOperator;
+pub trait InputSourceProvider {
+  fn create(&self) -> Box<InputSource>;
+}
 
-struct FilterOperator;
-
-struct ProjectOperator;
-struct LimitOperator;
-struct ExchangeOperator;
-struct PreGroupbyOperator;
-struct GroupbyOperator;
-
+/*
 #[test]
 pub fn test_pipeline() {
   let page_builder: Box<PageBuilder> = Box::new(DefaultPageBuilder);
@@ -83,16 +75,5 @@ pub fn test_pipeline() {
     Box::new(Int4Type),
     Box::new(Float4Type),
   ]);
-  
-  
-//  let random = RandomGenOperator {
-//    out_schema: vec![
-//      Box::new(Int4Type),
-//      Box::new(Float4Type),
-//    ]
-//  };
-  
-  //random.get_output(&output_page);
-} 
-
-mod gen_operator;
+}
+*/
