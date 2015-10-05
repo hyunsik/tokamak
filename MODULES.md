@@ -9,3 +9,18 @@ This page describes the modules and their dependencies. This documentation has b
 * ``rows`` provides containers for rows, matrix, and vectors.
 * ``sql`` provides data types, operators, and executors for SQL processing.
 * ``storage`` provides input source interfaces, and some builtin implementations like local file system.
+
+### Dependencies
+```
+common
+   ^
+   |----- rows <----|
+   |       ^        |
+   |       |        |
+   |----- sql  <----|
+   |                |
+   |----- storage   |
+   |          ^     |
+   |           \    |
+   |----------- engine
+```
