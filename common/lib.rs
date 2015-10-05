@@ -11,7 +11,6 @@ pub mod err;
 pub mod func;
 pub mod mm;
 pub mod rows;
-pub mod schema;
 pub mod str;
 pub mod types;
 pub mod platform;
