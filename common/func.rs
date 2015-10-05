@@ -6,6 +6,7 @@ use super::types::Type;
 use super::rows::{MiniPage,PageBuilder};
 
 pub enum FuncType {
+  Operator,
   Scalar,
   Aggregation,
   Window

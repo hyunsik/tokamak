@@ -7,9 +7,11 @@ extern crate alloc;
 extern crate itertools;
 extern crate libc;
 
+//pub mod datum;
 pub mod err;
 pub mod func;
 pub mod mm;
+pub mod operator;
 pub mod rows;
 pub mod str;
 pub mod types;
