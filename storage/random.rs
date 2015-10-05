@@ -35,10 +35,7 @@ impl RandomTableGenerator
 
 impl InputSource for RandomTableGenerator 
 {
-  fn init(&mut self) -> Void 
-  { 
-    void_ok()
-  }
+  fn open(&mut self) -> Void { void_ok() }
   
   fn has_next(&mut self) -> bool { true }
   

@@ -41,23 +41,32 @@ use common::err::{Void, TResult, Error};
 use common::rows::{Page, PageBuilder};
 use storage::InputSource;
 
-pub trait Executor {
+pub trait Executor 
+{
   fn init      (&mut self) -> Void;
   fn need_input(&self) -> bool;
-  fn add_input (&mut self, &Page) -> Void;
-  fn get_output(&mut self) -> TResult<&Page>;
+  fn add_input(&mut self, &Page) -> Void;
+  fn next(&mut self) -> TResult<&Page>;
   fn close     (&mut self) -> Void;
 }
 
-pub trait OperatorFactory {
+pub trait OperatorFactory 
+{
   fn create(&self) -> Box<Executor>;
 }
 
-pub trait Processor {
-  fn process(page: &Page, page_builder: &PageBuilder) -> Void;
+pub trait Processor 
+{
+  fn process(
+    &self, 
+    input: &Page, 
+    start_pos: u32, 
+    end_pos: u32,
+    builder: &mut PageBuilder) -> Void;
 }
 
-pub trait InputSourceProvider {
+pub trait InputSourceProvider 
+{
   fn create(&self) -> Box<InputSource>;
 }
 

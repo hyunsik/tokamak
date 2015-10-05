@@ -2,18 +2,22 @@ use common::err::{Void, TResult, Error, void_ok};
 use common::rows::{Page, PageBuilder};
 use storage::InputSource;
 
-use super::Executor;
+use super::{Executor, Processor};
 
 pub struct ScanExec 
 {
   page_builder: Box<PageBuilder>,
-  input: Box<InputSource>
+  input: Box<InputSource>,
+  processor: Box<Processor>,
+  
+  cur_pos: u32
 }
 
 impl Executor for ScanExec 
 {
   fn init(&mut self) -> Void
   {
+    try!(self.input.open());
     void_ok()
   }
   
@@ -24,13 +28,22 @@ impl Executor for ScanExec
     void_ok()    
   }
   
-  fn get_output(&mut self) -> TResult<&Page>
+  fn next(&mut self) -> TResult<&Page>
   {
-    Err(Error::InternalError)
+    let read_page: &Page = try!(self.input.next());
+    
+    try!(self.processor.process(
+        read_page, 
+        self.cur_pos, 
+        read_page.value_count(), 
+        &mut self.page_builder));
+    
+    Ok(self.page_builder.build())
   }
   
   fn close(&mut self) -> Void 
   {
+    try!(self.input.close());
     void_ok()
   }
 }

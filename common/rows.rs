@@ -37,13 +37,18 @@ pub type PosId = usize;
 
 pub struct Page 
 {
-  mini_pages: Vec<Box<MiniPage>>
+  mini_pages: Vec<Box<MiniPage>>,
+  
+  value_count: u32
 }
 
 impl Page 
 {
   #[inline]
   pub fn minipage_num(&self) -> usize { self.mini_pages.len() }
+  
+  #[inline]
+  pub fn value_count(&self) -> u32 { self.value_count }
   
   #[inline]
   pub fn minipage(&self, id: PageId) -> &MiniPage 
@@ -122,7 +127,7 @@ impl PageBuilder
       .map(|f| (f.create_minipage)())
       .collect::<Vec<Box<MiniPage>>>();
     
-    PageBuilder {page: Page {mini_pages: mini_pages}}
+    PageBuilder {page: Page {mini_pages: mini_pages, value_count: 0}}
   }
   
   #[inline]
