@@ -1,10 +1,7 @@
 use std::fmt;
 use std::mem;
 
-use itertools::Itertools;
-
-use rows::{MiniPage, MiniPageWriter};
-use str::StrSlice;
+use rows::{MiniPage};
 
 // globally unique id
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
