@@ -3,9 +3,12 @@
 //!
 
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
+use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::fmt;
 use std::mem;
 
+use err::{Error, TResult, Void, void_ok};
 use rows::{MiniPage};
 
 /// Globally unique id for a type
@@ -33,6 +36,20 @@ impl TypeRegistry
     TypeRegistry {
       types: BTreeMap::new()
     }
+  }
+  
+  pub fn add_all(&mut self, types: Vec<Box<Type>>) -> Void 
+  {
+    for ty in types.into_iter() {
+      match self.types.entry(*ty.id()) {
+        Vacant(e)   => { 
+          e.insert(ty); 
+        },
+        Occupied(_) => { return Err(Error::DuplicatedTypeId) }
+      }      
+    }
+    
+    void_ok()
   }
   
   pub fn get(&self, id: &TypeId) -> Option<&Type> {

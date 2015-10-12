@@ -3,21 +3,21 @@ extern crate rows;
 
 pub mod types;
 
-use common::types::Type;
-use common::func::{FuncSignature, InvokeAction};
+use common::err::{void_ok, Void};
+use common::types::{Type, TypeRegistry};
+use common::func::{FuncRegistry, FuncSignature, InvokeAction};
 use common::plugin::Package;
 
-pub struct SQLPackage {
-  types: Vec<Box<Type>>,
-  funcs: Vec<(FuncSignature, InvokeAction)>
-}
+const PACKAGE_NAME: &'static str = "sql";
 
-impl SQLPackage {
-  pub fn new() -> SQLPackage {
-    SQLPackage {
-      types: load_types(),
-      funcs: Vec::new()
-    }
+pub struct SQLPackage;
+
+impl Package for SQLPackage {
+  fn name(&self) -> &str { PACKAGE_NAME }
+  fn load(&mut self, type_reg: &mut TypeRegistry, fn_reg: &mut FuncRegistry) -> Void {
+    try!(type_reg.add_all(load_types()));
+    try!(fn_reg.add_all(load_funcs()));
+    void_ok()
   }
 }
 
@@ -25,4 +25,8 @@ fn load_types() -> Vec<Box<Type>> {
   vec![
     Box::new(types::Int4::new())  
   ]
+}
+
+fn load_funcs() -> Vec<(FuncSignature, InvokeAction)> {
+  vec![]
 }

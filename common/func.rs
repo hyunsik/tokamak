@@ -2,13 +2,15 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
+use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::cell::RefCell;
 
+use err::{Void, void_ok, Error};
+use types::Type;
+use rows::{MiniPage,MiniPageWriter};
 
-use super::types::Type;
-use super::rows::{MiniPage,MiniPageWriter};
-
-#[derive(Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Eq, Copy, Clone, PartialEq, PartialOrd, Ord)]
 pub enum FuncType {
   Operator,
   Scalar,
@@ -32,6 +34,7 @@ pub enum InvokeAction
   ScalarVec(Box<ScalarVecFunc>) 
 }
 
+#[derive(Clone)]
 pub struct FuncSignature 
 {
   name: String,
@@ -83,9 +86,20 @@ impl FuncRegistry
     }    
   }
   
-  pub fn adds(&mut self, funcs: Vec<(FuncSignature, InvokeAction)>) {
+  pub fn add_all(&mut self, funcs: Vec<(FuncSignature, InvokeAction)>) -> Void {
     for x in funcs.into_iter() {
       self.funcs.insert(x.0, x.1);
     }
+    
+    for (sig, invoke) in funcs.into_iter() {
+      match self.funcs.entry(sig) {
+        Vacant(e)   => { 
+          e.insert(invoke); 
+        },
+        Occupied(_) => { return Err(Error::DuplicatedFuncSign) }
+      }      
+    }
+    
+    void_ok()
   }
 }

@@ -1,7 +1,11 @@
 use std::io;
 
+use types::TypeId;
+
+
+// TODO : should contain more detailed information
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Error {
   InternalError,
   Notimplemented,
@@ -26,6 +30,10 @@ pub enum Error {
   /// Invoked function is not implemented yet
   Unimplemented,
   InvalidExpression,
+  
+  /// Duplicated Type Id
+  DuplicatedFuncSign,
+  DuplicatedTypeId,
 }
 
 pub type TResult<T> = Result<T, Error>;
