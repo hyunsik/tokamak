@@ -38,7 +38,6 @@ pub enum InvokeAction
 pub struct FuncSignature 
 {
   name: String,
-  params: Vec<Box<Type>>,
   func_type: FuncType
 }
 
@@ -86,11 +85,7 @@ impl FuncRegistry
     }    
   }
   
-  pub fn add_all(&mut self, funcs: Vec<(FuncSignature, InvokeAction)>) -> Void {
-    for x in funcs.into_iter() {
-      self.funcs.insert(x.0, x.1);
-    }
-    
+  pub fn add_all(&mut self, funcs: Vec<(FuncSignature, InvokeAction)>) -> Void {   
     for (sig, invoke) in funcs.into_iter() {
       match self.funcs.entry(sig) {
         Vacant(e)   => { 

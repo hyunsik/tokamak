@@ -8,23 +8,23 @@ use super::err::{TResult, void_ok, Void};
 use super::func::FuncRegistry;
 use super::types::TypeRegistry;
 
-pub struct PackageRegistry {
+pub struct PackageManager {
   pkgs    : HashMap<String, Box<Package>>,
   type_reg: TypeRegistry,
   func_reg: FuncRegistry  
 }
 
-impl PackageRegistry {
-  pub fn new() -> PackageRegistry {
-    PackageRegistry {
+impl PackageManager {
+  pub fn new() -> PackageManager {
+    PackageManager {
       pkgs: HashMap::new(),
       type_reg: TypeRegistry::new(),
       func_reg: FuncRegistry::new(),
     }
   }
   
-  pub fn new_with(pkgs: Vec<Box<Package>>) -> PackageRegistry {
-    PackageRegistry {
+  pub fn new_with(pkgs: Vec<Box<Package>>) -> PackageManager {
+    PackageManager {
       pkgs: pkgs.into_iter()
               .map(|p: Box<Package>| -> (String, Box<Package>) { 
                 (p.name().to_string(), p) 
@@ -47,6 +47,14 @@ impl PackageRegistry {
     }
     
     Ok(())
+  }
+  
+  pub fn ty_registry(&self) -> &TypeRegistry {
+    &self.type_reg    
+  }
+  
+  pub fn fnc_registry(&self) -> &FuncRegistry {
+    &self.func_reg
   }
 }
 

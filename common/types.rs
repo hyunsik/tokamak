@@ -41,7 +41,7 @@ impl TypeRegistry
   pub fn add_all(&mut self, types: Vec<Box<Type>>) -> Void 
   {
     for ty in types.into_iter() {
-      match self.types.entry(*ty.id()) {
+      match self.types.entry(ty.id().clone()) {
         Vacant(e)   => { 
           e.insert(ty); 
         },

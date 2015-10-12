@@ -1,0 +1,17 @@
+[package]
+name = "api"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "api"
+path = "lib.rs"
+
+[dependencies]
+itertools = "0.4.1"
+
+[dependencies.common]
+path = "../common"
+
+[dependencies.sql]
+path = "../sql"
