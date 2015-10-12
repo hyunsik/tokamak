@@ -80,6 +80,7 @@ pub trait Type
   fn is_orderable           (&self) -> bool;
   fn type_params            (&self) -> Vec<&Type>;
   fn handler                (&self) -> Rc<TypeHandler>;
+  fn clone_box              (&self) -> Box<Type>;
 }
 
 pub struct TypeHandler {

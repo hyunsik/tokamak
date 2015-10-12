@@ -108,6 +108,14 @@ impl Type for Int4
   {
     self.handler.clone()
   }
+  
+  #[inline]
+  fn clone_box(&self) -> Box<Type> {
+    Box::new(Int4 {
+      id: self.id.clone(),
+      handler: self.handler.clone()
+    })  
+  }
 }
  
 
@@ -148,5 +156,13 @@ impl Type for Float4
   fn handler (&self) -> Rc<TypeHandler> 
   {
     self.handler.clone()
+  }
+  
+  #[inline]
+  fn clone_box(&self) -> Box<Type> {
+    Box::new(Int4 {
+      id: self.id.clone(),
+      handler: self.handler.clone()
+    }) 
   }
 }
