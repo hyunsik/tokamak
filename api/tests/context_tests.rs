@@ -10,4 +10,6 @@ pub fn test_types() {
   
   let ty_id = TypeId {base: "int4".to_string()};
   assert!(ctx.get_type(&ty_id).is_some());
+  
+  assert_eq!(1, ctx.all_types().len());
 } 

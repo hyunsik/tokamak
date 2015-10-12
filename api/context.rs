@@ -29,5 +29,11 @@ impl TokamakContext
   pub fn get_type(&self, sig: &TypeId) -> Option<&Type>
   {
     self.pkg_mgr.ty_registry().get(sig)
-  } 
+  }
+  
+  #[inline]
+  pub fn all_types(&self) -> Vec<&Type> 
+  {
+    self.pkg_mgr.ty_registry().all()
+  }
 }

@@ -56,7 +56,7 @@ impl TypeRegistry
     self.types.get(id).map(|v| &**v)
   }
   
-  pub fn types(&self) -> Vec<&Type> {
+  pub fn all(&self) -> Vec<&Type> {
     self.types.values().map(|v| &**v).collect::<Vec<&Type>>()
   }
 }
