@@ -7,11 +7,13 @@ use std::collections::HashMap;
 use super::err::{TResult, void_ok, Void};
 use super::func::FuncRegistry;
 use super::types::TypeRegistry;
+use super::dataset::InputSourceRegistry;
 
 pub struct PackageManager {
   pkgs    : HashMap<String, Box<Package>>,
   type_reg: TypeRegistry,
-  func_reg: FuncRegistry  
+  func_reg: FuncRegistry,
+  src_reg : InputSourceRegistry 
 }
 
 impl PackageManager {
@@ -20,6 +22,7 @@ impl PackageManager {
       pkgs: HashMap::new(),
       type_reg: TypeRegistry::new(),
       func_reg: FuncRegistry::new(),
+      src_reg : InputSourceRegistry::new()
     }
   }
   
@@ -32,6 +35,7 @@ impl PackageManager {
               .collect::<HashMap<String, Box<Package>>>(),
       type_reg: TypeRegistry::new(),
       func_reg: FuncRegistry::new(),
+      src_reg : InputSourceRegistry::new()
     }
   }
   
@@ -43,7 +47,7 @@ impl PackageManager {
   
   pub fn load_all(&mut self) -> Void {
     for (name, pkg) in self.pkgs.iter_mut() {
-      try!(pkg.load(&mut self.type_reg, &mut self.func_reg))            
+      try!(pkg.load(&mut self.type_reg, &mut self.func_reg, &mut self.src_reg))            
     }
     
     Ok(())
@@ -60,5 +64,9 @@ impl PackageManager {
 
 pub trait Package {
   fn name(&self) -> &str;
-  fn load(&mut self, type_reg: &mut TypeRegistry, fn_reg: &mut FuncRegistry) -> Void;
+  fn load(
+    &mut self, 
+    type_reg: &mut TypeRegistry, 
+    fn_reg  : &mut FuncRegistry,
+    src_reg : &mut InputSourceRegistry) -> Void;
 }

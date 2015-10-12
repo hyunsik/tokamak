@@ -8,6 +8,7 @@ extern crate itertools;
 extern crate libc;
 
 //pub mod datum;
+pub mod dataset;
 pub mod err;
 pub mod func;
 pub mod mm;

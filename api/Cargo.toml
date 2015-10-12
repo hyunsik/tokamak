@@ -15,3 +15,6 @@ path = "../common"
 
 [dependencies.sql]
 path = "../sql"
+
+[dependencies.storage]
+path = "../storage"
