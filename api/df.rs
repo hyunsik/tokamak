@@ -16,6 +16,7 @@ pub trait DataSet<'a>
 
 pub struct RandomGenerator<'a>
 {
+  ctx  : &'a TokamakContext,
   name : String,
   types: Vec<Box<&'a Type>>
 }
@@ -24,7 +25,8 @@ impl<'a> RandomGenerator<'a>
 {
   pub fn new(ctx: &'a TokamakContext, types: Vec<&str>) -> TResult<Box<RandomGenerator<'a>>>
   {
-    Ok(Box::new(RandomGenerator {
+    Ok(Box::new(RandomGenerator { 
+      ctx  : ctx,
       name : Uuid::new_v4().to_hyphenated_string(),
       types: types.iter()
                .map( |s| Box::new(ctx.get_type(s).unwrap()))
@@ -43,9 +45,27 @@ impl<'a> DataSet<'a> for RandomGenerator<'a>
   {
     &self.types
   }
-  
-//  pub fn from(&self) -> Box<DataFrame<'a>> {
-//  }
+  /*
+  pub fn from(&self) -> Box<DataFrame<'a>> {
+    Box::new(
+      TableDF {
+      ctx: self.ctx,
+      dataset: self
+    })
+  }*/
+}
+
+pub struct TableDF<'a>
+{
+  ctx: &'a TokamakContext,
+  dataset: &'a DataSet<'a>
+}
+
+impl<'a> DataFrame<'a> for TableDF<'a> {
+  fn count(&mut self) -> TResult<usize>
+  {
+    Ok(0)
+  }
 }
 
 pub trait Expr {
@@ -53,11 +73,11 @@ pub trait Expr {
 }
 
 pub trait DataFrame<'a> {
-  // transform
-  fn select(&mut self, Vec<Box<Expr>>) -> &mut DataFrame;
-  // transform
-  fn filter(&mut self, Box<Expr>) -> &mut DataFrame;
+//  // transform
+//  fn select(&mut self, Vec<Box<Expr>>) -> &mut DataFrame;
+//  // transform
+//  fn filter(&mut self, Box<Expr>) -> &mut DataFrame;
   
   // action
-  fn count(&mut self, Box<Expr>) -> Box<DataSet>;
+  fn count(&mut self) -> TResult<usize>;
 }
