@@ -1,5 +1,6 @@
 extern crate common;
 extern crate sql;
+extern crate uuid;
 
 pub mod df;
 

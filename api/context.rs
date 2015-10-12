@@ -1,7 +1,9 @@
-use common::err::TResult;
+use common::err::{Error, TResult, void_ok};
 use common::types::{Type, TypeId};
 use common::plugin::PackageManager;
 use sql::SQLPackage;
+
+use df::{DataSet, DataFrame};
 
 pub struct TokamakContext 
 {
@@ -26,9 +28,9 @@ impl TokamakContext
   }
   
   #[inline]
-  pub fn get_type(&self, sig: &TypeId) -> Option<&Type>
+  pub fn get_type(&self, ty_id: &str) -> Option<&Type>
   {
-    self.pkg_mgr.ty_registry().get(sig)
+    self.pkg_mgr.ty_registry().get(&TypeId{base: ty_id.to_string()})
   }
   
   #[inline]
