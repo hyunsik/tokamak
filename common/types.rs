@@ -1,9 +1,14 @@
+//! Type represents a data type. Its implementation is pluggable. 
+//! So, Types are loaded from the packages.
+//!
+
+use std::collections::BTreeMap;
 use std::fmt;
 use std::mem;
 
 use rows::{MiniPage};
 
-// globally unique id
+/// Globally unique id for a type
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TypeId {
   pub base: String
@@ -16,10 +21,27 @@ impl TypeId {
   }
 }
 
-pub trait TypeManager 
+pub struct TypeRegistry
 {
-  fn get(&self, id: &TypeId) -> Option<&Type>;
-  fn types(&self) -> Vec<&Type>;
+  types: BTreeMap<TypeId, Box<Type>>
+}
+
+impl TypeRegistry 
+{
+  pub fn new() -> TypeRegistry 
+  {
+    TypeRegistry {
+      types: BTreeMap::new()
+    }
+  }
+  
+  pub fn get(&self, id: &TypeId) -> Option<&Type> {
+    self.types.get(id).map(|v| &**v)
+  }
+  
+  pub fn types(&self) -> Vec<&Type> {
+    self.types.values().map(|v| &**v).collect::<Vec<&Type>>()
+  }
 }
 
 pub trait HashFn<T> {
@@ -32,7 +54,7 @@ pub trait HashFnFactory
   fn create_batch_hash32_fn() -> Box<Fn() -> Box<MiniPage>>;
 }
 
-pub trait Type 
+pub trait Type
 {
   fn id                     (&self) -> &TypeId;
   fn display_name           (&self) -> &str;

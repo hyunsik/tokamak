@@ -13,6 +13,7 @@ pub mod func;
 pub mod mm;
 pub mod operator;
 pub mod rows;
+pub mod plugin;
 pub mod str;
 pub mod types;
 pub mod platform;

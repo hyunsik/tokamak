@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::mem;
 
 use common::types::{Type, TypeId, TypeHandler};
