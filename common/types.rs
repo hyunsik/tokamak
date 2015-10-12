@@ -7,6 +7,7 @@ use std::collections::btree_map::Entry;
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::fmt;
 use std::mem;
+use std::rc::Rc;
 
 use err::{Error, TResult, Void, void_ok};
 use rows::{MiniPage};
@@ -78,12 +79,11 @@ pub trait Type
   fn is_comparable          (&self) -> bool;
   fn is_orderable           (&self) -> bool;
   fn type_params            (&self) -> Vec<&Type>;
-  //fn hash32_fn            (&self) -> Box<FnMut(&Vector, &mut [u32])>;
-  fn handler                (&self) -> Box<TypeHandler>;
+  fn handler                (&self) -> Rc<TypeHandler>;
 }
 
 pub struct TypeHandler {
-  pub create_minipage: Box<Fn() -> Box<MiniPage>>
+  pub create_minipage: Rc<Fn() -> Box<MiniPage>>
 }
 
 /*

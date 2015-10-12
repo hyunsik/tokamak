@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::mem;
+use std::rc::Rc;
 
 use common::types::{Type, TypeId, TypeHandler};
 use common::rows::{MiniPage};
@@ -68,17 +69,23 @@ pub type TIMESTAMP_T = i64;
 #[allow(non_camel_case_types)]
 pub type TEXT_T      = StrSlice;  
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone)]
 pub struct Int4 
 {
-  id: TypeId
+  id: TypeId,
+  handler: Rc<TypeHandler>
 }
 
 impl Int4 
 {
   pub fn new() -> Self
   {
-    Int4 {id: TypeId {base: String::from(INT4_STR)} }
+    let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
+    
+    Int4 {
+      id: TypeId {base: String::from(INT4_STR)},
+      handler: Rc::new(TypeHandler {create_minipage: Rc::new(f)})
+    }
   } 
 }
 
@@ -97,25 +104,29 @@ impl Type for Int4
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn handler (&self) -> Box<TypeHandler> 
+  fn handler (&self) -> Rc<TypeHandler> 
   {
-    let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
-    
-    Box::new(TypeHandler {create_minipage: Box::new(f)})
+    self.handler.clone()
   }
 }
  
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone)]
 pub struct Float4 
 {
-  id: TypeId
+  id: TypeId,
+  handler: Rc<TypeHandler>
 }
 
 impl Float4 
 {
   pub fn new() -> Self {
-    Float4 {id: TypeId {base: String::from(FLOAT4_STR)}}
+    let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
+    
+    Float4 {
+      id: TypeId {base: String::from(FLOAT4_STR)},
+      handler: Rc::new(TypeHandler {create_minipage: Rc::new(f)})
+    }
   }
 }
 
@@ -134,10 +145,8 @@ impl Type for Float4
 //  #[inline]
 //  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
   #[inline]
-  fn handler (&self) -> Box<TypeHandler> 
+  fn handler (&self) -> Rc<TypeHandler> 
   {
-    let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
-    
-    Box::new(TypeHandler {create_minipage: Box::new(f)})
+    self.handler.clone()
   }
 }
