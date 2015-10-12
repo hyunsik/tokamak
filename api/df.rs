@@ -5,20 +5,20 @@ use common::types::Type;
 
 use super::TokamakContext;
 
-pub trait DataSet<'a> 
+pub trait DataSet 
 {
   fn name(&self) -> &str;
   
-  fn schema(&self) -> &Vec<Box<&'a Type>>;
+  fn schema(&self) -> &Vec<Box<Type>>;
   
-  //fn from(&self) -> Box<DataFrame<'a>>;
+  fn from(&self) -> Option<Box<DataFrame>>;
 }
 
 pub struct RandomGenerator<'a>
 {
   ctx  : &'a TokamakContext,
   name : String,
-  types: Vec<Box<&'a Type>>
+  types: Vec<Box<Type>>
 }
 
 impl<'a> RandomGenerator<'a>
@@ -29,39 +29,36 @@ impl<'a> RandomGenerator<'a>
       ctx  : ctx,
       name : Uuid::new_v4().to_hyphenated_string(),
       types: types.iter()
-               .map( |s| Box::new(ctx.get_type(s).unwrap()))
-               .collect::<Vec<Box<&Type>>>()
+               .map( |s| ctx.get_type(s).unwrap().clone_box() )
+               .collect::<Vec<Box<Type>>>()
     }))
   }
 }
 
-impl<'a> DataSet<'a> for RandomGenerator<'a>
+impl<'a> DataSet for RandomGenerator<'a>
 {
   fn name(&self) -> &str {
     &self.name
   }
   
-  fn schema(&self) -> &Vec<Box<&'a Type>>
+  fn schema(&self) -> &Vec<Box<Type>>
   {
     &self.types
   }
-  /*
-  pub fn from(&self) -> Box<DataFrame<'a>> {
-    Box::new(
-      TableDF {
-      ctx: self.ctx,
-      dataset: self
-    })
-  }*/
+  
+  fn from(&self) -> Option<Box<DataFrame>> {
+    //let x: Box<DataFrame> = Box::new(TableDF {dataset: self});
+    None
+  }
 }
 
 pub struct TableDF<'a>
 {
-  ctx: &'a TokamakContext,
-  dataset: &'a DataSet<'a>
+  //ctx: &'a TokamakContext,
+  dataset: &'a DataSet
 }
 
-impl<'a> DataFrame<'a> for TableDF<'a> {
+impl<'a> DataFrame for TableDF<'a> {
   fn count(&mut self) -> TResult<usize>
   {
     Ok(0)
@@ -72,7 +69,7 @@ pub trait Expr {
   fn name(&self) -> &str;
 }
 
-pub trait DataFrame<'a> {
+pub trait DataFrame {
 //  // transform
 //  fn select(&mut self, Vec<Box<Expr>>) -> &mut DataFrame;
 //  // transform
