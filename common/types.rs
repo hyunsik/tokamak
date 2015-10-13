@@ -25,43 +25,6 @@ impl TypeId {
   }
 }
 
-pub struct TypeRegistry
-{
-  types: BTreeMap<TypeId, Box<Type>>
-}
-
-impl TypeRegistry 
-{
-  pub fn new() -> TypeRegistry 
-  {
-    TypeRegistry {
-      types: BTreeMap::new()
-    }
-  }
-  
-  pub fn add_all(&mut self, types: Vec<Box<Type>>) -> Void 
-  {
-    for ty in types.into_iter() {
-      match self.types.entry(ty.id().clone()) {
-        Vacant(e)   => { 
-          e.insert(ty); 
-        },
-        Occupied(_) => { return Err(Error::DuplicatedTypeId) }
-      }      
-    }
-    
-    void_ok()
-  }
-  
-  pub fn get(&self, id: &TypeId) -> Option<&Type> {
-    self.types.get(id).map(|v| &**v)
-  }
-  
-  pub fn all(&self) -> Vec<&Type> {
-    self.types.values().map(|v| &**v).collect::<Vec<&Type>>()
-  }
-}
-
 pub trait HashFn<T> {
   fn hash(v: &MiniPage, keys: &mut [T]);
 }

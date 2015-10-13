@@ -1,9 +1,6 @@
 //! Function Registry
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
-use std::collections::btree_map::Entry;
-use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::cell::RefCell;
 
 use err::{Void, void_ok, Error};
@@ -67,34 +64,5 @@ impl PartialOrd for FuncSignature
 impl Ord for FuncSignature {
   fn cmp(&self, other: &FuncSignature) -> Ordering {
     self.name.cmp(&other.name)
-  }
-}
-
-pub struct FuncRegistry
-{
-  // key and value will be kept immutable as a just reference
-  funcs: BTreeMap<FuncSignature, InvokeAction>
-}
-
-impl FuncRegistry 
-{
-  pub fn new() -> FuncRegistry 
-  {
-    FuncRegistry {
-      funcs: BTreeMap::new()
-    }    
-  }
-  
-  pub fn add_all(&mut self, funcs: Vec<(FuncSignature, InvokeAction)>) -> Void {   
-    for (sig, invoke) in funcs.into_iter() {
-      match self.funcs.entry(sig) {
-        Vacant(e)   => { 
-          e.insert(invoke); 
-        },
-        Occupied(_) => { return Err(Error::DuplicatedFuncSign) }
-      }      
-    }
-    
-    void_ok()
   }
 }

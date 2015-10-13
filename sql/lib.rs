@@ -4,10 +4,9 @@ extern crate rows;
 pub mod types;
 
 use common::err::{void_ok, Void};
-use common::types::{Type, TypeRegistry};
-use common::func::{FuncRegistry, FuncSignature, InvokeAction};
-use common::input::{InputSourceRegistry};
-use common::plugin::Package;
+use common::types::{Type};
+use common::func::{FuncSignature, InvokeAction};
+use common::plugin::{FuncRegistry, InputSourceRegistry, Package, TypeRegistry}; 
 
 const PACKAGE_NAME: &'static str = "sql";
 

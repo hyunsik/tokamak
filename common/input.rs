@@ -10,20 +10,3 @@ pub trait InputSource {
   fn next    (&mut self) -> TResult<&Page>;
   fn close   (&mut self) -> Void;
 }
-
-pub type InputSourceFactory = Box<Fn(Vec<&Type>) -> Box<InputSource>>;
-
-pub struct InputSourceRegistry 
-{
-  registry: HashMap<String, InputSourceFactory>
-}
-
-impl InputSourceRegistry 
-{
-  pub fn new() -> InputSourceRegistry
-  {
-    InputSourceRegistry {
-      registry: HashMap::new()      
-    }
-  }
-}
