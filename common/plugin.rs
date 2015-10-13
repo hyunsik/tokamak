@@ -4,10 +4,10 @@
 
 use std::collections::HashMap;
 
-use super::err::{TResult, void_ok, Void};
-use super::func::FuncRegistry;
-use super::types::TypeRegistry;
-use super::dataset::InputSourceRegistry;
+use err::{TResult, void_ok, Void};
+use func::FuncRegistry;
+use types::TypeRegistry;
+use input::InputSourceRegistry;
 
 pub struct PackageManager {
   pkgs    : HashMap<String, Box<Package>>,

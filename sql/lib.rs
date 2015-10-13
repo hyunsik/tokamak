@@ -6,7 +6,7 @@ pub mod types;
 use common::err::{void_ok, Void};
 use common::types::{Type, TypeRegistry};
 use common::func::{FuncRegistry, FuncSignature, InvokeAction};
-use common::dataset::{InputSourceRegistry};
+use common::input::{InputSourceRegistry};
 use common::plugin::Package;
 
 const PACKAGE_NAME: &'static str = "sql";

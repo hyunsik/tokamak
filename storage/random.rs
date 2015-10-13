@@ -11,7 +11,7 @@ use common::rows::{
   PageBuilder,
   ROWBATCH_SIZE
 };
-use common::dataset::InputSource;
+use common::input::InputSource;
 
 pub struct RandomTableGenerator 
 {

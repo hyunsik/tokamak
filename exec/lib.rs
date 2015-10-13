@@ -32,14 +32,13 @@ extern crate common;
 extern crate sql;
 extern crate storage;
 
-pub mod types;
 pub mod scan;
 
 use std::rc::Rc;
 
 use common::err::{Void, TResult, Error};
 use common::rows::{Page, PageBuilder};
-use storage::InputSource;
+use common::input::InputSource;
 
 pub trait Executor 
 {

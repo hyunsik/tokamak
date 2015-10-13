@@ -1,6 +1,6 @@
 use common::err::{Void, TResult, Error, void_ok};
 use common::rows::{Page, PageBuilder};
-use storage::InputSource;
+use common::input::InputSource;
 
 use super::{Executor, Processor};
 
