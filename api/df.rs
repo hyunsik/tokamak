@@ -3,15 +3,47 @@ use uuid::Uuid;
 use common::err::{Error, TResult};
 use common::types::Type;
 
+// let ctx = TokamakContext::new();
+// ctx.from(RandomGenerator).select(...);
+
 use super::TokamakContext;
 
-pub trait DataSet 
+pub enum DataFrame {
+  From(DataSource),
+  Select(Box<DataFrame>)
+}
+
+pub enum Expr {
+  Plus,
+  Field(String)
+}
+
+impl DataFrame {
+  fn kind(&self) -> &'static str {
+    "aaa"
+  }
+  
+//  fn select(self) -> DataFrame {
+//    
+//  }
+}
+
+pub struct DataSource {
+  src_type : String,
+  schema   : Vec<String>
+}
+
+pub struct RndGenerator;
+
+impl RndGenerator 
 {
-  fn name(&self) -> &str;
-  
-  fn schema(&self) -> &Vec<Box<Type>>;
-  
-  fn from(&self) -> Option<Box<DataFrame>>;
+  pub fn new(types: Vec<&str>) -> DataSource
+  {
+    DataSource {
+      src_type: "random".to_string(),
+      schema  : types.into_iter().map(|s| s.to_string()).collect::<Vec<String>>()
+    }
+  }
 }
 
 pub struct RandomGenerator<'a>
@@ -21,21 +53,19 @@ pub struct RandomGenerator<'a>
   types: Vec<Box<Type>>
 }
 
-impl<'a> RandomGenerator<'a>
+fn typestr_to_schema(ctx: &TokamakContext, types: Vec<&str>) -> Vec<Box<Type>>
 {
-  pub fn new(ctx: &'a TokamakContext, types: Vec<&str>) -> TResult<Box<RandomGenerator<'a>>>
-  {
-    Ok(Box::new(RandomGenerator { 
-      ctx  : ctx,
-      name : Uuid::new_v4().to_hyphenated_string(),
-      types: types.iter()
-               .map( |s| ctx.get_type(s).unwrap().clone_box() )
-               .collect::<Vec<Box<Type>>>()
-    }))
-  }
+  types.iter()
+    .map( |s| ctx.get_type(s).unwrap().clone_box() )
+    .collect::<Vec<Box<Type>>>()
 }
 
-impl<'a> DataSet for RandomGenerator<'a>
+/*
+pub struct DataSet {
+  rnd: RandomGenerator;
+}
+
+impl DataSet
 {
   fn name(&self) -> &str {
     &self.name
@@ -46,22 +76,8 @@ impl<'a> DataSet for RandomGenerator<'a>
     &self.types
   }
   
-  fn from(&self) -> Option<Box<DataFrame>> {
-    //let x: Box<DataFrame> = Box::new(TableDF {dataset: self});
-    None
-  }
-}
-
-pub struct TableDF<'a>
-{
-  //ctx: &'a TokamakContext,
-  dataset: &'a DataSet
-}
-
-impl<'a> DataFrame for TableDF<'a> {
-  fn count(&mut self) -> TResult<usize>
-  {
-    Ok(0)
+  fn from(self) -> DataFrame<'a> {
+    DataFrame::Dataset(&self as DataSet)
   }
 }
 
@@ -69,12 +85,17 @@ pub trait Expr {
   fn name(&self) -> &str;
 }
 
-pub trait DataFrame {
+impl<'a> DataFrame<'a> {
 //  // transform
 //  fn select(&mut self, Vec<Box<Expr>>) -> &mut DataFrame;
 //  // transform
 //  fn filter(&mut self, Box<Expr>) -> &mut DataFrame;
   
+  
+  
   // action
-  fn count(&mut self) -> TResult<usize>;
+  fn count(&mut self) -> TResult<usize> {
+    Err(Error::InternalError)
+  }
 }
+*/

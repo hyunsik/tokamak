@@ -3,7 +3,7 @@ use common::types::{Type, TypeId};
 use common::plugin::PackageManager;
 use sql::SQLPackage;
 
-use df::{DataSet, DataFrame};
+use df::{DataFrame, DataSource};
 
 pub struct TokamakContext 
 {
@@ -37,5 +37,9 @@ impl TokamakContext
   pub fn all_types(&self) -> Vec<&Type> 
   {
     self.pkg_mgr.ty_registry().all()
+  }
+  
+  pub fn from(&self, ds: DataSource) -> DataFrame {
+    DataFrame::From(ds)
   }
 }
