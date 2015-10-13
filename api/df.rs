@@ -47,6 +47,7 @@ pub trait DataSet {
 }
 
 pub struct CustomDataSource {
+  name     : String,
   src_type : String,
   schema   : Vec<String>,
   props    : Vec<(String, String)>
@@ -54,13 +55,14 @@ pub struct CustomDataSource {
 
 impl DataSet for CustomDataSource {
   fn name(&self) -> &str {
-    "aaa"
+    &self.name
   }
 }
 
 pub fn RandomGenerator(types: Vec<&str>) -> Box<DataSet>
 {
   Box::new(CustomDataSource {
+    name    :  Uuid::new_v4().to_hyphenated_string(),  
     src_type: "random".to_string(),
     schema  : types.into_iter().map(|s| s.to_string()).collect::<Vec<String>>(),
     props   : Vec::new()
