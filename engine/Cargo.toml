@@ -1,0 +1,29 @@
+[package]
+name = "engine"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "engine"
+path = "lib.rs"
+
+[dependencies]
+itertools = "0.4.1"
+
+[dependencies.api]
+path = "../api"
+
+[dependencies.common]
+path = "../common"
+
+[dependencies.exec]
+path = "../exec"
+
+[dependencies.rows]
+path = "../rows"
+
+[dependencies.sql]
+path = "../sql"
+
+[dependencies.storage]
+path = "../storage"
