@@ -12,15 +12,18 @@ This page describes the modules and their dependencies. This documentation has b
 
 ### Dependencies
 ```
+api
+ |--- common
+ |--- sql
+ |--- engine
+ 
 common
-   ^
-   |----- rows <----|
-   |       ^        |
-   |       |        |
-   |----- sql  <----|
-   |                |
-   |----- storage   |
-   |          ^     |
-   |           \    |
-   |----------- engine
+
+engine
+
+func
+
+rows
+
+sql
 ```
