@@ -37,7 +37,19 @@ impl<'a> DataFrame<'a> {
   
   fn count(&self) -> TResult<usize> {
     Ok(0)
-  } 
+  }
+  
+  fn head(&self) -> TResult<Box<DataSet>> {
+    Err(Error::InternalError)
+  }
+  
+  fn head_with(&self, num: usize) -> TResult<Box<DataSet>> {
+    Err(Error::InternalError)
+  }
+  
+  fn tail_with(&self, num: usize) -> TResult<Box<DataSet>> {
+    Err(Error::InternalError)
+  }
 }
 
 pub trait DataSet {
