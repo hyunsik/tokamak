@@ -39,7 +39,8 @@ impl TokamakContext
     self.pkg_mgr.ty_registry().all()
   }
   
-  pub fn from(&self, ds: DataSource) -> DataFrame {
+  pub fn from(&self, ds: Box<DataSource>) -> DataFrame {
+    //DataFrame {ctx: self, kind: Kind::From(ds)}
     DataFrame {ctx: self, kind: Kind::From(ds)}
   }
 }
