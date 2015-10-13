@@ -8,7 +8,7 @@ use types::TypeId;
 #[derive(Clone, Debug)]
 pub enum Error {
   InternalError,
-  Notimplemented,
+  NotImplemented,
   UnsupportedFeature,
   InvalidRpcCall,
   
