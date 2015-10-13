@@ -3,7 +3,7 @@ use common::types::{Type, TypeId};
 use common::plugin::PackageManager;
 use sql::SQLPackage;
 
-use df::{DataFrame, DataSource};
+use df::{DataFrame, DataSource, Kind};
 
 pub struct TokamakContext 
 {
@@ -40,6 +40,6 @@ impl TokamakContext
   }
   
   pub fn from(&self, ds: DataSource) -> DataFrame {
-    DataFrame::From(ds)
+    DataFrame {ctx: self, kind: Kind::From(ds)}
   }
 }

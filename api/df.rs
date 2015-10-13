@@ -8,9 +8,14 @@ use common::types::Type;
 
 use super::TokamakContext;
 
-pub enum DataFrame {
+pub struct DataFrame<'a> {
+  pub ctx : &'a TokamakContext,
+  pub kind: Kind<'a>
+}
+
+pub enum Kind<'a> {
   From(DataSource),
-  Select(Box<DataFrame>)
+  Select(Box<DataFrame<'a>>, Vec<Expr>)
 }
 
 pub enum Expr {
@@ -18,14 +23,21 @@ pub enum Expr {
   Field(String)
 }
 
-impl DataFrame {
-  fn kind(&self) -> &'static str {
-    "aaa"
+impl<'a> DataFrame<'a> {
+  pub fn kind(&self) -> &'static str {
+    match self.kind {
+      Kind::From  (_) => "from",
+      Kind::Select(_,_) => "select"
+    } 
   }
   
-//  fn select(self) -> DataFrame {
-//    
-//  }
+  pub fn select(self, exprs: Vec<Expr>) -> DataFrame<'a> {
+    DataFrame {ctx: self.ctx, kind: Kind::Select(Box::new(self), exprs)}
+  }
+  
+  fn count(&self) -> TResult<usize> {
+    Ok(0)
+  } 
 }
 
 pub struct DataSource {
@@ -44,13 +56,6 @@ impl RndGenerator
       schema  : types.into_iter().map(|s| s.to_string()).collect::<Vec<String>>()
     }
   }
-}
-
-pub struct RandomGenerator<'a>
-{
-  ctx  : &'a TokamakContext,
-  name : String,
-  types: Vec<Box<Type>>
 }
 
 fn typestr_to_schema(ctx: &TokamakContext, types: Vec<&str>) -> Vec<Box<Type>>
