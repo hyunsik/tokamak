@@ -3,7 +3,7 @@ use common::types::{Type, TypeId};
 use common::plugin::PackageManager;
 use sql::SQLPackage;
 
-use df::{DataFrame, DataSource, Kind};
+use df::{DataFrame, DataFrameDecl, DataSet};
 
 pub struct TokamakContext 
 {
@@ -39,8 +39,7 @@ impl TokamakContext
     self.pkg_mgr.ty_registry().all()
   }
   
-  pub fn from(&self, ds: Box<DataSource>) -> DataFrame {
-    //DataFrame {ctx: self, kind: Kind::From(ds)}
-    DataFrame {ctx: self, kind: Kind::From(ds)}
+  pub fn from(&self, ds: Box<DataSet>) -> DataFrame {
+    DataFrame {ctx: self, decl: DataFrameDecl::From(ds)}
   }
 }
