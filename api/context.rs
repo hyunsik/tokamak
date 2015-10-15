@@ -28,13 +28,13 @@ impl TokamakContext
   }
   
   #[inline]
-  pub fn get_type(&self, ty_id: &str) -> Option<&Type>
+  pub fn get_type(&self, type_sign: &str) -> TResult<Box<Type>>
   {
-    self.pkg_mgr.ty_registry().get(&TypeId{base: ty_id.to_string()})
+    self.pkg_mgr.ty_registry().get(type_sign)
   }
   
   #[inline]
-  pub fn all_types(&self) -> Vec<&Type> 
+  pub fn all_types(&self) -> Vec<&str> 
   {
     self.pkg_mgr.ty_registry().all()
   }

@@ -35,6 +35,8 @@ pub trait HashFnFactory
   fn create_batch_hash32_fn() -> Box<Fn() -> Box<MiniPage>>;
 }
 
+pub type TypeFactory = Rc<Fn(&str) -> TResult<Box<Type>>>;
+
 pub trait Type
 {
   fn id                     (&self) -> &TypeId;

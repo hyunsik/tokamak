@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use err::{Error, TResult, Void, void_ok};
 use func::{FuncSignature, InvokeAction};
-use types::{Type, TypeId};
+use types::{Type, TypeId, TypeFactory};
 use input::InputSource;
 
 pub trait Package {
@@ -106,7 +106,8 @@ impl FuncRegistry
 
 pub struct TypeRegistry
 {
-  types: BTreeMap<TypeId, Box<Type>>
+  // a base type, a function to generate type
+  types: BTreeMap<String, TypeFactory>
 }
 
 impl TypeRegistry 
@@ -118,12 +119,12 @@ impl TypeRegistry
     }
   }
   
-  pub fn add_all(&mut self, types: Vec<Box<Type>>) -> Void 
+  pub fn add_all(&mut self, types: Vec<(&str, TypeFactory)>) -> Void 
   {
-    for ty in types.into_iter() {
-      match self.types.entry(ty.id().clone()) {
+    for (base, factory) in types.into_iter() {
+      match self.types.entry(base.to_string()) {
         Vacant(e)   => { 
-          e.insert(ty); 
+          e.insert(factory); 
         },
         Occupied(_) => { return Err(Error::DuplicatedTypeId) }
       }      
@@ -132,12 +133,15 @@ impl TypeRegistry
     void_ok()
   }
   
-  pub fn get(&self, id: &TypeId) -> Option<&Type> {
-    self.types.get(id).map(|v| &**v)
+  pub fn get(&self, type_sign: &str) -> TResult<Box<Type>> {
+    match self.types.get(type_sign) {
+      Some(factory) => factory(type_sign),
+      None          => Err(Error::UndefinedDataType(type_sign.to_string()))
+    }
   }
   
-  pub fn all(&self) -> Vec<&Type> {
-    self.types.values().map(|v| &**v).collect::<Vec<&Type>>()
+  pub fn all(&self) -> Vec<&str> {
+    self.types.keys().map(|v| &**v).collect::<Vec<&str>>()
   }
 }
 

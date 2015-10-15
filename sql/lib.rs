@@ -3,11 +3,13 @@ extern crate rows;
 
 pub mod types;
 
-use common::err::{void_ok, Void};
-use common::types::{Type};
+use std::rc::Rc;
+
+use common::err::{void_ok, Void, TResult};
+use common::types::{Type, TypeFactory};
 use common::func::{FuncSignature, InvokeAction};
 use common::plugin::{FuncRegistry, InputSourceRegistry, Package, TypeRegistry}; 
-
+use types::parse_type_str;
 const PACKAGE_NAME: &'static str = "sql";
 
 pub struct SQLPackage;
@@ -27,9 +29,11 @@ impl Package for SQLPackage {
   }
 }
 
-fn load_types() -> Vec<Box<Type>> {
+fn load_types() -> Vec<(&'static str, TypeFactory)> {
+  let factory: Rc<Fn(&str) -> TResult<Box<Type>>> = Rc::new(parse_type_str);
+  
   vec![
-    Box::new(types::Int4::new())  
+      ("int4", factory)
   ]
 }
 

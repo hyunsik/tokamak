@@ -17,6 +17,7 @@ pub enum Error {
   UndefinedTable,
   UndefinedColumn,
   UndefinedOperator,
+  UndefinedDataType(String),
 
   /// No tablespace handler for a given URL
   UnsupportedTableSpace,

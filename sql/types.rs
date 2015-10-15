@@ -3,7 +3,8 @@
 use std::mem;
 use std::rc::Rc;
 
-use common::types::{Type, TypeId, TypeHandler};
+use common::err::{Error, TResult};
+use common::types::{Type, TypeId, TypeHandler, TypeFactory};
 use common::rows::{MiniPage};
 use common::str::{StrSlice};
 use rows::fixed_len::FMiniPage;
@@ -68,6 +69,10 @@ pub type TIME_T      = i64;
 pub type TIMESTAMP_T = i64;
 #[allow(non_camel_case_types)]
 pub type TEXT_T      = StrSlice;  
+
+pub fn parse_type_str(type_str: &str) -> TResult<Box<Type>> {
+  Err(Error::InternalError)
+}
 
 #[derive(Clone)]
 pub struct Int4 
