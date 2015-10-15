@@ -104,6 +104,7 @@ impl FuncRegistry
   }
 }
 
+#[derive(Clone)]
 pub struct TypeRegistry
 {
   // a base type, a function to generate type
