@@ -1,9 +1,10 @@
 use common::err::{Error, TResult, void_ok};
 use common::types::{Type, TypeId};
+use common::plan::{DataSet, Plan};
 use common::plugin::PackageManager;
 use sql::SQLPackage;
 
-use df::{DataFrame, DataFrameDecl, DataSet};
+use df::{DataFrame};
 
 pub struct TokamakContext 
 {
@@ -40,6 +41,6 @@ impl TokamakContext
   }
   
   pub fn from(&self, ds: Box<DataSet>) -> DataFrame {
-    DataFrame {ctx: self, decl: DataFrameDecl::From(ds)}
+    DataFrame {ctx: self, plan: Plan::From(ds)}
   }
 }

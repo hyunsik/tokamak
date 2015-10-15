@@ -14,6 +14,7 @@ pub mod input;
 pub mod mm;
 pub mod operator;
 pub mod rows;
+pub mod plan;
 pub mod plugin;
 pub mod str;
 pub mod types;
