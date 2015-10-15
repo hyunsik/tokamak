@@ -74,7 +74,7 @@ impl PackageManager {
   }
 }
 
-
+#[derive(Clone)]
 pub struct FuncRegistry
 {
   // key and value will be kept immutable as a just reference

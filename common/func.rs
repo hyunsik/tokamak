@@ -1,6 +1,7 @@
 //! Function Registry
 
 use std::cmp::Ordering;
+use std::rc::Rc;
 use std::cell::RefCell;
 
 use err::{Void, void_ok, Error};
@@ -15,20 +16,20 @@ pub enum FuncType {
   Window
 }
 
-pub type UnaryFn   = Fn(&MiniPage, RefCell<MiniPageWriter>);
-pub type BinaryFn  = Fn(&MiniPage, &MiniPage, RefCell<MiniPageWriter>);
-pub type TrinityFn = Fn(&MiniPage, &MiniPage, &MiniPage, RefCell<MiniPageWriter>);
+pub type UnaryFn   = Rc<Fn(&MiniPage, RefCell<MiniPageWriter>)>;
+pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, RefCell<MiniPageWriter>)>;
+pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, RefCell<MiniPageWriter>)>;
 
-pub type ScalarVecFunc = Fn(Vec<&MiniPage>, RefCell<MiniPageWriter>);
+pub type ScalarVecFunc = Rc<Fn(Vec<&MiniPage>, RefCell<MiniPageWriter>)>;
 
-
+#[derive(Clone)]
 pub enum InvokeAction
 {
-  UnaryOp  (Box<UnaryFn>),
-  BinaryOp (Box<BinaryFn>),
-  TrinityOp(Box<TrinityFn>),
+  UnaryOp  (UnaryFn),
+  BinaryOp (BinaryFn),
+  TrinityOp(TrinityFn),
   
-  ScalarVec(Box<ScalarVecFunc>) 
+  ScalarVec(ScalarVecFunc) 
 }
 
 #[derive(Clone)]
