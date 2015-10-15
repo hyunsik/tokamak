@@ -9,24 +9,24 @@ use common::rows::{MiniPage};
 use common::str::{StrSlice};
 use rows::fixed_len::FMiniPage;
 
-const BOOL_STR       : &'static str = "bool";
-const INT1_STR       : &'static str = "int1";
-const INT2_STR       : &'static str = "int2";
-const INT4_STR       : &'static str = "int4";
-const INT8_STR       : &'static str = "int8";
-const FLOAT4_STR     : &'static str = "float4";
-const FLOAT8_STR     : &'static str = "float8";
-const NUMERIC_STR    : &'static str = "numeric";
-const DATE_STR       : &'static str = "date";
-const TIME_STR       : &'static str = "time";
-const TIMEZ_STR      : &'static str = "time with timezone";
-const TIMESTAMP_STR  : &'static str = "timestamp";
-const TIMESTAMPZ_STR : &'static str = "timestamp with timezone";
-const INTERVAL_STR   : &'static str = "interval";
-const CHAR_STR       : &'static str = "char";
-const BINARY_STR     : &'static str = "binary";
-const CLOB_STR       : &'static str = "clob";
-const BLOB_STR       : &'static str = "blob";
+pub const BOOL_STR       : &'static str = "bool";
+pub const INT1_STR       : &'static str = "int1";
+pub const INT2_STR       : &'static str = "int2";
+pub const INT4_STR       : &'static str = "int4";
+pub const INT8_STR       : &'static str = "int8";
+pub const FLOAT4_STR     : &'static str = "float4";
+pub const FLOAT8_STR     : &'static str = "float8";
+pub const NUMERIC_STR    : &'static str = "numeric";
+pub const DATE_STR       : &'static str = "date";
+pub const TIME_STR       : &'static str = "time";
+pub const TIMEZ_STR      : &'static str = "time with timezone";
+pub const TIMESTAMP_STR  : &'static str = "timestamp";
+pub const TIMESTAMPZ_STR : &'static str = "timestamp with timezone";
+pub const INTERVAL_STR   : &'static str = "interval";
+pub const CHAR_STR       : &'static str = "char";
+pub const BINARY_STR     : &'static str = "binary";
+pub const CLOB_STR       : &'static str = "clob";
+pub const BLOB_STR       : &'static str = "blob";
 
 //pub const BOOL:       TypeId = TypeId {base: String::from(BOOL_STR)};
 //pub const INT1:       TypeId = TypeId {base: INT1_STR.to_string()};
@@ -71,7 +71,11 @@ pub type TIMESTAMP_T = i64;
 pub type TEXT_T      = StrSlice;  
 
 pub fn parse_type_str(type_str: &str) -> TResult<Box<Type>> {
-  Err(Error::InternalError)
+  match type_str {
+    INT4_STR   => Ok(Box::new(Int4::new())),
+    FLOAT4_STR => Ok(Box::new(Float4::new())),
+    _          => Err(Error::UndefinedDataType(type_str.to_string()))
+  }
 }
 
 #[derive(Clone)]

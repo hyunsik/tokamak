@@ -9,7 +9,7 @@ use common::err::{void_ok, Void, TResult};
 use common::types::{Type, TypeFactory};
 use common::func::{FuncSignature, InvokeAction};
 use common::plugin::{FuncRegistry, InputSourceRegistry, Package, TypeRegistry}; 
-use types::parse_type_str;
+use types::*;
 const PACKAGE_NAME: &'static str = "sql";
 
 pub struct SQLPackage;
@@ -33,7 +33,8 @@ fn load_types() -> Vec<(&'static str, TypeFactory)> {
   let factory: Rc<Fn(&str) -> TResult<Box<Type>>> = Rc::new(parse_type_str);
   
   vec![
-      ("int4", factory)
+      (INT4_STR  , factory.clone()),
+      (FLOAT4_STR, factory.clone()),
   ]
 }
 
