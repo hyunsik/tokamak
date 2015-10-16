@@ -1,25 +1,15 @@
 use common::err::{Error, TResult};
-use common::plugin::{TypeRegistry, FuncRegistry};
+use common::plugin::{PackageManager};
 
-pub struct ExecutionPlanner<'a>
-{
-  type_regs: &'a TypeRegistry,
-  func_regs: &'a FuncRegistry 
-}
+pub struct ExecutionPlanner;
 
-impl<'a> ExecutionPlanner<'a> 
+impl ExecutionPlanner 
 {
-  pub fn new(
-    type_regs: &'a TypeRegistry,
-    func_regs: &'a FuncRegistry) -> ExecutionPlanner<'a> {
-      
-    ExecutionPlanner {
-      type_regs: type_regs,
-      func_regs: func_regs
-    }
+  pub fn new() -> ExecutionPlanner {  
+    ExecutionPlanner
   }
   
-  pub fn plan(&self) -> TResult<ExecutionPlan> {
+  pub fn plan(&self, pkg_mgr: &PackageManager) -> TResult<ExecutionPlan> {
     Err(Error::NotImplemented)
   }
 }

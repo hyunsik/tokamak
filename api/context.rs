@@ -2,13 +2,15 @@ use common::err::{Error, TResult, void_ok};
 use common::types::{Type, TypeId};
 use common::plan::{DataSet, Plan};
 use common::plugin::PackageManager;
+use engine::{ExecutionPlanner, ExecutionPlan};
 use sql::SQLPackage;
 
 use df::{DataFrame};
 
 pub struct TokamakContext 
 {
-  pkg_mgr: PackageManager
+  pkg_mgr: PackageManager,
+  planner: ExecutionPlanner
 }
 
 impl TokamakContext 
@@ -24,7 +26,8 @@ impl TokamakContext
     try!(pkg_mgr.load_all());
     
     Ok(TokamakContext {
-      pkg_mgr: pkg_mgr
+      pkg_mgr: pkg_mgr,
+      planner: ExecutionPlanner
     })
   }
   
