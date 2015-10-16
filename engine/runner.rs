@@ -1,4 +1,8 @@
-/// Execute
-pub struct ExecutorRunner;
+use common::err::TResult;
+use common::plan::DataSet;
 
-pub struct TaskRunner;
+use super::Task;
+
+pub fn execute_tasks(tasks: Vec<Task>) -> TResult<Box<DataSet>> {
+  unimplemented!()
+}

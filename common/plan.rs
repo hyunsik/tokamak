@@ -1,6 +1,9 @@
 pub enum Plan {
   From (Box<DataSet>),
-  Select(Box<Plan>, Vec<Expr>) // params: a child, a filter in a CNF form 
+  Select(Box<Plan>, Vec<Expr>), // params: child, filter in a CNF form
+  Aggregate(Box<Plan>, Vec<String>, Vec<String>), // params: child, keys, expressions,
+  Head(Box<Plan>, usize), // child, row number to fetch
+  Tail(Box<Plan>, usize), // child, row number to fetch
 }
 
 pub trait DataSet {

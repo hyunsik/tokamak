@@ -14,6 +14,13 @@ extern crate storage;
 pub struct ExecutorRunner;
 
 mod planner;
-pub use planner::{ExecutionPlan, ExecutionPlanner};
+pub use planner::*;
+
+mod parallelizer;
+pub use parallelizer::*;
 
 mod task;
+pub use task::Task;
+
+mod runner;
+pub use runner::execute_tasks;

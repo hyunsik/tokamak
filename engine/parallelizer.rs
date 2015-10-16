@@ -1,16 +1,8 @@
 use common::err::TResult;
 
-pub struct Parallelizer;
+use super::{ExecutionPlan, Task};
 
-impl Parallelizer {
-  pub fn new() -> Parallelizer
-  {
-    Parallelizer
-  }
-  
-  pub fn parallelize(plan &ExecutionPlan) -> TResult<Vec<Task>>
-  {
-    None
-  }
+pub fn parallelize(plan: &ExecutionPlan) -> TResult<Vec<Task>>
+{
+   unimplemented!()
 }
-
