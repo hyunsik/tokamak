@@ -1,8 +1,7 @@
-use common::err::{Error, TResult, void_ok};
-use common::types::{Type, TypeId};
+use common::err::TResult;
+use common::types::Type;
 use common::plan::{DataSet, Plan};
 use common::plugin::PackageManager;
-use engine::{ExecutionPlan};
 use sql::SQLPackage;
 
 use df::{DataFrame};

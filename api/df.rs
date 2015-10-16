@@ -1,11 +1,14 @@
+//! ## Example
+//!
+//! let ctx = TokamakContext::new();
+//! ctx.from(RandomGenerator).select(...);
+
 use uuid::Uuid;
 
 use common::err::{Error, TResult};
 use common::types::Type;
 use common::plan::{CustomDataSource, DataSet, Expr, Plan};
 use engine::{create_plan, ExecutionPlan, execute_tasks, parallelize, Task};
-// let ctx = TokamakContext::new();
-// ctx.from(RandomGenerator).select(...);
 
 use super::TokamakContext;
 

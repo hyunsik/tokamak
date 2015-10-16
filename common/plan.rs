@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter, Result};
+
 pub enum Plan {
   From (Box<DataSet>),
   Select(Box<Plan>, Vec<Expr>), // params: child, filter in a CNF form
@@ -6,7 +8,7 @@ pub enum Plan {
   Tail(Box<Plan>, usize), // child, row number to fetch
 }
 
-pub trait DataSet {
+pub trait DataSet: Display {
   fn name(&self) -> &str;
   
   //fn schema(&self) -> &Vec<Box<Type>>;
@@ -41,6 +43,12 @@ impl CustomDataSource {
 
 impl DataSet for CustomDataSource {
   fn name(&self) -> &str { &self.name } 
+}
+
+impl Display for CustomDataSource {
+  fn fmt(&self, f: &mut Formatter) -> Result {
+    write!(f, "name={},type={}", self.name, self.src_type)
+  }
 }
 
 pub enum Expr {

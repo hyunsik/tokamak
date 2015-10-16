@@ -16,3 +16,10 @@ pub fn test_data_source() {
   assert_eq!("select", selected.kind());
   //let rnd: Box<DataSet> = RandomGenerator::new(&ctx, vec!["int4", "int4"]).ok().unwrap();
 }
+
+#[test]
+pub fn test_head() {
+  let ctx = TokamakContext::new().ok().unwrap();
+  let df = ctx.from(RandomGenerator(vec!["int4", "float4"]));
+  println!("{}", df.head().ok().unwrap());
+}
