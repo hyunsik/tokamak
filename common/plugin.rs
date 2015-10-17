@@ -3,13 +3,12 @@
 //!
 
 use std::collections::BTreeMap;
-use std::collections::btree_map::Entry;
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 
 use err::{Error, TResult, Void, void_ok};
 use func::{FuncSignature, InvokeAction};
-use types::{Type, TypeId, TypeFactory};
+use types::{Type, TypeFactory};
 use input::InputSource;
 
 pub trait Package {
@@ -58,7 +57,7 @@ impl PackageManager {
   }
   
   pub fn load_all(&mut self) -> Void {
-    for (name, pkg) in self.pkgs.iter_mut() {
+    for (_, pkg) in self.pkgs.iter_mut() {
       try!(pkg.load(&mut self.type_reg, &mut self.func_reg, &mut self.src_reg))            
     }
     

@@ -1,8 +1,5 @@
 use std::io;
 
-use types::TypeId;
-
-
 // TODO : should contain more detailed information
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug)]

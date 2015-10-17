@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
 use err::{Void, TResult};
 use rows::Page;
-use types::Type;
 
 pub trait InputSource {
   fn open    (&mut self) -> Void;

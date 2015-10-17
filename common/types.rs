@@ -2,14 +2,9 @@
 //! So, Types are loaded from the packages.
 //!
 
-use std::collections::BTreeMap;
-use std::collections::btree_map::Entry;
-use std::collections::btree_map::Entry::{Occupied, Vacant};
-use std::fmt;
-use std::mem;
 use std::rc::Rc;
 
-use err::{Error, TResult, Void, void_ok};
+use err::TResult;
 use rows::{MiniPage};
 
 /// Globally unique id for a type

@@ -14,6 +14,8 @@ pub trait DataSet: Display {
   //fn schema(&self) -> &Vec<Box<Type>>;
 }
 
+#[allow(unused_variables)]
+#[allow(dead_code)]
 pub struct CustomDataSource {
   name     : String,
   src_type : String,
@@ -58,9 +60,12 @@ pub enum Expr {
 
 
 /// Visitor for Expr Tree
+#[allow(unused_variables)]
 pub trait Visitor<'v>: Sized {
+ 
   fn visit_from(&mut self, dataset: &'v DataSet) {}
   
+ 
   fn visit_select(&mut self, child: &'v Plan, filter: &Vec<Expr>) {
     walk_plan(self, child);
   }

@@ -17,13 +17,7 @@
 /// * [2] 
 /// * [3] Daniel J. Abadi ea al., Materialization Strategies in a Column-Oriented DBMS, ICDE 2007
 
-use std::marker;
-use std::rc::Rc;
-use std::slice::IterMut;
-
-
 use types::Type;
-use platform::{CACHE_LINE_SIZE, get_aligned_size};
 
 /// Each executor and operator process a batch of rows at a time for better throughput.
 /// The experiment of MonetDB presented that 1024 is the best number of a row batch.

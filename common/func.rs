@@ -4,8 +4,6 @@ use std::cmp::Ordering;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use err::{Void, void_ok, Error};
-use types::Type;
 use rows::{MiniPage,MiniPageWriter};
 
 #[derive(Eq, Copy, Clone, PartialEq, PartialOrd, Ord)]
