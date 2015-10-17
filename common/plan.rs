@@ -55,3 +55,32 @@ pub enum Expr {
   Plus,
   Field(String)
 }
+
+
+/// Visitor for Expr Tree
+pub trait Visitor<'v>: Sized {
+  fn visit_from(&mut self, dataset: &'v DataSet) {}
+  
+  fn visit_select(&mut self, child: &'v Plan, filter: &Vec<Expr>) {
+    walk_plan(self, child);
+  }
+  
+  fn visit_head(&mut self, child: &'v Plan, fetch_row: usize) {
+    walk_plan(self, child);
+  }
+  
+  fn visit_tail(&mut self, child: &'v Plan, fetch_row: usize) {
+    walk_plan(self, child);
+  }
+}
+
+/// Walker for Expr Tree
+pub fn walk_plan<'v, V: Visitor<'v>>(visitor: &mut V, plan: &'v Plan) {
+  match *plan {
+    Plan::From(ref ds)                 => { visitor.visit_from(&**ds)}, 
+    Plan::Select(ref child,ref filter) => { visitor.visit_select(&**child, filter) },
+    Plan::Head  (ref child,num)        => { visitor.visit_head(&**child,num) },
+    Plan::Tail  (ref child,num)        => { visitor.visit_tail(&**child,num) },
+    _                                  => {},
+  }
+}

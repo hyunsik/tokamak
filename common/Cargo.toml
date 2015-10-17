@@ -9,3 +9,4 @@ path = "lib.rs"
 
 [dependencies]
 itertools = "0.4.1"
+uuid = "0.1.17"

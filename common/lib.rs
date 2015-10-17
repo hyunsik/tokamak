@@ -6,6 +6,7 @@
 extern crate alloc;
 extern crate itertools;
 extern crate libc;
+extern crate uuid;
 
 //pub mod datum;
 pub mod err;
