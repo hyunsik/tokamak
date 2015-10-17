@@ -37,8 +37,9 @@ pub mod scan;
 use std::rc::Rc;
 
 use common::err::{Void, TResult, Error};
-use common::rows::{Page, PageBuilder};
 use common::input::InputSource;
+use common::rows::{Page, PageBuilder};
+use common::types::Type;
 
 pub trait Executor 
 {
@@ -49,9 +50,13 @@ pub trait Executor
   fn close     (&mut self) -> Void;
 }
 
-pub trait OperatorFactory 
+pub struct ExecutionContext;
+
+pub trait ExecutorFactory 
 {
-  fn create(&self) -> Box<Executor>;
+  fn create(&self, ctx: &ExecutionContext) -> Box<Executor>;
+  
+  fn schema(&self) -> &Vec<Type>;
 }
 
 pub trait Processor 
