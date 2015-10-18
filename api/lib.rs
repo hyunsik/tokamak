@@ -1,4 +1,5 @@
 extern crate uuid;
+extern crate rustc_serialize;
 
 extern crate common;
 extern crate engine;
