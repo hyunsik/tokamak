@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use common::err::{Error, TResult};
 use common::plan::*;
 use common::plugin::{PackageManager};
-use exec::Executor;
+
+use exec::ExecutorFactory;
+use exec::scan::TableScanExecFactory;
 
 pub fn create_plan(pkg_mgr: &PackageManager, plan: &Plan) -> TResult<ExecutionPlan> {
   let mut planner = ExecutionPlanner::new();
@@ -12,7 +14,7 @@ pub fn create_plan(pkg_mgr: &PackageManager, plan: &Plan) -> TResult<ExecutionPl
 }
 
 pub struct ExecutionPlan {
-  stack: Vec<Box<Executor>>
+  stack: Vec<Box<ExecutorFactory>>
 }
 
 impl ExecutionPlan {
@@ -43,13 +45,18 @@ impl ExecutionPlanner
       Some(e) => Err(e),
       None    => Ok(self.plan)
     }
-  } 
+  }
+  
+  pub fn push(&mut self, f: Box<ExecutorFactory>) {
+    self.plan.stack.push(f)
+  }
 }
 
 impl<'a> Visitor<'a> for ExecutionPlanner 
 {
   fn visit_from(&mut self, ds: &DataSet) 
   {
+    self.push(Box::new(TableScanExecFactory::new(Vec::new())))
   }
 
   fn visit_head(&mut self, child: &Plan, rownum: usize) 

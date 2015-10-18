@@ -1,10 +1,41 @@
 use common::err::{Void, TResult, Error, void_ok};
+use common::types::Type;
 use common::rows::{Page, PageBuilder};
 use common::input::InputSource;
 
+use super::{ExecutionContext, ExecutorFactory};
+
 use super::{Executor, Processor};
 
-pub struct ScanExec 
+pub struct TableScanExecFactory<'a> 
+{
+  schema: Vec<&'a Type>
+}
+
+impl<'a> TableScanExecFactory<'a> 
+{
+  pub fn new(schema: Vec<&'a Type>) -> TableScanExecFactory<'a> 
+  {
+    TableScanExecFactory { 
+      schema: schema 
+    }
+  }
+}
+
+impl<'a> ExecutorFactory for TableScanExecFactory<'a> 
+{
+  fn create(&self, ctx: &ExecutionContext) -> Option<Box<Executor>> {
+    None
+  }
+  
+  fn schema(&self) -> &Vec<&Type> {
+    &self.schema
+  }
+}
+
+
+
+pub struct TableScanExec 
 {
   page_builder: Box<PageBuilder>,
   input: Box<InputSource>,
@@ -13,7 +44,7 @@ pub struct ScanExec
   cur_pos: u32
 }
 
-impl Executor for ScanExec 
+impl Executor for TableScanExec 
 {
   fn init(&mut self) -> Void
   {

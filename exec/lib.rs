@@ -54,9 +54,9 @@ pub struct ExecutionContext;
 
 pub trait ExecutorFactory 
 {
-  fn create(&self, ctx: &ExecutionContext) -> Box<Executor>;
+  fn create(&self, ctx: &ExecutionContext) -> Option<Box<Executor>>;
   
-  fn schema(&self) -> &Vec<Type>;
+  fn schema(&self) -> &Vec<&Type>;
 }
 
 pub trait Processor 

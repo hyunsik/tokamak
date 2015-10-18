@@ -11,7 +11,7 @@ pub enum Plan {
 pub trait DataSet: Display {
   fn name(&self) -> &str;
   
-  //fn schema(&self) -> &Vec<Box<Type>>;
+//  fn schema(&self) -> &Vec<&Type>>;
 }
 
 #[allow(unused_variables)]
@@ -45,6 +45,9 @@ impl CustomDataSource {
 
 impl DataSet for CustomDataSource {
   fn name(&self) -> &str { &self.name } 
+  
+//  fn schema(&self) -> &Vec<&Type> {
+//  }
 }
 
 impl Display for CustomDataSource {
