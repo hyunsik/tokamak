@@ -17,6 +17,7 @@ pub mod operator;
 pub mod rows;
 pub mod plan;
 pub mod plugin;
+pub mod session;
 pub mod str;
 pub mod types;
 pub mod platform;

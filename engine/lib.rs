@@ -22,5 +22,11 @@ pub use parallelizer::*;
 mod task;
 pub use task::Task;
 
+mod query_executor;
+pub use query_executor::{
+  MaterializedResult,
+  QueryExecutor 
+};
+
 mod runner;
 pub use runner::execute_tasks;
