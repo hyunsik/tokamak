@@ -14,11 +14,10 @@ use input::InputSource;
 pub trait Package 
 {
   fn name(&self) -> &str;
-  fn load(
-    &mut self, 
-    type_reg: &mut TypeRegistry, 
-    fn_reg  : &mut FuncRegistry,
-    src_reg : &mut InputSourceRegistry) -> Void;
+
+  fn types(&self) -> Vec<(&'static str, TypeFactory)>;
+  
+  fn funcs(&self) -> Vec<(FuncSignature, InvokeAction)>;
 }
 
 pub struct PackageManager 
@@ -54,20 +53,13 @@ impl PackageManager {
     }
   }
   
-  pub fn add(&mut self, pkg: Box<Package>) -> &mut Self 
+  pub fn load(&mut self, pkg: Box<Package>) -> Void
   {
-    // TODO - To ensure add packages before loading, we need to adopt Builder pattern. 
+    self.type_registry.add_all(pkg.types());
+    self.func_registry.add_all(pkg.funcs());
     self.pkgs.insert(pkg.name().to_string(), pkg);
-    self
-  }
-  
-  pub fn load_all(&mut self) -> Void 
-  {
-    for (_, pkg) in self.pkgs.iter_mut() {
-      try!(pkg.load(&mut self.type_registry, &mut self.func_registry, &mut self.src_reg))            
-    }
     
-    Ok(())
+    void_ok
   }
   
   pub fn type_registry( &self) -> &TypeRegistry 

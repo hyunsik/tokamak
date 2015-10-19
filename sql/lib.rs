@@ -17,28 +17,28 @@ pub struct SQLPackage;
 impl Package for SQLPackage {
   fn name(&self) -> &str { PACKAGE_NAME }
   
-  fn load(&mut self, 
-    type_reg: &mut TypeRegistry, 
-    fn_reg: &mut FuncRegistry,
-    src_reg: &mut InputSourceRegistry) -> Void {
-      
-      
-    try!(type_reg.add_all(load_types()));
-    try!(fn_reg.add_all(load_funcs()));
-    
-    void_ok
-  }
-}
-
-fn load_types() -> Vec<(&'static str, TypeFactory)> {
-  let factory: Rc<Fn(&str) -> Result<Box<Type>>> = Rc::new(parse_type_str);
+  fn types(&self) -> Vec<(&'static str, TypeFactory)> {
+    let factory: Rc<Fn(&str) -> Result<Box<Type>>> = Rc::new(parse_type_str);
   
-  vec![
-      (INT4_STR  , factory.clone()),
-      (FLOAT4_STR, factory.clone()),
-  ]
-}
-
-fn load_funcs() -> Vec<(FuncSignature, InvokeAction)> {
-  vec![]
+    vec![
+        (INT4_STR  , factory.clone()),
+        (FLOAT4_STR, factory.clone()),
+    ]
+  }
+  
+  fn funcs(&self) -> Vec<(FuncSignature, InvokeAction)> {
+    vec![]
+  }
+  
+//  fn load(&mut self, 
+//    type_reg: &mut TypeRegistry, 
+//    fn_reg: &mut FuncRegistry,
+//    src_reg: &mut InputSourceRegistry) -> Void {
+//      
+//      
+//    try!(type_reg.add_all(load_types()));
+//    try!(fn_reg.add_all(load_funcs()));
+//    
+//    void_ok
+//  }
 }

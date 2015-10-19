@@ -84,7 +84,7 @@ impl QueryExecutor for LocalQueryExecutor
   }
   
   fn add_plugin(&mut self, plugin: Box<Package>) -> Void {
-    void_ok
+    self.plugin_manager.load(plugin)
   }
   
   fn plugin_manager(&self) -> &PackageManager
