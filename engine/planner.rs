@@ -3,12 +3,12 @@ use std::marker::PhantomData;
 
 use common::err::{Error, Result};
 use common::plan::*;
-use common::plugin::{PackageManager};
+use common::plugin::{PluginManager};
 
 use exec::ExecutorFactory;
 use exec::scan::TableScanExecFactory;
 
-pub fn create_plan(pkg_mgr: &PackageManager, plan: &Plan) -> Result<ExecutionPlan> {
+pub fn create_plan(pkg_mgr: &PluginManager, plan: &Plan) -> Result<ExecutionPlan> {
   let mut planner = ExecutionPlanner::new();
   walk_plan(&mut planner, plan);
   planner.plan()

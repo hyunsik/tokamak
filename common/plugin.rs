@@ -11,7 +11,7 @@ use func::{FuncSignature, InvokeAction};
 use types::{Type, TypeFactory};
 use input::InputSource;
 
-pub trait Package 
+pub trait Plugin 
 {
   fn name(&self) -> &str;
 
@@ -20,18 +20,18 @@ pub trait Package
   fn funcs(&self) -> Vec<(FuncSignature, InvokeAction)>;
 }
 
-pub struct PackageManager 
+pub struct PluginManager 
 {
-  pkgs    : HashMap<String, Box<Package>>,
+  pkgs    : HashMap<String, Box<Plugin>>,
   type_registry: TypeRegistry,
   func_registry: FuncRegistry,
   src_reg : InputSourceRegistry 
 }
 
-impl PackageManager {
-  pub fn new() -> PackageManager 
+impl PluginManager {
+  pub fn new() -> PluginManager 
   {
-    PackageManager {
+    PluginManager {
       pkgs: HashMap::new(),
       type_registry: TypeRegistry::new(),
       func_registry: FuncRegistry::new(),
@@ -39,21 +39,7 @@ impl PackageManager {
     }
   }
   
-  pub fn new_with(pkgs: Vec<Box<Package>>) -> PackageManager 
-  {
-    PackageManager {
-      pkgs: pkgs.into_iter()
-              .map(|p: Box<Package>| -> (String, Box<Package>) { 
-                (p.name().to_string(), p) 
-              })
-              .collect::<HashMap<String, Box<Package>>>(),
-      type_registry: TypeRegistry::new(),
-      func_registry: FuncRegistry::new(),
-      src_reg : InputSourceRegistry::new()
-    }
-  }
-  
-  pub fn load(&mut self, pkg: Box<Package>) -> Void
+  pub fn load(&mut self, pkg: Box<Plugin>) -> Void
   {
     self.type_registry.add_all(pkg.types());
     self.func_registry.add_all(pkg.funcs());

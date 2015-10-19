@@ -2,7 +2,7 @@ use common::err::Result;
 use common::session::Session;
 use common::types::Type;
 use common::plan::{DataSet, Plan, PlanContext};
-use common::plugin::{PackageManager, TypeRegistry, FuncRegistry};
+use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
 use engine::{LocalQueryExecutor, QueryExecutor};
 use sql::SQLPackage;
 
@@ -33,7 +33,7 @@ impl TokamakContext
     &*self.executor
   } 
   
-  pub fn plugin_manager(&self) -> &PackageManager { &self.executor.plugin_manager() }
+  pub fn plugin_manager(&self) -> &PluginManager { &self.executor.plugin_manager() }
   
   #[inline]
   pub fn get_type(&self, type_sign: &str) -> Result<Box<Type>>

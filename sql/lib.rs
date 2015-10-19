@@ -8,13 +8,13 @@ use std::rc::Rc;
 use common::err::{void_ok, Void, Result};
 use common::types::{Type, TypeFactory};
 use common::func::{FuncSignature, InvokeAction};
-use common::plugin::{FuncRegistry, InputSourceRegistry, Package, TypeRegistry}; 
+use common::plugin::{FuncRegistry, InputSourceRegistry, Plugin, TypeRegistry}; 
 use types::*;
 const PACKAGE_NAME: &'static str = "sql";
 
 pub struct SQLPackage;
 
-impl Package for SQLPackage {
+impl Plugin for SQLPackage {
   fn name(&self) -> &str { PACKAGE_NAME }
   
   fn types(&self) -> Vec<(&'static str, TypeFactory)> {
@@ -29,16 +29,4 @@ impl Package for SQLPackage {
   fn funcs(&self) -> Vec<(FuncSignature, InvokeAction)> {
     vec![]
   }
-  
-//  fn load(&mut self, 
-//    type_reg: &mut TypeRegistry, 
-//    fn_reg: &mut FuncRegistry,
-//    src_reg: &mut InputSourceRegistry) -> Void {
-//      
-//      
-//    try!(type_reg.add_all(load_types()));
-//    try!(fn_reg.add_all(load_funcs()));
-//    
-//    void_ok
-//  }
 }

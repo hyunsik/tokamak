@@ -2,7 +2,7 @@ use std::fmt;
 
 use common::err::{Result, Void, void_ok};
 use common::plan::{Bindable, DataSet, SchemaObject, Plan, PlanContext};
-use common::plugin::{Package, PackageManager};
+use common::plugin::{Plugin, PluginManager};
 use common::types::Type;
 use common::session::Session;
 
@@ -52,9 +52,9 @@ pub trait QueryExecutor
   
   fn default_session(&self) -> Session;
   
-  fn add_plugin(&mut self, package: Box<Package>) -> Void;
+  fn add_plugin(&mut self, package: Box<Plugin>) -> Void;
   
-  fn plugin_manager(&self) -> &PackageManager; 
+  fn plugin_manager(&self) -> &PluginManager; 
   
   fn execute(&self, session: &Session, plan: &Plan) -> Result<Box<DataSet>>;
   
@@ -63,7 +63,7 @@ pub trait QueryExecutor
 
 pub struct LocalQueryExecutor
 {
-  plugin_manager: PackageManager
+  plugin_manager: PluginManager
 }
 
 impl LocalQueryExecutor
@@ -71,7 +71,7 @@ impl LocalQueryExecutor
   pub fn new() -> LocalQueryExecutor
   {
     LocalQueryExecutor {
-      plugin_manager: PackageManager::new()
+      plugin_manager: PluginManager::new()
     }
   }
 }
@@ -83,11 +83,11 @@ impl QueryExecutor for LocalQueryExecutor
     Session
   }
   
-  fn add_plugin(&mut self, plugin: Box<Package>) -> Void {
+  fn add_plugin(&mut self, plugin: Box<Plugin>) -> Void {
     self.plugin_manager.load(plugin)
   }
   
-  fn plugin_manager(&self) -> &PackageManager
+  fn plugin_manager(&self) -> &PluginManager
   {
     &self.plugin_manager
   }
