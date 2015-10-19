@@ -58,9 +58,12 @@ impl<'a> DataFrame<'a> {
 }
 
 fn execute(ctx: &TokamakContext, plan: Plan) -> TResult<Box<DataSet>> {
-  let plan : ExecutionPlan = try!(create_plan(ctx.package_manager(), &plan));
-  let tasks: Vec<Task>     = try!(parallelize(&plan));  
-  execute_tasks(tasks)
+  let exec_plan : ExecutionPlan = try!(create_plan(ctx.package_manager(), &plan));
+  //let drivers = exec_plan.
+  //let tasks: Vec<Task>     = try!(parallelize(&exec_plan));  
+  //execute_tasks(tasks)
+  
+  Err(Error::NotImplemented)
 }
 
 

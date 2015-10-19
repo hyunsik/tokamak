@@ -14,13 +14,13 @@ pub fn create_plan(pkg_mgr: &PackageManager, plan: &Plan) -> TResult<ExecutionPl
 }
 
 pub struct ExecutionPlan {
-  stack: Vec<Box<ExecutorFactory>>
+  factories: Vec<Box<ExecutorFactory>>
 }
 
 impl ExecutionPlan {
   pub fn new() -> ExecutionPlan 
   { 
-    ExecutionPlan {stack: Vec::new()} 
+    ExecutionPlan {factories: Vec::new()} 
   }
 }
 
@@ -48,7 +48,11 @@ impl ExecutionPlanner
   }
   
   pub fn push(&mut self, f: Box<ExecutorFactory>) {
-    self.plan.stack.push(f)
+    self.plan.factories.push(f)
+  }
+  
+  pub fn pop(&mut self) -> Option<Box<ExecutorFactory>> {
+    self.plan.factories.pop()
   }
 }
 
