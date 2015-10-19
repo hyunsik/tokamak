@@ -1,4 +1,4 @@
-use common::err::TResult;
+use common::err::Result;
 use common::types::Type;
 use common::plan::{DataSet, Plan, PlanContext};
 use common::plugin::{PackageManager, TypeRegistry, FuncRegistry};
@@ -13,7 +13,7 @@ pub struct TokamakContext
 
 impl TokamakContext 
 {
-  pub fn new() -> TResult<TokamakContext> 
+  pub fn new() -> Result<TokamakContext> 
   {
     let mut pkg_mgr = PackageManager::new_with(
       vec![
@@ -31,7 +31,7 @@ impl TokamakContext
   pub fn package_manager(&self) -> &PackageManager { &self.pkg_mgr }
   
   #[inline]
-  pub fn get_type(&self, type_sign: &str) -> TResult<Box<Type>>
+  pub fn get_type(&self, type_sign: &str) -> Result<Box<Type>>
   {
     self.pkg_mgr.type_registry().get(type_sign)
   }

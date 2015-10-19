@@ -3,7 +3,7 @@ use rand;
 
 use itertools::Zip;
 
-use common::err::{void_ok,Void,TResult};
+use common::err::{void_ok, Void, Result};
 use common::types::Type;
 use common::rows::{
   MiniPageWriter,
@@ -34,11 +34,11 @@ impl RandomTableGenerator
 
 impl InputSource for RandomTableGenerator 
 {
-  fn open(&mut self) -> Void { void_ok() }
+  fn open(&mut self) -> Void { void_ok }
   
   fn has_next(&mut self) -> bool { true }
   
-  fn next(&mut self) -> TResult<&Page> 
+  fn next(&mut self) -> Result<&Page> 
   {
     self.builder.reset();
     
@@ -49,7 +49,7 @@ impl InputSource for RandomTableGenerator
     Ok(self.builder.build())
   }
   
-  fn close(&mut self) -> Void { void_ok() }
+  fn close(&mut self) -> Void { void_ok }
 }
 
 #[allow(unused_variables)]

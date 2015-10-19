@@ -1,4 +1,4 @@
-use common::err::{Void, TResult, Error, void_ok};
+use common::err::{Error, Result, Void, void_ok};
 use common::types::Type;
 use common::rows::{Page, PageBuilder};
 use common::input::InputSource;
@@ -49,17 +49,17 @@ impl Executor for TableScanExec
   fn init(&mut self) -> Void
   {
     try!(self.input.open());
-    void_ok()
+    void_ok
   }
   
   fn need_input(&self) -> bool { true }
   
   fn add_input(&mut self, page: &Page) -> Void
   {
-    void_ok()    
+    void_ok    
   }
   
-  fn next(&mut self) -> TResult<&Page>
+  fn next(&mut self) -> Result<&Page>
   {
     let read_page: &Page = try!(self.input.next());
     
@@ -75,6 +75,6 @@ impl Executor for TableScanExec
   fn close(&mut self) -> Void 
   {
     try!(self.input.close());
-    void_ok()
+    void_ok
   }
 }

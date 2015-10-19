@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 
-use common::err::{Error, TResult};
+use common::err::{Error, Result};
 use common::plan::*;
 use common::plugin::{PackageManager};
 
 use exec::ExecutorFactory;
 use exec::scan::TableScanExecFactory;
 
-pub fn create_plan(pkg_mgr: &PackageManager, plan: &Plan) -> TResult<ExecutionPlan> {
+pub fn create_plan(pkg_mgr: &PackageManager, plan: &Plan) -> Result<ExecutionPlan> {
   let mut planner = ExecutionPlanner::new();
   walk_plan(&mut planner, plan);
   planner.plan()
@@ -39,7 +39,7 @@ impl ExecutionPlanner
     }
   }
   
-  pub fn plan(self) -> TResult<ExecutionPlan>
+  pub fn plan(self) -> Result<ExecutionPlan>
   {
     match self.err {
       Some(e) => Err(e),

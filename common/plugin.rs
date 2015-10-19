@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 
-use err::{Error, TResult, Void, void_ok};
+use err::{Error, Result, Void, void_ok};
 use func::{FuncSignature, InvokeAction};
 use types::{Type, TypeFactory};
 use input::InputSource;
@@ -107,7 +107,7 @@ impl FuncRegistry
       }      
     }
     
-    void_ok()
+    void_ok
   }
 }
 
@@ -138,10 +138,10 @@ impl TypeRegistry
       }      
     }
     
-    void_ok()
+    void_ok
   }
   
-  pub fn get(&self, type_sign: &str) -> TResult<Box<Type>> {
+  pub fn get(&self, type_sign: &str) -> Result<Box<Type>> {
     match self.types.get(type_sign) {
       Some(factory) => factory(type_sign),
       None          => Err(Error::UndefinedDataType(type_sign.to_string()))

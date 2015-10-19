@@ -36,7 +36,7 @@ pub mod scan;
 
 use std::rc::Rc;
 
-use common::err::{Void, TResult, Error};
+use common::err::{Void, Result, Error};
 use common::input::InputSource;
 use common::rows::{Page, PageBuilder};
 use common::types::Type;
@@ -46,7 +46,7 @@ pub trait Executor
   fn init      (&mut self) -> Void;
   fn need_input(&self) -> bool;
   fn add_input(&mut self, &Page) -> Void;
-  fn next(&mut self) -> TResult<&Page>;
+  fn next(&mut self) -> Result<&Page>;
   fn close     (&mut self) -> Void;
 }
 

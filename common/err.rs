@@ -34,14 +34,11 @@ pub enum Error {
   DuplicatedTypeId,
 }
 
-pub type TResult<T> = Result<T, Error>;
+pub type Result<T> = ::std::result::Result<T, Error>;
 
-pub type Void = Result<(), Error>;
+pub type Void = Result<()>;
 
-#[inline]
-pub const fn void_ok() -> Void {
-  Ok(())
-}
+pub const void_ok : Void = Ok(());
 
 impl From<io::Error> for Error {
   fn from(e: io::Error) -> Error {

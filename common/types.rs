@@ -4,7 +4,7 @@
 
 use std::rc::Rc;
 
-use err::TResult;
+use err::Result;
 use rows::{MiniPage};
 
 /// Globally unique id for a type
@@ -30,7 +30,7 @@ pub trait HashFnFactory
   fn create_batch_hash32_fn() -> Box<Fn() -> Box<MiniPage>>;
 }
 
-pub type TypeFactory = Rc<Fn(&str) -> TResult<Box<Type>>>;
+pub type TypeFactory = Rc<Fn(&str) -> Result<Box<Type>>>;
 
 pub trait Type
 {

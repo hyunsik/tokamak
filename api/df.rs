@@ -5,7 +5,7 @@
 
 use uuid::Uuid;
 
-use common::err::{Error, TResult};
+use common::err::{Error, Result};
 use common::types::Type;
 use common::plan::{CustomDataSource, DataSet, Expr, Plan};
 use engine::{create_plan, ExecutionPlan, execute_tasks, parallelize, Task};
@@ -32,32 +32,32 @@ impl<'a> DataFrame<'a> {
     DataFrame {ctx: self.ctx, plan: Plan::Select(Box::new(self.plan), exprs)}
   }
   
-  pub fn count(&self) -> TResult<usize> {
+  pub fn count(&self) -> Result<usize> {
 //    let count_plan = Plan::Aggregate(self.decl, vec![], vec!["count(*)"]);
 //    try!(execute(count_plan)).get_int8(0)
     Err(Error::NotImplemented)
   }
   
-  pub fn head(self) -> TResult<Box<DataSet>> {
+  pub fn head(self) -> Result<Box<DataSet>> {
     self.head_with(1)
   }
   
-  pub fn head_with(self, num: usize) -> TResult<Box<DataSet>> {
+  pub fn head_with(self, num: usize) -> Result<Box<DataSet>> {
     let head_plan = Plan::Head(Box::new(self.plan), num);
     execute(self.ctx, head_plan)
   }
   
-  pub fn tail(self) -> TResult<Box<DataSet>> {
+  pub fn tail(self) -> Result<Box<DataSet>> {
     self.tail_with(1)
   }
   
-  pub fn tail_with(self, num: usize) -> TResult<Box<DataSet>> {
+  pub fn tail_with(self, num: usize) -> Result<Box<DataSet>> {
     let tail_plan = Plan::Tail(Box::new(self.plan), num);
     execute(self.ctx, tail_plan)
   }
 }
 
-fn execute(ctx: &TokamakContext, plan: Plan) -> TResult<Box<DataSet>> {
+fn execute(ctx: &TokamakContext, plan: Plan) -> Result<Box<DataSet>> {
   let exec_plan : ExecutionPlan = try!(create_plan(ctx.package_manager(), &plan));
   //let drivers = exec_plan.
   //let tasks: Vec<Task>     = try!(parallelize(&exec_plan));  

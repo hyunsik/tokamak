@@ -75,7 +75,7 @@ impl Bindable for CustomDataSource {
       self.schema = Some(typestr_to_schema(ctx, &self.raw_schema));
     }
     
-    void_ok()
+    void_ok
   }
 }
 
