@@ -21,10 +21,8 @@ impl TokamakContext
     let mut executor = Box::new(LocalQueryExecutor::new());
     executor.add_plugin(Box::new(SQLPackage));
     
-    let session  = executor.default_session();
-    
     Ok(TokamakContext {
-      session: session,
+      session: executor.default_session(),
       executor: executor
     })
   }

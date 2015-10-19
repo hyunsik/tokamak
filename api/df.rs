@@ -57,18 +57,6 @@ impl<'a> DataFrame<'a> {
   }
 }
 
-
-/*
-fn execute(ctx: &TokamakContext, plan: Plan) -> Result<Box<DataSet>> {
-  let exec_plan : ExecutionPlan = try!(create_plan(ctx.package_manager(), &plan));
-  //let drivers = exec_plan.
-  //let tasks: Vec<Task>     = try!(parallelize(&exec_plan));  
-  //execute_tasks(tasks)
-  
-  Err(Error::NotImplemented)
-}*/
-
-
 pub fn RandomGenerator(types: Vec<&str>, rownum: usize) -> Box<DataSet>
 {
   Box::new(CustomDataSource::new(
