@@ -1,5 +1,13 @@
 use std::fmt::{Display, Formatter, Result};
 
+use plugin::{TypeRegistry, FuncRegistry};
+use err::{Void, void_ok};
+
+pub trait PlanContext {
+  fn type_registry(&self) -> &TypeRegistry;
+  fn func_registry(&self) -> &FuncRegistry;
+}
+
 pub enum Plan {
   From (Box<DataSet>),
   Select(Box<Plan>, Vec<Expr>), // params: child, filter in a CNF form
@@ -9,6 +17,8 @@ pub enum Plan {
 }
 
 pub trait DataSet: Display {
+  fn bind(&mut self, ctx: &PlanContext) -> Void;
+  
   fn name(&self) -> &str;
   
   //fn kind(&self) -> &str;
@@ -46,6 +56,10 @@ impl CustomDataSource {
 }
 
 impl DataSet for CustomDataSource {
+  fn bind(&mut self, ctx: &PlanContext) -> Void {
+    void_ok()
+  }
+  
   fn name(&self) -> &str { &self.name } 
   
 //  fn schema(&self) -> &Vec<&Type> {

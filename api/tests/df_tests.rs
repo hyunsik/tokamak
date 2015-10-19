@@ -16,7 +16,7 @@ use common::types::TypeId;
 pub fn test_data_source() {
   let ctx = TokamakContext::new().ok().unwrap();
   
-  let df = ctx.from(RandomGenerator(vec!["int4", "int4"]));
+  let df = ctx.from(RandomGenerator(vec!["int4", "int4"], 5));
   assert_eq!("from", df.kind());
   
   let selected = df.select(vec![]);
@@ -27,7 +27,7 @@ pub fn test_data_source() {
 //#[test]
 pub fn test_head() {
   let ctx = TokamakContext::new().ok().unwrap();
-  let df = ctx.from(RandomGenerator(vec!["int4", "float4"]));
+  let df = ctx.from(RandomGenerator(vec!["int4", "float4"], 5));
   println!("{}", df.head().ok().unwrap());
 }
 

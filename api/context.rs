@@ -1,7 +1,7 @@
 use common::err::TResult;
 use common::types::Type;
-use common::plan::{DataSet, Plan};
-use common::plugin::PackageManager;
+use common::plan::{DataSet, Plan, PlanContext};
+use common::plugin::{PackageManager, TypeRegistry, FuncRegistry};
 use sql::SQLPackage;
 
 use df::{DataFrame};
@@ -33,16 +33,29 @@ impl TokamakContext
   #[inline]
   pub fn get_type(&self, type_sign: &str) -> TResult<Box<Type>>
   {
-    self.pkg_mgr.ty_registry().get(type_sign)
+    self.pkg_mgr.type_registry().get(type_sign)
   }
   
   #[inline]
   pub fn all_types(&self) -> Vec<&str> 
   {
-    self.pkg_mgr.ty_registry().all()
+    self.pkg_mgr.type_registry().all()
   }
   
   pub fn from(&self, ds: Box<DataSet>) -> DataFrame {
     DataFrame {ctx: self, plan: Plan::From(ds)}
+  }
+}
+
+impl PlanContext for TokamakContext 
+{
+  fn type_registry(&self) -> &TypeRegistry 
+  {
+    self.pkg_mgr.type_registry()
+  }
+  
+  fn func_registry(&self) -> &FuncRegistry 
+  {
+    self.pkg_mgr.func_registry()
   }
 }

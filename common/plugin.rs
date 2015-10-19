@@ -11,7 +11,8 @@ use func::{FuncSignature, InvokeAction};
 use types::{Type, TypeFactory};
 use input::InputSource;
 
-pub trait Package {
+pub trait Package 
+{
   fn name(&self) -> &str;
   fn load(
     &mut self, 
@@ -20,56 +21,63 @@ pub trait Package {
     src_reg : &mut InputSourceRegistry) -> Void;
 }
 
-pub struct PackageManager {
+pub struct PackageManager 
+{
   pkgs    : HashMap<String, Box<Package>>,
-  type_reg: TypeRegistry,
-  func_reg: FuncRegistry,
+  type_registry: TypeRegistry,
+  func_registry: FuncRegistry,
   src_reg : InputSourceRegistry 
 }
 
 impl PackageManager {
-  pub fn new() -> PackageManager {
+  pub fn new() -> PackageManager 
+  {
     PackageManager {
       pkgs: HashMap::new(),
-      type_reg: TypeRegistry::new(),
-      func_reg: FuncRegistry::new(),
+      type_registry: TypeRegistry::new(),
+      func_registry: FuncRegistry::new(),
       src_reg : InputSourceRegistry::new()
     }
   }
   
-  pub fn new_with(pkgs: Vec<Box<Package>>) -> PackageManager {
+  pub fn new_with(pkgs: Vec<Box<Package>>) -> PackageManager 
+  {
     PackageManager {
       pkgs: pkgs.into_iter()
               .map(|p: Box<Package>| -> (String, Box<Package>) { 
                 (p.name().to_string(), p) 
               })
               .collect::<HashMap<String, Box<Package>>>(),
-      type_reg: TypeRegistry::new(),
-      func_reg: FuncRegistry::new(),
+      type_registry: TypeRegistry::new(),
+      func_registry: FuncRegistry::new(),
       src_reg : InputSourceRegistry::new()
     }
   }
   
-  pub fn add(&mut self, pkg: Box<Package>) -> &mut Self {
+  pub fn add(&mut self, pkg: Box<Package>) -> &mut Self 
+  {
     // TODO - To ensure add packages before loading, we need to adopt Builder pattern. 
     self.pkgs.insert(pkg.name().to_string(), pkg);
     self
   }
   
-  pub fn load_all(&mut self) -> Void {
+  pub fn load_all(&mut self) -> Void 
+  {
     for (_, pkg) in self.pkgs.iter_mut() {
-      try!(pkg.load(&mut self.type_reg, &mut self.func_reg, &mut self.src_reg))            
+      try!(pkg.load(&mut self.type_registry, &mut self.func_registry, &mut self.src_reg))            
     }
     
     Ok(())
   }
   
-  pub fn ty_registry(&self) -> &TypeRegistry {
-    &self.type_reg    
+  pub fn type_registry( &self) -> &TypeRegistry 
+  {
+    &self.type_registry    
   }
   
-  pub fn fnc_registry(&self) -> &FuncRegistry {
-    &self.func_reg
+  pub fn func_registry(&self) -> &FuncRegistry 
+  {
+    &self.func_registry
   }
 }
 
