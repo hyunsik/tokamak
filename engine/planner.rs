@@ -13,19 +13,36 @@ pub fn create_plan(pkg_mgr: &PackageManager, plan: &Plan) -> Result<ExecutionPla
   planner.plan()
 }
 
+pub struct Driver;
+
+pub struct DriverFactory 
+{
+  pub input_driver: bool,
+  pub output_driver: bool, 
+  source_ids: Vec<String>,
+  factory: Vec<Box<DriverFactory>>
+}
+
+impl DriverFactory {
+  pub fn create_driver(&self) -> Driver
+  {
+    Driver
+  }
+}
+
 pub struct ExecutionPlan {
-  factories: Vec<Box<ExecutorFactory>>
+  drivers: Vec<Box<DriverFactory>>
 }
 
 impl ExecutionPlan {
   pub fn new() -> ExecutionPlan 
   { 
-    ExecutionPlan {factories: Vec::new()} 
+    ExecutionPlan {drivers: Vec::new()} 
   }
 }
 
 pub struct ExecutionPlanner {
-  plan: ExecutionPlan,
+  factories: Vec<Box<ExecutorFactory>>,
   err: Option<Error>  
 }
 
@@ -34,7 +51,7 @@ impl ExecutionPlanner
   pub fn new() -> ExecutionPlanner 
   {
     ExecutionPlanner { 
-      plan: ExecutionPlan::new(),
+      factories: Vec::new(),
       err : None 
     }
   }
@@ -43,16 +60,23 @@ impl ExecutionPlanner
   {
     match self.err {
       Some(e) => Err(e),
-      None    => Ok(self.plan)
+      None    => {
+        
+        let plan = ExecutionPlan {
+          drivers: Vec::new()
+        };
+        
+        Ok(plan)
+      }
     }
   }
   
   pub fn push(&mut self, f: Box<ExecutorFactory>) {
-    self.plan.factories.push(f)
+    self.factories.push(f)
   }
   
   pub fn pop(&mut self) -> Option<Box<ExecutorFactory>> {
-    self.plan.factories.pop()
+    self.factories.pop()
   }
 }
 
