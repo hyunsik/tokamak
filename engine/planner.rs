@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use common::err::{Error, Result};
@@ -13,7 +14,22 @@ pub fn create_plan(pkg_mgr: &PackageManager, plan: &Plan) -> Result<ExecutionPla
   planner.plan()
 }
 
+#[derive(PartialEq, Eq, Hash)]
+pub struct Split;
+
+pub type PlanNodeId = String;
+
 pub struct Driver;
+
+pub struct TaskSource {
+  plan_node_id: PlanNodeId,
+  splits      : HashSet<Split>
+}
+
+impl Driver
+{
+  pub fn update_source(&self, source: TaskSource) {}
+}
 
 pub struct DriverFactory 
 {
@@ -23,8 +39,10 @@ pub struct DriverFactory
   factory: Vec<Box<DriverFactory>>
 }
 
+pub struct DriverContext;
+
 impl DriverFactory {
-  pub fn create_driver(&self) -> Driver
+  pub fn create_driver(&self, ctx: &DriverContext) -> Driver
   {
     Driver
   }
