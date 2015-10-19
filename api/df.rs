@@ -64,7 +64,7 @@ fn execute(ctx: &TokamakContext, plan: Plan) -> TResult<Box<DataSet>> {
 }
 
 
-pub fn RandomGenerator(types: Vec<&str>) -> Box<DataSet>
+pub fn RandomGenerator(ctx: &TokamakContext, types: Vec<&str>, rownum: usize) -> Box<DataSet>
 {
   Box::new(CustomDataSource::new(
     &Uuid::new_v4().to_hyphenated_string(),  

@@ -2,8 +2,11 @@ extern crate api;
 extern crate common;
 
 extern crate rustc_serialize;
+extern crate bincode;
 
+use bincode::rustc_serialize::{encode, decode};
 use rustc_serialize::Decodable;
+
 
 use api::TokamakContext;
 use api::df::{DataFrame,RandomGenerator};
@@ -21,7 +24,7 @@ pub fn test_data_source() {
   //let rnd: Box<DataSet> = RandomGenerator::new(&ctx, vec!["int4", "int4"]).ok().unwrap();
 }
 
-#[test]
+//#[test]
 pub fn test_head() {
   let ctx = TokamakContext::new().ok().unwrap();
   let df = ctx.from(RandomGenerator(vec!["int4", "float4"]));
@@ -44,4 +47,17 @@ pub fn test_tuple() {
   let mut x = Xxx;
   
   let tuple: Option<Record<(i32, i32, String)>> = x.decode();
+}
+
+#[test]
+pub fn test_bincode() {
+  // The object that we will serialize.
+    let target = Some("hello world".to_string());
+    // The maximum size of the encoded message.
+    let limit = bincode::SizeLimit::Bounded(20);
+
+    let encoded: Vec<u8>        = encode(&target, limit).unwrap();
+    let decoded: Option<(String, i32)> = decode(&encoded[..]).unwrap();
+    println!("{}", decoded.unwrap().0);
+    //assert_eq!(target, decoded);
 }

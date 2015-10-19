@@ -11,6 +11,8 @@ pub enum Plan {
 pub trait DataSet: Display {
   fn name(&self) -> &str;
   
+  //fn kind(&self) -> &str;
+  
 //  fn schema(&self) -> &Vec<&Type>>;
 }
 
