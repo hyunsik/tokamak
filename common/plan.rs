@@ -1,7 +1,8 @@
 use std::fmt::{Display, Formatter, Result};
 
-use plugin::{TypeRegistry, FuncRegistry};
+use types::Type;
 use err::{Void, void_ok};
+use plugin::{TypeRegistry, FuncRegistry};
 
 pub trait PlanContext {
   fn type_registry(&self) -> &TypeRegistry;
@@ -16,23 +17,28 @@ pub enum Plan {
   Tail(Box<Plan>, usize), // child, row number to fetch
 }
 
-pub trait DataSet: Display {
+pub trait Bindable {
   fn bind(&mut self, ctx: &PlanContext) -> Void;
-  
+}
+
+pub trait SchemaObject {
+  fn schema(&self) -> &Vec<Box<Type>>;
+}
+
+pub trait DataSet: Bindable + SchemaObject + Display {
   fn name(&self) -> &str;
   
-  //fn kind(&self) -> &str;
-  
-//  fn schema(&self) -> &Vec<&Type>>;
+  fn kind(&self) -> &str;
 }
 
 #[allow(unused_variables)]
 #[allow(dead_code)]
 pub struct CustomDataSource {
-  name     : String,
-  src_type : String,
-  schema   : Vec<String>,
-  props    : Vec<(String, String)>
+  name       : String,
+  src_type   : String,
+  raw_schema : Vec<String>,
+  schema     : Option<Vec<Box<Type>>>,
+  props      : Vec<(String, String)>
 }
 
 impl CustomDataSource {
@@ -43,27 +49,40 @@ impl CustomDataSource {
     props: Vec<(&str, &str)>) -> CustomDataSource {
       
     CustomDataSource {
-      name    : name.to_string(),
-      src_type: src_type.to_string(),
-      schema  : schema.iter()
-                  .map(|s| s.to_string())
-                  .collect::<Vec<String>>(),
-      props   : props.iter()
-                  .map(|p| (p.0.to_string(), p.1.to_string()))
-                  .collect::<Vec<(String, String)>>() 
+      name       : name.to_string(),
+      src_type   : src_type.to_string(),
+      raw_schema : schema.iter()
+                   .map(|s| s.to_string())
+                   .collect::<Vec<String>>(),
+      schema     : None,            
+      props      : props.iter()
+                   .map(|p| (p.0.to_string(), p.1.to_string()))
+                   .collect::<Vec<(String, String)>>() 
     }
   }
 }
 
 impl DataSet for CustomDataSource {
+  fn name(&self) -> &str { &self.name }
+  
+  fn kind(&self) -> &str { "table" } 
+}
+
+impl Bindable for CustomDataSource {
   fn bind(&mut self, ctx: &PlanContext) -> Void {
+    
+    if self.schema.is_none() {
+      self.schema = Some(typestr_to_schema(ctx, &self.raw_schema));
+    }
+    
     void_ok()
   }
-  
-  fn name(&self) -> &str { &self.name } 
-  
-//  fn schema(&self) -> &Vec<&Type> {
-//  }
+}
+
+impl SchemaObject for CustomDataSource {
+  fn schema(&self) -> &Vec<Box<Type>> {
+    self.schema.as_ref().unwrap()
+  }
 }
 
 impl Display for CustomDataSource {
@@ -75,6 +94,13 @@ impl Display for CustomDataSource {
 pub enum Expr {
   Plus,
   Field(String)
+}
+
+fn typestr_to_schema(ctx: &PlanContext, types: &Vec<String>) -> Vec<Box<Type>>
+{
+  types.iter()
+    .map( |s| ctx.type_registry().get(s).unwrap().clone_box() )
+    .collect::<Vec<Box<Type>>>()
 }
 
 

@@ -49,7 +49,7 @@ pub fn test_tuple() {
   let tuple: Option<Record<(i32, i32, String)>> = x.decode();
 }
 
-#[test]
+//#[test]
 pub fn test_bincode() {
   // The object that we will serialize.
     let target = Some("hello world".to_string());

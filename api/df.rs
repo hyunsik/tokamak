@@ -73,10 +73,3 @@ pub fn RandomGenerator(types: Vec<&str>, rownum: usize) -> Box<DataSet>
     Vec::new()
   ))
 }
-
-fn typestr_to_schema(ctx: &TokamakContext, types: Vec<&str>) -> Vec<Box<Type>>
-{
-  types.iter()
-    .map( |s| ctx.get_type(s).unwrap().clone_box() )
-    .collect::<Vec<Box<Type>>>()
-}
