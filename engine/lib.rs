@@ -25,8 +25,6 @@ pub use task::Task;
 mod query_executor;
 pub use query_executor::{
   MaterializedResult,
+  LocalQueryExecutor,
   QueryExecutor 
 };
-
-mod runner;
-pub use runner::execute_tasks;

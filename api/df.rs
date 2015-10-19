@@ -8,7 +8,7 @@ use uuid::Uuid;
 use common::err::{Error, Result};
 use common::types::Type;
 use common::plan::{CustomDataSource, DataSet, Expr, Plan};
-use engine::{create_plan, ExecutionPlan, execute_tasks, parallelize, Task};
+use engine::QueryExecutor;
 
 use super::TokamakContext;
 
@@ -44,7 +44,7 @@ impl<'a> DataFrame<'a> {
   
   pub fn head_with(self, num: usize) -> Result<Box<DataSet>> {
     let head_plan = Plan::Head(Box::new(self.plan), num);
-    execute(self.ctx, head_plan)
+    self.ctx.runner().execute(&self.ctx.session, &head_plan)
   }
   
   pub fn tail(self) -> Result<Box<DataSet>> {
@@ -53,12 +53,12 @@ impl<'a> DataFrame<'a> {
   
   pub fn tail_with(self, num: usize) -> Result<Box<DataSet>> {
     let tail_plan = Plan::Tail(Box::new(self.plan), num);
-    execute(self.ctx, tail_plan)
+    self.ctx.runner().execute(&self.ctx.session, &tail_plan)
   }
 }
 
 
-
+/*
 fn execute(ctx: &TokamakContext, plan: Plan) -> Result<Box<DataSet>> {
   let exec_plan : ExecutionPlan = try!(create_plan(ctx.package_manager(), &plan));
   //let drivers = exec_plan.
@@ -66,7 +66,7 @@ fn execute(ctx: &TokamakContext, plan: Plan) -> Result<Box<DataSet>> {
   //execute_tasks(tasks)
   
   Err(Error::NotImplemented)
-}
+}*/
 
 
 pub fn RandomGenerator(types: Vec<&str>, rownum: usize) -> Box<DataSet>
