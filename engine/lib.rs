@@ -19,6 +19,9 @@ pub use planner::*;
 mod parallelizer;
 pub use parallelizer::*;
 
+mod optimizer;
+pub use optimizer::*;
+
 mod task;
 pub use task::Task;
 
