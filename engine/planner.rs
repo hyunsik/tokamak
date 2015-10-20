@@ -10,8 +10,9 @@ use exec::scan::TableScanExecFactory;
 
 pub fn create_plan(pkg_mgr: &PluginManager, plan: &Plan) -> Result<ExecutionPlan> {
   let mut planner = ExecutionPlanner::new();
-  walk_plan(&mut planner, plan);
-  planner.plan()
+  let mut ctx = ExecPlanContext {err: None};
+  { walk_plan(&planner, &mut ctx, plan); }
+  planner.plan(ctx)
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -59,24 +60,18 @@ impl ExecutionPlan {
   }
 }
 
-pub struct ExecutionPlanner {
-  factories: Vec<Box<ExecutorFactory>>,
-  err: Option<Error>  
-}
+pub struct ExecutionPlanner;
 
 impl ExecutionPlanner 
 {
   pub fn new() -> ExecutionPlanner 
   {
-    ExecutionPlanner { 
-      factories: Vec::new(),
-      err : None 
-    }
+    ExecutionPlanner
   }
   
-  pub fn plan(self) -> Result<ExecutionPlan>
+  pub fn plan(&self, ctx: ExecPlanContext) -> Result<ExecutionPlan>
   {
-    match self.err {
+    match ctx.err {
       Some(e) => Err(e),
       None    => {
         
@@ -89,30 +84,34 @@ impl ExecutionPlanner
     }
   }
   
-  pub fn push(&mut self, f: Box<ExecutorFactory>) {
-    self.factories.push(f)
-  }
-  
-  pub fn pop(&mut self) -> Option<Box<ExecutorFactory>> {
-    self.factories.pop()
-  }
+//  pub fn push(&mut self, f: Box<ExecutorFactory>) {
+//    self.factories.push(f)
+//  }
+//  
+//  pub fn pop(&mut self) -> Option<Box<ExecutorFactory>> {
+//    self.factories.pop()
+//  }
 }
 
-impl<'a> Visitor<'a> for ExecutionPlanner 
+pub struct ExecPlanContext {
+  err: Option<Error>
+}
+
+impl<'a, ExecPlanContext> Visitor<'a, ExecPlanContext> for ExecutionPlanner 
 {
-  fn visit_from(&mut self, ds: &DataSet) 
+  fn visit_from(&self, ctx: &mut ExecPlanContext, ds: &DataSet) 
   {
-    self.push(Box::new(TableScanExecFactory::new(Vec::new())))
+    //self.push(Box::new(TableScanExecFactory::new(Vec::new())))
   }
 
-  fn visit_head(&mut self, child: &Plan, rownum: usize) 
+  fn visit_head(&self, ctx: &mut ExecPlanContext, child: &Plan, rownum: usize) 
   {
-    walk_plan(self, child);
+    walk_plan(self, ctx, child);
   }
   
-  fn visit_tail(&mut self, child: &Plan, rownum: usize) 
+  fn visit_tail(&self, ctx: &mut ExecPlanContext, child: &Plan, rownum: usize) 
   {
-    walk_plan(self, child);
+    walk_plan(self, ctx, child);
   }
 }
 

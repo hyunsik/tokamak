@@ -106,31 +106,31 @@ fn typestr_to_schema(ctx: &PlanContext, types: &Vec<String>) -> Vec<Box<Type>>
 
 /// Visitor for Expr Tree
 #[allow(unused_variables)]
-pub trait Visitor<'v>: Sized {
+pub trait Visitor<'v, T>: Sized {
  
-  fn visit_from(&mut self, dataset: &'v DataSet) {}
+  fn visit_from(&self, &mut T, dataset: &'v DataSet) {}
   
  
-  fn visit_select(&mut self, child: &'v Plan, filter: &Vec<Expr>) {
-    walk_plan(self, child);
+  fn visit_select(&self, context: &mut T, child: &'v Plan, filter: &Vec<Expr>) {
+    walk_plan(self, context, child);
   }
   
-  fn visit_head(&mut self, child: &'v Plan, fetch_row: usize) {
-    walk_plan(self, child);
+  fn visit_head(&self, context: &mut T, child: &'v Plan, fetch_row: usize) {
+    walk_plan(self, context, child);
   }
   
-  fn visit_tail(&mut self, child: &'v Plan, fetch_row: usize) {
-    walk_plan(self, child);
+  fn visit_tail(&self, context: &mut T, child: &'v Plan, fetch_row: usize) {
+    walk_plan(self, context, child);
   }
 }
 
 /// Walker for Expr Tree
-pub fn walk_plan<'v, V: Visitor<'v>>(visitor: &mut V, plan: &'v Plan) {
+pub fn walk_plan<'v, T, V: Visitor<'v, T>>(visitor: &V, context: &mut T, plan: &'v Plan) {
   match *plan {
-    Plan::From(ref ds)                 => { visitor.visit_from(&**ds)}, 
-    Plan::Select(ref child,ref filter) => { visitor.visit_select(&**child, filter) },
-    Plan::Head  (ref child,num)        => { visitor.visit_head(&**child,num) },
-    Plan::Tail  (ref child,num)        => { visitor.visit_tail(&**child,num) },
+    Plan::From(ref ds)                 => { visitor.visit_from(context, &**ds)}, 
+    Plan::Select(ref child,ref filter) => { visitor.visit_select(context, &**child, filter) },
+    Plan::Head  (ref child,num)        => { visitor.visit_head(context, &**child,num) },
+    Plan::Tail  (ref child,num)        => { visitor.visit_tail(context, &**child,num) },
     _                                  => {},
   }
 }
