@@ -24,8 +24,8 @@ pub struct RegistredFormatData
 {
   id: String,
   kind: String,
-  schema: Vec<String>,
-  props : Vec<(String, String)>
+  schema: Option<Vec<String>>,
+  props : Option<Vec<(String, String)>>
 }
 
 impl RegistredFormatData
@@ -33,18 +33,30 @@ impl RegistredFormatData
   pub fn new(
       id   : &str, 
       kind : &str, 
-      types: Vec<&str>, 
-      props: Vec<(&str, &str)>) -> RegistredFormatData 
+      types: Option<Vec<&str>>, 
+      props: Option<Vec<(&str, &str)>>) -> RegistredFormatData 
   {
     RegistredFormatData {
       id     : id.to_string(),
       kind   : kind.to_string(),
-      schema : types.iter()
-               .map(|s| s.to_string())
-               .collect::<Vec<String>>(),
-      props  : props.iter()
-               .map(|p| (p.0.to_string(), p.1.to_string()))
-               .collect::<Vec<(String, String)>>()
+      
+      schema : match types {
+                 Some(t) => { 
+                   Some(t.iter()
+                   .map(|s| s.to_string())
+                   .collect::<Vec<String>>())
+                 },
+                 None => None
+               },
+      
+      props  : match props {
+                 Some(p) => { 
+                   Some(p.iter()
+                   .map(|p| (p.0.to_string(), p.1.to_string()))
+                   .collect::<Vec<(String, String)>>())
+                 },
+                 None => None
+               }    
     }
   }
 }
@@ -69,7 +81,7 @@ impl DataSet for RegistredFormatData
   
   fn schema(&self) -> &Vec<String>
   {
-    &self.schema
+    self.schema.as_ref().unwrap()
   }
   
   fn uri(&self) -> Option<&str>

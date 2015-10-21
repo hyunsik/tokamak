@@ -61,7 +61,7 @@ pub fn RandomTable(types: Vec<&str>, rownum: usize) -> Box<DataSet>
   Box::new(RegistredFormatData::new(
     &Uuid::new_v4().to_hyphenated_string(),  
     "random",
-    types,
-    Vec::new()
+    Some(types),
+    Some(Vec::new())
   ))
 }
