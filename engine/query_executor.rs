@@ -10,7 +10,8 @@ use common::session::Session;
 pub struct MaterializedResult 
 {
   name: String,
-  schema: Vec<Box<Type>>
+  schema: Vec<Box<Type>>,
+  raw_schema: Vec<String>
 }
 
 impl DataSet for MaterializedResult
@@ -25,10 +26,8 @@ impl DataSet for MaterializedResult
     "table"
   }
   
-  fn schema(&self) -> Vec<&str> {
-    self.schema.iter()
-      .map(|t| t.id().base())
-      .collect::<Vec<&str>>()
+  fn schema(&self) -> &Vec<String> {
+    &self.raw_schema
   }
   
   fn uri(&self) -> Option<&str> {

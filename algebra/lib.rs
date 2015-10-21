@@ -12,11 +12,70 @@ pub enum AlgebraError
   NotConsumedStackItem
 }
 
-pub trait DataSet {
+pub trait DataSet : fmt::Display
+{
   fn id    (&self) -> &str;
   fn kind  (&self) -> &str;
-  fn schema(&self) -> Vec<&str>;
+  fn schema(&self) -> &Vec<String>;
   fn uri   (&self) -> Option<&str>;
+}
+
+pub struct RegistredFormatData
+{
+  id: String,
+  kind: String,
+  schema: Vec<String>,
+  props : Vec<(String, String)>
+}
+
+impl RegistredFormatData
+{
+  pub fn new(
+      id   : &str, 
+      kind : &str, 
+      types: Vec<&str>, 
+      props: Vec<(&str, &str)>) -> RegistredFormatData 
+  {
+    RegistredFormatData {
+      id     : id.to_string(),
+      kind   : kind.to_string(),
+      schema : types.iter()
+               .map(|s| s.to_string())
+               .collect::<Vec<String>>(),
+      props  : props.iter()
+               .map(|p| (p.0.to_string(), p.1.to_string()))
+               .collect::<Vec<(String, String)>>()
+    }
+  }
+}
+
+impl fmt::Display for RegistredFormatData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+      write!(f, "id={}, kind={}", self.id, self.kind)
+    }
+}
+
+impl DataSet for RegistredFormatData 
+{
+  fn id(&self) -> &str
+  {
+    &self.id
+  }
+  
+  fn kind(&self) -> &str
+  {
+    &self.kind
+  }
+  
+  fn schema(&self) -> &Vec<String>
+  {
+    &self.schema
+  }
+  
+  fn uri(&self) -> Option<&str>
+  {
+    None
+  }
 }
 
 pub enum JoinType

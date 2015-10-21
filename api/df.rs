@@ -3,6 +3,7 @@
 //! let ctx = TokamakContext::new();
 //! ctx.from(RandomGenerator).select(...);
 
+use uuid::Uuid;
 use algebra::*;
 use common::err::{Error, Result};
 use engine::QueryExecutor;
@@ -54,14 +55,13 @@ impl<'a> DataFrame<'a> {
   }
 }
 
-/*
-pub fn RandomGenerator(types: Vec<&str>, rownum: usize) -> Box<DataSet>
+
+pub fn RandomTable(types: Vec<&str>, rownum: usize) -> Box<DataSet>
 {
-  Box::new(CustomDataSource::new(
+  Box::new(RegistredFormatData::new(
     &Uuid::new_v4().to_hyphenated_string(),  
     "random",
     types,
     Vec::new()
   ))
 }
-*/
