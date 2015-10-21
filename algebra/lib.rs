@@ -12,10 +12,13 @@ pub enum AlgebraError
   NotConsumedStackItem
 }
 
-#[derive(Clone)]
-pub struct DataSetDecl;
+pub trait DataSet {
+  fn id    (&self) -> &str;
+  fn kind  (&self) -> &str;
+  fn schema(&self) -> Vec<&str>;
+  fn uri   (&self) -> Option<&str>;
+}
 
-#[derive(Clone)]
 pub enum JoinType
 {
   INNER,
@@ -24,10 +27,9 @@ pub enum JoinType
   FullOuter
 }
 
-#[derive(Clone)]
 pub enum Operator 
 {
-  DataSet   (Box<DataSetDecl>),
+  Scan      (Box<DataSet>),
   Project   (Box<Operator>, Vec<Operator>),                // child, exprs
   Filter    (Box<Operator>, Vec<Operator>),                // child, bool exprs in a CNF form
   Join      (JoinType, Box<Operator>, Box<Operator>, Vec<Operator>), // join type, left, right, join condition
@@ -62,15 +64,15 @@ impl AlgebraBuilder
   }
   
   #[inline]
-  pub fn push(&mut self, op: Operator) -> &mut AlgebraBuilder
+  fn push(&mut self, op: Operator) -> &mut AlgebraBuilder
   {
     self.stack.push(op);
     self
   }
   
-  pub fn dataset(&mut self, dataset: Box<DataSetDecl>) -> &mut AlgebraBuilder 
+  pub fn dataset(&mut self, dataset: Box<DataSet>) -> &mut AlgebraBuilder 
   {
-    self.push(Operator::DataSet(dataset));
+    self.push(Operator::Scan(dataset));
     self    
   } 
   
@@ -119,7 +121,7 @@ pub trait Visitor<'v, T>: Sized {
   fn visit_dataset(
       &self, 
       &mut T, 
-      dataset: &'v DataSetDecl) {}
+      dataset: &'v DataSet) {}
  
   fn visit_project(
       &self, 
@@ -188,7 +190,7 @@ pub trait Visitor<'v, T>: Sized {
 pub fn walk_op<'v, T, V>(v: &V, ctx: &mut T, op: &'v Operator) 
     where V: Visitor<'v, T> {
   match *op {
-    Operator::DataSet  (ref ds)                        => { v.visit_dataset(ctx, &**ds)},
+    Operator::Scan     (ref ds)                        => { v.visit_dataset(ctx, &**ds)},
     Operator::Project  (ref child,ref exprs)           => { v.visit_project(ctx, &**child, exprs) },
     Operator::Filter   (ref child,ref filters)         => { v.visit_filter(ctx, &**child, filters) },
     Operator::Aggregate(ref child,ref keys, ref exprs) => { v.visit_aggregate(ctx, &**child, keys, exprs) },

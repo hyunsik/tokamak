@@ -7,7 +7,9 @@
 //! --(TaskRunner)--> DataSet
 
 extern crate common;
+extern crate algebra;
 extern crate exec;
+extern crate plan;
 extern crate rows;
 extern crate storage;
 
@@ -18,9 +20,6 @@ pub use planner::*;
 
 mod parallelizer;
 pub use parallelizer::*;
-
-mod optimizer;
-pub use optimizer::*;
 
 mod task;
 pub use task::Task;

@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use common::err::{Error, Result};
-use common::plan::*;
 use common::plugin::{PluginManager};
+use plan::*;
 
 use exec::ExecutorFactory;
 use exec::scan::TableScanExecFactory;

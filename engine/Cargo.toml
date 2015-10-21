@@ -13,8 +13,17 @@ itertools = "0.4.1"
 [dependencies.common]
 path = "../common"
 
+[dependencies.algebra]
+path = "../algebra"
+
 [dependencies.exec]
 path = "../exec"
+
+[dependencies.optimizer]
+path = "../optimizer"
+
+[dependencies.plan]
+path = "../plan"
 
 [dependencies.rows]
 path = "../rows"

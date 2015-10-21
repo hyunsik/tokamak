@@ -1,9 +1,10 @@
+use algebra::{DataSet, Operator};
 use common::err::Result;
 use common::session::Session;
 use common::types::Type;
-use common::plan::{DataSet, Plan, PlanContext};
-use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
+use common::plugin::PluginManager;
 use engine::{LocalQueryExecutor, QueryExecutor};
+
 use sql::SQLPackage;
 
 use df::{DataFrame};
@@ -19,7 +20,7 @@ impl TokamakContext
   pub fn new() -> Result<TokamakContext> 
   {
     let mut executor = Box::new(LocalQueryExecutor::new());
-    executor.add_plugin(Box::new(SQLPackage));
+    try!(executor.add_plugin(Box::new(SQLPackage)));
     
     Ok(TokamakContext {
       session: executor.default_session(),
@@ -46,19 +47,6 @@ impl TokamakContext
   }
   
   pub fn from(&self, ds: Box<DataSet>) -> DataFrame {
-    DataFrame {ctx: self, plan: Plan::From(ds)}
-  }
-}
-
-impl PlanContext for TokamakContext 
-{
-  fn type_registry(&self) -> &TypeRegistry 
-  {
-    self.plugin_manager().type_registry()
-  }
-  
-  fn func_registry(&self) -> &FuncRegistry 
-  {
-    self.plugin_manager().func_registry()
+    DataFrame {ctx: self, plan: Operator::Scan(ds)}
   }
 }

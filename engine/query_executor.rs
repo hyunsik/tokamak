@@ -1,7 +1,8 @@
 use std::fmt;
 
+use algebra::{Operator, DataSet};
 use common::err::{Result, Void, void_ok};
-use common::plan::{Bindable, DataSet, SchemaObject, Plan, PlanContext};
+use plan::{Bindable, SchemaObject, Plan, PlanContext};
 use common::plugin::{Plugin, PluginManager};
 use common::types::Type;
 use common::session::Session;
@@ -14,7 +15,7 @@ pub struct MaterializedResult
 
 impl DataSet for MaterializedResult
 {
-  fn name(&self) -> &str 
+  fn id(&self) -> &str 
   {
     &self.name
   }
@@ -22,6 +23,16 @@ impl DataSet for MaterializedResult
   fn kind(&self) -> &str
   {
     "table"
+  }
+  
+  fn schema(&self) -> Vec<&str> {
+    self.schema.iter()
+      .map(|t| t.id().base())
+      .collect::<Vec<&str>>()
+  }
+  
+  fn uri(&self) -> Option<&str> {
+    None
   }
 }
 
@@ -56,7 +67,7 @@ pub trait QueryExecutor
   
   fn plugin_manager(&self) -> &PluginManager; 
   
-  fn execute(&self, session: &Session, plan: &Plan) -> Result<Box<DataSet>>;
+  fn execute(&self, session: &Session, plan: &Operator) -> Result<Box<DataSet>>;
   
   fn close(&self) -> Void;
 }
@@ -92,7 +103,7 @@ impl QueryExecutor for LocalQueryExecutor
     &self.plugin_manager
   }
   
-  fn execute(&self, session: &Session, plan: &Plan) -> Result<Box<DataSet>> {
+  fn execute(&self, session: &Session, plan: &Operator) -> Result<Box<DataSet>> {
     unimplemented!()
   }
   

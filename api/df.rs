@@ -3,33 +3,30 @@
 //! let ctx = TokamakContext::new();
 //! ctx.from(RandomGenerator).select(...);
 
-use uuid::Uuid;
-
+use algebra::*;
 use common::err::{Error, Result};
-use common::types::Type;
-use common::plan::{CustomDataSource, DataSet, Expr, Plan};
 use engine::QueryExecutor;
 
 use super::TokamakContext;
 
 pub struct DataFrame<'a> {
   pub ctx : &'a TokamakContext,
-  pub plan: Plan
+  pub plan: Operator
 }
 
 impl<'a> DataFrame<'a> {
   pub fn kind(&self) -> &'static str {
     match self.plan {
-      Plan::From  (_)   => "from",
-      Plan::Select(_,_) => "select",
-      Plan::Head(_,_)   => "head",
-      Plan::Tail(_,_)   => "tail",
-      _                 => "Unknown"
+      Operator::Scan    (_)   =>   "from",
+      Operator::Project (_,_) =>   "select",
+      Operator::Head    (_,_) => "head",
+      Operator::Tail    (_,_) => "tail",
+      _                       => "Unknown"
     } 
   }
   
-  pub fn select(self, exprs: Vec<Expr>) -> DataFrame<'a> {
-    DataFrame {ctx: self.ctx, plan: Plan::Select(Box::new(self.plan), exprs)}
+  pub fn select(self, exprs: Vec<Operator>) -> DataFrame<'a> {
+    DataFrame {ctx: self.ctx, plan: Operator::Project(Box::new(self.plan), exprs)}
   }
   
   pub fn count(&self) -> Result<usize> {
@@ -43,7 +40,7 @@ impl<'a> DataFrame<'a> {
   }
   
   pub fn head_with(self, num: usize) -> Result<Box<DataSet>> {
-    let head_plan = Plan::Head(Box::new(self.plan), num);
+    let head_plan = Operator::Head(Box::new(self.plan), num);
     self.ctx.runner().execute(&self.ctx.session, &head_plan)
   }
   
@@ -52,11 +49,12 @@ impl<'a> DataFrame<'a> {
   }
   
   pub fn tail_with(self, num: usize) -> Result<Box<DataSet>> {
-    let tail_plan = Plan::Tail(Box::new(self.plan), num);
+    let tail_plan = Operator::Tail(Box::new(self.plan), num);
     self.ctx.runner().execute(&self.ctx.session, &tail_plan)
   }
 }
 
+/*
 pub fn RandomGenerator(types: Vec<&str>, rownum: usize) -> Box<DataSet>
 {
   Box::new(CustomDataSource::new(
@@ -66,3 +64,4 @@ pub fn RandomGenerator(types: Vec<&str>, rownum: usize) -> Box<DataSet>
     Vec::new()
   ))
 }
+*/

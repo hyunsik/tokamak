@@ -16,6 +16,9 @@ bincode = "*"
 [dependencies.common]
 path = "../common"
 
+[dependencies.algebra]
+path = "../algebra"
+
 [dependencies.engine]
 path = "../engine"
 

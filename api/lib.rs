@@ -1,6 +1,7 @@
 extern crate uuid;
 extern crate rustc_serialize;
 
+extern crate algebra;
 extern crate common;
 extern crate engine;
 extern crate sql;
