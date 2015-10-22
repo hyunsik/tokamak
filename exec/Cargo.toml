@@ -12,9 +12,3 @@ itertools = "0.4.1"
 
 [dependencies.common]
 path = "../common"
-
-[dependencies.sql]
-path = "../sql"
-
-[dependencies.storage]
-path = "../storage"
