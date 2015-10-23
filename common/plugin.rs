@@ -26,8 +26,8 @@ pub trait Plugin
 pub struct PluginManager<'a> 
 {
   pkgs    : HashMap<String, Rc<Box<Plugin>>>,
-  type_registry: TypeRegistry,
-  func_registry: FuncRegistry,
+  type_registry: Rc<TypeRegistry>,
+  func_registry: Rc<FuncRegistry>,
   src_reg      : InputSourceRegistry,
   marker       : PhantomData<&'a()>  
 }
@@ -37,8 +37,8 @@ impl<'a> PluginManager<'a> {
   {
     PluginManager {
       pkgs: HashMap::new(),
-      type_registry: TypeRegistry::new(),
-      func_registry: FuncRegistry::new(),
+      type_registry: Rc::new(TypeRegistry::new()),
+      func_registry: Rc::new(FuncRegistry::new()),
       src_reg : InputSourceRegistry::new(),
       marker  : PhantomData
     }
@@ -46,21 +46,21 @@ impl<'a> PluginManager<'a> {
   
   pub fn load(&mut self, plugin: Box<Plugin>) -> Void
   {
-    self.type_registry.add_all(plugin.types());
-    self.func_registry.add_all(plugin.funcs());
+    Rc::get_mut(&mut self.type_registry).unwrap().add_all(plugin.types());
+    Rc::get_mut(&mut self.func_registry).unwrap().add_all(plugin.funcs());
     self.pkgs.insert(plugin.name().to_string(), Rc::new(plugin));
     
     void_ok
   }
   
-  pub fn type_registry( &self) -> &TypeRegistry 
+  pub fn type_registry( &self) -> Rc<TypeRegistry> 
   {
-    &self.type_registry    
+    self.type_registry.clone()
   }
   
-  pub fn func_registry(&self) -> &FuncRegistry 
+  pub fn func_registry(&self) -> Rc<FuncRegistry> 
   {
-    &self.func_registry
+    self.func_registry.clone()
   }
 }
 

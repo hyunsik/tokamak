@@ -8,23 +8,21 @@ use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
 
 use node::*;
 
-pub trait PlanContext<'a> {
-  fn type_registry(&'a self) -> &'a TypeRegistry;
-  
-  fn func_registry(&'a self) -> &'a FuncRegistry;
+pub struct LogicalPlanner {
+  type_registry: Rc<TypeRegistry>,
+  func_registry: Rc<FuncRegistry>
 }
 
-
-pub struct LogicalPlanner<'a> {
-  plugin_manager: Rc<PluginManager<'a>>
-}
-
-impl<'a> LogicalPlanner<'a>
+impl LogicalPlanner
 {
-  pub fn new(plugin_manager: Rc<PluginManager<'a>>) -> LogicalPlanner<'a> 
+  pub fn new(
+    type_registry: Rc<TypeRegistry>,
+    func_registry: Rc<FuncRegistry>) -> LogicalPlanner
+   
   {
     LogicalPlanner {
-      plugin_manager: plugin_manager
+      type_registry: type_registry,
+      func_registry: func_registry
     }
   }
   
