@@ -5,13 +5,15 @@
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::rc::Rc;
 
 use err::{Error, Result, Void, void_ok};
 use func::{FuncSignature, InvokeAction};
 use types::{Type, TypeFactory};
 use input::InputSource;
 
-pub trait Plugin 
+pub trait Plugin
 {
   fn name(&self) -> &str;
 
@@ -20,30 +22,33 @@ pub trait Plugin
   fn funcs(&self) -> Vec<(FuncSignature, InvokeAction)>;
 }
 
-pub struct PluginManager 
+#[derive(Clone)]
+pub struct PluginManager<'a> 
 {
-  pkgs    : HashMap<String, Box<Plugin>>,
+  pkgs    : HashMap<String, Rc<Box<Plugin>>>,
   type_registry: TypeRegistry,
   func_registry: FuncRegistry,
-  src_reg : InputSourceRegistry 
+  src_reg      : InputSourceRegistry,
+  marker       : PhantomData<&'a()>  
 }
 
-impl PluginManager {
-  pub fn new() -> PluginManager 
+impl<'a> PluginManager<'a> {
+  pub fn new() -> PluginManager<'a> 
   {
     PluginManager {
       pkgs: HashMap::new(),
       type_registry: TypeRegistry::new(),
       func_registry: FuncRegistry::new(),
-      src_reg : InputSourceRegistry::new()
+      src_reg : InputSourceRegistry::new(),
+      marker  : PhantomData
     }
   }
   
-  pub fn load(&mut self, pkg: Box<Plugin>) -> Void
+  pub fn load(&mut self, plugin: Box<Plugin>) -> Void
   {
-    self.type_registry.add_all(pkg.types());
-    self.func_registry.add_all(pkg.funcs());
-    self.pkgs.insert(pkg.name().to_string(), pkg);
+    self.type_registry.add_all(plugin.types());
+    self.func_registry.add_all(plugin.funcs());
+    self.pkgs.insert(plugin.name().to_string(), Rc::new(plugin));
     
     void_ok
   }
@@ -132,8 +137,9 @@ impl TypeRegistry
 }
 
 
-pub type InputSourceFactory = Box<Fn(Vec<&Type>) -> Box<InputSource>>;
+pub type InputSourceFactory = Rc<Fn(Vec<&Type>) -> Box<InputSource>>;
 
+#[derive(Clone)]
 pub struct InputSourceRegistry 
 {
   registry: HashMap<String, InputSourceFactory>

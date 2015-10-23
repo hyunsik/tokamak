@@ -2,7 +2,7 @@ use std::fmt;
 
 use algebra::{Operator, DataSet};
 use common::err::{Result, Void, void_ok};
-use plan::{LogicalPlan, PlanContext};
+use plan::LogicalPlan;
 use common::plugin::{Plugin, PluginManager};
 use common::types::Type;
 use common::session::Session;

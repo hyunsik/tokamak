@@ -1,29 +1,36 @@
+use std::rc::Rc;
+
 use algebra::{DataSet, Operator};
 use common::err::{Result, Void, void_ok};
 use common::session::Session;
-use common::plugin::{Plugin, PluginManager};
-use plan::LogicalPlanner;
+use common::plugin::{Plugin, PluginManager, TypeRegistry, FuncRegistry};
+use plan::{PlanContext, LogicalPlanner};
 
 use super::QueryExecutor;
 
-pub struct LocalQueryExecutor
+pub struct LocalQueryExecutor<'a>
 {
-  plugin_manager: PluginManager,
-  logical_planner: LogicalPlanner
+  plugin_manager: Rc<PluginManager<'a>>,
+  logical_planner: LogicalPlanner<'a>
 }
 
-impl LocalQueryExecutor
+impl<'a> LocalQueryExecutor<'a>
 {
-  pub fn new() -> LocalQueryExecutor
+  pub fn new() -> LocalQueryExecutor<'a>
   {
+    let plugin_manager = Rc::new(PluginManager::new());
     LocalQueryExecutor {
-      plugin_manager: PluginManager::new(),
-      logical_planner: LogicalPlanner::new()
+      plugin_manager: plugin_manager.clone(),
+      logical_planner: LogicalPlanner::new(plugin_manager.clone()),
     }
   }
 }
 
-impl QueryExecutor for LocalQueryExecutor
+pub struct Client {
+  p: Box<QueryExecutor + Copy>
+}
+
+impl<'a> QueryExecutor for LocalQueryExecutor<'a>
 {
   fn default_session(&self) -> Session 
   {
@@ -31,7 +38,8 @@ impl QueryExecutor for LocalQueryExecutor
   }
   
   fn add_plugin(&mut self, plugin: Box<Plugin>) -> Void {
-    self.plugin_manager.load(plugin)
+    // the only place to access the mutable reference of PluginManager
+    Rc::get_mut(&mut self.plugin_manager).unwrap().load(plugin)
   }
   
   fn plugin_manager(&self) -> &PluginManager
