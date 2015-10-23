@@ -29,8 +29,9 @@ extern crate itertools;
 extern crate libc;
 
 extern crate common;
+extern crate plan;
 
-pub mod exec_plan;
+pub mod exec_planner;
 pub mod driver;
 pub mod scan;
 pub mod split;

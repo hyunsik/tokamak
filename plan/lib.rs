@@ -36,10 +36,12 @@ impl LogicalPlanner
   } 
 }
 
+#[derive(Clone)]
 pub struct QueryBlock {
   root: PlanNode
 }
 
+#[derive(Clone)]
 pub struct LogicalPlan {
   query_blocks: HashMap<i32, QueryBlock> 
 }

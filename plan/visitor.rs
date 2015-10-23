@@ -5,9 +5,9 @@ use expr::*;
 #[allow(unused_variables)]
 pub trait Visitor<'v, T>: Sized {
  
-  fn visit_relation(&self, &mut T, decl: &RelDecl) {}
+  fn visit_relation(&self, ctx: &mut T, decl: &RelDecl) {}
   
-  fn visit_partitioned_relation(&self, &mut T, decl: &PartitionedRelDecl) {}
+  fn visit_partitioned_relation(&self, ctx: &mut T, decl: &PartitionedRelDecl) {}
   
   fn visit_join(&self, ctx: &mut T, left: &'v PlanNode, right: &'v PlanNode, decl: &JoinDecl) {
     walk_node(self, ctx, left);

@@ -13,20 +13,11 @@ extern crate plan;
 extern crate rows;
 extern crate storage;
 
-pub struct ExecutorRunner;
-
-mod planner;
-pub use planner::*;
-
-mod parallelizer;
-pub use parallelizer::*;
-
-mod task;
-pub use task::Task;
-
-mod query_executor;
-pub use query_executor::{
+mod runner;
+pub use runner::{
   MaterializedResult,
-  LocalQueryExecutor,
   QueryExecutor 
 };
+
+mod local_runner;
+pub use local_runner::LocalQueryExecutor;
