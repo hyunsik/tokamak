@@ -17,8 +17,8 @@ extern crate storage;
 mod runner;
 pub use runner::{
   MaterializedResult,
-  QueryExecutor 
+  QueryRunner 
 };
 
 mod local_runner;
-pub use local_runner::LocalQueryExecutor;
+pub use local_runner::LocalQueryRunner;

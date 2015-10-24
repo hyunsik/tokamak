@@ -3,14 +3,14 @@ use std::rc::Rc;
 use algebra::{DataSet, Operator};
 use common::err::{Result, Void, void_ok};
 use common::session::Session;
-use common::plugin::{Plugin, PluginManager, TypeRegistry, FuncRegistry};
+use common::plugin::{Plugin, PluginManager};
 use exec::planner::ExecutionPlanner;
 use plan::{LogicalPlanner};
 use optimizer::LogicalOptimizer;
 
-use super::QueryExecutor;
+use super::QueryRunner;
 
-pub struct LocalQueryExecutor<'a>
+pub struct LocalQueryRunner<'a>
 {
   plugin_manager: Rc<PluginManager<'a>>,
   planner  : LogicalPlanner,
@@ -18,13 +18,13 @@ pub struct LocalQueryExecutor<'a>
   exec_planner: ExecutionPlanner
 }
 
-impl<'a> LocalQueryExecutor<'a>
+impl<'a> LocalQueryRunner<'a>
 {
-  pub fn new() -> LocalQueryExecutor<'a>
+  pub fn new() -> LocalQueryRunner<'a>
   {
     let plugin_manager = Rc::new(PluginManager::new());
     
-    LocalQueryExecutor {
+    LocalQueryRunner {
       
       plugin_manager: plugin_manager.clone(),
       
@@ -44,11 +44,7 @@ impl<'a> LocalQueryExecutor<'a>
   }
 }
 
-pub struct Client {
-  p: Box<QueryExecutor + Copy>
-}
-
-impl<'a> QueryExecutor for LocalQueryExecutor<'a>
+impl<'a> QueryRunner for LocalQueryRunner<'a>
 {
   fn default_session(&self) -> Session 
   {

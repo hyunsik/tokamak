@@ -2,7 +2,6 @@ use std::fmt;
 
 use algebra::{Operator, DataSet};
 use common::err::{Result, Void, void_ok};
-use plan::LogicalPlan;
 use common::plugin::{Plugin, PluginManager};
 use common::types::Type;
 use common::session::Session;
@@ -41,7 +40,7 @@ impl fmt::Display for MaterializedResult {
   }
 }
 
-pub trait QueryExecutor 
+pub trait QueryRunner 
 {
   
   fn default_session(&self) -> Session;
