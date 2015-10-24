@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
 
-use algebra::Operator;
+use algebra::{Operator, Visitor};
 use common::err::Result;
 use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
 use common::session::Session;
@@ -33,12 +33,23 @@ impl LogicalPlanner
   } 
 }
 
+pub struct PlanContext {
+  
+}
+
+impl<'v> Visitor<'v, PlanContext> {
+  fn visit_dataset(&self, &mut PlanContext, dataset: &'v DataSet) {
+  }
+}
+
 #[derive(Clone)]
 pub struct QueryBlock {
+  id  : u32,
   root: PlanNode
 }
 
 #[derive(Clone)]
 pub struct LogicalPlan {
-  query_blocks: HashMap<i32, QueryBlock> 
+  root_id     : u32,
+  query_blocks: HashMap<u32, QueryBlock> 
 }
