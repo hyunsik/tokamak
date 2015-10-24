@@ -5,11 +5,21 @@
 use std::fmt;
 use std::result::Result;
 
+use util::tree::{Tree, TreeBuildError};
+
 pub enum AlgebraError 
 {
   EmptyStack,
-  MismatchedStackType,
-  NotConsumedStackItem
+  StillRemainStackItem
+}
+
+impl From<TreeBuildError> for AlgebraError {
+  fn from(e: TreeBuildError) -> AlgebraError {
+    match e {
+      TreeBuildError::EmptyStack => AlgebraError::EmptyStack,
+      TreeBuildError::StillRemainStackItem => AlgebraError::StillRemainStackItem,
+    }
+  }
 }
 
 pub trait DataSet : fmt::Display
@@ -101,17 +111,17 @@ pub enum JoinType
 pub enum Operator 
 {
   Scan      (Box<DataSet>),
-  Project   (Box<Operator>, Vec<Operator>),                // child, exprs
-  Filter    (Box<Operator>, Vec<Operator>),                // child, bool exprs in a CNF form
-  Join      (JoinType, Box<Operator>, Box<Operator>, Vec<Operator>), // join type, left, right, join condition
-  Aggregate (Box<Operator>, Vec<Operator>, Vec<Operator>), // child, keys, exprs    
-  Head      (Box<Operator>, usize),                        // child, row number to fetch
-  Tail      (Box<Operator>, usize),                        // child, row number to fetch
+  Project   (Vec<Operator>),                               // child, exprs
+  Filter    (Vec<Operator>),                               // child, bool exprs in a CNF form
+  Join      (JoinType, Box<Operator>, Vec<Operator>),      // join type, left, right, join condition
+  Aggregate (Vec<Operator>, Vec<Operator>),                // keys, exprs    
+  Head      (usize),                                       // row number to fetch
+  Tail      (usize),                                       // row number to fetch
 }
 
 pub struct AlgebraBuilder 
 {
-  stack: Vec<Operator>
+  builder: TreeBuilder<Operator>
 }
 
 impl AlgebraBuilder
@@ -120,38 +130,35 @@ impl AlgebraBuilder
   pub fn new() -> AlgebraBuilder 
   {
     AlgebraBuilder {
-      stack: Vec::new()
+      builder: TreeBuilder::new();
     }
   }
   
   #[inline]
   pub fn build(mut self) -> Result<Operator, AlgebraError>
   {
-    match self.stack.len() {
-      0 => { Err(AlgebraError::EmptyStack) },
-      1 => { Ok(self.stack.pop().unwrap()) },
-      _ => { Err(AlgebraError::NotConsumedStackItem) }
-    }
+    try!(self.builder.build())
   }
   
   #[inline]
   fn push(&mut self, op: Operator) -> &mut AlgebraBuilder
   {
-    self.stack.push(op);
+    self.builder.push(op);
     self
   }
   
   pub fn dataset(&mut self, dataset: Box<DataSet>) -> &mut AlgebraBuilder 
   {
-    self.push(Operator::Scan(dataset));
+    self.push(TreeNode::Leaf(Operator::Scan(dataset)));
     self    
   } 
   
   
   #[inline]
-  pub fn filter(&mut self, op: Operator) -> &mut AlgebraBuilder 
+  pub fn filter(&mut self, filter: Vec<Operator>) -> &mut AlgebraBuilder 
   {
-    self.push(op)
+    self.builder.
+    self.push(TreeNode::Branch(op))
   }
   
   pub fn join(
@@ -270,6 +277,6 @@ pub fn walk_op<'v, T, V>(v: &V, ctx: &mut T, op: &'v Operator)
     Operator::Tail     (ref child,num)                => { v.visit_tail(ctx, &**child,num) },
   }
 }
+ 
     
-    
-    
+   
