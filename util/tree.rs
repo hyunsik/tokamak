@@ -1,5 +1,7 @@
 //! Generic Tree Implementation for Plan
 
+use std::rc::Rc;
+
 pub enum TreeBuildError 
 {
   EmptyStack,
@@ -14,11 +16,11 @@ pub enum TreeNode<T>
 
 #[allow(unused_variables)]
 pub trait Visitor<'v, T>: Sized {
-  fn visit(&self, data: &'v T, child: Option<&'v Vec<Box<TreeNode<T>>>>) {
-    self.visit_by_default(child);
+  fn accept(&mut self, data: &'v T, child: Option<&'v Vec<Box<TreeNode<T>>>>) {
+    self.accept_by_default(child);
   }
   
-  fn visit_by_default(&self, child: Option<&'v Vec<Box<TreeNode<T>>>>) {
+  fn accept_by_default(&mut self, child: Option<&'v Vec<Box<TreeNode<T>>>>) {
     match child {
       Some(v) => {
         for node in v.iter().map(|n| &*n) {
@@ -30,12 +32,32 @@ pub trait Visitor<'v, T>: Sized {
   }
 }
 
-pub fn walk_tree<'v, V, T>(v: &V, node: &'v TreeNode<T>)
+pub fn walk_tree<'v, V, T>(v: &mut V, node: &'v TreeNode<T>)
     where V: Visitor<'v, T> {
   match *node {
-    TreeNode::Leaf(ref data) => v.visit(data, None),
-    TreeNode::Branch(ref data, ref child) => v.visit(data, Some(child))
+    TreeNode::Leaf(ref data) => v.accept(data, None),
+    TreeNode::Branch(ref data, ref child) => v.accept(data, Some(child))
   };
+}
+
+pub type SimpleVisitor<T> = Rc<Fn(&T, Option<&Vec<Box<TreeNode<T>>>>)>;    
+    
+pub struct BatchVisitor<T> {
+  batch: Vec<SimpleVisitor<T>>
+}
+
+impl<T> BatchVisitor<T> {
+  pub fn new() -> BatchVisitor<T> {
+    BatchVisitor {
+      batch: Vec::new()
+    }
+  }
+  
+  pub fn add(&mut self, v: SimpleVisitor<T>) -> &mut Self {
+    self.batch.push(v);
+    
+    self
+  } 
 }
 
 /// Tree Builder in a bottom up approach.
@@ -93,9 +115,17 @@ impl<T> TreeBuilder<T> {
 
 #[cfg(test)]
 mod tests {
-  use super::{TreeBuilder, TreeNode};
+  use super::{TreeBuilder, TreeNode, Visitor};
 
-  
+ pub struct TestVisitor;
+ 
+ pub struct AA;
+
+ impl<'v> Visitor<'v, AA> for TestVisitor {
+    fn accept(&mut self, data: &AA, child: Option<&'v Vec<Box<TreeNode<AA>>>>) {
+      self.accept_by_default(child);
+    }
+  }
   
   #[test]
   fn test_tree() {
