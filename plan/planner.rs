@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
 
-use algebra::{Operator, Visitor};
+use algebra::{DataSet, Operator, Visitor};
 use common::err::Result;
 use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
 use common::session::Session;
@@ -33,12 +33,10 @@ impl LogicalPlanner
   } 
 }
 
-pub struct PlanContext {
-  
-}
+pub struct PlanContext;
 
-impl<'v> Visitor<'v, PlanContext> {
-  fn visit_dataset(&self, &mut PlanContext, dataset: &'v DataSet) {
+impl<'v> Visitor<'v, PlanContext> for LogicalPlanner {
+  fn visit_dataset(&self, ctx: &mut PlanContext, dataset: &'v DataSet) {
   }
 }
 

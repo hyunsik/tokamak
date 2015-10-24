@@ -1,3 +1,4 @@
+use common::tree::*;
 use expr::Expr;
 
 #[derive(Clone)]
@@ -45,4 +46,8 @@ pub struct JoinDecl
 pub struct AggDecl {
   keys: Vec<Expr>, 
   aggrs: Vec<Expr>
+}
+
+fn test() {
+  let tree_node: TreeNode<PlanNode> = TreeNode::new();  
 }

@@ -1,11 +1,8 @@
 [package]
-name = "algebra"
+name = "util"
 version = "0.0.1"
 authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
 
 [lib]
-name = "algebra"
+name = "util"
 path = "lib.rs"
-
-[dependencies.util]
-path = "../util"
