@@ -1,5 +1,10 @@
 //! Generic Tree Implementation for Plan
 
+pub enum TreeBuildError {
+  EmptyStack,
+  StillRemainStackItem
+}
+
 pub enum TreeNode<T> {
   Branch(T, Vec<Box<TreeNode<T>>>),
   Leaf(T)
@@ -29,9 +34,11 @@ impl<T> TreeBuilder<T> {
     self.stack.pop().unwrap()
   }
   
-  pub fn build(&mut self) -> TreeNode<T> {
-    debug_assert!(self.stack.len() == 1);
-    
-    self.stack.pop().unwrap()
+  pub fn build(&mut self) -> Result<TreeNode<T>, TreeBuildError>  {
+    match self.stack.len() {
+      0 => { Err(TreeBuildError::EmptyStack) },
+      1 => { Ok(self.stack.pop().unwrap()) },
+      _ => { Err(TreeBuildError::StillRemainStackItem) }
+   }
   }
 }
