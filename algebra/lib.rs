@@ -258,8 +258,7 @@ pub trait Visitor<'v, T>: Sized {
 }
 
 /// Walker for Expr Tree
-pub fn walk_op<'v, T, V>(v: &V, ctx: &mut T, op: &'v Operator) 
-    where V: Visitor<'v, T> {
+pub fn walk_op<'v, T, V>(v: &V, ctx: &mut T, op: &'v Operator) where V: Visitor<'v, T> {
   match *op {
     Operator::Scan     (ref ds)                        => { v.visit_dataset(ctx, &**ds)},
     Operator::Project  (ref child,ref exprs)           => { v.visit_project(ctx, &**child, exprs) },
@@ -270,6 +269,26 @@ pub fn walk_op<'v, T, V>(v: &V, ctx: &mut T, op: &'v Operator)
     Operator::Tail     (ref child,num)                => { v.visit_tail(ctx, &**child,num) },
   }
 }
+
+pub trait SimpleVisitor {
+  fn accept(&self, op: &Operator) {
+    self.accept_by_default(op);
+  }
+  
+  fn accept_by_default(&self, op: &Operator) {
+    match *op {
+      Operator::Scan     (_)                  => {},
+      Operator::Project  (ref child,_)        => { self.accept(&**child) },
+      Operator::Filter   (ref child,_)        => { self.accept(&**child) },
+      Operator::Aggregate(ref child,_,_)      => { self.accept(&**child) },
+      Operator::Join     (_, ref l, ref r, _) => { self.accept(&**l); self.accept(&**r); },
+      Operator::Head     (ref child, _)       => { self.accept(&**child) },
+      Operator::Tail     (ref child, _)       => { self.accept(&**child) },
+    }
+  } 
+}
+
+//pub fn walk_op_simple<'v, V>
     
     
     

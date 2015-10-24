@@ -29,14 +29,25 @@ impl LogicalPlanner
   
   pub fn build(&self, session: &Session, algebra: &Operator) -> Result<LogicalPlan>
   {
+    let builder = PlanBuilder::new();
     unimplemented!();
   } 
 }
 
-pub struct PlanContext;
+pub struct PlanBuilder {
+  stack: Vec<PlanNode>
+}
 
-impl<'v> Visitor<'v, PlanContext> for LogicalPlanner {
-  fn visit_dataset(&self, ctx: &mut PlanContext, dataset: &'v DataSet) {
+impl PlanBuilder 
+{
+  pub fn new() -> PlanBuilder 
+  {
+    PlanBuilder {stack: Vec::new()}
+  } 
+}
+
+impl<'v> Visitor<'v, PlanBuilder> for LogicalPlanner {
+  fn visit_dataset(&self, ctx: &mut PlanBuilder, dataset: &'v DataSet) {
   }
 }
 
