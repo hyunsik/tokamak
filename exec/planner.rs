@@ -1,8 +1,14 @@
+use std::rc::Rc;
+
 use common::err::{Error, Result};
-use driver::DriverFactory;
+use common::plugin::{FuncRegistry, TypeRegistry};
+use common::session::Session;
+
 use plan::*;
 use plan::node::RelDecl;
 use plan::visitor::*;
+
+use driver::DriverFactory;
 
 use super::ExecutorFactory;
 
@@ -17,23 +23,36 @@ impl ExecutionPlan {
   }
 }
 
-pub struct ExecutionPlanner;
+pub struct ExecutionPlanner {
+  type_registry: Rc<TypeRegistry>,
+  func_registry: Rc<FuncRegistry>
+}
 
 pub struct ExecPlanContext 
 {
-  stack: Box<ExecutorFactory>,
+  stack: Vec<Box<ExecutorFactory>>,
   err: Option<Error>
 }
 
 impl ExecutionPlanner 
 {
-  pub fn new() -> ExecutionPlanner 
+  pub fn new(
+    type_registry: Rc<TypeRegistry>,
+    func_registry: Rc<FuncRegistry>) -> ExecutionPlanner 
   {
-    ExecutionPlanner
+    ExecutionPlanner {
+      type_registry: type_registry,
+      func_registry: func_registry
+    }
   }
   
-  pub fn build(&self, ctx: ExecPlanContext) -> Result<ExecutionPlan>
+  pub fn build(&self, session: &Session, plan: &LogicalPlan) -> Result<ExecutionPlan>
   {
+    let ctx = ExecPlanContext {
+      stack: Vec::new(),
+      err  : None
+    };
+    
     match ctx.err {
       Some(e) => Err(e),
       None    => {

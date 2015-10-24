@@ -31,7 +31,7 @@ extern crate libc;
 extern crate common;
 extern crate plan;
 
-pub mod exec_planner;
+pub mod planner;
 pub mod driver;
 pub mod scan;
 pub mod split;

@@ -5,6 +5,7 @@ use std::fmt;
 use algebra::Operator;
 use common::err::Result;
 use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
+use common::session::Session;
 
 use node::*;
 
@@ -26,7 +27,7 @@ impl LogicalPlanner
     }
   }
   
-  pub fn create(&self, algebra: &Operator) -> Result<LogicalPlan>
+  pub fn build(&self, session: &Session, algebra: &Operator) -> Result<LogicalPlan>
   {
     unimplemented!();
   } 

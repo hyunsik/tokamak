@@ -9,6 +9,7 @@
 extern crate common;
 extern crate algebra;
 extern crate exec;
+extern crate optimizer;
 extern crate plan;
 extern crate rows;
 extern crate storage;
