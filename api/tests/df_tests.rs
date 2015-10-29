@@ -28,7 +28,7 @@ pub fn test_data_source() {
 pub fn test_head() {
   let ctx = TokamakContext::new().ok().unwrap();
   let df = ctx.from(RandomTable(vec!["int4", "float4"], 5));
-  println!("{}", df.head().ok().unwrap());
+  //println!("{}", df.head().ok().unwrap());
 }
 
 struct Record<D: Decodable> {

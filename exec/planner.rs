@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use common::err::{Error, Result};
@@ -23,10 +24,7 @@ impl ExecutionPlan {
   }
 }
 
-pub struct ExecutionPlanner {
-  type_registry: Rc<TypeRegistry>,
-  func_registry: Rc<FuncRegistry>
-}
+pub struct ExecutionPlanner;
 
 pub struct ExecPlanContext 
 {
@@ -36,17 +34,15 @@ pub struct ExecPlanContext
 
 impl ExecutionPlanner 
 {
-  pub fn new(
-    type_registry: Rc<TypeRegistry>,
-    func_registry: Rc<FuncRegistry>) -> ExecutionPlanner 
+  pub fn new() -> ExecutionPlanner 
   {
-    ExecutionPlanner {
-      type_registry: type_registry,
-      func_registry: func_registry
-    }
+    ExecutionPlanner
   }
   
-  pub fn build(&self, session: &Session, plan: &LogicalPlan) -> Result<ExecutionPlan>
+  pub fn build(&self, 
+  	type_registry: &TypeRegistry,
+  	func_registry: &FuncRegistry, 
+  	session: &Session, plan: &LogicalPlan) -> Result<ExecutionPlan>
   {
     let ctx = ExecPlanContext {
       stack: Vec::new(),

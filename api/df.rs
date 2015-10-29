@@ -6,7 +6,7 @@
 use uuid::Uuid;
 use algebra::*;
 use common::err::{Error, Result};
-use engine::QueryExecutor;
+use engine::QueryRunner;
 
 use super::TokamakContext;
 
@@ -61,7 +61,8 @@ pub fn RandomTable(types: Vec<&str>, rownum: usize) -> Box<DataSet>
   Box::new(RegistredFormatData::new(
     &Uuid::new_v4().to_hyphenated_string(),  
     "random",
+    None,
     Some(types),
-    Some(Vec::new())
+    None
   ))
 }

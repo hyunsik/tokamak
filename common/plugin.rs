@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use err::{Error, Result, Void, void_ok};
@@ -26,8 +27,8 @@ pub trait Plugin
 pub struct PluginManager<'a> 
 {
   pkgs    : HashMap<String, Rc<Box<Plugin>>>,
-  type_registry: Rc<TypeRegistry>,
-  func_registry: Rc<FuncRegistry>,
+  type_registry: TypeRegistry,
+  func_registry: FuncRegistry,
   src_reg      : InputSourceRegistry,
   marker       : PhantomData<&'a()>  
 }
@@ -37,8 +38,8 @@ impl<'a> PluginManager<'a> {
   {
     PluginManager {
       pkgs: HashMap::new(),
-      type_registry: Rc::new(TypeRegistry::new()),
-      func_registry: Rc::new(FuncRegistry::new()),
+      type_registry: TypeRegistry::new(),
+      func_registry: FuncRegistry::new(),
       src_reg : InputSourceRegistry::new(),
       marker  : PhantomData
     }
@@ -46,21 +47,24 @@ impl<'a> PluginManager<'a> {
   
   pub fn load(&mut self, plugin: Box<Plugin>) -> Void
   {
-    Rc::get_mut(&mut self.type_registry).unwrap().add_all(plugin.types());
-    Rc::get_mut(&mut self.func_registry).unwrap().add_all(plugin.funcs());
+    println!("Enter Plugin::load()");
+    self.type_registry.add_all(plugin.types());
+    println!("types are all loaded");
+    self.func_registry.add_all(plugin.funcs());
+    println!("funcs are all loaded");
     self.pkgs.insert(plugin.name().to_string(), Rc::new(plugin));
     
     void_ok
   }
   
-  pub fn type_registry( &self) -> Rc<TypeRegistry> 
+  pub fn type_registry(&self) -> &TypeRegistry 
   {
-    self.type_registry.clone()
+    &self.type_registry
   }
   
-  pub fn func_registry(&self) -> Rc<FuncRegistry> 
+  pub fn func_registry(&self) -> &FuncRegistry 
   {
-    self.func_registry.clone()
+    &self.func_registry
   }
 }
 

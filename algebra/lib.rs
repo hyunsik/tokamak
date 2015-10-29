@@ -2,8 +2,12 @@
 //! Plan
 //!
 
+extern crate rustc_serialize;
+
 use std::fmt;
 use std::result::Result;
+
+use rustc_serialize::{Encoder, Decodable};
 
 pub enum AlgebraError 
 {
@@ -24,6 +28,7 @@ pub struct RegistredFormatData
 {
   id: String,
   kind: String,
+  uri   : Option<String>,
   schema: Option<Vec<String>>,
   props : Option<Vec<(String, String)>>
 }
@@ -33,12 +38,14 @@ impl RegistredFormatData
   pub fn new(
       id   : &str, 
       kind : &str, 
+      uri  : Option<&str>,
       types: Option<Vec<&str>>, 
       props: Option<Vec<(&str, &str)>>) -> RegistredFormatData 
   {
     RegistredFormatData {
       id     : id.to_string(),
       kind   : kind.to_string(),
+      uri    : uri.and_then(|u| Some(u.to_string())),
       
       schema : match types {
                  Some(t) => { 

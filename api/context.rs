@@ -1,9 +1,11 @@
+use std::rc::Rc;
+
 use algebra::{DataSet, Operator};
 use common::err::Result;
 use common::session::Session;
 use common::types::Type;
 use common::plugin::PluginManager;
-use engine::{LocalQueryExecutor, QueryExecutor};
+use engine::{LocalQueryRunner, QueryRunner};
 
 use sql::SQLPackage;
 
@@ -12,15 +14,19 @@ use df::{DataFrame};
 pub struct TokamakContext 
 {
   pub session : Session,
-  executor: Box<QueryExecutor>
+  executor: Box<QueryRunner>
 }
 
 impl TokamakContext 
 {
   pub fn new() -> Result<TokamakContext> 
   {
-    let mut executor = Box::new(LocalQueryExecutor::new());
+    println!("Initialize LocalQueryRunner");
+    let mut executor = Box::new(LocalQueryRunner::new());
+    
+    println!("Trying to load SQLPackage");
     try!(executor.add_plugin(Box::new(SQLPackage)));
+    println!("SQLPackage plugin has been successfully loaded.");
     
     Ok(TokamakContext {
       session: executor.default_session(),
@@ -28,15 +34,15 @@ impl TokamakContext
     })
   }
   
-  pub fn runner(&self) -> &QueryExecutor {
+  pub fn runner(&self) -> &QueryRunner {
     &*self.executor
   } 
   
-  pub fn plugin_manager(&self) -> &PluginManager { &self.executor.plugin_manager() }
+  pub fn plugin_manager(&self) -> &PluginManager { self.executor.plugin_manager() }
   
   #[inline]
   pub fn get_type(&self, type_sign: &str) -> Result<Box<Type>>
-  {
+  {    
     self.plugin_manager().type_registry().get(type_sign)
   }
   

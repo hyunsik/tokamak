@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
@@ -9,25 +10,20 @@ use common::session::Session;
 
 use node::*;
 
-pub struct LogicalPlanner {
-  type_registry: Rc<TypeRegistry>,
-  func_registry: Rc<FuncRegistry>
-}
+pub struct LogicalPlanner;
 
 impl LogicalPlanner
 {
-  pub fn new(
-    type_registry: Rc<TypeRegistry>,
-    func_registry: Rc<FuncRegistry>) -> LogicalPlanner
-   
+  pub fn new() -> LogicalPlanner 
   {
-    LogicalPlanner {
-      type_registry: type_registry,
-      func_registry: func_registry
-    }
+    LogicalPlanner
   }
   
-  pub fn build(&self, session: &Session, algebra: &Operator) -> Result<LogicalPlan>
+  pub fn build(&self, 
+  	type_registry: &TypeRegistry,
+  	func_registry: &FuncRegistry, 
+  	session: &Session, 
+  	algebra: &Operator) -> Result<LogicalPlan>
   {
     let builder = PlanBuilder::new();
     unimplemented!();

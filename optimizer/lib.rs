@@ -4,6 +4,7 @@
 extern crate common;
 extern crate plan;
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use common::err::Result;
@@ -11,25 +12,19 @@ use common::session::Session;
 use common::plugin::{FuncRegistry, TypeRegistry};
 use plan::LogicalPlan;
 
-pub struct LogicalOptimizer 
-{
-  type_registry: Rc<TypeRegistry>,
-  func_registry: Rc<FuncRegistry>
-}
+pub struct LogicalOptimizer;
 
 impl LogicalOptimizer 
 {
-  pub fn new(
-    type_registry: Rc<TypeRegistry>,
-    func_registry: Rc<FuncRegistry>) -> LogicalOptimizer 
+  pub fn new() -> LogicalOptimizer 
   {
-    LogicalOptimizer {
-      type_registry: type_registry,
-      func_registry: func_registry
-    }
+    LogicalOptimizer
   }
   
-  pub fn optimize(&self, session: &Session, plan: &LogicalPlan) -> Result<LogicalPlan> {
+  pub fn optimize(&self, 
+  	type_registry: &TypeRegistry,
+  	func_registry: &FuncRegistry,
+  	session: &Session, plan: &LogicalPlan) -> Result<LogicalPlan> {
     let x = (*plan).clone();
     Ok(x)
   }

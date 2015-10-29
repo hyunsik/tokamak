@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use algebra::{Operator, DataSet};
 use common::err::{Result, Void, void_ok};
