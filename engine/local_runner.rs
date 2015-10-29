@@ -1,7 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use algebra::{DataSet, Operator};
+use algebra::Operator;
+use common::dataset::DataSet;
 use common::err::{Result, Void, void_ok};
 use common::session::Session;
 use common::plugin::{FuncRegistry, TypeRegistry, Plugin, PluginManager};
@@ -61,7 +62,7 @@ impl<'a> QueryRunner for LocalQueryRunner<'a>
     &self.plugin_manager
   }
   
-  fn execute(&self, session: &Session, plan: &Operator) -> Result<Box<DataSet>> {
+  fn execute(&self, session: &Session, plan: &Operator) -> Result<DataSet> {
     let logical_plan = try!(self.planner.build(
     		self.type_registry(), self.func_registry(), session, plan));
     let optimized    = try!(self.optimizer.optimize(

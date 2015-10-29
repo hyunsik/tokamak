@@ -15,7 +15,6 @@ extern crate storage;
 
 mod runner;
 pub use runner::{
-  MaterializedResult,
   QueryRunner 
 };
 

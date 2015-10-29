@@ -3,8 +3,8 @@
 //! let ctx = TokamakContext::new();
 //! ctx.from(RandomGenerator).select(...);
 
-use uuid::Uuid;
 use algebra::*;
+use common::dataset::DataSet;
 use common::err::{Error, Result};
 use engine::QueryRunner;
 
@@ -36,33 +36,21 @@ impl<'a> DataFrame<'a> {
     Err(Error::NotImplemented)
   }
   
-  pub fn head(self) -> Result<Box<DataSet>> {
+  pub fn head(self) -> Result<DataSet> {
     self.head_with(1)
   }
   
-  pub fn head_with(self, num: usize) -> Result<Box<DataSet>> {
+  pub fn head_with(self, num: usize) -> Result<DataSet> {
     let head_plan = Operator::Head(Box::new(self.plan), num);
     self.ctx.runner().execute(&self.ctx.session, &head_plan)
   }
   
-  pub fn tail(self) -> Result<Box<DataSet>> {
+  pub fn tail(self) -> Result<DataSet> {
     self.tail_with(1)
   }
   
-  pub fn tail_with(self, num: usize) -> Result<Box<DataSet>> {
+  pub fn tail_with(self, num: usize) -> Result<DataSet> {
     let tail_plan = Operator::Tail(Box::new(self.plan), num);
     self.ctx.runner().execute(&self.ctx.session, &tail_plan)
   }
-}
-
-
-pub fn RandomTable(types: Vec<&str>, rownum: usize) -> Box<DataSet>
-{
-  Box::new(RegistredFormatData::new(
-    &Uuid::new_v4().to_hyphenated_string(),  
-    "random",
-    None,
-    Some(types),
-    None
-  ))
 }

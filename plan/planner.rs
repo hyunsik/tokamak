@@ -3,7 +3,8 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
 
-use algebra::{DataSet, Operator, Visitor};
+use algebra::{Operator, Visitor};
+use common::dataset::DataSet;
 use common::err::Result;
 use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
 use common::session::Session;

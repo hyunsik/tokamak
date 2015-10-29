@@ -1,10 +1,9 @@
-use std::rc::Rc;
-
-use algebra::{DataSet, Operator};
+use algebra::{Operator};
+use common::dataset::DataSet;
 use common::err::Result;
 use common::session::Session;
 use common::types::Ty;
-use common::plugin::PluginManager;
+use common::plugin::{PluginManager, TypeRegistry};
 use engine::{LocalQueryRunner, QueryRunner};
 
 use sql::SQLPackage;
@@ -52,7 +51,17 @@ impl TokamakContext
     self.plugin_manager().type_registry().all()
   }
   
-  pub fn from(&self, ds: Box<DataSet>) -> DataFrame {
+  pub fn from(&self, ds: DataSet) -> DataFrame {
     DataFrame {ctx: self, plan: Operator::Scan(ds)}
   }
+  
+  pub fn random_table(&self, type_strs: Vec<&str>, rownum: usize) -> DataFrame {
+    let types = types_str_to_types(self.executor.plugin_manager().type_registry(), &type_strs);
+    DataFrame {ctx: self, plan: Operator::Scan(DataSet::random(types, rownum))}
+  }
 }
+  
+pub fn types_str_to_types(type_registry: &TypeRegistry, type_strs: &Vec<&str>) -> Vec<Ty>
+{
+  type_strs.iter().map(|s| type_registry.get(s).ok().unwrap()).collect::<Vec<Ty>>()
+}    

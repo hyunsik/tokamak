@@ -10,5 +10,8 @@ path = "lib.rs"
 [dependencies]
 rustc-serialize = "0.3.16"
 
+[dependencies.common]
+path = "../common"
+
 [dependencies.util]
 path = "../util"

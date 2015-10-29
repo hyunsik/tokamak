@@ -4,10 +4,14 @@
 
 extern crate rustc_serialize;
 
+extern crate common;
+
 use std::fmt;
 use std::result::Result;
 
 use rustc_serialize::{Encoder, Decodable};
+
+use common::dataset::DataSet;
 
 pub enum AlgebraError 
 {
@@ -16,6 +20,7 @@ pub enum AlgebraError
   NotConsumedStackItem
 }
 
+/*
 pub trait DataSet : fmt::Display
 {
   fn id    (&self) -> &str;
@@ -96,6 +101,7 @@ impl DataSet for RegistredFormatData
     None
   }
 }
+*/
 
 pub enum JoinType
 {
@@ -107,7 +113,7 @@ pub enum JoinType
 
 pub enum Operator 
 {
-  Scan      (Box<DataSet>),
+  Scan      (DataSet),
   Project   (Box<Operator>, Vec<Operator>),                // child, exprs
   Filter    (Box<Operator>, Vec<Operator>),                // child, bool exprs in a CNF form
   Join      (JoinType, Box<Operator>, Box<Operator>, Vec<Operator>), // join type, left, right, join condition
@@ -148,7 +154,7 @@ impl AlgebraBuilder
     self
   }
   
-  pub fn dataset(&mut self, dataset: Box<DataSet>) -> &mut AlgebraBuilder 
+  pub fn dataset(&mut self, dataset: DataSet) -> &mut AlgebraBuilder 
   {
     self.push(Operator::Scan(dataset));
     self    
@@ -267,7 +273,7 @@ pub trait Visitor<'v, T>: Sized {
 /// Walker for Expr Tree
 pub fn walk_op<'v, T, V>(v: &V, ctx: &mut T, op: &'v Operator) where V: Visitor<'v, T> {
   match *op {
-    Operator::Scan     (ref ds)                        => { v.visit_dataset(ctx, &**ds)},
+    Operator::Scan     (ref ds)                        => { v.visit_dataset(ctx, ds)},
     Operator::Project  (ref child,ref exprs)           => { v.visit_project(ctx, &**child, exprs) },
     Operator::Filter   (ref child,ref filters)         => { v.visit_filter(ctx, &**child, filters) },
     Operator::Aggregate(ref child,ref keys, ref exprs) => { v.visit_aggregate(ctx, &**child, keys, exprs) },
