@@ -43,7 +43,7 @@ use std::rc::Rc;
 use common::err::{Void, Result, Error};
 use common::input::InputSource;
 use common::rows::{Page, PageBuilder};
-use common::types::Type;
+use common::types::Ty;
 
 pub trait Executor 
 {
@@ -60,7 +60,7 @@ pub trait ExecutorFactory
 {
   fn create(&self, ctx: &ExecutionContext) -> Option<Box<Executor>>;
   
-  fn schema(&self) -> &Vec<&Type>;
+  fn schema(&self) -> &Vec<&Ty>;
 }
 
 pub trait Processor 

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use algebra::{DataSet, Operator};
 use common::err::Result;
 use common::session::Session;
-use common::types::Type;
+use common::types::Ty;
 use common::plugin::PluginManager;
 use engine::{LocalQueryRunner, QueryRunner};
 
@@ -41,7 +41,7 @@ impl TokamakContext
   pub fn plugin_manager(&self) -> &PluginManager { self.executor.plugin_manager() }
   
   #[inline]
-  pub fn get_type(&self, type_sign: &str) -> Result<Box<Type>>
+  pub fn get_type(&self, type_sign: &str) -> Result<Ty>
   {    
     self.plugin_manager().type_registry().get(type_sign)
   }

@@ -1,5 +1,5 @@
 use common::err::{Error, Result, Void, void_ok};
-use common::types::Type;
+use common::types::Ty;
 use common::rows::{Page, PageBuilder};
 use common::input::InputSource;
 
@@ -9,12 +9,12 @@ use super::{Executor, Processor};
 
 pub struct TableScanExecFactory<'a> 
 {
-  schema: Vec<&'a Type>
+  schema: Vec<&'a Ty>
 }
 
 impl<'a> TableScanExecFactory<'a> 
 {
-  pub fn new(schema: Vec<&'a Type>) -> TableScanExecFactory<'a> 
+  pub fn new(schema: Vec<&'a Ty>) -> TableScanExecFactory<'a> 
   {
     TableScanExecFactory { 
       schema: schema 
@@ -28,7 +28,7 @@ impl<'a> ExecutorFactory for TableScanExecFactory<'a>
     None
   }
   
-  fn schema(&self) -> &Vec<&Type> {
+  fn schema(&self) -> &Vec<&Ty> {
     &self.schema
   }
 }

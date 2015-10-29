@@ -4,7 +4,7 @@ use rand;
 use itertools::Zip;
 
 use common::err::{void_ok, Void, Result};
-use common::types::Type;
+use common::types::{Ty, TyKind};
 use common::rows::{
   MiniPageWriter,
   Page,
@@ -21,12 +21,12 @@ pub struct RandomTableGenerator
 
 impl RandomTableGenerator 
 {
-  pub fn new(types: Rc<Vec<Box<Type>>>) -> RandomTableGenerator {
+  pub fn new(types: Rc<Vec<Ty>>) -> RandomTableGenerator {
     
     RandomTableGenerator {
       builder: Box::new(PageBuilder::new(&*types)),
       write_fns: types.iter()
-        .map(|ty| choose_random_fn(&**ty)) // choose random functions for types
+        .map(|ty| choose_random_fn(&ty)) // choose random functions for types
         .collect::<Vec<Box<Fn(&mut MiniPageWriter)>>>()
     }
   }
@@ -68,11 +68,11 @@ fn write_rand_for_f32(builder: &mut MiniPageWriter)
   }
 }
 
-fn choose_random_fn(ty: &Type) -> Box<Fn(&mut MiniPageWriter)> 
+fn choose_random_fn(ty: &Ty) -> Box<Fn(&mut MiniPageWriter)> 
 {
-  match ty.id().base() {
-    "int4"   => Box::new(write_rand_for_i32),
-    "float4" => Box::new(write_rand_for_f32),
+  match *ty.kind() {
+    TyKind::I32 => Box::new(write_rand_for_i32),
+    TyKind::F32 => Box::new(write_rand_for_f32),
     _ => panic!("not supported type")
   }
 }

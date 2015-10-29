@@ -25,9 +25,6 @@ path = "../optimizer"
 [dependencies.plan]
 path = "../plan"
 
-[dependencies.rows]
-path = "../rows"
-
 [dependencies.sql]
 path = "../sql"
 

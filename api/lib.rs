@@ -13,4 +13,4 @@ pub mod df;
 mod context;
 pub use context::TokamakContext;
 
-pub mod schema;
+//pub mod schema;

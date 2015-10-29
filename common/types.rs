@@ -2,50 +2,58 @@
 //! So, Types are loaded from the packages.
 //!
 
+use std::mem;
 use std::rc::Rc;
 
 use err::Result;
-use rows::{MiniPage};
+use rows::{MiniPage, FMiniPage};
 
-/// Globally unique id for a type
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct TypeId {
-  pub base: String
-}
+pub type TypeFactory = Rc<Fn(&str) -> Result<Ty>>;
 
-impl TypeId {
-  #[inline]
-  pub fn base(&self) -> &str {
-    &self.base
-  }
-}
-
-pub trait HashFn<T> {
-  fn hash(v: &MiniPage, keys: &mut [T]);
-}
-
-pub trait HashFnFactory
-{
-  fn hash32_fn() -> Box<FnMut(i32, &mut [i32])>;
-  fn create_batch_hash32_fn() -> Box<Fn() -> Box<MiniPage>>;
-}
-
-pub type TypeFactory = Rc<Fn(&str) -> Result<Box<Type>>>;
-
-pub trait Type
-{
-  fn id                     (&self) -> &TypeId;
-  fn display_name           (&self) -> &str;
-  fn is_comparable          (&self) -> bool;
-  fn is_orderable           (&self) -> bool;
-  fn type_params            (&self) -> Vec<&Type>;
-  fn handler                (&self) -> Rc<TypeHandler>;
-  fn clone_box              (&self) -> Box<Type>;
-}
-
+#[derive(Clone)]
 pub struct TypeHandler {
   pub create_minipage: Rc<Fn() -> Box<MiniPage>>
 }
+
+#[derive(Clone)]
+pub struct Ty {
+  kind: TyKind 
+}
+
+#[derive(Clone)]
+pub enum TyKind {
+  I32,
+  F32,
+  Str,
+  Udt (String, TypeHandler)
+}
+
+impl Ty {
+  pub fn kind(&self) -> &TyKind {
+    &self.kind
+  }
+  
+  pub fn handler(&self) -> Rc<TypeHandler> {
+    match self.kind {
+      TyKind::I32 => {
+        let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
+        Rc::new(TypeHandler {create_minipage: Rc::new(f)})
+      },
+      
+      TyKind::F32 => {
+        let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
+        Rc::new(TypeHandler {create_minipage: Rc::new(f)})
+      },
+      
+      _  => { panic!("Unknown supported type") }
+    }
+  }
+}
+
+pub const BOOL_STR       : &'static str = "bool";
+pub const I32_STR        : &'static str = "i32";
+pub const F32_STR        : &'static str = "f32";
+pub const STR_STR        : &'static str = "str";
 
 /*
 

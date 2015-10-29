@@ -4,13 +4,13 @@ use std::rc::Rc;
 use algebra::{Operator, DataSet};
 use common::err::{Result, Void, void_ok};
 use common::plugin::{Plugin, PluginManager};
-use common::types::Type;
+use common::types::Ty;
 use common::session::Session;
 
 pub struct MaterializedResult 
 {
   name: String,
-  schema: Vec<Box<Type>>,
+  schema: Vec<Box<Ty>>,
   raw_schema: Vec<String>
 }
 

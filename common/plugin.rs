@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use err::{Error, Result, Void, void_ok};
 use func::{FuncSignature, InvokeAction};
-use types::{Type, TypeFactory};
+use types::{Ty, TypeFactory};
 use input::InputSource;
 
 pub trait Plugin
@@ -26,7 +26,7 @@ pub trait Plugin
 #[derive(Clone)]
 pub struct PluginManager<'a> 
 {
-  pkgs    : HashMap<String, Rc<Box<Plugin>>>,
+  pkgs         : HashMap<String, Rc<Box<Plugin>>>,
   type_registry: TypeRegistry,
   func_registry: FuncRegistry,
   src_reg      : InputSourceRegistry,
@@ -128,7 +128,7 @@ impl TypeRegistry
     void_ok
   }
   
-  pub fn get(&self, type_sign: &str) -> Result<Box<Type>> {
+  pub fn get(&self, type_sign: &str) -> Result<Ty> {
     match self.types.get(type_sign) {
       Some(factory) => factory(type_sign),
       None          => Err(Error::UndefinedDataType(type_sign.to_string()))
@@ -141,7 +141,7 @@ impl TypeRegistry
 }
 
 
-pub type InputSourceFactory = Rc<Fn(Vec<&Type>) -> Box<InputSource>>;
+pub type InputSourceFactory = Rc<Fn(Vec<&Ty>) -> Box<InputSource>>;
 
 #[derive(Clone)]
 pub struct InputSourceRegistry 

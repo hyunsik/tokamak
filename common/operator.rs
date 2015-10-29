@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 //use super::datum::Datum;
-use super::types::Type;
+use super::types::Ty;
 use super::rows::{MiniPage,PageBuilder};
 
 /// Expression Element
@@ -73,7 +73,7 @@ pub enum InvokeAction
 pub struct OperatorSignature 
 {
   name: String,
-  params: Vec<Box<Type>>
+  params: Vec<Ty>
 }
 
 pub struct OperatorRegistry

@@ -33,12 +33,12 @@ impl<'a> LocalQueryRunner<'a>
   
   #[inline]
   fn type_registry(&self) -> &TypeRegistry {
-  	self.type_registry()
+  	self.plugin_manager.type_registry()
   }
   
   #[inline]
   fn func_registry(&self) -> &FuncRegistry {
-  	self.func_registry()
+  	self.plugin_manager.func_registry()
   }
 }
 

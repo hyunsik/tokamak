@@ -4,10 +4,9 @@ use std::mem;
 use std::rc::Rc;
 
 use common::err::{Error, Result};
-use common::types::{Type, TypeId, TypeHandler, TypeFactory};
+use common::types::{Ty, TypeHandler, TypeFactory};
 use common::rows::{MiniPage};
 use common::str::{StrSlice};
-use rows::fixed_len::FMiniPage;
 
 pub const BOOL_STR       : &'static str = "bool";
 pub const INT1_STR       : &'static str = "int1";
@@ -70,108 +69,8 @@ pub type TIMESTAMP_T = i64;
 #[allow(non_camel_case_types)]
 pub type TEXT_T      = StrSlice;  
 
-pub fn parse_type_str(type_str: &str) -> Result<Box<Type>> {
+pub fn parse_type_str(type_str: &str) -> Result<Box<Ty>> {
   match type_str {
-    INT4_STR   => Ok(Box::new(Int4::new())),
-    FLOAT4_STR => Ok(Box::new(Float4::new())),
     _          => Err(Error::UndefinedDataType(type_str.to_string()))
-  }
-}
-
-#[derive(Clone)]
-pub struct Int4 
-{
-  id: TypeId,
-  handler: Rc<TypeHandler>
-}
-
-impl Int4 
-{
-  pub fn new() -> Self
-  {
-    let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
-    
-    Int4 {
-      id: TypeId {base: String::from(INT4_STR)},
-      handler: Rc::new(TypeHandler {create_minipage: Rc::new(f)})
-    }
-  } 
-}
-
-impl Type for Int4 
-{
-  #[inline]
-  fn id(&self) -> &TypeId { &self.id }
-  #[inline]
-  fn display_name(&self) -> &str { &self.id.base }
-  #[inline]
-  fn is_comparable(&self) -> bool { true }
-  #[inline]
-  fn is_orderable(&self) -> bool { true }
-  #[inline]
-  fn type_params(&self) -> Vec<&Type> { Vec::new() }
-//  #[inline]
-//  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
-  #[inline]
-  fn handler (&self) -> Rc<TypeHandler> 
-  {
-    self.handler.clone()
-  }
-  
-  #[inline]
-  fn clone_box(&self) -> Box<Type> {
-    Box::new(Int4 {
-      id: self.id.clone(),
-      handler: self.handler.clone()
-    })  
-  }
-}
- 
-
-#[derive(Clone)]
-pub struct Float4 
-{
-  id: TypeId,
-  handler: Rc<TypeHandler>
-}
-
-impl Float4 
-{
-  pub fn new() -> Self {
-    let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
-    
-    Float4 {
-      id: TypeId {base: String::from(FLOAT4_STR)},
-      handler: Rc::new(TypeHandler {create_minipage: Rc::new(f)})
-    }
-  }
-}
-
-impl Type for Float4 
-{
-  #[inline]
-  fn id(&self) -> &TypeId { &self.id }
-  #[inline]
-  fn display_name(&self) -> &str { &self.id.base }
-  #[inline]
-  fn is_comparable(&self) -> bool { true }
-  #[inline]
-  fn is_orderable(&self) -> bool { true }
-  #[inline]
-  fn type_params(&self) -> Vec<&Type> { Vec::new() }
-//  #[inline]
-//  fn hash_fn(&self) -> Box<FnMut(&Vector, &mut [u32])>;
-  #[inline]
-  fn handler (&self) -> Rc<TypeHandler> 
-  {
-    self.handler.clone()
-  }
-  
-  #[inline]
-  fn clone_box(&self) -> Box<Type> {
-    Box::new(Int4 {
-      id: self.id.clone(),
-      handler: self.handler.clone()
-    }) 
   }
 }
