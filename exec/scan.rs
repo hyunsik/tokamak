@@ -3,37 +3,39 @@ use common::types::Ty;
 use common::rows::{Page, PageBuilder};
 use common::input::InputSource;
 
-use super::{ExecutionContext, ExecutorFactory};
+use storage::InputSourceFactory;
 
-use super::{Executor, Processor};
+use super::{Executor, ExecutionContext, ExecutorFactory, Processor};
 
-pub struct TableScanExecFactory<'a> 
+pub struct TableScanExecFactory 
 {
-  schema: Vec<&'a Ty>
+  pub types: Vec<Ty>,
+  pub source_factory: InputSourceFactory
 }
 
-impl<'a> TableScanExecFactory<'a> 
+impl<'a> TableScanExecFactory 
 {
-  pub fn new(schema: Vec<&'a Ty>) -> TableScanExecFactory<'a> 
+  pub fn new(
+  	types: &Vec<Ty>, 
+  	source_factory: InputSourceFactory) -> TableScanExecFactory 
   {
     TableScanExecFactory { 
-      schema: schema 
+      types: types.clone(),
+      source_factory: source_factory
     }
   }
 }
 
-impl<'a> ExecutorFactory for TableScanExecFactory<'a> 
+impl<'a> ExecutorFactory for TableScanExecFactory 
 {
   fn create(&self, ctx: &ExecutionContext) -> Option<Box<Executor>> {
     None
   }
   
-  fn schema(&self) -> &Vec<&Ty> {
-    &self.schema
+  fn types(&self) -> &Vec<Ty> {
+    &self.types
   }
 }
-
-
 
 pub struct TableScanExec 
 {

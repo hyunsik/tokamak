@@ -32,19 +32,37 @@ impl LogicalPlanner
 }
 
 pub struct PlanBuilder {
-  stack: Vec<PlanNode>
+  stack: Vec<PlanNode>,
+  seq  : u32
 }
 
 impl PlanBuilder 
 {
   pub fn new() -> PlanBuilder 
   {
-    PlanBuilder {stack: Vec::new()}
-  } 
+    PlanBuilder {stack: Vec::new(), seq: 0}
+  }
+  
+  pub fn push(&mut self, node: PlanNode) {
+  	self.push(node);
+  }
+  
+  pub fn seq(&mut self) -> u32 {
+  	let next = self.seq;
+  	self.seq = self.seq + 1;
+  	
+  	next
+  }
 }
 
 impl<'v> Visitor<'v, PlanBuilder> for LogicalPlanner {
-  fn visit_dataset(&self, ctx: &mut PlanBuilder, dataset: &'v DataSet) {
+  fn visit_dataset(&self, builder: &mut PlanBuilder, dataset: &'v DataSet) {
+  	let scan = PlanNode {
+  		id: builder.seq(),
+  		decl: NodeDecl::Relation(dataset.clone())
+  	};
+  	
+  	builder.push(scan);
   }
 }
 

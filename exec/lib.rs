@@ -30,6 +30,7 @@ extern crate libc;
 
 extern crate common;
 extern crate plan;
+extern crate storage;
 
 pub mod planner;
 pub mod driver;
@@ -60,7 +61,7 @@ pub trait ExecutorFactory
 {
   fn create(&self, ctx: &ExecutionContext) -> Option<Box<Executor>>;
   
-  fn schema(&self) -> &Vec<&Ty>;
+  fn types(&self) -> &Vec<Ty>;
 }
 
 pub trait Processor 
@@ -71,11 +72,6 @@ pub trait Processor
     start_pos: u32, 
     end_pos: u32,
     builder: &mut PageBuilder) -> Void;
-}
-
-pub trait InputSourceProvider 
-{
-  fn create(&self) -> Box<InputSource>;
 }
 
 /*

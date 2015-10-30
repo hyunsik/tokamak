@@ -15,3 +15,6 @@ path = "../common"
 
 [dependencies.plan]
 path = "../plan"
+
+[dependencies.storage]
+path = "../storage"

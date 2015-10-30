@@ -4,6 +4,7 @@ use rand;
 use itertools::Zip;
 
 use common::err::{void_ok, Void, Result};
+use common::session::Session;
 use common::types::{Ty};
 use common::rows::{
   MiniPageWriter,
@@ -21,14 +22,14 @@ pub struct RandomTableGenerator
 
 impl RandomTableGenerator 
 {
-  pub fn new(types: Rc<Vec<Ty>>) -> RandomTableGenerator {
+  pub fn new(session: &Session, types: &Vec<Ty>) -> Box<InputSource> {
     
-    RandomTableGenerator {
-      builder: Box::new(PageBuilder::new(&*types)),
+    Box::new(RandomTableGenerator {
+      builder: Box::new(PageBuilder::new(types)),
       write_fns: types.iter()
-        .map(|ty| choose_random_fn(&ty)) // choose random functions for types
+        .map(|ty| choose_random_fn(ty)) // choose random functions for types
         .collect::<Vec<Box<Fn(&mut MiniPageWriter)>>>()
-    }
+    })
   }
 }
 

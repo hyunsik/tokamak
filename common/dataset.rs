@@ -2,11 +2,13 @@ use uuid::Uuid;
 
 use types::Ty;
 
+#[derive(Clone)]
 pub struct DataSet {
   id: String,
-  decl: DataSetDecl
+  pub decl: DataSetDecl
 }
 
+#[derive(Clone)]
 pub enum DataSetDecl {
   // types and rownum
   RandomTable(Vec<Ty>, usize)

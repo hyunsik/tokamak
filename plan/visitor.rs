@@ -1,3 +1,5 @@
+use common::dataset::DataSet;
+
 use node::*;
 use expr::*;
 
@@ -5,7 +7,7 @@ use expr::*;
 #[allow(unused_variables)]
 pub trait Visitor<'v, T>: Sized {
  
-  fn visit_relation(&self, ctx: &mut T, decl: &RelDecl) {}
+  fn visit_relation(&self, ctx: &mut T, decl: &'v DataSet) {}
   
   fn visit_partitioned_relation(&self, ctx: &mut T, decl: &PartitionedRelDecl) {}
   

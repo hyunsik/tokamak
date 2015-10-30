@@ -4,4 +4,21 @@ extern crate common;
 extern crate rand;
 extern crate sql;
 
-pub mod random;
+use std::rc::Rc;
+
+use common::input::InputSource;
+use common::session::Session;
+use common::types::Ty;
+
+mod random;
+pub use random::RandomTableGenerator;
+
+pub type InputSourceFactory = Rc<Fn(&Session, &Vec<Ty>) -> Box<InputSource>>;
+
+pub fn get_factory(kind: &str) -> InputSourceFactory {
+	match kind {
+		"random" => {Rc::new(RandomTableGenerator::new)},
+		_        => panic!("unknown storage: {}", kind)
+			
+	}
+}

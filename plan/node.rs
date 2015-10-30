@@ -1,3 +1,4 @@
+use common::dataset::DataSet;
 use expr::Expr;
 
 #[derive(Clone)]
@@ -8,7 +9,7 @@ pub struct PlanNode {
 
 #[derive(Clone)]
 pub enum NodeDecl {
-  Relation           (RelDecl),  
+  Relation           (DataSet),  
   PartitionedRelation(PartitionedRelDecl),
   DerivedRelation    (DerivedRelDecl),
   Join      (Box<PlanNode>, Box<PlanNode>, JoinDecl),
@@ -18,10 +19,6 @@ pub enum NodeDecl {
   Head      (Box<PlanNode>, usize),   // child and row number
   Tail      (Box<PlanNode>, usize),   // child and row number
 }
-
-/// Table description
-#[derive(Clone)]
-pub struct RelDecl;
 
 /// Partitioned Table description
 #[derive(Clone)]

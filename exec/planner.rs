@@ -1,16 +1,17 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use common::dataset::{DataSet, DataSetDecl};
 use common::err::{Error, Result};
 use common::plugin::{FuncRegistry, TypeRegistry};
 use common::session::Session;
 
 use plan::*;
-use plan::node::RelDecl;
 use plan::visitor::*;
 
 use driver::DriverFactory;
-
+use scan::TableScanExecFactory;
+use storage::get_factory;
 use super::ExecutorFactory;
 
 pub struct ExecutionPlan {
@@ -64,5 +65,18 @@ impl ExecutionPlanner
 }  
 
 impl<'v> Visitor<'v, ExecPlanContext> for ExecutionPlanner {
-  fn visit_relation(&self, ctx: &mut ExecPlanContext, decl: &RelDecl) {}
+  fn visit_relation(&self, ctx: &mut ExecPlanContext, ds: &'v DataSet) {
+  	
+  	match ds.decl {
+  		DataSetDecl::RandomTable(ref types, rownum) => {
+  			let factory = Box::new(TableScanExecFactory {
+  				types: types.clone(),
+  				source_factory: get_factory("random")
+  			});
+  			ctx.stack.push(factory);
+  		}
+  	}
+  	
+  	
+ 	}
 }
