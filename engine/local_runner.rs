@@ -6,6 +6,7 @@ use common::dataset::DataSet;
 use common::err::{Result, Void, void_ok};
 use common::session::Session;
 use common::plugin::{FuncRegistry, TypeRegistry, Plugin, PluginManager};
+use default_package::DefaultPackage;
 use exec::planner::ExecutionPlanner;
 use plan::{LogicalPlanner};
 use optimizer::LogicalOptimizer;
@@ -24,12 +25,16 @@ impl<'a> LocalQueryRunner<'a>
 {
   pub fn new() -> LocalQueryRunner<'a>
   {    
-    LocalQueryRunner {      
+    let mut runner = LocalQueryRunner {      
       plugin_manager: PluginManager::new(),
       planner       : LogicalPlanner::new(),
       optimizer     : LogicalOptimizer::new(),
       exec_planner  : ExecutionPlanner::new()
-    }
+    };
+    
+    runner.add_plugin(Box::new(DefaultPackage)).ok().unwrap();
+    
+    runner
   }
   
   #[inline]

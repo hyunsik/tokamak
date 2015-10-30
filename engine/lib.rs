@@ -6,8 +6,9 @@
 //! A DataFrame dag --(ExecutorPlanner)--> A ExecutionPlan --(Parallelizer)--> A set of Tasks
 //! --(TaskRunner)--> DataSet
 
-extern crate common;
 extern crate algebra;
+extern crate common;
+extern crate default_package;
 extern crate exec;
 extern crate optimizer;
 extern crate plan;

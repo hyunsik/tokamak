@@ -16,6 +16,9 @@ path = "../common"
 [dependencies.algebra]
 path = "../algebra"
 
+[dependencies.default_package]
+path = "../default_package"
+
 [dependencies.exec]
 path = "../exec"
 

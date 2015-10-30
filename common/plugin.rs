@@ -47,11 +47,8 @@ impl<'a> PluginManager<'a> {
   
   pub fn load(&mut self, plugin: Box<Plugin>) -> Void
   {
-    println!("Enter Plugin::load()");
-    self.type_registry.add_all(plugin.types());
-    println!("types are all loaded");
-    self.func_registry.add_all(plugin.funcs());
-    println!("funcs are all loaded");
+    try!(self.type_registry.add_all(plugin.types()));
+    try!(self.func_registry.add_all(plugin.funcs()));
     self.pkgs.insert(plugin.name().to_string(), Rc::new(plugin));
     
     void_ok
@@ -84,14 +81,20 @@ impl FuncRegistry
     }    
   }
   
+  pub fn add(&mut self, func: (FuncSignature, InvokeAction)) -> Void 
+	{
+		match self.funcs.entry(func.0) {
+      Vacant(e)   => { 
+        e.insert(func.1);
+        void_ok 
+      },
+      Occupied(_) => { return Err(Error::DuplicatedFuncSign) }
+    }   
+	}
+  
   pub fn add_all(&mut self, funcs: Vec<(FuncSignature, InvokeAction)>) -> Void {   
-    for (sig, invoke) in funcs.into_iter() {
-      match self.funcs.entry(sig) {
-        Vacant(e)   => { 
-          e.insert(invoke); 
-        },
-        Occupied(_) => { return Err(Error::DuplicatedFuncSign) }
-      }      
+    for tuple in funcs.into_iter() {
+      try!(self.add(tuple))   
     }
     
     void_ok
@@ -114,15 +117,21 @@ impl TypeRegistry
     }
   }
   
+  pub fn add(&mut self, ty: (&str, TypeFactory)) -> Void 
+ 	{
+		match self.types.entry(ty.0.to_string()) {
+      Vacant(e)   => { 
+        e.insert(ty.1);
+        void_ok 
+      },
+      Occupied(_) => { return Err(Error::DuplicatedTypeId) }
+    }   
+	}
+  
   pub fn add_all(&mut self, types: Vec<(&str, TypeFactory)>) -> Void 
   {
-    for (base, factory) in types.into_iter() {
-      match self.types.entry(base.to_string()) {
-        Vacant(e)   => { 
-          e.insert(factory); 
-        },
-        Occupied(_) => { return Err(Error::DuplicatedTypeId) }
-      }      
+    for ty in types.into_iter() {
+      try!(self.add(ty))
     }
     
     void_ok

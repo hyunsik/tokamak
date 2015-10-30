@@ -9,14 +9,13 @@ use rustc_serialize::Decodable;
 
 
 use api::TokamakContext;
-use api::df::{DataFrame,RandomTable};
-use common::types::TypeId;
+use api::df::DataFrame;
 
 #[test]
 pub fn test_data_source() {
   let ctx = TokamakContext::new().ok().unwrap();
   
-  let df = ctx.from(RandomTable(vec!["int4", "int4"], 5));
+  let df = ctx.random_table(vec!["i32", "f32"], 5);
   assert_eq!("from", df.kind());
   
   let selected = df.select(vec![]);
@@ -27,7 +26,7 @@ pub fn test_data_source() {
 #[test]
 pub fn test_head() {
   let ctx = TokamakContext::new().ok().unwrap();
-  let df = ctx.from(RandomTable(vec!["int4", "float4"], 5));
+  let df = ctx.random_table(vec!["i32", "f32"], 5);
   //println!("{}", df.head().ok().unwrap());
 }
 

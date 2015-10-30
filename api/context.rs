@@ -19,13 +19,10 @@ pub struct TokamakContext
 impl TokamakContext 
 {
   pub fn new() -> Result<TokamakContext> 
-  {
-    println!("Initialize LocalQueryRunner");
+  {    
     let mut executor = Box::new(LocalQueryRunner::new());
-    
-    println!("Trying to load SQLPackage");
+
     try!(executor.add_plugin(Box::new(SQLPackage)));
-    println!("SQLPackage plugin has been successfully loaded.");
     
     Ok(TokamakContext {
       session: executor.default_session(),

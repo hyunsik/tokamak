@@ -17,43 +17,56 @@ pub struct TypeHandler {
 
 #[derive(Clone)]
 pub struct Ty {
-  kind: TyKind 
-}
-
-#[derive(Clone)]
-pub enum TyKind {
-  I32,
-  F32,
-  Str,
-  Udt (String, TypeHandler)
+  base         : String,
+  comparable: bool,
+  orderable : bool,
+  handler      : TypeHandler
 }
 
 impl Ty {
-  pub fn kind(&self) -> &TyKind {
-    &self.kind
-  }
-  
-  pub fn handler(&self) -> Rc<TypeHandler> {
-    match self.kind {
-      TyKind::I32 => {
-        let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
-        Rc::new(TypeHandler {create_minipage: Rc::new(f)})
-      },
-      
-      TyKind::F32 => {
-        let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
-        Rc::new(TypeHandler {create_minipage: Rc::new(f)})
-      },
-      
-      _  => { panic!("Unknown supported type") }
-    }
-  }
+	pub fn new(base: &str, comparable: bool, orderable: bool, handler: TypeHandler) -> Ty {
+		Ty {
+			base      : base.to_string(),
+			comparable: comparable,
+			orderable : orderable,
+			handler   : handler
+		}
+	}
+	
+	pub fn base(&self) -> &str 
+	{
+		&self.base
+	}
+	
+	pub fn handler(&self) -> &TypeHandler
+	{
+		&self.handler
+	}
 }
 
-pub const BOOL_STR       : &'static str = "bool";
-pub const I32_STR        : &'static str = "i32";
-pub const F32_STR        : &'static str = "f32";
-pub const STR_STR        : &'static str = "str";
+//impl Ty {
+//  pub fn kind(&self) -> &TyKind {
+//    &self.kind
+//  }
+//  
+//  pub fn handler(&self) -> Rc<TypeHandler> {
+//    match self.kind {
+//      TyKind::I32 => {
+//        let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
+//        Rc::new(TypeHandler {create_minipage: Rc::new(f)})
+//      },
+//      
+//      TyKind::F32 => {
+//        let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
+//        Rc::new(TypeHandler {create_minipage: Rc::new(f)})
+//      },
+//      
+//      _  => { panic!("Unknown supported type") }
+//    }
+//  }
+//}
+//
+
 
 /*
 

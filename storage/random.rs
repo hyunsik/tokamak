@@ -4,7 +4,7 @@ use rand;
 use itertools::Zip;
 
 use common::err::{void_ok, Void, Result};
-use common::types::{Ty, TyKind};
+use common::types::{Ty};
 use common::rows::{
   MiniPageWriter,
   Page,
@@ -70,9 +70,9 @@ fn write_rand_for_f32(builder: &mut MiniPageWriter)
 
 fn choose_random_fn(ty: &Ty) -> Box<Fn(&mut MiniPageWriter)> 
 {
-  match *ty.kind() {
-    TyKind::I32 => Box::new(write_rand_for_i32),
-    TyKind::F32 => Box::new(write_rand_for_f32),
+  match ty.base() {
+    "i32" => Box::new(write_rand_for_i32),
+    "f32" => Box::new(write_rand_for_f32),
     _ => panic!("not supported type")
   }
 }

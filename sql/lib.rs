@@ -17,9 +17,7 @@ impl Plugin for SQLPackage {
   fn name(&self) -> &str { PACKAGE_NAME }
   
   fn types(&self) -> Vec<(&'static str, TypeFactory)> {
-    println!("Enter SQLPackage::types");
     let factory: Rc<Fn(&str) -> Result<Box<Ty>>> = Rc::new(parse_type_str);
-  
     vec![
     ]
   }
