@@ -14,12 +14,12 @@ use scan::TableScanExecFactory;
 use storage::get_factory;
 use super::ExecutorFactory;
 
-pub struct ExecutionPlan {
-  drivers: Vec<Box<DriverFactory>>
+pub struct ExecutionPlan<'a> {
+  drivers: Vec<Box<DriverFactory<'a>>>
 }
 
-impl ExecutionPlan {
-  pub fn new() -> ExecutionPlan 
+impl<'a> ExecutionPlan<'a> {
+  pub fn new() -> ExecutionPlan<'a>
   { 
     ExecutionPlan {drivers: Vec::new()} 
   }
