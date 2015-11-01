@@ -17,10 +17,8 @@ use input::InputSource;
 pub trait Plugin
 {
   fn name(&self) -> &str;
-
-  fn types(&self) -> Vec<(&'static str, TypeFactory)>;
   
-  fn funcs(&self) -> Vec<(FuncSignature, InvokeAction)>;
+  fn load(&self, &mut PluginManager) -> Void;
 }
 
 #[derive(Clone)]
@@ -33,7 +31,8 @@ pub struct PluginManager<'a>
   marker       : PhantomData<&'a()>  
 }
 
-impl<'a> PluginManager<'a> {
+impl<'a> PluginManager<'a> 
+{
   pub fn new() -> PluginManager<'a> 
   {
     PluginManager {
@@ -45,20 +44,25 @@ impl<'a> PluginManager<'a> {
     }
   }
   
-  pub fn load(&mut self, plugin: Box<Plugin>) -> Void
+  #[inline]
+  pub fn register_ty(&mut self, ty: (&str, TypeFactory)) -> Void
   {
-    try!(self.type_registry.add_all(plugin.types()));
-    try!(self.func_registry.add_all(plugin.funcs()));
-    self.pkgs.insert(plugin.name().to_string(), Rc::new(plugin));
-    
-    void_ok
+  	self.type_registry.add(ty)
   }
   
+  #[inline]
+  pub fn register_func(&mut self, func: (FuncSignature, InvokeAction)) -> Void
+  {
+  	self.func_registry.add(func)
+  } 
+  
+  #[inline]
   pub fn type_registry(&self) -> &TypeRegistry 
   {
     &self.type_registry
   }
   
+  #[inline]
   pub fn func_registry(&self) -> &FuncRegistry 
   {
     &self.func_registry
@@ -81,7 +85,8 @@ impl FuncRegistry
     }    
   }
   
-  pub fn add(&mut self, func: (FuncSignature, InvokeAction)) -> Void 
+  #[inline]
+  fn add(&mut self, func: (FuncSignature, InvokeAction)) -> Void 
 	{
 		match self.funcs.entry(func.0) {
       Vacant(e)   => { 
@@ -91,14 +96,6 @@ impl FuncRegistry
       Occupied(_) => { return Err(Error::DuplicatedFuncSign) }
     }   
 	}
-  
-  pub fn add_all(&mut self, funcs: Vec<(FuncSignature, InvokeAction)>) -> Void {   
-    for tuple in funcs.into_iter() {
-      try!(self.add(tuple))   
-    }
-    
-    void_ok
-  }
 }
 
 #[derive(Clone)]
@@ -117,6 +114,7 @@ impl TypeRegistry
     }
   }
   
+  #[inline]
   pub fn add(&mut self, ty: (&str, TypeFactory)) -> Void 
  	{
 		match self.types.entry(ty.0.to_string()) {
@@ -128,15 +126,7 @@ impl TypeRegistry
     }   
 	}
   
-  pub fn add_all(&mut self, types: Vec<(&str, TypeFactory)>) -> Void 
-  {
-    for ty in types.into_iter() {
-      try!(self.add(ty))
-    }
-    
-    void_ok
-  }
-  
+  #[inline]
   pub fn get(&self, type_sign: &str) -> Result<Ty> {
     match self.types.get(type_sign) {
       Some(factory) => factory(type_sign),
@@ -144,6 +134,7 @@ impl TypeRegistry
     }
   }
   
+  #[inline]
   pub fn all(&self) -> Vec<&str> {
     self.types.keys().map(|v| &**v).collect::<Vec<&str>>()
   }

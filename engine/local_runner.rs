@@ -33,7 +33,8 @@ impl<'a> LocalQueryRunner<'a>
       exec_planner  : ExecutionPlanner::new()
     };
     
-    runner.add_plugin(Box::new(DefaultPackage)).ok().unwrap();
+    let default_package = Box::new(DefaultPackage);
+    default_package.load(&mut runner.plugin_manager);
     
     runner
   }
@@ -59,7 +60,8 @@ impl<'a> QueryRunner for LocalQueryRunner<'a>
   
   fn add_plugin(&mut self, plugin: Box<Plugin>) -> Void {
     // the only place to access the mutable reference of PluginManager
-    self.plugin_manager.load(plugin)
+    plugin.load(&mut self.plugin_manager)
+    //self.plugin_manager.load(plugin)
   }
   
   #[inline]

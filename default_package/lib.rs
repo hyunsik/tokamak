@@ -5,10 +5,10 @@ extern crate common;
 use std::mem;
 use std::rc::Rc;
 
-use common::err::{Error, Result};
+use common::err::{Error, Result, Void, void_ok};
 use common::types::{Ty, TypeFactory, TypeHandler};
 use common::func::{FuncSignature, InvokeAction};
-use common::plugin::{Plugin};
+use common::plugin::{Plugin, PluginManager};
 use common::rows::{FMiniPage, MiniPage}; 
 
 mod math_func;
@@ -17,22 +17,17 @@ const PACKAGE_NAME: &'static str = "default";
 
 pub struct DefaultPackage;
 
-impl Plugin for DefaultPackage {
+impl Plugin for DefaultPackage 
+{
   fn name(&self) -> &str { PACKAGE_NAME }
   
-  fn types(&self) -> Vec<(&'static str, TypeFactory)> {
-    let factory: Rc<Fn(&str) -> Result<Ty>> = Rc::new(parse_type_str);
-    vec![
-    	(I32_STR, factory.clone()),
-    	(F32_STR, factory.clone()),	
-    ]
-  }
-  
-  fn funcs(&self) -> Vec<(FuncSignature, InvokeAction)> {
-    let mut fn_list = Vec::new();
-    //math_func::register_funcs(reg, list)
-    
-    fn_list    
+  fn load(&self, mgr: &mut PluginManager) -> Void 
+  {
+  	let factory: Rc<Fn(&str) -> Result<Ty>> = Rc::new(parse_type_str);
+  	try!(mgr.register_ty((I32_STR, factory.clone())));
+  	try!(mgr.register_ty((F32_STR, factory.clone())));
+  	
+		void_ok  	
   }
 }
 
