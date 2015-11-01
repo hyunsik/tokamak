@@ -3,19 +3,16 @@ use std::rc::Rc;
 use rand;
 
 use common::err::{Result, Void, void_ok};
-use common::func::{
-  FuncKind,
-  FuncSignature,
-  InvokeAction,
-  gen_no_arg_func
-};
-use common::plugin::TypeRegistry;
+use common::func::FuncKind;
+use common::plugin::{PluginManager, TypeRegistry};
+use common::plugin::util::register_noarg_fn;
 use common::rows::ROWBATCH_SIZE;
 use common::rows::MiniPageWriter;
 
-pub fn register_funcs(reg: &TypeRegistry, list: &mut Vec<(FuncSignature, InvokeAction)>) -> Void
+pub fn register_funcs(pkg_mgr: &mut PluginManager) -> Void
 {
-  list.push(try!(gen_no_arg_func(reg, "rand", vec![], "i32", FuncKind::Scalar, Rc::new(rand_i32))));
+	try!(register_noarg_fn(pkg_mgr, "rand", vec![], "i32", FuncKind::Scalar, Rc::new(rand_i32)));
+	try!(register_noarg_fn(pkg_mgr, "rand_i64", vec![], "i64", FuncKind::Scalar, Rc::new(rand_i32)));
   
   void_ok  
 }

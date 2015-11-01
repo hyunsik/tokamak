@@ -67,6 +67,11 @@ impl<'a> PluginManager<'a>
   {
     &self.func_registry
   }
+  
+  #[inline]
+  pub fn get_type(&self, type_sign: &str) -> Result<Ty> {
+   	self.type_registry.get(type_sign)
+  }
 }
 
 #[derive(Clone)]
@@ -157,4 +162,32 @@ impl InputSourceRegistry
       registry: HashMap::new()      
     }
   }
+}
+
+pub mod util {
+	use err::{Void, Result};
+	use func::{FuncKind, FuncSignature, InvokeAction, NoArgFn};
+	use types::Ty;
+	use super::PluginManager;
+	
+	#[inline]
+	pub fn register_noarg_fn(
+	  plugin_mgr   : &mut PluginManager,
+	  name         : &str, 
+	  raw_arg_types: Vec<&str>,
+	  raw_ret_type : &str,
+	  fn_kind      : FuncKind,
+	  fn_impl      : NoArgFn) -> Void 
+	{
+	  let arg_types = try!(raw_arg_types
+	                    .iter()
+	                    .map(|t| plugin_mgr.get_type(t))
+	                    .collect::<Result<Vec<Ty>>>());
+	   
+	  let ret_type = try!(plugin_mgr.get_type(raw_ret_type));
+	  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, ret_type, fn_kind);
+	  let fn_tuple = (fn_sig, InvokeAction::NoArgOp(fn_impl));
+	  
+	  plugin_mgr.register_func(fn_tuple)
+	}
 }

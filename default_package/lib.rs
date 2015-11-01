@@ -27,6 +27,8 @@ impl Plugin for DefaultPackage
   	try!(mgr.register_ty((I32_STR, factory.clone())));
   	try!(mgr.register_ty((F32_STR, factory.clone())));
   	
+  	math_func::register_funcs(mgr); 
+  	
 		void_ok  	
   }
 }

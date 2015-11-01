@@ -9,8 +9,8 @@ use std::cmp::Ordering;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use err::Result;
-use plugin::TypeRegistry;
+use err::{Result, Void, void_ok};
+use plugin::{PluginManager, TypeRegistry};
 use rows::{MiniPage,MiniPageWriter};
 use types::Ty;
 
@@ -90,24 +90,4 @@ impl Ord for FuncSignature {
   fn cmp(&self, other: &FuncSignature) -> Ordering {
     self.name.cmp(&other.name)
   }
-}
-
-#[inline]
-pub fn gen_no_arg_func(
-  type_registry: &TypeRegistry,
-  name         : &str, 
-  raw_arg_types: Vec<&str>,
-  raw_ret_type : &str,
-  fn_kind      : FuncKind,
-  fn_impl      : NoArgFn) -> Result<(FuncSignature, InvokeAction)> 
-{
-  let arg_types = try!(raw_arg_types
-                    .iter()
-                    .map(|t| type_registry.get(t))
-                    .collect::<Result<Vec<Ty>>>());
-   
-  let ret_type = try!(type_registry.get(raw_ret_type));
-  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, ret_type, fn_kind);
-  
-  Ok((fn_sig, InvokeAction::NoArgOp(fn_impl)))
 }
