@@ -12,7 +12,7 @@ pub fn register_funcs(pkg_mgr: &mut PluginManager) -> Void
 {
 	register_noarg_fn!(pkg_mgr, "rand",     vec![], "i32", rand_i32);
 	register_noarg_fn!(pkg_mgr, "rand_i64", vec![], "i64", rand_i64);
-  
+
   void_ok  
 }
 
