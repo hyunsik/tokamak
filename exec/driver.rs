@@ -5,7 +5,7 @@ use common::rows::Page;
 
 use task::TaskSource;
 
-use super::Executor;
+use super::{Executor, ExecutorFactory};
 
 pub struct Driver<'a>
 {
@@ -33,21 +33,40 @@ impl<'a> Driver<'a>
 
 pub struct DriverFactory<'a>
 {
-  pub input_driver: bool,
-  pub output_driver: bool, 
-  source_ids: Vec<String>,
-  factory: Vec<Box<DriverFactory<'a>>>,
-  marker: marker::PhantomData<&'a ()>
+  pub is_input : bool,
+  pub is_output: bool, 
+  source_ids   : Vec<String>,
+  factories    : Vec<Box<ExecutorFactory>>,
+  marker       : marker::PhantomData<&'a ()>
 }
 
-pub struct DriverContext;
-
 impl<'a> DriverFactory<'a> {
-  pub fn create_driver(&self, ctx: &'a DriverContext, execs: Vec<Box<Executor>>) -> Driver<'a>
+	pub fn new(
+		is_input: bool, 
+		is_output: bool, 
+		factories: Vec<Box<ExecutorFactory>>) -> DriverFactory<'a> 
+	{
+		DriverFactory {
+			is_input   : is_input,
+			is_output  : is_output,
+			source_ids : Vec::new(),
+			factories  : factories,
+			marker     : marker::PhantomData
+		}
+	}
+	
+	pub fn create_driver(&self, ctx: &'a DriverContext) -> Driver<'a>
   {
+  	let execs = self.factories
+  		.iter()
+  		.map(|f| f.create(ctx).unwrap())
+  		.collect::<Vec<Box<Executor>>>();
+  	
     Driver {
     	ctx: ctx,
     	execs: execs
     }
   }
 }
+
+pub struct DriverContext;

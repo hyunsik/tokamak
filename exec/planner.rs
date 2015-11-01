@@ -15,13 +15,19 @@ use storage::get_factory;
 use super::ExecutorFactory;
 
 pub struct ExecutionPlan<'a> {
-  drivers: Vec<Box<DriverFactory<'a>>>
+  driver_factories: Vec<DriverFactory<'a>>
 }
 
 impl<'a> ExecutionPlan<'a> {
-  pub fn new() -> ExecutionPlan<'a>
+  pub fn new(driver_factories: Vec<DriverFactory<'a>>) -> ExecutionPlan<'a>
   { 
-    ExecutionPlan {drivers: Vec::new()} 
+    ExecutionPlan {
+    	driver_factories: driver_factories
+  	} 
+  }
+  
+  pub fn driver_factories(&self) -> &Vec<DriverFactory<'a>> {
+  	&self.driver_factories
   }
 }
 
@@ -45,18 +51,24 @@ impl ExecutionPlanner
   	func_registry: &FuncRegistry, 
   	session: &Session, plan: &LogicalPlan) -> Result<ExecutionPlan>
   {
-    let ctx = ExecPlanContext {
+    let mut ctx = ExecPlanContext {
       stack: Vec::new(),
       err  : None
     };
+    
+    walk_node(self, &mut ctx, plan.root());
+    
+    let driver_factory = DriverFactory::new(
+    	true,
+    	true,
+    	ctx.stack
+    );
     
     match ctx.err {
       Some(e) => Err(e),
       None    => {
         
-        let plan = ExecutionPlan {
-          drivers: Vec::new()
-        };
+        let plan = ExecutionPlan::new(vec![driver_factory]);
         
         Ok(plan)
       }
@@ -76,7 +88,5 @@ impl<'v> Visitor<'v, ExecPlanContext> for ExecutionPlanner {
   			ctx.stack.push(factory);
   		}
   	}
-  	
-  	
  	}
 }

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
 
-use algebra::{Operator, Visitor};
+use algebra::{Operator, Visitor, walk_op};
 use common::dataset::DataSet;
 use common::err::Result;
 use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
@@ -26,8 +26,10 @@ impl LogicalPlanner
   	session: &Session, 
   	algebra: &Operator) -> Result<LogicalPlan>
   {
-    let builder = PlanBuilder::new();
-    unimplemented!();
+    let mut builder = PlanBuilder::new();
+    walk_op(self, &mut builder, algebra); 
+    
+    builder.build()
   } 
 }
 
@@ -53,6 +55,13 @@ impl PlanBuilder
   	
   	next
   }
+  
+  pub fn build(&mut self) -> Result<LogicalPlan> 
+  {
+  	debug_assert!(self.stack.len() == 1, "empty or remain nodes in the stack");
+  	
+  	Ok(LogicalPlan {root: self.stack.pop().unwrap()})
+  }
 }
 
 impl<'v> Visitor<'v, PlanBuilder> for LogicalPlanner {
@@ -67,13 +76,13 @@ impl<'v> Visitor<'v, PlanBuilder> for LogicalPlanner {
 }
 
 #[derive(Clone)]
-pub struct QueryBlock {
-  id  : u32,
+pub struct LogicalPlan {
   root: PlanNode
 }
 
-#[derive(Clone)]
-pub struct LogicalPlan {
-  root_id     : u32,
-  query_blocks: HashMap<u32, QueryBlock> 
+impl LogicalPlan 
+{
+	pub fn root(&self) -> &PlanNode {
+		&self.root
+	}
 }

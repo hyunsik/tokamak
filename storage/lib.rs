@@ -13,7 +13,7 @@ use common::types::Ty;
 mod random;
 pub use random::RandomTableGenerator;
 
-pub type InputSourceFactory = Rc<Fn(&Session, &Vec<Ty>) -> Box<InputSource>>;
+pub type InputSourceFactory = Rc<Fn(&Session, &Vec<Ty>, usize) -> Box<InputSource>>;
 
 pub fn get_factory(kind: &str) -> InputSourceFactory {
 	match kind {

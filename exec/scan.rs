@@ -5,7 +5,8 @@ use common::input::InputSource;
 
 use storage::InputSourceFactory;
 
-use super::{Executor, ExecutionContext, ExecutorFactory, Processor};
+use driver::DriverContext;
+use super::{Executor, ExecutorFactory, Processor};
 
 pub struct TableScanExecFactory 
 {
@@ -28,7 +29,7 @@ impl<'a> TableScanExecFactory
 
 impl<'a> ExecutorFactory for TableScanExecFactory 
 {
-  fn create(&self, ctx: &ExecutionContext) -> Option<Box<Executor>> {
+  fn create(&self, ctx: &DriverContext) -> Option<Box<Executor>> {
     None
   }
   

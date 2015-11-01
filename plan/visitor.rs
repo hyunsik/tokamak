@@ -38,7 +38,7 @@ pub trait Visitor<'v, T>: Sized {
 }
 
 /// Walker for Expr Tree
-fn walk_node<'v, T, V>(v: &V, ctx: &mut T, node: &'v PlanNode) 
+pub fn walk_node<'v, T, V>(v: &V, ctx: &mut T, node: &'v PlanNode) 
     where V: Visitor<'v, T> {
       
   match node.decl {

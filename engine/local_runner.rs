@@ -7,6 +7,7 @@ use common::err::{Result, Void, void_ok};
 use common::session::Session;
 use common::plugin::{FuncRegistry, TypeRegistry, Plugin, PluginManager};
 use default_package::DefaultPackage;
+use exec::driver::{Driver, DriverContext};
 use exec::planner::ExecutionPlanner;
 use plan::{LogicalPlanner};
 use optimizer::LogicalOptimizer;
@@ -75,6 +76,13 @@ impl<'a> QueryRunner for LocalQueryRunner<'a>
     let exec_plan    = try!(self.exec_planner.build(
     		self.type_registry(), self.func_registry(), session, &optimized));
     
+    let ctx = DriverContext;
+    
+    let drivers = exec_plan.driver_factories()
+    	.iter()
+    	.map(|x| x.create_driver(&ctx))
+    	.collect::<Vec<Driver>>();
+    	
     unimplemented!()
   }
   

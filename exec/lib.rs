@@ -46,6 +46,8 @@ use common::input::InputSource;
 use common::rows::{Page, PageBuilder};
 use common::types::Ty;
 
+use driver::DriverContext;
+
 pub trait Executor 
 {
   fn init      (&mut self) -> Void;
@@ -55,11 +57,9 @@ pub trait Executor
   fn close     (&mut self) -> Void;
 }
 
-pub struct ExecutionContext;
-
 pub trait ExecutorFactory 
 {
-  fn create(&self, ctx: &ExecutionContext) -> Option<Box<Executor>>;
+  fn create(&self, ctx: &DriverContext) -> Option<Box<Executor>>;
   
   fn types(&self) -> &Vec<Ty>;
 }
