@@ -166,17 +166,17 @@ impl InputSourceRegistry
 
 pub mod util {
 	use err::{Void, Result};
-	use func::{FuncKind, FuncSignature, InvokeAction, NoArgFn};
+	use func::{FnKind, FuncSignature, InvokeAction, NoArgFn};
 	use types::Ty;
 	use super::PluginManager;
 	
+	/// Register a scalar function taking no argument  
 	#[inline]
 	pub fn register_noarg_fn(
 	  plugin_mgr   : &mut PluginManager,
 	  name         : &str, 
 	  raw_arg_types: Vec<&str>,
 	  raw_ret_type : &str,
-	  fn_kind      : FuncKind,
 	  fn_impl      : NoArgFn) -> Void 
 	{
 	  let arg_types = try!(raw_arg_types
@@ -185,9 +185,16 @@ pub mod util {
 	                    .collect::<Result<Vec<Ty>>>());
 	   
 	  let ret_type = try!(plugin_mgr.get_type(raw_ret_type));
-	  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, ret_type, fn_kind);
+	  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, ret_type, FnKind::Scalar);
 	  let fn_tuple = (fn_sig, InvokeAction::NoArgOp(fn_impl));
 	  
 	  plugin_mgr.register_func(fn_tuple)
 	}
+	
+	#[macro_export]
+	macro_rules! register_noarg_fn {
+	  ( $mgr:expr, $name:expr, $arg_types:expr, $ret_type:expr, $fn_impl:expr ) => {
+     try!(register_noarg_fn($mgr, $name, $arg_types, $ret_type, Rc::new($fn_impl)))
+    };
+  }
 }

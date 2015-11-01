@@ -15,7 +15,7 @@ use rows::{MiniPage,MiniPageWriter};
 use types::Ty;
 
 #[derive(Eq, Copy, Clone, PartialEq, PartialOrd, Ord)]
-pub enum FuncKind {
+pub enum FnKind {
   Scalar,
   Aggregation,
   Window
@@ -45,14 +45,14 @@ pub struct FuncSignature
   // Function argument data types
   arg_types: Vec<Ty>,
   // Function kind
-  fn_kind  : FuncKind,
+  fn_kind  : FnKind,
   // Return type
   ret_type : Ty
 }
 
 impl FuncSignature
 {
-  pub fn new(name: String, arg_types: Vec<Ty>, ret_type: Ty, fn_kind: FuncKind) -> FuncSignature
+  pub fn new(name: String, arg_types: Vec<Ty>, ret_type: Ty, fn_kind: FnKind) -> FuncSignature
   {
     FuncSignature {
       name     : name,
