@@ -1,3 +1,5 @@
+extern crate rand;
+
 extern crate common;
 
 use std::mem;
@@ -8,6 +10,8 @@ use common::types::{Ty, TypeFactory, TypeHandler};
 use common::func::{FuncSignature, InvokeAction};
 use common::plugin::{Plugin};
 use common::rows::{FMiniPage, MiniPage}; 
+
+mod math_func;
 
 const PACKAGE_NAME: &'static str = "default";
 
@@ -25,7 +29,10 @@ impl Plugin for DefaultPackage {
   }
   
   fn funcs(&self) -> Vec<(FuncSignature, InvokeAction)> {
-    vec![]
+    let mut fn_list = Vec::new();
+    //math_func::register_funcs(reg, list)
+    
+    fn_list    
   }
 }
 

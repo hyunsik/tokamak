@@ -8,6 +8,7 @@ name = "default_package"
 path = "lib.rs"
 
 [dependencies]
+rand = "0.3.11"
 
 [dependencies.common]
 path = "../common"
