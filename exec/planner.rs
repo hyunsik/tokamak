@@ -7,12 +7,18 @@ use common::plugin::{FuncRegistry, TypeRegistry};
 use common::session::Session;
 
 use plan::*;
+use plan::node::*;
+use plan::expr::*;
 use plan::visitor::*;
 
 use driver::DriverFactory;
-use scan::TableScanExecFactory;
 use storage::get_factory;
 use super::ExecutorFactory;
+
+use hash_join::HashJoinExecFactory;
+use filter::FilterExecFactory;
+use scan::TableScanExecFactory;
+
 
 pub struct ExecutionPlan<'a> {
   driver_factories: Vec<DriverFactory<'a>>
@@ -58,10 +64,12 @@ impl ExecutionPlanner
     
     walk_node(self, &mut ctx, plan.root());
     
+    debug_assert!(ctx.stack.len() == 1, "Empty or remain one more factories in stack");
+    
     let driver_factory = DriverFactory::new(
     	true,
     	true,
-    	ctx.stack
+    	ctx.stack.pop().unwrap()
     );
     
     match ctx.err {
@@ -77,6 +85,26 @@ impl ExecutionPlanner
 }  
 
 impl<'v> Visitor<'v, ExecPlanContext> for ExecutionPlanner {
+	fn visit_join(&self, ctx: &mut ExecPlanContext, left: &'v PlanNode, right: &'v PlanNode, 
+		decl: &JoinDecl) {
+			
+    walk_node(self, ctx, left);
+    walk_node(self, ctx, right);
+    
+    let rf = ctx.stack.pop().unwrap();
+    let lf = ctx.stack.pop().unwrap();
+    let factory = HashJoinExecFactory::new(lf, rf);    
+		
+		ctx.stack.push(Box::new(factory));
+  }
+	
+	fn visit_filter(&self, ctx: &mut ExecPlanContext, child: &'v PlanNode, decl: &'v Vec<Expr>) {
+		walk_node(self, ctx, child);
+		
+		let factory = FilterExecFactory::new(ctx.stack.pop().unwrap());    
+		ctx.stack.push(Box::new(factory));
+  }
+	
   fn visit_relation(&self, ctx: &mut ExecPlanContext, ds: &'v DataSet) {
   	
   	match ds.decl {

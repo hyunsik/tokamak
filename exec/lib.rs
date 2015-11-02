@@ -34,9 +34,13 @@ extern crate storage;
 
 pub mod planner;
 pub mod driver;
-pub mod scan;
 pub mod split;
 pub mod task;
+
+pub mod filter;
+pub mod hash_join;
+pub mod scan;
+
 
 
 use std::rc::Rc;
