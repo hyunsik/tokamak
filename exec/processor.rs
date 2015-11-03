@@ -1,3 +1,6 @@
+//! 
+//! * Processor was designed to be stateless.
+
 use std::rc::Rc;
 
 use common::err::Result;

@@ -5,6 +5,7 @@
 use std::ops::{Add, Sub, Mul, Div, Rem};
 
 use common::types::*;
+use common::literal::LiteralValue;
 use schema::Column;
 
 /// Datum representation for a single value
