@@ -24,6 +24,7 @@ impl<'a> Driver<'a>
   
   pub fn close(&mut self)
   {
+  	self.root_exec.close();
   }
 }
 

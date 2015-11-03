@@ -21,12 +21,10 @@ pub enum FnKind {
   Window
 }
 
-pub type NoArgFn   = Rc<Fn(&mut MiniPageWriter, usize)>;
-pub type UnaryFn   = Rc<Fn(&MiniPage, RefCell<MiniPageWriter>)>;
-pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, RefCell<MiniPageWriter>)>;
-pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, RefCell<MiniPageWriter>)>;
-
-pub type ScalarVecFunc = Rc<Fn(Vec<&MiniPage>, RefCell<MiniPageWriter>)>;
+pub type NoArgFn   = Rc<Fn(&mut MiniPageWriter, usize) -> Void>;
+pub type UnaryFn   = Rc<Fn(&MiniPage, &mut MiniPageWriter, usize) -> Void>;
+pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
+pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
 
 #[derive(Clone)]
 pub enum InvokeAction
@@ -34,7 +32,7 @@ pub enum InvokeAction
   NoArgOp   (NoArgFn),
   UnaryOp   (UnaryFn),
   BinaryOp  (BinaryFn),
-  TrinityOp (TrinityFn), 
+  TrinityOp (TrinityFn)
 }
 
 #[derive(Clone)]

@@ -32,16 +32,15 @@ extern crate common;
 extern crate plan;
 extern crate storage;
 
-pub mod planner;
 pub mod driver;
 pub mod split;
 pub mod task;
+pub mod planner;
+pub mod processor;
 
 pub mod filter;
 pub mod hash_join;
 pub mod scan;
-
-
 
 use std::rc::Rc;
 

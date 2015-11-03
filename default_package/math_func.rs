@@ -17,17 +17,21 @@ pub fn register_funcs(pkg_mgr: &mut PluginManager) -> Void
 }
 
 #[allow(unused_variables)]
-pub fn rand_i32(builder: &mut MiniPageWriter, rownum: usize) 
+pub fn rand_i32(builder: &mut MiniPageWriter, rownum: usize) -> Void
 {
   for pos in 0 .. rownum {
     builder.write_i32(rand::random::<i32>());
   }
+  
+  void_ok
 }
 
  #[allow(unused_variables)]
-pub fn rand_i64(builder: &mut MiniPageWriter, rownum: usize) 
+pub fn rand_i64(builder: &mut MiniPageWriter, rownum: usize) -> Void 
 {
   for pos in 0 .. rownum {
     builder.write_f32(rand::random::<f32>());
   }
+  
+  void_ok
 }
