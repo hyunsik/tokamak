@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use err::{Error, Result, Void, void_ok};
-use func::{FuncSignature, InvokeAction};
+use func::{FuncSignature, InvokeAction, InvokeMethod};
 use types::{Ty, TypeFactory};
 use input::InputSource;
 
@@ -185,8 +185,9 @@ pub mod util {
 	                    .collect::<Result<Vec<Ty>>>());
 	   
 	  let ret_type = try!(plugin_mgr.get_type(raw_ret_type));
-	  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, ret_type, FnKind::Scalar);
-	  let fn_tuple = (fn_sig, InvokeAction::NoArgOp(fn_impl));
+	  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, FnKind::Scalar);
+	  let fn_method = InvokeAction::new_noarg(ret_type, fn_impl);
+	  let fn_tuple = (fn_sig, fn_method);
 	  
 	  plugin_mgr.register_func(fn_tuple)
 	}

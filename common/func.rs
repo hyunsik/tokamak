@@ -15,7 +15,8 @@ use rows::{MiniPage,MiniPageWriter};
 use types::Ty;
 
 #[derive(Eq, Copy, Clone, PartialEq, PartialOrd, Ord)]
-pub enum FnKind {
+pub enum FnKind 
+{
   Scalar,
   Aggregation,
   Window
@@ -27,7 +28,32 @@ pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> 
 pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
 
 #[derive(Clone)]
-pub enum InvokeAction
+pub struct InvokeAction 
+{
+  pub ret_type   : Ty,
+  pub method     : InvokeMethod
+}
+
+impl InvokeAction
+{
+	pub fn new(ret_type: Ty, method: InvokeMethod) -> InvokeAction
+	{
+		InvokeAction {
+			ret_type: ret_type,
+			method  : method
+		}
+	}
+	
+	pub fn new_noarg(ret_type: Ty, f: NoArgFn) -> InvokeAction {
+		InvokeAction {
+			ret_type: ret_type,
+			method  : InvokeMethod::NoArgOp(f)
+		}
+	}
+}
+
+#[derive(Clone)]
+pub enum InvokeMethod
 {
   NoArgOp   (NoArgFn),
   UnaryOp   (UnaryFn),
@@ -43,20 +69,17 @@ pub struct FuncSignature
   // Function argument data types
   arg_types: Vec<Ty>,
   // Function kind
-  fn_kind  : FnKind,
-  // Return type
-  ret_type : Ty
+  fn_kind  : FnKind
 }
 
 impl FuncSignature
 {
-  pub fn new(name: String, arg_types: Vec<Ty>, ret_type: Ty, fn_kind: FnKind) -> FuncSignature
+  pub fn new(name: String, arg_types: Vec<Ty>, fn_kind: FnKind) -> FuncSignature
   {
     FuncSignature {
       name     : name,
       arg_types: arg_types,
-      fn_kind  : fn_kind,
-      ret_type : ret_type
+      fn_kind  : fn_kind
     }
   }
 }
