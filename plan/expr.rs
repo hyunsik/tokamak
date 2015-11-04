@@ -1,17 +1,13 @@
 use common::types::Ty;
 
 #[derive(Clone)]
-pub struct Expr 
-{
-	out_ty: Ty,
-	spec: ExprSpec
-}
+pub struct Expr (pub Ty, pub ExprSpec);
 
 impl Expr 
 {
 	pub fn spec(&self) -> &ExprSpec
 	{
-		&self.spec
+		&self.1
 	}
 }
 
@@ -214,42 +210,41 @@ pub mod visitor {
 	
 	/// Simple visitor to walk all Expr node in a single accept function.
 	/// It provides an easier way to rewrite a Expr tree.
-	pub trait SimpleVisitor<T> {
-	  fn accept(&self, op: &Expr) {
-	    self.accept_by_default(op);
-	  }
-	  
-	  fn accept_by_default(&self, e: &Expr) {
+	pub trait SimpleVisitor: Sized {
+	  fn accept(&mut self, op: &Expr) {
+	    accept_by_default(self, op);
+	  } 
+	}
+	
+	pub fn accept_by_default<T>(v: &mut T, e: &Expr) where T: SimpleVisitor + Sized {
 	    match *e.spec() {
-	      ExprSpec::Not      (ref c)               => self.accept(c),
-	      ExprSpec::IsNull   (ref c, _)            => self.accept(c),
-	      ExprSpec::Sign     (ref c, _)            => self.accept(c),
-	      ExprSpec::Cast     (ref c, _, _)         => self.accept(c),
+	      ExprSpec::Not      (ref c)               => v.accept(c),
+	      ExprSpec::IsNull   (ref c, _)            => v.accept(c),
+	      ExprSpec::Sign     (ref c, _)            => v.accept(c),
+	      ExprSpec::Cast     (ref c, _, _)         => v.accept(c),
 	      
-	      ExprSpec::And      (ref l, ref r)        => { self.accept(l); self.accept(r) },
-	      ExprSpec::Or       (ref l, ref r)        => { self.accept(l); self.accept(r) },
-	      ExprSpec::Comp     (_, ref l, ref r)     => { self.accept(l); self.accept(r) },
-	      ExprSpec::Arithm   (_, ref l, ref r)     => { self.accept(l); self.accept(r) }, 
+	      ExprSpec::And      (ref l, ref r)        => { v.accept(l); v.accept(r) },
+	      ExprSpec::Or       (ref l, ref r)        => { v.accept(l); v.accept(r) },
+	      ExprSpec::Comp     (_, ref l, ref r)     => { v.accept(l); v.accept(r) },
+	      ExprSpec::Arithm   (_, ref l, ref r)     => { v.accept(l); v.accept(r) }, 
 	      
-	      ExprSpec::Fn       (_, ref args)         => { for e in args.iter() { self.accept(e) } },
+	      ExprSpec::Fn       (_, ref args)         => { for e in args.iter() { v.accept(e) } },
 	      
 	      ExprSpec::Between  (ref p, ref b, ref e)     => { 
-	      	self.accept(p); self.accept(b); self.accept(e);
+	      	v.accept(p); v.accept(b); v.accept(e);
 	     	},
 	      
 	      ExprSpec::Switch   (ref cases, ref default)  => {  
 	      	for c in cases.iter() {
-	      		self.accept(c);
+	      		v.accept(c);
 	      	}
 	      	
-	      	self.accept(default);
+	      	v.accept(default);
 	      },
-	      ExprSpec::Case      (ref l, ref r)        => { self.accept(l); self.accept(r) },
+	      ExprSpec::Case      (ref l, ref r)        => { v.accept(l); v.accept(r) },
 	      
 				ExprSpec::Field     (_) 	                => {},
 	      ExprSpec::Const     (_)                   => {}
 	    }
-	  } 
-	}
-
+	  }
 }

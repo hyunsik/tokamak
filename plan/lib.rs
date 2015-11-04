@@ -11,6 +11,7 @@ pub mod node;
 use node::*;
 
 pub mod expr;
+pub mod expr_rewriter;
 
 pub mod visitor;
 use visitor::*;
