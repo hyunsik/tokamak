@@ -18,8 +18,8 @@ pub struct TypeHandler {
 #[derive(Clone)]
 pub struct Ty {
   base         : String,
-  comparable: bool,
-  orderable : bool,
+  comparable   : bool,
+  orderable    : bool,
   handler      : TypeHandler
 }
 
@@ -42,6 +42,16 @@ impl Ty {
 	{
 		&self.handler
 	}
+}
+
+impl Eq for Ty {}
+
+impl PartialEq for Ty {
+  fn eq(&self, other: &Ty) -> bool {
+    &self.base      == &other.base &&
+    self.comparable == other.comparable &&
+    self.orderable  == other.orderable
+  }
 }
 
 //impl Ty {
