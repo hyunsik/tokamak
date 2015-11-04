@@ -8,7 +8,7 @@ use common::session::Session;
 
 use plan::*;
 use plan::node::*;
-use plan::expr::*;
+use plan::expr::Expr;
 use plan::visitor::*;
 
 use driver::DriverFactory;
