@@ -94,123 +94,127 @@ pub enum Literal
 }
 
 pub mod visitor {
+	//! Visitor for Expr
+	
 	use common::types::Ty;
 	use super::*;
 	
-	/// Visitor for Expr Tree
-	pub trait Visitor<'v>: Sized {
-	  fn visit_not(&mut self, child: &'v Expr) {
-	    walk_expr(self, child);
+	/// Visitor Trait for Expr Tree. You should implement this trait for walking Expr trees.
+	pub trait Visitor<'v, T>: Sized {
+	  fn visit_not(&self, ctx: &mut T, child: &'v Expr) {
+	    walk_expr(self, ctx, child);
 	  }
-	  fn visit_is_null(&mut self, child: &'v Expr, not: bool) {
-	    walk_expr(self, child);
+	  fn visit_is_null(&self, ctx: &mut T, child: &'v Expr, not: bool) {
+	    walk_expr(self, ctx, child);
 	  }
-	  fn visit_sign(&mut self, child: &'v Expr, not: bool) {
-	    walk_expr(self, child);
+	  fn visit_sign(&self, ctx: &mut T, child: &'v Expr, not: bool) {
+	    walk_expr(self, ctx, child);
 	  }
-	  fn visit_cast(&mut self, expr: &'v Expr, from: &'v Ty, to: &'v Ty) {
-	    walk_expr(self, expr);
-	  }
-	
-	  fn visit_and(&mut self, lhs: &'v Expr, rhs: &'v Expr) {
-	    walk_expr(self, lhs);
-	    walk_expr(self, rhs);
-	  }
-	  fn visit_or(&mut self, lhs: &'v Expr, rhs: &'v Expr) {
-	    walk_expr(self, lhs);
-	    walk_expr(self, rhs);
-	  }
-	  fn visit_comp(&mut self, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {
-	    walk_expr(self, lhs);
-	    walk_expr(self, rhs);
-	  }
-	  fn visit_arithm(&mut self, op: &ArithmOp, lhs: &'v Expr, rhs: &'v Expr) {
-	    walk_expr(self, lhs);
-	    walk_expr(self, rhs);
-	  }
-	  fn visit_concat(&mut self, lhs: &'v Expr, rhs: &'v Expr) {
-	    walk_expr(self, lhs);
-	    walk_expr(self, rhs);
+	  fn visit_cast(&self, ctx: &mut T, expr: &'v Expr, from: &'v Ty, to: &'v Ty) {
+	    walk_expr(self, ctx, expr);
 	  }
 	
-	  fn visit_fn(&mut self, fd: &'v FnDecl, args: &'v Vec<Box<Expr>>) {
+	  fn visit_and(&self, ctx: &mut T, lhs: &'v Expr, rhs: &'v Expr) {
+	    walk_expr(self, ctx, lhs);
+	    walk_expr(self, ctx, rhs);
+	  }
+	  fn visit_or(&self, ctx: &mut T, lhs: &'v Expr, rhs: &'v Expr) {
+	    walk_expr(self, ctx, lhs);
+	    walk_expr(self, ctx, rhs);
+	  }
+	  fn visit_comp(&self, ctx: &mut T, op: &CompOp, lhs: &'v Expr, rhs: &'v Expr) {
+	    walk_expr(self, ctx, lhs);
+	    walk_expr(self, ctx, rhs);
+	  }
+	  fn visit_arithm(&self, ctx: &mut T, op: &ArithmOp, lhs: &'v Expr, rhs: &'v Expr) {
+	    walk_expr(self, ctx, lhs);
+	    walk_expr(self, ctx, rhs);
+	  }
+	  fn visit_concat(&self, ctx: &mut T, lhs: &'v Expr, rhs: &'v Expr) {
+	    walk_expr(self, ctx, lhs);
+	    walk_expr(self, ctx, rhs);
+	  }
+	
+	  fn visit_fn(&self, ctx: &mut T, fd: &'v FnDecl, args: &'v Vec<Box<Expr>>) {
 	    for ref arg in args {
-	      walk_expr(self, arg);
+	      walk_expr(self, ctx, arg);
 	    }
 	  }
 	
-	  fn visit_between(&mut self, predicand: &'v Expr, begin: &'v Expr, end: &'v Expr) {
-	    walk_expr(self, predicand);
-	    walk_expr(self, begin);
-	    walk_expr(self, end);
+	  fn visit_between(&self, ctx: &mut T, predicand: &'v Expr, begin: &'v Expr, end: &'v Expr) {
+	    walk_expr(self, ctx, predicand);
+	    walk_expr(self, ctx, begin);
+	    walk_expr(self, ctx, end);
 	  }
 	  
-	  fn visit_switch(&mut self, cases: &'v Vec<Box<Expr>>, default_value: &'v Expr) {
+	  fn visit_switch(&self, ctx: &mut T, cases: &'v Vec<Box<Expr>>, default_value: &'v Expr) {
 	    for ref each_case in cases {
-	      walk_expr(self, each_case);
+	      walk_expr(self, ctx, each_case);
 	    }
-	    walk_expr(self, default_value);
+	    walk_expr(self, ctx, default_value);
 	  }
-	  fn visit_case(&mut self, condition: &'v Expr, result: &'v Expr) {
-	    walk_expr(self, condition);
-	    walk_expr(self, result);
+	  fn visit_case(&self, ctx: &mut T, condition: &'v Expr, result: &'v Expr) {
+	    walk_expr(self, ctx, condition);
+	    walk_expr(self, ctx, result);
 	  }
 	
-	  fn visit_field(&mut self, field: &'v String) {}
-	  fn visit_const(&mut self, literal: &'v Literal) {}
+	  fn visit_field(&self, ctx: &mut T, field: &'v String) {}
+	  fn visit_const(&self, ctx: &mut T, literal: &'v Literal) {}
 	}
 	
-	/// Walker for Expr Tree
-	pub fn walk_expr<'v, V: Visitor<'v>>(visitor: &mut V, expr: &'v Expr) {
+	/// Default walker function for Expr Tree
+	pub fn walk_expr<'v, T, V: Visitor<'v, T>>(visitor: &V, ctx: &mut T, expr: &'v Expr) {
 
 	  match *expr.spec() {
 	
-	    ExprSpec::Not(ref child) => visitor.visit_not(child),
+	    ExprSpec::Not(ref child) => visitor.visit_not(ctx, child),
 	
 	    ExprSpec::IsNull(ref child, positive) => {
-	      visitor.visit_is_null(child, positive)
+	      visitor.visit_is_null(ctx, child, positive)
 	    }
 	
 	    ExprSpec::Sign(ref child, positive) => {
-	      visitor.visit_sign(child, positive)
+	      visitor.visit_sign(ctx, child, positive)
 	    }
 	
 	    ExprSpec::Cast(ref value, ref from, ref to) => {
-	      visitor.visit_cast(value, from, to)
+	      visitor.visit_cast(ctx, value, from, to)
 	    }
 	
-	    ExprSpec::And(ref lhs, ref rhs) => visitor.visit_and(lhs, rhs),
+	    ExprSpec::And(ref lhs, ref rhs) => visitor.visit_and(ctx, lhs, rhs),
 	
-	    ExprSpec::Or(ref lhs, ref rhs) => visitor.visit_or(lhs, rhs),
+	    ExprSpec::Or(ref lhs, ref rhs) => visitor.visit_or(ctx, lhs, rhs),
 	
 	    ExprSpec::Comp(ref op, ref lhs, ref rhs) => {
-	      visitor.visit_comp(op, lhs, rhs);
+	      visitor.visit_comp(ctx, op, lhs, rhs);
 	    }
 	
 	    ExprSpec::Arithm(ref op, ref lhs, ref rhs) => {
-	      visitor.visit_arithm(op, lhs, rhs);
+	      visitor.visit_arithm(ctx, op, lhs, rhs);
 	    },
 		    
-	    ExprSpec::Fn(ref fd, ref args) => visitor.visit_fn(fd, args),
+	    ExprSpec::Fn(ref fd, ref args) => visitor.visit_fn(ctx, fd, args),
 	
 	    ExprSpec::Between(ref predicand, ref begin, ref end) => {
-	      visitor.visit_between(predicand, begin, end)
+	      visitor.visit_between(ctx, predicand, begin, end)
 	    },
 	    
 	    ExprSpec::Switch(ref cases, ref default_value) => {
-	      visitor.visit_switch(cases, default_value)
+	      visitor.visit_switch(ctx, cases, default_value)
 	    }
 	    ExprSpec::Case(ref condition, ref result) => {
-	      visitor.visit_case(condition, result)
+	      visitor.visit_case(ctx, condition, result)
 	    },
 	
-	    ExprSpec::Field(ref name) => visitor.visit_field(name),
+	    ExprSpec::Field(ref name) => visitor.visit_field(ctx, name),
 	
-	    ExprSpec::Const(ref datum) => visitor.visit_const(datum),
+	    ExprSpec::Const(ref datum) => visitor.visit_const(ctx, datum),
 	  }
 	}
 	
-	pub trait SimpleVisitor {
+	/// Simple visitor to walk all Expr node in a single accept function.
+	/// It provides an easier way to rewrite a Expr tree.
+	pub trait SimpleVisitor<T> {
 	  fn accept(&self, op: &Expr) {
 	    self.accept_by_default(op);
 	  }
