@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use err::{Error, Result, Void, void_ok};
-use func::{FuncSignature, InvokeAction, InvokeMethod};
+use func::{FuncSignature, FuncBody};
 use types::{Ty, TypeFactory};
 use input::InputSource;
 
@@ -51,7 +51,7 @@ impl<'a> PluginManager<'a>
   }
   
   #[inline]
-  pub fn register_func(&mut self, func: (FuncSignature, InvokeAction)) -> Void
+  pub fn register_func(&mut self, func: (FuncSignature, FuncBody)) -> Void
   {
   	self.func_registry.add(func)
   } 
@@ -72,13 +72,19 @@ impl<'a> PluginManager<'a>
   pub fn get_type(&self, type_sign: &str) -> Result<Ty> {
    	self.type_registry.get(type_sign)
   }
+  
+  #[inline]
+  pub fn find_func(&self, name: &str, types: &Vec<Ty>) -> Option<FuncBody>
+  {
+  	None
+  }
 }
 
 #[derive(Clone)]
 pub struct FuncRegistry
 {
   // key and value will be kept immutable as a just reference
-  funcs: BTreeMap<FuncSignature, InvokeAction>
+  funcs: BTreeMap<FuncSignature, FuncBody>
 }
 
 impl FuncRegistry 
@@ -91,7 +97,7 @@ impl FuncRegistry
   }
   
   #[inline]
-  fn add(&mut self, func: (FuncSignature, InvokeAction)) -> Void 
+  fn add(&mut self, func: (FuncSignature, FuncBody)) -> Void 
 	{
 		match self.funcs.entry(func.0) {
       Vacant(e)   => { 
@@ -100,6 +106,12 @@ impl FuncRegistry
       },
       Occupied(_) => { return Err(Error::DuplicatedFuncSign) }
     }   
+	}
+	
+	#[inline]
+	fn find(&self, fn_sign: &FuncSignature) -> Option<&FuncBody>
+	{
+		self.funcs.get(fn_sign)
 	}
 }
 
@@ -166,7 +178,7 @@ impl InputSourceRegistry
 
 pub mod util {
 	use err::{Void, Result};
-	use func::{FnKind, FuncSignature, InvokeAction, NoArgFn};
+	use func::{FnKind, FuncSignature, FuncBody, InvokeMethod, NoArgFn};
 	use types::Ty;
 	use super::PluginManager;
 	
@@ -186,8 +198,8 @@ pub mod util {
 	   
 	  let ret_type = try!(plugin_mgr.get_type(raw_ret_type));
 	  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, FnKind::Scalar);
-	  let fn_method = InvokeAction::new_noarg(ret_type, fn_impl);
-	  let fn_tuple = (fn_sig, fn_method);
+	  let fn_body  = FuncBody::new(ret_type, FnKind::Scalar, InvokeMethod::NoArgOp(fn_impl));
+	  let fn_tuple = (fn_sig, fn_body);
 	  
 	  plugin_mgr.register_func(fn_tuple)
 	}

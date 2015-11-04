@@ -8,7 +8,6 @@ use std::rc::Rc;
 
 use common::err::{Error, Result, Void, void_ok};
 use common::types::{Ty, TypeFactory, TypeHandler};
-use common::func::{FuncSignature, InvokeAction};
 use common::plugin::{Plugin, PluginManager};
 use common::rows::{FMiniPage, MiniPage}; 
 

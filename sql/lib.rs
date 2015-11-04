@@ -6,7 +6,6 @@ use std::rc::Rc;
 
 use common::err::{void_ok, Void};
 use common::types::{Ty, TypeFactory};
-use common::func::{FuncSignature, InvokeAction};
 use common::plugin::{FuncRegistry, InputSourceRegistry, Plugin, PluginManager, TypeRegistry}; 
 use types::*;
 const PACKAGE_NAME: &'static str = "sql";

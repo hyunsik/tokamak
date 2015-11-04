@@ -14,6 +14,11 @@ use plugin::{PluginManager, TypeRegistry};
 use rows::{MiniPage,MiniPageWriter};
 use types::Ty;
 
+pub type NoArgFn   = Rc<Fn(&mut MiniPageWriter, usize) -> Void>;
+pub type UnaryFn   = Rc<Fn(&MiniPage, &mut MiniPageWriter, usize) -> Void>;
+pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
+pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
+
 #[derive(Eq, Copy, Clone, PartialEq, PartialOrd, Ord)]
 pub enum FnKind 
 {
@@ -22,32 +27,22 @@ pub enum FnKind
   Window
 }
 
-pub type NoArgFn   = Rc<Fn(&mut MiniPageWriter, usize) -> Void>;
-pub type UnaryFn   = Rc<Fn(&MiniPage, &mut MiniPageWriter, usize) -> Void>;
-pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
-pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
-
 #[derive(Clone)]
-pub struct InvokeAction 
+pub struct FuncBody 
 {
   pub ret_type   : Ty,
+  pub kind    : FnKind,
   pub method     : InvokeMethod
 }
 
-impl InvokeAction
+impl FuncBody
 {
-	pub fn new(ret_type: Ty, method: InvokeMethod) -> InvokeAction
+	pub fn new(ret_type: Ty, kind: FnKind, method: InvokeMethod) -> FuncBody
 	{
-		InvokeAction {
+		FuncBody {
 			ret_type: ret_type,
+			kind : kind,
 			method  : method
-		}
-	}
-	
-	pub fn new_noarg(ret_type: Ty, f: NoArgFn) -> InvokeAction {
-		InvokeAction {
-			ret_type: ret_type,
-			method  : InvokeMethod::NoArgOp(f)
 		}
 	}
 }
@@ -61,7 +56,7 @@ pub enum InvokeMethod
   TrinityOp (TrinityFn)
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FuncSignature 
 {
   // Function Name
@@ -81,25 +76,5 @@ impl FuncSignature
       arg_types: arg_types,
       fn_kind  : fn_kind
     }
-  }
-}
-
-// TODO - compare other attributes
-impl PartialOrd for FuncSignature 
-{
-   fn partial_cmp(&self, other: &FuncSignature) -> Option<Ordering> {
-     self.name.partial_cmp(&other.name)
-   }
-   
-   fn lt(&self, other: &FuncSignature) -> bool { self.name < other.name }
-   fn le(&self, other: &FuncSignature) -> bool { self.name <= other.name }
-   fn gt(&self, other: &FuncSignature) -> bool { self.name > other.name }
-   fn ge(&self, other: &FuncSignature) -> bool { self.name <= other.name }
-}
-
-// TODO - compare other attributes
-impl Ord for FuncSignature {
-  fn cmp(&self, other: &FuncSignature) -> Ordering {
-    self.name.cmp(&other.name)
   }
 }

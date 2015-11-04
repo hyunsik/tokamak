@@ -3,6 +3,7 @@
 //!
 
 use std::mem;
+use std::cmp::Ordering;
 use std::rc::Rc;
 
 use err::Result;
@@ -15,7 +16,7 @@ pub struct TypeHandler {
   pub create_minipage: Rc<Fn() -> Box<MiniPage>>
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Ty {
   base         : String,
   comparable   : bool,
@@ -44,13 +45,27 @@ impl Ty {
 	}
 }
 
-impl Eq for Ty {}
+/// For ignoring
+impl Eq for TypeHandler {}
 
-impl PartialEq for Ty {
-  fn eq(&self, other: &Ty) -> bool {
-    &self.base      == &other.base &&
-    self.comparable == other.comparable &&
-    self.orderable  == other.orderable
+/// For ignoring 
+impl PartialEq for TypeHandler {
+  fn eq(&self, other: &TypeHandler) -> bool {
+    true
+  }
+}
+
+/// For ignoring
+impl PartialOrd for TypeHandler {
+ fn partial_cmp(&self, other: &TypeHandler) -> Option<Ordering> {
+   Some(Ordering::Equal)
+ }
+}
+
+/// For ignoring
+impl Ord for TypeHandler {
+  fn cmp(&self, other: &TypeHandler) -> Ordering {
+    Ordering::Equal
   }
 }
 
