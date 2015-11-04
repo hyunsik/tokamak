@@ -61,7 +61,7 @@ pub enum InvokeMethod
   TrinityOp (TrinityFn)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct FuncSignature 
 {
   // Function Name
@@ -81,17 +81,6 @@ impl FuncSignature
       arg_types: arg_types,
       fn_kind  : fn_kind
     }
-  }
-}
-
-impl Eq for FuncSignature {}
-
-// TODO - compare other attributes
-impl PartialEq for FuncSignature {
-  fn eq(&self, other: &FuncSignature) -> bool {
-    &self.name     == &other.name &&
-    self.arg_types == other.arg_types &&
-    self.fn_kind   == other.fn_kind
   }
 }
 
