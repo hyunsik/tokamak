@@ -222,9 +222,28 @@ pub mod visitor {
 	      ExprSpec::Sign     (ref c, _)            => self.accept(c),
 	      ExprSpec::Cast     (ref c, _, _)         => self.accept(c),
 	      
-	      ExprSpec::Const    (_)                   => {},
 	      ExprSpec::And      (ref l, ref r)        => { self.accept(l); self.accept(r) },
-	      _ => unimplemented!()
+	      ExprSpec::Or       (ref l, ref r)        => { self.accept(l); self.accept(r) },
+	      ExprSpec::Comp     (_, ref l, ref r)     => { self.accept(l); self.accept(r) },
+	      ExprSpec::Arithm   (_, ref l, ref r)     => { self.accept(l); self.accept(r) }, 
+	      
+	      ExprSpec::Fn       (_, ref args)         => { for e in args.iter() { self.accept(e) } },
+	      
+	      ExprSpec::Between  (ref p, ref b, ref e)     => { 
+	      	self.accept(p); self.accept(b); self.accept(e);
+	     	},
+	      
+	      ExprSpec::Switch   (ref cases, ref default)  => {  
+	      	for c in cases.iter() {
+	      		self.accept(c);
+	      	}
+	      	
+	      	self.accept(default);
+	      },
+	      ExprSpec::Case      (ref l, ref r)        => { self.accept(l); self.accept(r) },
+	      
+				ExprSpec::Field     (_) 	                => {},
+	      ExprSpec::Const     (_)                   => {}
 	    }
 	  } 
 	}
