@@ -25,25 +25,24 @@ impl TransformVisitor for BooleanSimplification
 	fn transform(&self, e: &Expr) -> Expr 
   {
 	  match *e.kind() {
-	  	ExprKind::Not(ref c) => transform_bool_or(c, |b| Const(Literal::Bool(!b))),
-	  	ExprKind::Comp(ref o, ref l, ref r) => match *o {
-	  		CompOp::Eq => Comp(CompOp::Ne, clone(l), clone(r)),
-	  		CompOp::Ne => Comp(CompOp::Eq, clone(l), clone(r)),
-	  		CompOp::Lt => Comp(CompOp::Ge, clone(l), clone(r)),
-	  		CompOp::Le => Comp(CompOp::Gt, clone(l), clone(r)),
-	  		CompOp::Gt => Comp(CompOp::Le, clone(l), clone(r)),
-	  		CompOp::Ge => Comp(CompOp::Lt, clone(l), clone(r)),
+	  	
+	  	ExprKind::Not(ref c) => match *c.kind() {
+	  	  ExprKind::Not(ref grand_child) => clone(grand_child),
+	  	  _ => transform_bool_or(c, |b| Const(Literal::Bool(!b)))
+  		},
+	  	
+	  	ExprKind::And(ref l, ref r) => Or (Not(clone(l)), Not(clone(r))),
+	  	ExprKind::Or (ref l, ref r) => And(Not(clone(l)), Not(clone(r))),
+	  	
+	  	ExprKind::Cmp(ref o, ref l, ref r) => match *o {
+	  		CmpOp::Eq => Cmp(CmpOp::Ne, clone(l), clone(r)),
+	  		CmpOp::Ne => Cmp(CmpOp::Eq, clone(l), clone(r)),
+	  		CmpOp::Lt => Cmp(CmpOp::Ge, clone(l), clone(r)),
+	  		CmpOp::Le => Cmp(CmpOp::Gt, clone(l), clone(r)),
+	  		CmpOp::Gt => Cmp(CmpOp::Le, clone(l), clone(r)),
+	  		CmpOp::Ge => Cmp(CmpOp::Lt, clone(l), clone(r)),
 	  	},
-	  	_ =>  transform_by_default(self, e)
+	  	_ =>  e.clone()
 	  }
 	}
 }
-
-//match literal {
-//	  			Literal::Bool(v) => match v {
-//	  				true => Literal::Bool(false)),
-//	  				false => Literal::Bool(true))
-//	  			},
-//	  			_ => literal.clone()
-//	  			
-//	  		}

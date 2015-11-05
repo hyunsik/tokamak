@@ -35,7 +35,7 @@ pub enum ExprKind {
   // Binary Arithmetic Expressions
   And(Box<Expr>,Box<Expr>),
   Or(Box<Expr>,Box<Expr>),
-  Comp(CompOp, Box<Expr>, Box<Expr>),
+  Cmp(CmpOp, Box<Expr>, Box<Expr>),
   Arithm(ArithmOp, Box<Expr>, Box<Expr>),
 
   // function and values
@@ -50,7 +50,7 @@ pub enum ExprKind {
 
 /// Comparison Operator Type
 #[derive(Clone, Copy)]
-pub enum CompOp {
+pub enum CmpOp {
   Eq,
   Ne,
   Lt,
@@ -138,9 +138,9 @@ pub fn Or(l: Expr, r: Expr) -> Expr
 	Expr(bool_ty(), ExprKind::Or(Box::new(l), Box::new(r)))
 }
 
-pub fn Comp(op: CompOp, l: Expr, r: Expr) -> Expr
+pub fn Cmp(op: CmpOp, l: Expr, r: Expr) -> Expr
 {
-	Expr(bool_ty(), ExprKind::Comp(op, Box::new(l), Box::new(r)))
+	Expr(bool_ty(), ExprKind::Cmp(op, Box::new(l), Box::new(r)))
 }
 
 pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
@@ -234,7 +234,7 @@ pub mod visitor {
 	    
 	    ExprKind::And      (ref l, ref r)    => { v.accept(l); v.accept(r) },
 	    ExprKind::Or       (ref l, ref r)    => { v.accept(l); v.accept(r) },
-	    ExprKind::Comp     (_, ref l, ref r) => { v.accept(l); v.accept(r) },
+	    ExprKind::Cmp      (_, ref l, ref r) => { v.accept(l); v.accept(r) },
 	    ExprKind::Arithm   (_, ref l, ref r) => { v.accept(l); v.accept(r) }, 
 	      
 	    ExprKind::Fn     (_, ref args)  => { for e in args.iter() { v.accept(e) } },  
@@ -276,7 +276,7 @@ pub mod visitor {
 
 	    ExprKind::And      (ref l, ref r)        => And(v.transform(l), v.transform(r)),
 	    ExprKind::Or       (ref l, ref r)        => Or (v.transform(l), v.transform(r)),
-	    ExprKind::Comp     (ref o, ref l, ref r) => Comp(*o, v.transform(l), v.transform(r)),
+	    ExprKind::Cmp      (ref o, ref l, ref r) => Cmp(*o, v.transform(l), v.transform(r)),
 	    ExprKind::Arithm   (ref o, ref l, ref r) => Arithm(o, e.ty(), v.transform(l), v.transform(r)), 
 	      
 	    ExprKind::Fn       (ref f, ref args)     => { 
