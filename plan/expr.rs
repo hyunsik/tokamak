@@ -194,16 +194,13 @@ pub fn transform_or<V, F>(v: &V, cond: bool, e: &Expr, f: F) -> Expr
 	}
 }
 
-pub fn transform_bool_or<F>(e: &Expr, f: F) -> Expr
+pub fn transform_bool_or<F>(l: &Literal, f: F) -> Expr
 		where F: Fn(bool) -> Expr
 {
-	match *e.kind() {
-		ExprKind::Const(ref l)  => match *l {
-				Literal::Bool(value) => f(value),
-				_                    => Const(l.clone())
-		},    
-		_ => e.clone()
-	}
+	match *l {
+  	Literal::Bool(value) => f(value),
+		_                    => Const(l.clone())
+	}   
 }
 
 
