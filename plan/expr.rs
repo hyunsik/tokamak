@@ -138,9 +138,9 @@ pub fn Or(l: Expr, r: Expr) -> Expr
 	Expr(bool_ty(), ExprKind::Or(Box::new(l), Box::new(r)))
 }
 
-pub fn Comp(op: &CompOp, l: Expr, r: Expr) -> Expr
+pub fn Comp(op: CompOp, l: Expr, r: Expr) -> Expr
 {
-	Expr(bool_ty(), ExprKind::Comp(*op, Box::new(l), Box::new(r)))
+	Expr(bool_ty(), ExprKind::Comp(op, Box::new(l), Box::new(r)))
 }
 
 pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
@@ -204,7 +204,8 @@ pub fn transform_bool_or<F>(e: &Expr, f: F) -> Expr
 		},    
 		_ => e.clone()
 	}
-}		
+}
+
 
 pub mod visitor {
 	//! Visitor for Expr
@@ -275,7 +276,7 @@ pub mod visitor {
 
 	    ExprKind::And      (ref l, ref r)        => And(v.transform(l), v.transform(r)),
 	    ExprKind::Or       (ref l, ref r)        => Or (v.transform(l), v.transform(r)),
-	    ExprKind::Comp     (ref o, ref l, ref r) => Comp(o, v.transform(l), v.transform(r)),
+	    ExprKind::Comp     (ref o, ref l, ref r) => Comp(*o, v.transform(l), v.transform(r)),
 	    ExprKind::Arithm   (ref o, ref l, ref r) => Arithm(o, e.ty(), v.transform(l), v.transform(r)), 
 	      
 	    ExprKind::Fn       (ref f, ref args)     => { 
