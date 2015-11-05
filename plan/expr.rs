@@ -173,38 +173,23 @@ pub fn Const(value: Literal) -> Expr
 	Expr(ty, ExprKind::Const(value))
 }
 
-pub fn to_boxed_vec<T>(exprs: Vec<T>) -> Vec<Box<T>>
-{
-	exprs.into_iter().map(|e| Box::new(e)).collect::<Vec<Box<T>>>()
-}
-
 pub fn clone(e: &Box<Expr>) -> Expr
 {
 	*(e.clone())
 }
 
-pub fn transform_or<V, F>(v: &V, cond: bool, e: &Expr, f: F) -> Expr
-		where V: visitor::TransformVisitor + Sized, 
-		      F: Fn(&Expr) -> Expr
+pub fn to_boxed_vec<T>(exprs: Vec<T>) -> Vec<Box<T>>
 {
-	if  cond {
-		f(e)
-	} else {
-		visitor::transform_by_default(v, e)
-	}
+		exprs.into_iter().map(|e| Box::new(e)).collect::<Vec<Box<T>>>()
 }
 
-pub fn transform_bool_or<F>(l: &Literal, f: F) -> Expr
-		where F: Fn(bool) -> Expr
+pub mod optimizer
 {
-	match *l {
-  	Literal::Bool(value) => f(value),
-		_                    => Const(l.clone())
-	}   
+	pub use expr_optimizer::*;
 }
 
-
-pub mod visitor {
+pub mod visitor 
+{
 	//! Visitor for Expr
 	
 	use common::types::Ty;

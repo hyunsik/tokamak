@@ -3,6 +3,27 @@ use common::err::Result;
 use super::expr::*;
 use super::expr::visitor::*;
 
+pub fn transform_or<V, F>(v: &V, cond: bool, e: &Expr, f: F) -> Expr
+		where V: visitor::TransformVisitor + Sized, 
+		      F: Fn(&Expr) -> Expr
+{
+	if  cond {
+		f(e)
+	} else {
+		visitor::transform_by_default(v, e)
+	}
+}
+
+pub fn transform_bool_or<F>(l: &Literal, f: F) -> Expr
+		where F: Fn(bool) -> Expr
+{
+	match *l {
+  	Literal::Bool(value) => f(value),
+		_                    => Const(l.clone())
+	}   
+}
+
+
 pub struct CastSimplification;
 
 impl TransformVisitor for CastSimplification
@@ -43,9 +64,9 @@ impl TransformVisitor for BooleanSimplification
 		  	},
 		  	
 		  	ExprKind::Const(ref l) => transform_bool_or(l, |b| Const(Literal::Bool(!b))),
-		  	_ => e.clone()
+		  	_ => transform_by_default(self, e)
   		},
-	  	_ =>  e.clone()
+	  	_ => transform_by_default(self, e)
 	  }
 	}
 }
