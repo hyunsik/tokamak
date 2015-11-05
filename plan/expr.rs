@@ -4,7 +4,7 @@ use common::types::{
 };
 
 #[derive(Clone)]
-pub struct Expr (pub Ty, pub ExprSpec);
+pub struct Expr (pub Ty, pub ExprKind);
 
 impl Expr 
 {
@@ -15,15 +15,15 @@ impl Expr
 	}
 	
 	#[inline]
-	pub fn spec(&self) -> &ExprSpec
-	{
+	pub fn kind(&self) -> &ExprKind
+	{ 
 		&self.1
 	}
 }
 
 /// Expression Specific Element
 #[derive(Clone)]
-pub enum ExprSpec {
+pub enum ExprKind {
   // Unary Expressions
   Not      (Box<Expr>),
   IsNull   (Box<Expr>),
@@ -89,85 +89,88 @@ impl FnDecl
 pub enum Literal 
 {
   Bool(bool),
-  Int1(i8),
-  Int2(i16),
-  Int4(i32),
-  Int8(i64),
-  Float4(f32),
-  Float8(f64),
-  Time(i64),
-  Date(i32),
-  Timestamp(i64),
-  Interval(i64, i32),
-  Char(String),
-  Text(String),
-  Varchar(String),
-  Blob(Vec<u8>)
+  I8(i8),
+  I16(i16),
+  I32(i32),
+  I64(i64),
+  F32(f32),
+  F64(f64),
+  String(String)
 }
 
 pub fn Not(c: Expr) -> Expr 
 {
-	Expr(c.ty().clone(), ExprSpec::Not(Box::new(c)))
+	Expr(c.ty().clone(), ExprKind::Not(Box::new(c)))
 }
 
 pub fn IsNull(c: Expr) -> Expr 
 {
-	Expr(bool_ty(), ExprSpec::IsNull(Box::new(c)))
+	Expr(bool_ty(), ExprKind::IsNull(Box::new(c)))
 }
 
 pub fn IsNotNull(c: Expr) -> Expr 
 {
-	Expr(bool_ty(), ExprSpec::IsNull(Box::new(c)))
+	Expr(bool_ty(), ExprKind::IsNull(Box::new(c)))
 }
 
 pub fn Cast(c: Expr, from_ty: &Ty, to_ty: &Ty) -> Expr
 {
-	Expr(to_ty.clone(), ExprSpec::Cast(Box::new(c), from_ty.clone(), to_ty.clone()))
+	Expr(to_ty.clone(), ExprKind::Cast(Box::new(c), from_ty.clone(), to_ty.clone()))
 }
 
 pub fn PlusSign(c: Expr) -> Expr
 {
-	Expr(c.ty().	clone(), ExprSpec::PlusSign(Box::new(c)))
+	Expr(c.ty().	clone(), ExprKind::PlusSign(Box::new(c)))
 }
 
 pub fn MinusSign(c: Expr) -> Expr
 {
-	Expr(c.ty().clone(), ExprSpec::MinusSign(Box::new(c)))
+	Expr(c.ty().clone(), ExprKind::MinusSign(Box::new(c)))
 }
 
 pub fn And(l: Expr, r: Expr) -> Expr
 {
-	Expr(bool_ty(), ExprSpec::And(Box::new(l), Box::new(r)))
+	Expr(bool_ty(), ExprKind::And(Box::new(l), Box::new(r)))
 }
 
 pub fn Or(l: Expr, r: Expr) -> Expr
 {
-	Expr(bool_ty(), ExprSpec::Or(Box::new(l), Box::new(r)))
+	Expr(bool_ty(), ExprKind::Or(Box::new(l), Box::new(r)))
 }
 
 pub fn Comp(op: &CompOp, l: Expr, r: Expr) -> Expr
 {
-	Expr(bool_ty(), ExprSpec::Comp(*op, Box::new(l), Box::new(r)))
+	Expr(bool_ty(), ExprKind::Comp(*op, Box::new(l), Box::new(r)))
 }
 
 pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
 {
-	Expr(ret_type.clone(), ExprSpec::Arithm(*op, Box::new(l), Box::new(r)))
+	Expr(ret_type.clone(), ExprKind::Arithm(*op, Box::new(l), Box::new(r)))
 }
 
 pub fn Func(decl: FnDecl, args: Vec<Expr>) -> Expr
 {
-	Expr(decl.ty().clone(), ExprSpec::Fn(decl, to_boxed_vec(args))) 
+	Expr(decl.ty().clone(), ExprKind::Fn(decl, to_boxed_vec(args))) 
 }
 
 pub fn Switch(cases: Vec<Expr>, default: Expr) -> Expr
 {
-	Expr(default.ty().clone(), ExprSpec::Switch(to_boxed_vec(cases), Box::new(default)))
+	Expr(default.ty().clone(), ExprKind::Switch(to_boxed_vec(cases), Box::new(default)))
 }
 
 pub fn Case(cond: Expr, result: Expr) -> Expr
 {
-	Expr(result.ty().clone(), ExprSpec::Case(Box::new(cond), Box::new(result)))
+	Expr(result.ty().clone(), ExprKind::Case(Box::new(cond), Box::new(result)))
+}
+
+pub fn Const(value: Literal) -> Expr
+{
+	let ty = match value {
+		Literal::Bool(_) => bool_ty(),
+		_                => panic!("unsupported type")
+	};
+	
+	Expr(ty, ExprKind::Const(value))
 }
 
 pub fn to_boxed_vec<T>(exprs: Vec<T>) -> Vec<Box<T>>
@@ -191,6 +194,18 @@ pub fn transform_or<V, F>(v: &V, cond: bool, e: &Expr, f: F) -> Expr
 	}
 }
 
+pub fn transform_bool_or<F>(e: &Expr, f: F) -> Expr
+		where F: Fn(bool) -> Expr
+{
+	match *e.kind() {
+		ExprKind::Const(ref l)  => match *l {
+				Literal::Bool(value) => f(value),
+				_                    => Const(l.clone())
+		},    
+		_ => e.clone()
+	}
+}		
+
 pub mod visitor {
 	//! Visitor for Expr
 	
@@ -208,24 +223,24 @@ pub mod visitor {
 	}
 	
 	pub fn accept_by_default<T>(v: &mut T, e: &Expr) where T: SimpleVisitor + Sized {
-	  match *e.spec() {
-	    ExprSpec::Not      (ref c)       => v.accept(c),
-	    ExprSpec::IsNull   (ref c)       => v.accept(c),
-	    ExprSpec::IsNotNull(ref c)       => v.accept(c),
-	    ExprSpec::PlusSign (ref c)       => v.accept(c),
-	    ExprSpec::MinusSign(ref c)       => v.accept(c),
-	    ExprSpec::Cast     (ref c, _, _) => v.accept(c),
+	  match *e.kind() {
+	    ExprKind::Not      (ref c)       => v.accept(c),
+	    ExprKind::IsNull   (ref c)       => v.accept(c),
+	    ExprKind::IsNotNull(ref c)       => v.accept(c),
+	    ExprKind::PlusSign (ref c)       => v.accept(c),
+	    ExprKind::MinusSign(ref c)       => v.accept(c),
+	    ExprKind::Cast     (ref c, _, _) => v.accept(c),
 	    
-	    ExprSpec::And      (ref l, ref r)    => { v.accept(l); v.accept(r) },
-	    ExprSpec::Or       (ref l, ref r)    => { v.accept(l); v.accept(r) },
-	    ExprSpec::Comp     (_, ref l, ref r) => { v.accept(l); v.accept(r) },
-	    ExprSpec::Arithm   (_, ref l, ref r) => { v.accept(l); v.accept(r) }, 
+	    ExprKind::And      (ref l, ref r)    => { v.accept(l); v.accept(r) },
+	    ExprKind::Or       (ref l, ref r)    => { v.accept(l); v.accept(r) },
+	    ExprKind::Comp     (_, ref l, ref r) => { v.accept(l); v.accept(r) },
+	    ExprKind::Arithm   (_, ref l, ref r) => { v.accept(l); v.accept(r) }, 
 	      
-	    ExprSpec::Fn     (_, ref args)  => { for e in args.iter() { v.accept(e) } },  
-			ExprSpec::Field  (_) 	          => {},
-	    ExprSpec::Const  (_)            => {}
+	    ExprKind::Fn     (_, ref args)  => { for e in args.iter() { v.accept(e) } },  
+			ExprKind::Field  (_) 	          => {},
+	    ExprKind::Const  (_)            => {}
 	    
-	    ExprSpec::Switch(ref cases, ref default) => {  
+	    ExprKind::Switch(ref cases, ref default) => {  
 	    	for c in cases.iter() {
 	    		v.accept(c);
 	   	  }
@@ -233,7 +248,7 @@ pub mod visitor {
 	    	v.accept(default);
 	    },
 	    
-	    ExprSpec::Case   (ref l, ref r) => { v.accept(l); v.accept(r) },
+	    ExprKind::Case   (ref l, ref r) => { v.accept(l); v.accept(r) },
 	  }
 	}
 	
@@ -250,32 +265,32 @@ pub mod visitor {
 	pub fn transform_by_default<T>(v: &T, e: &Expr) -> Expr 
 			where T: TransformVisitor + Sized
 	{
-		match *e.spec() {
-	    ExprSpec::Not      (ref c)               => Not      (v.transform(c)),
-	    ExprSpec::IsNull   (ref c)               => IsNull   (v.transform(c)),
-	    ExprSpec::IsNotNull(ref c)               => IsNotNull(v.transform(c)),
-	    ExprSpec::PlusSign (ref c)               => PlusSign (v.transform(c)),
-	    ExprSpec::MinusSign(ref c)               => MinusSign(v.transform(c)),
-	    ExprSpec::Cast     (ref c, ref f, ref t) => Cast     (v.transform(c), f, t),
+		match *e.kind() {
+	    ExprKind::Not      (ref c)               => Not      (v.transform(c)),
+	    ExprKind::IsNull   (ref c)               => IsNull   (v.transform(c)),
+	    ExprKind::IsNotNull(ref c)               => IsNotNull(v.transform(c)),
+	    ExprKind::PlusSign (ref c)               => PlusSign (v.transform(c)),
+	    ExprKind::MinusSign(ref c)               => MinusSign(v.transform(c)),
+	    ExprKind::Cast     (ref c, ref f, ref t) => Cast     (v.transform(c), f, t),
 
-	    ExprSpec::And      (ref l, ref r)        => And(v.transform(l), v.transform(r)),
-	    ExprSpec::Or       (ref l, ref r)        => Or (v.transform(l), v.transform(r)),
-	    ExprSpec::Comp     (ref o, ref l, ref r) => Comp(o, v.transform(l), v.transform(r)),
-	    ExprSpec::Arithm   (ref o, ref l, ref r) => Arithm(o, e.ty(), v.transform(l), v.transform(r)), 
+	    ExprKind::And      (ref l, ref r)        => And(v.transform(l), v.transform(r)),
+	    ExprKind::Or       (ref l, ref r)        => Or (v.transform(l), v.transform(r)),
+	    ExprKind::Comp     (ref o, ref l, ref r) => Comp(o, v.transform(l), v.transform(r)),
+	    ExprKind::Arithm   (ref o, ref l, ref r) => Arithm(o, e.ty(), v.transform(l), v.transform(r)), 
 	      
-	    ExprSpec::Fn       (ref f, ref args)     => { 
+	    ExprKind::Fn       (ref f, ref args)     => { 
 	    	let rargs = args.iter().map(|arg| v.transform(arg)).collect::<Vec<Expr>>();
 	    	Func(f.clone(), rargs)  
     	},
-			ExprSpec::Field     (_) 	                => e.clone(),
-	    ExprSpec::Const     (_)                   => e.clone(),
+			ExprKind::Field     (_) 	                => e.clone(),
+	    ExprKind::Const     (_)                   => e.clone(),
 
-	    ExprSpec::Switch   (ref cases, ref default)  => {  
+	    ExprKind::Switch   (ref cases, ref default)  => {  
 	    	let rcases = cases.iter().map(|case| v.transform(case)).collect::<Vec<Expr>>();
 	    	
 	    	Switch(rcases, v.transform(default)) 
    	  }
-	    ExprSpec::Case      (ref l, ref r)        => Case(v.transform(l), v.transform(r)),
+	    ExprKind::Case      (ref l, ref r)        => Case(v.transform(l), v.transform(r)),
 	  }
 	}
 }
