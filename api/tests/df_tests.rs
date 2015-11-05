@@ -20,7 +20,8 @@ pub fn test_data_source() {
   
   let selected = df.select(vec![]);
   assert_eq!("select", selected.kind());
-  //let rnd: Box<DataSet> = RandomGenerator::new(&ctx, vec!["int4", "int4"]).ok().unwrap();
+  
+  println!("{}", selected.head());
 }
 
 #[test]

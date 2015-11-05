@@ -57,13 +57,13 @@ impl<'a> PluginManager<'a>
   } 
   
   #[inline]
-  pub fn type_registry(&self) -> &TypeRegistry 
+  pub fn ty_registry(&self) -> &TypeRegistry 
   {
     &self.type_registry
   }
   
   #[inline]
-  pub fn func_registry(&self) -> &FuncRegistry 
+  pub fn fn_registry(&self) -> &FuncRegistry 
   {
     &self.func_registry
   }

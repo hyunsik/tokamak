@@ -39,13 +39,13 @@ impl TokamakContext
   #[inline]
   pub fn get_type(&self, type_sign: &str) -> Result<Ty>
   {    
-    self.plugin_manager().type_registry().get(type_sign)
+    self.plugin_manager().ty_registry().get(type_sign)
   }
   
   #[inline]
   pub fn all_types(&self) -> Vec<&str> 
   {
-    self.plugin_manager().type_registry().all()
+    self.plugin_manager().ty_registry().all()
   }
   
   pub fn from(&self, ds: DataSet) -> DataFrame {
@@ -53,7 +53,7 @@ impl TokamakContext
   }
   
   pub fn random_table(&self, type_strs: Vec<&str>, rownum: usize) -> DataFrame {
-    let types = types_str_to_types(self.executor.plugin_manager().type_registry(), &type_strs);
+    let types = types_str_to_types(self.executor.plugin_manager().ty_registry(), &type_strs);
     DataFrame {ctx: self, plan: Operator::Scan(DataSet::random(types, rownum))}
   }
 }

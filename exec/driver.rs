@@ -72,7 +72,8 @@ pub struct DriverContext<'a>
 
 impl<'a> DriverContext<'a>
 {
-	pub fn new(ty_registry: &'a TypeRegistry, fn_registry: &'a FuncRegistry) -> DriverContext<'a>
+	pub fn new(ty_registry: &'a TypeRegistry, 
+						 fn_registry: &'a FuncRegistry) -> DriverContext<'a>
 	{
 		DriverContext {
 			ty_registry: ty_registry,

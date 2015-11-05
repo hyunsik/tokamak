@@ -40,13 +40,13 @@ impl<'a> LocalQueryRunner<'a>
   }
   
   #[inline]
-  fn type_registry(&self) -> &TypeRegistry {
-  	self.plugin_manager.type_registry()
+  fn ty_registry(&self) -> &TypeRegistry {
+  	self.plugin_manager.ty_registry()
   }
   
   #[inline]
-  fn func_registry(&self) -> &FuncRegistry {
-  	self.plugin_manager.func_registry()
+  fn fn_registry(&self) -> &FuncRegistry {
+  	self.plugin_manager.fn_registry()
   }
 }
 
@@ -72,13 +72,13 @@ impl<'a> QueryRunner for LocalQueryRunner<'a>
   
   fn execute(&self, session: &Session, plan: &Operator) -> Result<DataSet> {
     let logical_plan = try!(self.planner.build(
-    		self.type_registry(), self.func_registry(), session, plan));
+    		self.ty_registry(), self.fn_registry(), session, plan));
     let optimized    = try!(self.optimizer.optimize(
-    		self.type_registry(), self.func_registry(), session, &logical_plan));
+    		self.ty_registry(), self.fn_registry(), session, &logical_plan));
     let exec_plan    = try!(self.exec_planner.build(
-    		self.type_registry(), self.func_registry(), session, &optimized));
+    		self.ty_registry(), self.fn_registry(), session, &optimized));
     
-    let ctx = DriverContext::new(self.type_registry(), self.func_registry);
+    let ctx = DriverContext::new(self.ty_registry(), self.fn_registry());
     
     let drivers = exec_plan.driver_factories()
     	.iter()
