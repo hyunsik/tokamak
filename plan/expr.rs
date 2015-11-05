@@ -3,6 +3,11 @@ use common::types::{
 	bool_ty
 };
 
+use util::boxed::{
+	ToBoxedVec,
+	ToUnboxedVec
+};
+
 #[derive(Clone)]
 pub struct Expr (pub Ty, pub ExprKind);
 
@@ -150,12 +155,12 @@ pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
 
 pub fn Func(decl: FnDecl, args: Vec<Expr>) -> Expr
 {
-	Expr(decl.ty().clone(), ExprKind::Fn(decl, to_boxed_vec(args))) 
+	Expr(decl.ty().clone(), ExprKind::Fn(decl, args.to_boxed())) 
 }
 
 pub fn Switch(cases: Vec<Expr>, default: Expr) -> Expr
 {
-	Expr(default.ty().clone(), ExprKind::Switch(to_boxed_vec(cases), Box::new(default)))
+	Expr(default.ty().clone(), ExprKind::Switch(cases.to_boxed(), Box::new(default)))
 }
 
 pub fn Case(cond: Expr, result: Expr) -> Expr
@@ -176,11 +181,6 @@ pub fn Const(value: Literal) -> Expr
 pub fn clone(e: &Box<Expr>) -> Expr
 {
 	*(e.clone())
-}
-
-pub fn to_boxed_vec<T>(exprs: Vec<T>) -> Vec<Box<T>>
-{
-		exprs.into_iter().map(|e| Box::new(e)).collect::<Vec<Box<T>>>()
 }
 
 pub mod optimizer

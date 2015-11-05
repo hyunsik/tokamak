@@ -2,8 +2,9 @@
 //! Plan
 //!
 
-extern crate common;
 extern crate algebra;
+extern crate common;
+extern crate util;
 
 use common::plugin::{TypeRegistry, FuncRegistry};
 
