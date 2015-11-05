@@ -1,8 +1,9 @@
-/// Utilities for Boxed Objects
+//! Utilities for Boxed Objects
 
+/// Trait to covert self into Vec<Box<T>> 
 pub trait ToBoxedVec<T>
 {
-	/// Covert self into a vector of boxed elements without clones and allocation.
+	/// Covert self into Vec<Box<T>>
 	fn to_boxed(self) -> Vec<Box<T>>;
 }
 
@@ -14,14 +15,16 @@ impl<T> ToBoxedVec<T> for Vec<T>
 	}
 }
 
-pub trait ToUnboxedVec<T>
+/// Trait to covert self into Vec<T>
+pub trait ToVec<T>
 {
-	fn to_unboxed(self) -> Vec<T>;
+	/// Covert self into Vec<T>
+	fn to_vec(self) -> Vec<T>;
 }
 
-impl<T> ToUnboxedVec<T> for Vec<Box<T>>
+impl<T> ToVec<T> for Vec<Box<T>>
 {
-	fn to_unboxed(self) -> Vec<T>
+	fn to_vec(self) -> Vec<T>
 	{
 		self.into_iter().map(|e| *e).collect::<Vec<T>>()
 	}

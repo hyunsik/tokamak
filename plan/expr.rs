@@ -5,7 +5,7 @@ use common::types::{
 
 use util::boxed::{
 	ToBoxedVec,
-	ToUnboxedVec
+	ToVec
 };
 
 #[derive(Clone)]
