@@ -7,6 +7,7 @@ extern crate alloc;
 extern crate itertools;
 extern crate libc;
 extern crate uuid;
+extern crate rustc_serialize;
 
 pub mod dataset;
 pub mod err;

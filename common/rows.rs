@@ -19,6 +19,7 @@
 
 use alloc::heap;
 use std::marker;
+use std::ptr;
 use std::slice;
 
 use platform::get_aligned_size;
@@ -84,6 +85,8 @@ pub trait MiniPage
   fn read_f64(&self, pos: PosId) -> f64;
   
   fn writer(&mut self) -> &mut MiniPageWriter;
+  
+  fn copy(&self) -> Box<MiniPage>;
 }
 
 /// Writer for Vector. The writer internally must have a cursor to write a value.
@@ -158,6 +161,7 @@ impl PageBuilder
   }
 }
 
+/// Fixed Length Mini Page
 pub struct FMiniPage<'a> 
 {
   ptr      : *mut u8,
@@ -243,6 +247,19 @@ impl<'a> MiniPage for FMiniPage<'a> {
   fn writer(&mut self) -> &mut MiniPageWriter 
   {
     &mut self.writer
+  }
+  
+  fn copy(&self) -> Box<MiniPage> {
+  	
+  	let mut ptr = unsafe { heap::allocate(self.bytesize as usize, 16) };
+    unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.bytesize as usize); } 
+  	
+  	Box::new(FMiniPage {
+      ptr: ptr,
+      bytesize: self.bytesize as u32,
+      writer: FMiniPageWriter {ptr: ptr, len: self.bytesize as usize, pos: 0},
+      _marker: marker::PhantomData,
+    })
   }
 }
 
