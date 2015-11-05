@@ -114,7 +114,8 @@ impl<'v> Visitor<'v, ExecPlanContext> for ExecutionPlanner {
   				source_factory: get_factory("random")
   			});
   			ctx.stack.push(factory);
-  		}
+  		},
+  		_ => panic!("Unsupported type")
   	}
  	}
 }

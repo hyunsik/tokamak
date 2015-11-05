@@ -1,5 +1,8 @@
+use std::rc::Rc;
+
 use uuid::Uuid;
 
+use memtable::MemTable;
 use types::Ty;
 
 #[derive(Clone)]
@@ -11,7 +14,8 @@ pub struct DataSet {
 #[derive(Clone)]
 pub enum DataSetDecl {
   // types and rownum
-  RandomTable(Vec<Ty>, usize)
+  RandomTable(Vec<Ty>, usize),
+  MemoryTable(Rc<MemTable>)
 }
 
 impl DataSet {

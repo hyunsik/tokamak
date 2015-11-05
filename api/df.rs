@@ -41,6 +41,7 @@ impl<'a> DataFrame<'a> {
   }
   
   pub fn head_with(self, num: usize) -> Result<DataSet> {
+  	info!("execute head({})", num);
     let head_plan = Operator::Head(Box::new(self.plan), num);
     self.ctx.runner().execute(&self.ctx.session, &head_plan)
   }

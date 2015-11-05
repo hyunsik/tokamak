@@ -84,6 +84,7 @@ impl<'a> QueryRunner for LocalQueryRunner<'a>
     	.iter()
     	.map(|x| x.create_driver(&ctx))
     	.collect::<Vec<Driver>>();
+		debug_assert!(drivers.len() > 0, "At least one Driver must be initialized");
     	
     unimplemented!()
   }

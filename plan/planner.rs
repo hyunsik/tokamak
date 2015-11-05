@@ -46,7 +46,7 @@ impl PlanBuilder
   }
   
   pub fn push(&mut self, node: PlanNode) {
-  	self.push(node);
+  	self.stack.push(node);
   }
   
   pub fn seq(&mut self) -> u32 {

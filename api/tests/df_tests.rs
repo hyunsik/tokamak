@@ -1,5 +1,7 @@
 extern crate api;
 extern crate common;
+extern crate env_logger;
+#[macro_use] extern crate log;
 
 extern crate rustc_serialize;
 extern crate bincode;
@@ -13,6 +15,8 @@ use api::df::DataFrame;
 
 #[test]
 pub fn test_data_source() {
+	env_logger::init().unwrap();
+	
   let ctx = TokamakContext::new().ok().unwrap();
   
   let df = ctx.random_table(vec!["i32", "f32"], 5);
@@ -21,7 +25,7 @@ pub fn test_data_source() {
   let selected = df.select(vec![]);
   assert_eq!("select", selected.kind());
   
-  println!("{}", selected.head());
+  selected.head();
 }
 
 #[test]

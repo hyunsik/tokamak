@@ -10,8 +10,6 @@ use common::input::InputSource;
 use common::session::Session;
 use common::types::Ty;
 
-mod memtable;
-
 mod random;
 pub use random::RandomTableGenerator;
 
