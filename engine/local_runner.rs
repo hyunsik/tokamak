@@ -78,7 +78,7 @@ impl<'a> QueryRunner for LocalQueryRunner<'a>
     let exec_plan    = try!(self.exec_planner.build(
     		self.type_registry(), self.func_registry(), session, &optimized));
     
-    let ctx = DriverContext;
+    let ctx = DriverContext::new(self.type_registry(), self.func_registry);
     
     let drivers = exec_plan.driver_factories()
     	.iter()

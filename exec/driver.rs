@@ -1,6 +1,7 @@
 use std::marker;
 
 use common::err::Result;
+use common::plugin::{FuncRegistry, TypeRegistry};
 use common::rows::Page;
 
 use task::TaskSource;
@@ -9,7 +10,7 @@ use super::{Executor, ExecutorFactory};
 
 pub struct Driver<'a>
 {
-	ctx : &'a DriverContext,
+	ctx : &'a DriverContext<'a>,
 	root_exec: Box<Executor>
 }
 
@@ -63,4 +64,19 @@ impl<'a> DriverFactory<'a> {
   }
 }
 
-pub struct DriverContext;
+pub struct DriverContext<'a>
+{
+	ty_registry: &'a TypeRegistry,
+	fn_registry: &'a FuncRegistry 
+}
+
+impl<'a> DriverContext<'a>
+{
+	pub fn new(ty_registry: &'a TypeRegistry, fn_registry: &'a FuncRegistry) -> DriverContext<'a>
+	{
+		DriverContext {
+			ty_registry: ty_registry,
+			fn_registry: fn_registry 
+		}
+	}
+}
