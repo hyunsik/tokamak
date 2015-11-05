@@ -351,3 +351,15 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
   }
 }
 */
+
+pub const BOOL_STR       : &'static str = "bool";
+
+pub fn bool_ty() -> Ty {
+	let handler = TypeHandler {
+	 	create_minipage: Rc::new(|| -> Box<MiniPage> {
+			Box::new(FMiniPage::new(mem::size_of::<bool>()))
+		})
+  };
+	
+	Ty::new(BOOL_STR, true, true, handler) 
+}

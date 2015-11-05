@@ -12,12 +12,12 @@ pub enum NodeDecl {
   Relation           (DataSet),  
   PartitionedRelation(PartitionedRelDecl),
   DerivedRelation    (DerivedRelDecl),
-  Join      (Box<PlanNode>, Box<PlanNode>, JoinDecl),
-  Project   (Box<PlanNode>, Vec<Expr>), // child and exprs
-  Filter    (Box<PlanNode>, Vec<Expr>), // child and bool exprs
-  Aggregate (Box<PlanNode>, AggDecl), // child and decl
-  Head      (Box<PlanNode>, usize),   // child and row number
-  Tail      (Box<PlanNode>, usize),   // child and row number
+  Join               (Box<PlanNode>, Box<PlanNode>, JoinDecl),
+  Project            (Box<PlanNode>, Vec<Expr>), // child and exprs
+  Filter             (Box<PlanNode>, Vec<Expr>), // child and bool exprs
+  Aggregate          (Box<PlanNode>, AggDecl), // child and decl
+  Head               (Box<PlanNode>, usize),   // child and row number
+  Tail               (Box<PlanNode>, usize),   // child and row number
 }
 
 /// Partitioned Table description

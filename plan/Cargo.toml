@@ -13,5 +13,8 @@ itertools = "0.4.1"
 [dependencies.algebra]
 path = "../algebra"
 
+[dependencies.default_package]
+path = "../default_package"
+
 [dependencies.common]
 path = "../common"
