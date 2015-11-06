@@ -66,6 +66,16 @@ impl Page
       .map(|m| m.bytesize())
       .fold(0, |acc, size| acc + size)
   }
+  
+  pub fn copy(&self) -> Page
+  {
+  	let copied_mpages = self.mini_pages
+  		.iter()
+  		.map(|mp| mp.copy())
+  		.collect::<Vec<Box<MiniPage>>>();
+  	
+  	Page {mini_pages: copied_mpages, value_count: 0}
+  }
 }
 
 pub trait MiniPage 
