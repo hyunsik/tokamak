@@ -352,7 +352,9 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
 }
 */
 
-pub const BOOL_STR       : &'static str = "bool";
+pub const BOOL_STR      : &'static str = "bool";
+pub const I32_STR       : &'static str = "i32";
+pub const F32_STR       : &'static str = "i32";
 
 pub fn bool_ty() -> Ty {
 	let handler = TypeHandler {
@@ -362,4 +364,24 @@ pub fn bool_ty() -> Ty {
   };
 	
 	Ty::new(BOOL_STR, true, true, handler) 
+}
+
+pub fn i32_ty() -> Ty {
+	let handler = TypeHandler {
+	 	create_minipage: Rc::new(|| -> Box<MiniPage> {
+			Box::new(FMiniPage::new(mem::size_of::<i32>()))
+		})
+  };
+	
+	Ty::new(I32_STR, true, true, handler) 
+}
+
+pub fn f32_ty() -> Ty {
+	let handler = TypeHandler {
+	 	create_minipage: Rc::new(|| -> Box<MiniPage> {
+			Box::new(FMiniPage::new(mem::size_of::<f32>()))
+		})
+  };
+	
+	Ty::new(F32_STR, true, true, handler) 
 }

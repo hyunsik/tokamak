@@ -2,23 +2,22 @@ extern crate common;
 extern crate sql;
 extern crate storage;
 
-use std::rc::Rc;
-
-use common::types::Type;
+use common::session::Session;
+use common::types::{i32_ty, f32_ty, Ty};
 use common::rows::{MiniPage, ROWBATCH_SIZE};
-use sql::types::{Int4, Float4};
-use storage::InputSource;
-use storage::random::RandomTableGenerator;
+use common::input::InputSource;
+use storage::RandomTableGenerator;
 
 #[test]
 pub fn test_random_table() 
 {
-  let types: Vec<Box<Type>> = vec![
-    Box::new(Int4::new()), 
-    Box::new(Float4::new())
+  let types: Vec<Ty> = vec![
+    i32_ty(), 
+    f32_ty()
   ];
   
-  let mut generator = RandomTableGenerator::new(Rc::new(types));
+  let session = Session;
+  let mut generator = RandomTableGenerator::new(&session, &types, 5);
   
   for _ in 0..2 {
     let page = generator.next().unwrap();
