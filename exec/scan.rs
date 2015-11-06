@@ -1,9 +1,7 @@
 use common::err::{Error, Result, Void, void_ok};
+use common::input::{InputSource, InputSourceFactory};
 use common::types::Ty;
 use common::rows::{Page, PageBuilder};
-use common::input::InputSource;
-
-use storage::InputSourceFactory;
 
 use driver::DriverContext;
 use super::{Executor, ExecutorFactory, Processor};

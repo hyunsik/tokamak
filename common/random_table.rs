@@ -1,18 +1,22 @@
+//! Random Data Generation Table
+//!
+//! It is designed for unit tests or users' prototypying.
+
 use std::rc::Rc;
 use rand;
 
 use itertools::Zip;
 
-use common::err::{void_ok, Void, Result};
-use common::session::Session;
-use common::types::{Ty};
-use common::rows::{
+use err::{void_ok, Void, Result};
+use session::Session;
+use types::{Ty};
+use rows::{
   MiniPageWriter,
   Page,
   PageBuilder,
   ROWBATCH_SIZE
 };
-use common::input::InputSource;
+use input::InputSource;
 
 pub struct RandomTableGenerator 
 {

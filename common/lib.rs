@@ -6,8 +6,9 @@
 extern crate alloc;
 extern crate itertools;
 extern crate libc;
-extern crate uuid;
+extern crate rand;
 extern crate rustc_serialize;
+extern crate uuid;
 
 pub mod dataset;
 pub mod err;
@@ -20,5 +21,6 @@ pub mod rows;
 pub mod plugin;
 pub mod session;
 pub mod str;
+pub mod random_table;
 pub mod types;
 pub mod platform;

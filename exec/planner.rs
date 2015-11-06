@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use common::dataset::{DataSet, DataSetDecl};
 use common::err::{Error, Result};
+use common::input::get_factory;
 use common::plugin::{FuncRegistry, TypeRegistry};
 use common::session::Session;
 
@@ -12,7 +13,6 @@ use plan::expr::Expr;
 use plan::visitor::*;
 
 use driver::DriverFactory;
-use storage::get_factory;
 use super::ExecutorFactory;
 
 use hash_join::HashJoinExecFactory;
