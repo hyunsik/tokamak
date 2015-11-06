@@ -1,12 +1,10 @@
 extern crate common;
-extern crate sql;
-extern crate storage;
 
 use common::session::Session;
 use common::types::{i32_ty, f32_ty, Ty};
 use common::rows::{MiniPage, ROWBATCH_SIZE};
 use common::input::InputSource;
-use storage::RandomTableGenerator;
+use common::random_table::RandomTable;
 
 #[test]
 pub fn test_random_table() 
