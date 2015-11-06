@@ -14,13 +14,19 @@ pub mod dataset;
 pub mod err;
 pub mod func;
 pub mod input;
-pub mod memtable;
 pub mod mm;
 pub mod operator;
 pub mod rows;
 pub mod plugin;
 pub mod session;
 pub mod str;
-pub mod random_table;
 pub mod types;
 pub mod platform;
+
+mod memtable;
+mod random_table;
+
+pub mod storage {
+	pub use memtable::*;
+	pub use random_table::*;
+}

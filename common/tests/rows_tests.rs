@@ -4,7 +4,7 @@ use common::session::Session;
 use common::types::{i32_ty, f32_ty, Ty};
 use common::rows::{MiniPage, ROWBATCH_SIZE};
 use common::input::InputSource;
-use common::random_table::RandomTable;
+use common::storage::RandomTable;
 
 #[test]
 pub fn test_minipage_copy() 
