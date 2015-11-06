@@ -17,7 +17,7 @@ pub fn test_random_table()
   ];
   
   let session = Session;
-  let mut generator = RandomTableGenerator::new(&session, &types, 5);
+  let mut generator = RandomTable::new(&session, &types, 5);
   
   for _ in 0..2 {
     let page = generator.next().unwrap();

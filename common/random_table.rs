@@ -18,18 +18,18 @@ use rows::{
 };
 use input::InputSource;
 
-pub struct RandomTableGenerator 
+pub struct RandomTable 
 {
   builder: Box<PageBuilder>,
   write_fns: Vec<Box<Fn(&mut MiniPageWriter, usize)>>,
   rownum : usize 
 }
 
-impl RandomTableGenerator 
+impl RandomTable 
 {
   pub fn new(session: &Session, types: &Vec<Ty>, rownum: usize) -> Box<InputSource> {
     
-    Box::new(RandomTableGenerator {
+    Box::new(RandomTable {
       builder: Box::new(PageBuilder::new(types)),
       write_fns: types.iter()
         .map(|ty| choose_random_fn(ty)) // choose random functions for types
@@ -39,7 +39,7 @@ impl RandomTableGenerator
   }
 }
 
-impl InputSource for RandomTableGenerator 
+impl InputSource for RandomTable 
 {
   fn open(&mut self) -> Void { void_ok }
   

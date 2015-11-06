@@ -4,7 +4,7 @@ use err::{Void, Result};
 use types::Ty;
 use session::Session;
 use rows::Page;
-use random_table::RandomTableGenerator;
+use random_table::RandomTable;
 
 pub trait InputSource {
   fn open    (&mut self) -> Void;
@@ -17,7 +17,7 @@ pub type InputSourceFactory = Rc<Fn(&Session, &Vec<Ty>, usize) -> Box<InputSourc
 
 pub fn get_factory(kind: &str) -> InputSourceFactory {
 	match kind {
-		"random" => {Rc::new(RandomTableGenerator::new)},
+		"random" => {Rc::new(RandomTable::new)},
 		_        => panic!("unknown storage: {}", kind)
 			
 	}
