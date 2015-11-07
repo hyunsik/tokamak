@@ -4,15 +4,33 @@
 
 use rustc_serialize::Decodable;
 
-use err::{Result, Void};
+use session::Session;
+use err::{Result, Void, void_ok};
 use rows::*;
 use types::Ty;
 
-pub struct MemTable
+pub struct MemTable<'a>
 {
-	pages : Vec<Page>,
-	types : Vec<Ty>,
-	field_names: Vec<String>
+	session    : &'a Session,
+	types      : Vec<Ty>,
+	field_names: Vec<String>,
+	
+	pages      : Vec<Page>,
+	row_num    : usize
+}
+
+impl<'a> MemTable<'a>
+{
+	pub fn new(session: &'a Session, types: &Vec<Ty>, fields_name: &Vec<&str>) -> MemTable<'a>
+	{
+		MemTable {
+			session    : session,
+			types      : types.clone(),
+			field_names: ::util::str::to_owned_vec(fields_name),
+			pages      : Vec::new(),
+			row_num    : 0
+		}
+	} 
 }
 
 pub struct DecodedRecords<'a, D>
@@ -21,11 +39,11 @@ pub struct DecodedRecords<'a, D>
 	marker: ::std::marker::PhantomData<D>,
 }
 
-impl MemTable 
+impl<'b> MemTable<'b> 
 {
 	pub fn row_num(&self) -> usize
 	{
-		0
+		self.row_num
 	}
 	
 	pub fn types(&self) -> &Vec<Ty>
@@ -46,8 +64,18 @@ impl MemTable
 		}
 	}
 	
-	pub fn write(page: &Page) -> Void
+	pub fn write(&mut self, page: &Page) -> Void
 	{
-		unimplemented!()
-	}  
+		self.row_num += page.value_count() as usize;
+		self.pages.push(page.copy());
+		
+		void_ok
+	}
+	
+	pub fn close(&mut self) -> Void
+	{
+		self.pages.clear();
+		
+		void_ok
+	}
 }

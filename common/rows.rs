@@ -39,7 +39,7 @@ pub struct Page
 {
   mini_pages: Vec<Box<MiniPage>>,
   
-  value_count: u32
+  value_count: usize
 }
 
 impl Page 
@@ -47,8 +47,10 @@ impl Page
   #[inline]
   pub fn minipage_num(&self) -> usize { self.mini_pages.len() }
   
+  fn set_value_count(&mut self, value_count: usize) { self.value_count = value_count }
+  
   #[inline]
-  pub fn value_count(&self) -> u32 { self.value_count }
+  pub fn value_count(&self) -> usize { self.value_count }
   
   #[inline]
   pub fn minipage(&self, id: PageId) -> &MiniPage 
@@ -161,12 +163,14 @@ impl PageBuilder
   }
   
   #[inline]
-  pub fn build(&mut self) -> &Page 
+  pub fn build(&mut self, rownum: usize) -> &Page 
   {
+  	let mut value_count: usize = 0; 
     for v in self.page.mini_pages.iter_mut() {
-      v.writer().finalize();
+      v.writer().finalize()
     }
     
+    self.page.set_value_count(rownum);
     &self.page
   }
 }

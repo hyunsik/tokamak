@@ -10,6 +10,8 @@ extern crate rand;
 extern crate rustc_serialize;
 extern crate uuid;
 
+extern crate util;
+
 pub mod dataset;
 pub mod err;
 pub mod func;

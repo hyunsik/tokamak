@@ -7,7 +7,7 @@ use rand;
 
 use itertools::Zip;
 
-use err::{void_ok, Void, Result};
+use err::{Error, Result, void_ok, Void};
 use session::Session;
 use types::{Ty};
 use rows::{
@@ -19,22 +19,24 @@ use rows::{
 use input::InputSource;
 
 pub struct RandomTable 
-{
+{  
   builder: Box<PageBuilder>,
   write_fns: Vec<Box<Fn(&mut MiniPageWriter, usize)>>,
-  rownum : usize 
+  row_num : usize, // number of rows to generate   
+  cur_pos : usize  // how many rows are generated so far?
 }
 
 impl RandomTable 
 {
-  pub fn new(session: &Session, types: &Vec<Ty>, rownum: usize) -> Box<InputSource> {
+  pub fn new(session: &Session, types: &Vec<Ty>, row_num: usize) -> Box<InputSource> {
     
     Box::new(RandomTable {
       builder: Box::new(PageBuilder::new(types)),
       write_fns: types.iter()
         .map(|ty| choose_random_fn(ty)) // choose random functions for types
         .collect::<Vec<Box<Fn(&mut MiniPageWriter, usize)>>>(),
-      rownum: rownum  
+      row_num: row_num,
+      cur_pos: 0  
     })
   }
 }
@@ -49,13 +51,21 @@ impl InputSource for RandomTable
   {
     self.builder.reset();
     
-    let min = ::std::cmp::min(self.rownum, ROWBATCH_SIZE);
+    if self.cur_pos >= self.row_num {
+    	return Ok(self.builder.build(0))
+    }
+    
+    // determine the row number to generate at this call
+    let remain = self.row_num - self.cur_pos;  
+    let min = ::std::cmp::min(remain, ROWBATCH_SIZE);
     
     for (gen_fn, writer) in Zip::new((self.write_fns.iter(), self.builder.iter_mut())) {
       (gen_fn)(writer, min)
     }
+    // move forward the position
+    self.cur_pos += min;
     
-    Ok(self.builder.build())
+    Ok(self.builder.build(min))
   }
   
   fn close(&mut self) -> Void { void_ok }

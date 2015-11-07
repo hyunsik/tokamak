@@ -12,3 +12,6 @@ itertools = "0.4.1"
 uuid = "0.1.17"
 rand = "*"
 rustc-serialize = "*"
+
+[dependencies.util]
+path = "../util"
