@@ -4,12 +4,21 @@ use common::session::Session;
 use common::types::{i32_ty, f32_ty, Ty};
 use common::rows::{ROWBATCH_SIZE};
 use common::input::InputSource;
-use common::storage::RandomTable;
-use common::storage::MemTable;
+use common::storage::{MemTable, RandomTable};
 
+macro_rules! assert_write_rows {
+	($gen:expr, $mem:expr, $num:expr, $total_row:expr) => {
+		{
+		  let page = $gen.next().unwrap();
+		  assert_eq!($num, page.value_count());
+		  $mem.write(page).ok().unwrap();
+		  assert_eq!($total_row, $mem.row_num());
+  	}
+	}
+}
 
 #[test]
-pub fn test_memtable() 
+pub fn test_next_once() 
 {
   let types: Vec<Ty> = vec![
     i32_ty(), 
@@ -17,14 +26,44 @@ pub fn test_memtable()
   ];
   
   let session = Session;
-  let mut generator = RandomTable::new(&session, &types, ROWBATCH_SIZE);
-  let mut memtable  = MemTable::new(&session, &types, &vec!["x", "y"]);
+  let mut gen = RandomTable::new(&session, &types, 5);
+  let mut mem = MemTable::new(&session, &types, &vec!["x","y"]);
   
-  {
-		let page = generator.next().unwrap();
-		memtable.write(page).ok().unwrap();
-  }
-  assert_eq!(ROWBATCH_SIZE, memtable.row_num());
-  generator.close().ok().unwrap();
-  memtable.close().ok().unwrap();
+  assert_write_rows!(gen, mem, 5, 5);
+  assert_write_rows!(gen, mem, 0, 5);
+}
+
+#[test]
+pub fn test_next_once2() 
+{
+  let types: Vec<Ty> = vec![
+    i32_ty(), 
+    f32_ty()
+  ];
+  
+  let session = Session;
+  let mut gen = RandomTable::new(&session, &types, ROWBATCH_SIZE);
+  let mut mem = MemTable::new(&session, &types, &vec!["x","y"]);
+  
+  assert_write_rows!(gen, mem, ROWBATCH_SIZE, ROWBATCH_SIZE);
+  assert_write_rows!(gen, mem, 0,             ROWBATCH_SIZE);
+}
+
+
+#[test]
+pub fn test_next_multiple() 
+{
+  let types: Vec<Ty> = vec![
+    i32_ty(), 
+    f32_ty()
+  ];
+  
+  let session = Session;
+  let mut gen = RandomTable::new(&session, &types, (ROWBATCH_SIZE * 2) + 100);
+  let mut mem = MemTable::new(&session, &types, &vec!["x","y"]);
+  
+  assert_write_rows!(gen, mem, ROWBATCH_SIZE, ROWBATCH_SIZE);
+  assert_write_rows!(gen, mem, ROWBATCH_SIZE, ROWBATCH_SIZE * 2);
+  assert_write_rows!(gen, mem, 100,           ROWBATCH_SIZE * 2 + 100); 
+  assert_write_rows!(gen, mem, 0,             ROWBATCH_SIZE * 2 + 100);
 }
