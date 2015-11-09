@@ -6,20 +6,20 @@ use memtable::MemTable;
 use types::Ty;
 
 #[derive(Clone)]
-pub struct DataSet<'a> {
+pub struct DataSet {
   id: String,
-  pub decl: DataSetDecl<'a>
+  pub decl: DataSetDecl
 }
 
 #[derive(Clone)]
-pub enum DataSetDecl<'a> {
+pub enum DataSetDecl {
   // types and rownum
   RandomTable(Vec<Ty>, usize),
-  MemoryTable(Rc<MemTable<'a>>)
+  MemoryTable(Rc<MemTable>)
 }
 
-impl<'a> DataSet<'a> {
-  pub fn random(types: Vec<Ty>, rownum: usize) -> DataSet<'a> {
+impl DataSet {
+  pub fn random(types: Vec<Ty>, rownum: usize) -> DataSet {
     DataSet {
       id: Uuid::new_v4().to_hyphenated_string(),
       decl: DataSetDecl::RandomTable(types, rownum)

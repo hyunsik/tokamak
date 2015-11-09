@@ -9,9 +9,8 @@ use err::{Result, Void, void_ok};
 use rows::*;
 use types::Ty;
 
-pub struct MemTable<'a>
+pub struct MemTable
 {
-	session    : &'a Session,
 	types      : Vec<Ty>,
 	field_names: Vec<String>,
 	
@@ -19,12 +18,11 @@ pub struct MemTable<'a>
 	row_num    : usize
 }
 
-impl<'a> MemTable<'a>
+impl MemTable
 {
-	pub fn new(session: &'a Session, types: &Vec<Ty>, fields_name: &Vec<&str>) -> MemTable<'a>
+	pub fn new(session: &Session, types: &Vec<Ty>, fields_name: &Vec<&str>) -> MemTable
 	{
 		MemTable {
-			session    : session,
 			types      : types.clone(),
 			field_names: ::util::str::to_owned_vec(fields_name),
 			pages      : Vec::new(),
@@ -39,7 +37,7 @@ pub struct DecodedRecords<'a, D>
 	marker: ::std::marker::PhantomData<D>,
 }
 
-impl<'b> MemTable<'b> 
+impl MemTable 
 {
 	pub fn row_num(&self) -> usize
 	{

@@ -72,8 +72,8 @@ pub trait Processor
   fn process(
     &self, 
     input: &Page, 
-    start_pos: u32, 
-    end_pos: u32,
+    start_pos: usize, 
+    end_pos: usize,
     builder: &mut PageBuilder) -> Void;
 }
 

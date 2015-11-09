@@ -42,7 +42,7 @@ pub struct TableScanExec
   input: Box<InputSource>,
   processor: Box<Processor>,
   
-  cur_pos: u32
+  cur_pos: usize
 }
 
 impl Executor for TableScanExec 
@@ -70,7 +70,7 @@ impl Executor for TableScanExec
         read_page.value_count(), 
         &mut self.page_builder));
     
-    Ok(self.page_builder.build())
+    Ok(self.page_builder.build(read_page.value_count()))
   }
   
   fn close(&mut self) -> Void 
