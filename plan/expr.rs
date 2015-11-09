@@ -197,7 +197,7 @@ pub mod visitor
 	
 	/// Simple visitor to walk all Expr node in a single accept function.
 	/// It provides an easier way to rewrite a Expr tree.
-	pub trait SimpleVisitor: Sized 
+	pub trait Visitor: Sized 
 	{
 	  fn accept(&mut self, e: &Expr) 
 	  {
@@ -205,7 +205,7 @@ pub mod visitor
 	  } 
 	}
 	
-	pub fn accept_by_default<T>(v: &mut T, e: &Expr) where T: SimpleVisitor + Sized {
+	pub fn accept_by_default<T>(v: &mut T, e: &Expr) where T: Visitor + Sized {
 	  match *e.kind() {
 	    ExprKind::Not      (ref c)       => v.accept(c),
 	    ExprKind::IsNull   (ref c)       => v.accept(c),
