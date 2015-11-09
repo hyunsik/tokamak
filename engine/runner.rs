@@ -1,11 +1,7 @@
-use std::fmt;
-use std::rc::Rc;
-
 use algebra::{Operator};
 use common::dataset::DataSet;
-use common::err::{Result, Void, void_ok};
+use common::err::{Result, Void};
 use common::plugin::{Plugin, PluginManager};
-use common::types::Ty;
 use common::session::Session;
 
 pub trait QueryRunner 

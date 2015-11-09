@@ -1,6 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use algebra::Operator;
 use common::dataset::DataSet;
 use common::err::{Result, Void, void_ok};
@@ -34,7 +31,7 @@ impl<'a> LocalQueryRunner<'a>
     };
     
     let default_package = Box::new(DefaultPackage);
-    default_package.load(&mut runner.plugin_manager);
+    default_package.load(&mut runner.plugin_manager).ok().unwrap();
     
     runner
   }
