@@ -42,10 +42,7 @@ pub mod filter;
 pub mod hash_join;
 pub mod scan;
 
-use std::rc::Rc;
-
-use common::err::{Void, Result, Error};
-use common::input::InputSource;
+use common::err::{Void, Result};
 use common::rows::{Page, PageBuilder};
 use common::types::Ty;
 
