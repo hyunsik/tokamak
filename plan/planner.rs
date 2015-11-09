@@ -1,12 +1,7 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::collections::HashMap;
-use std::fmt;
-
 use algebra::{Operator, Visitor, walk_op};
 use common::dataset::DataSet;
 use common::err::Result;
-use common::plugin::{PluginManager, TypeRegistry, FuncRegistry};
+use common::plugin::{TypeRegistry, FuncRegistry};
 use common::session::Session;
 
 use node::*;
@@ -20,6 +15,7 @@ impl LogicalPlanner
     LogicalPlanner
   }
   
+  #[allow(unused_variables)]
   pub fn build(&self, 
   	type_registry: &TypeRegistry,
   	func_registry: &FuncRegistry, 

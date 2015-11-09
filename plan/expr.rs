@@ -5,7 +5,6 @@ use common::types::{
 
 use util::boxed::{
 	ToBoxedVec,
-	ToVec
 };
 
 #[derive(Clone)]
@@ -103,71 +102,85 @@ pub enum Literal
   String(String)
 }
 
+#[allow(non_snake_case)]
 pub fn Not(c: Expr) -> Expr 
 {
 	Expr(c.ty().clone(), ExprKind::Not(Box::new(c)))
 }
 
+#[allow(non_snake_case)]
 pub fn IsNull(c: Expr) -> Expr 
 {
 	Expr(bool_ty(), ExprKind::IsNull(Box::new(c)))
 }
 
+#[allow(non_snake_case)]
 pub fn IsNotNull(c: Expr) -> Expr 
 {
 	Expr(bool_ty(), ExprKind::IsNull(Box::new(c)))
 }
 
+#[allow(non_snake_case)]
 pub fn Cast(c: Expr, from_ty: &Ty, to_ty: &Ty) -> Expr
 {
 	Expr(to_ty.clone(), ExprKind::Cast(Box::new(c), from_ty.clone(), to_ty.clone()))
 }
 
+#[allow(non_snake_case)]
 pub fn PlusSign(c: Expr) -> Expr
 {
 	Expr(c.ty().	clone(), ExprKind::PlusSign(Box::new(c)))
 }
 
+#[allow(non_snake_case)]
 pub fn MinusSign(c: Expr) -> Expr
 {
 	Expr(c.ty().clone(), ExprKind::MinusSign(Box::new(c)))
 }
 
+#[allow(non_snake_case)]
 pub fn And(l: Expr, r: Expr) -> Expr
 {
 	Expr(bool_ty(), ExprKind::And(Box::new(l), Box::new(r)))
 }
 
+#[allow(non_snake_case)]
 pub fn Or(l: Expr, r: Expr) -> Expr
 {
 	Expr(bool_ty(), ExprKind::Or(Box::new(l), Box::new(r)))
 }
 
+#[allow(non_snake_case)]
 pub fn Cmp(op: CmpOp, l: Expr, r: Expr) -> Expr
 {
 	Expr(bool_ty(), ExprKind::Cmp(op, Box::new(l), Box::new(r)))
 }
 
+#[allow(non_snake_case)]
 pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
 {
 	Expr(ret_type.clone(), ExprKind::Arithm(*op, Box::new(l), Box::new(r)))
 }
 
+#[allow(non_snake_case)]
 pub fn Func(decl: FnDecl, args: Vec<Expr>) -> Expr
 {
 	Expr(decl.ty().clone(), ExprKind::Fn(decl, args.to_boxed())) 
 }
 
+#[allow(non_snake_case)]
 pub fn Switch(cases: Vec<Expr>, default: Expr) -> Expr
 {
 	Expr(default.ty().clone(), ExprKind::Switch(cases.to_boxed(), Box::new(default)))
 }
 
+#[allow(non_snake_case)]
 pub fn Case(cond: Expr, result: Expr) -> Expr
 {
 	Expr(result.ty().clone(), ExprKind::Case(Box::new(cond), Box::new(result)))
 }
 
+#[allow(non_snake_case)]
 pub fn Const(value: Literal) -> Expr
 {
 	let ty = match value {
@@ -191,8 +204,6 @@ pub mod optimizer
 pub mod visitor 
 {
 	//! Visitor for Expr
-	
-	use common::types::Ty;
 	use super::*;
 	
 	/// Simple visitor to walk all Expr node in a single accept function.

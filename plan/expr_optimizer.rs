@@ -1,5 +1,3 @@
-use common::err::Result;
-
 use super::expr::*;
 use super::expr::visitor::*;
 
@@ -32,7 +30,7 @@ impl TransformVisitor for CastSimplification
   {
 	  match *e.kind() {
 	  	ExprKind::Cast(ref c, ref f, ref t) => {
-	  		transform_or(self, f == t, e, |e| e.clone())
+	  		transform_or(self, f == t, c, |c| c.clone())
 	  	},
 	  	_ =>  transform_by_default(self, e)
 	  }
