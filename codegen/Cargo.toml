@@ -1,0 +1,17 @@
+[package]
+name = "codegen"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "codegen"
+path = "lib.rs"
+
+[dependencies]
+llvm-sys = "*"
+
+[dependencies.common]
+path = "../common"
+
+[dependencies.util]
+path = "../util"
