@@ -64,6 +64,7 @@ impl<'a> DriverFactory<'a> {
   }
 }
 
+/// Driver Specific Context and Job and Node Context
 pub struct DriverContext<'a>
 {
 	ty_registry: &'a TypeRegistry,

@@ -64,16 +64,6 @@ pub trait ExecutorFactory
   fn types(&self) -> &Vec<Ty>;
 }
 
-pub trait Processor 
-{
-  fn process(
-    &self, 
-    input: &Page, 
-    start_pos: usize, 
-    end_pos: usize,
-    builder: &mut PageBuilder) -> Void;
-}
-
 /*
 #[test]
 pub fn test_pipeline() {

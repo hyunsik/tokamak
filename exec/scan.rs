@@ -4,7 +4,8 @@ use common::types::Ty;
 use common::rows::{Page, PageBuilder};
 
 use driver::DriverContext;
-use super::{Executor, ExecutorFactory, Processor};
+use super::{Executor, ExecutorFactory};
+use processor::Processor;
 
 pub struct TableScanExecFactory 
 {
@@ -66,8 +67,6 @@ impl Executor for TableScanExec
     
     try!(self.processor.process(
         read_page, 
-        self.cur_pos, 
-        read_page.value_count(), 
         &mut self.page_builder));
     
     Ok(self.page_builder.build(read_page.value_count()))

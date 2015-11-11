@@ -15,7 +15,7 @@ use rows::{MiniPage,MiniPageWriter};
 use types::Ty;
 
 pub type NoArgFn   = Rc<Fn(&mut MiniPageWriter, usize) -> Void>;
-pub type UnaryFn   = Rc<Fn(&MiniPage, &mut MiniPageWriter, usize) -> Void>;
+pub type UnaryFn   = Rc<Fn(&mut MiniPageWriter, &MiniPage, Option<u32>, usize) -> Void>;
 pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
 pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
 

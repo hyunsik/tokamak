@@ -184,12 +184,12 @@ pub mod util {
 	
 	/// Register a scalar function taking no argument  
 	#[inline]
-	pub fn register_noarg_fn(
+	pub fn register_scalar_fn(
 	  plugin_mgr   : &mut PluginManager,
 	  name         : &str, 
 	  raw_arg_types: Vec<&str>,
 	  raw_ret_type : &str,
-	  fn_impl      : NoArgFn) -> Void 
+	  invoke_method: InvokeMethod) -> Void 
 	{
 	  let arg_types = try!(raw_arg_types
 	                    .iter()
@@ -198,7 +198,7 @@ pub mod util {
 	   
 	  let ret_type = try!(plugin_mgr.get_type(raw_ret_type));
 	  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, FnKind::Scalar);
-	  let fn_body  = FuncBody::new(ret_type, FnKind::Scalar, InvokeMethod::NoArgOp(fn_impl));
+	  let fn_body  = FuncBody::new(ret_type, FnKind::Scalar, invoke_method);
 	  let fn_tuple = (fn_sig, fn_body);
 	  
 	  plugin_mgr.register_func(fn_tuple)
@@ -206,8 +206,25 @@ pub mod util {
 	
 	#[macro_export]
 	macro_rules! register_noarg_fn {
-	  ( $mgr:expr, $name:expr, $arg_types:expr, $ret_type:expr, $fn_impl:expr ) => {
-     try!(register_noarg_fn($mgr, $name, $arg_types, $ret_type, Rc::new($fn_impl)))
+	  ( $mgr:expr, $name:expr, $ret_type:expr, $fn_impl:expr ) => { 	
+     try!(register_scalar_fn($mgr, $name, vec![], $ret_type, 
+     		::common::func::InvokeMethod::NoArgOp(Rc::new($fn_impl))))
+    };
+  }
+	
+	#[macro_export]
+	macro_rules! register_unary_fn {
+	  ( $mgr:expr, $name:expr, $arg_types:expr, $ret_type:expr, $fn_impl:expr ) => { 	
+     try!(register_scalar_fn($mgr, $name, $arg_types, $ret_type, 
+     		::common::func::InvokeMethod::UnaryOp(Rc::new($fn_impl))))
+    };
+  }
+	
+	#[macro_export]
+	macro_rules! register_bin_fn {
+	  ( $mgr:expr, $name:expr, $arg_types:expr, $ret_type:expr, $fn_impl:expr ) => { 	
+     try!(register_scalar_fn($mgr, $name, $arg_types, $ret_type, 
+     		::common::func::InvokeMethod::BinOp(Rc::new($fn_impl))))
     };
   }
 }

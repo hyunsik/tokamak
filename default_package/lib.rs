@@ -11,7 +11,8 @@ use common::types::{Ty, TypeFactory, TypeHandler};
 use common::plugin::{Plugin, PluginManager};
 use common::rows::{FMiniPage, MiniPage}; 
 
-mod math_func;
+mod arithm_funcs;
+mod math_funcs;
 
 const PACKAGE_NAME: &'static str = "default";
 
@@ -27,7 +28,8 @@ impl Plugin for DefaultPackage
   	try!(mgr.register_ty((I32_STR, factory.clone())));
   	try!(mgr.register_ty((F32_STR, factory.clone())));
   	
-  	math_func::register_funcs(mgr); 
+  	arithm_funcs::register_funcs(mgr);
+  	math_funcs::register_funcs(mgr); 
   	
 		void_ok  	
   }
