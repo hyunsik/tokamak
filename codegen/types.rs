@@ -7,6 +7,7 @@ use llvm_sys::prelude::{
 };
 
 use llvm_sys::core::{
+	LLVMArrayType,
 	LLVMFloatTypeInContext,
 	LLVMDoubleTypeInContext,
 	LLVMGetTypeKind,
@@ -84,6 +85,11 @@ impl Type {
   {
     ty!(LLVMDoubleTypeInContext(ccx.rf()))
   }
+  
+  pub fn array(ty: &Type, size: u32) -> Type
+  {
+  	ty!(LLVMArrayType(ty.rf, size))
+	}
 }
 
 impl fmt::Display for Type {
@@ -107,5 +113,7 @@ mod tests {
 		assert_eq!("i64",    format!("{}", Type::i64(&ctx)));
 		assert_eq!("float",  format!("{}", Type::f32(&ctx)));
 		assert_eq!("double", format!("{}", Type::f64(&ctx)));
+		
+		assert_eq!("[10 x double]",  format!("{}", Type::array(&Type::f64(&ctx), 10)));
 	}
 }
