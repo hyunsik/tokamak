@@ -10,7 +10,6 @@ use llvm_sys::core::{
 };
 use llvm_sys::prelude::LLVMModuleRef;
 
-use util::ffi::chars_to_str;
 use context::Context;
 
 pub struct Module<'m> {    
@@ -36,7 +35,7 @@ impl<'m> Module<'m> {
 	
 	pub fn get_target(&self) -> &str
 	{
-		unsafe {chars_to_str(LLVMGetTarget(self.rf))}
+		from_cstr!(LLVMGetTarget(self.rf))
 	}
 	
 	pub fn rf(&self) -> LLVMModuleRef { self.rf }
@@ -44,6 +43,6 @@ impl<'m> Module<'m> {
 
 impl<'m> fmt::Display for Module<'m> {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-  	write!(f, "{}", unsafe {chars_to_str(LLVMPrintModuleToString(self.rf))})
+  	write!(f, "{}", from_cstr!(LLVMPrintModuleToString(self.rf)))
   }
 }

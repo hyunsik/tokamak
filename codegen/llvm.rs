@@ -119,5 +119,4 @@ pub fn test_llvm() {
 	let module = Module::new(&ctx, "test");
 	println!("MODULE: {}", module);
 	let ee     = ExecutionEngine::new(module).ok().unwrap();
-	
 }
