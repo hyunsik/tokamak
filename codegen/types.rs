@@ -16,6 +16,7 @@ use llvm_sys::core::{
 	LLVMInt16TypeInContext,
 	LLVMInt32TypeInContext,
 	LLVMInt64TypeInContext,
+	LLVMPointerType,
 	LLVMPrintTypeToString,
 	LLVMVoidTypeInContext,
 };
@@ -90,6 +91,11 @@ impl Type {
   {
   	ty!(LLVMArrayType(ty.rf, size))
 	}
+  
+  pub fn ptr_ty(&self) -> Type 
+  {
+		ty!(LLVMPointerType(self.rf, 0))
+  }
 }
 
 impl fmt::Display for Type {
@@ -113,7 +119,7 @@ mod tests {
 		assert_eq!("i64",    format!("{}", Type::i64(&ctx)));
 		assert_eq!("float",  format!("{}", Type::f32(&ctx)));
 		assert_eq!("double", format!("{}", Type::f64(&ctx)));
-		
 		assert_eq!("[10 x double]",  format!("{}", Type::array(&Type::f64(&ctx), 10)));
+		assert_eq!("[10 x double]*", format!("{}", Type::array(&Type::f64(&ctx), 10).ptr_ty()));
 	}
 }
