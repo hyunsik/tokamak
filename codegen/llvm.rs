@@ -107,12 +107,6 @@ pub trait CodeGen
 	fn codegen<'c>(&self, ctx: &Context<'c>) -> Value<'c>;
 }
 
-/// LLVMBlock
-pub struct Block<'b> {
-	blk_ref: LLVMBasicBlockRef,
-	marker : marker::PhantomData<&'b ()>,
-}
-
 #[test]
 pub fn test_llvm() {
 	let ctx    = Context::new();
