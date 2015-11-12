@@ -7,11 +7,11 @@ authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
 name = "codegen"
 path = "lib.rs"
 
-[dependencies]
-llvm-sys = "*"
+[denepdencies]
+libc = "*"
 
 [dependencies.llvm-alt]
-git = "git@github.com:hyunsik/llvm-rs.git"
+git = "https://github.com/hyunsik/llvm-rs.git"
 
 [dependencies.common]
 path = "../common"
