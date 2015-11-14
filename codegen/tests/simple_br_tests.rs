@@ -25,22 +25,22 @@ pub fn test() {
   let builder = Builder::new(&ctx);
   builder.position_at_end(entry);
   
-  let local = builder.build_alloca(Type::get::<u64>(&ctx));
+  let local = builder.create_alloca(Type::get::<u64>(&ctx));
   
-  let cond = builder.build_cmp(value, 5u64.compile(&ctx), Predicate::GreaterThan);
-  builder.build_cond_br(cond, then_bb, Some(else_bb));
+  let cond = builder.create_cmp(value, 5u64.compile(&ctx), Predicate::GreaterThan);
+  builder.create_cond_br(cond, then_bb, Some(else_bb));
   
   builder.position_at_end(then_bb);
-  builder.build_store(8u64.compile(&ctx), local);
-  builder.build_br(merge_bb);
+  builder.create_store(8u64.compile(&ctx), local);
+  builder.create_br(merge_bb);
   
   builder.position_at_end(else_bb);
-  builder.build_store(16u64.compile(&ctx), local);
-  builder.build_br(merge_bb);
+  builder.create_store(16u64.compile(&ctx), local);
+  builder.create_br(merge_bb);
   
   builder.position_at_end(merge_bb);
-  let ret_val = builder.build_load(local);
-  builder.build_ret(ret_val);
+  let ret_val = builder.create_load(local);
+  builder.create_ret(ret_val);
   
   module.verify().unwrap();
   let ee = JitEngine::new(&module, JitOptions {opt_level: 0}).unwrap();

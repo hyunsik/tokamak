@@ -11,7 +11,7 @@ path = "lib.rs"
 libc = "*"
 
 [dependencies.llvm-alt]
-git = "https://github.com/hyunsik/llvm-rs.git"
+path = "../llvm-rs"
 
 [dependencies.common]
 path = "../common"
