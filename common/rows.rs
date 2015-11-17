@@ -344,3 +344,58 @@ impl MiniPageWriter for FMiniPageWriter
   fn finalize(&mut self) {    
   }
 }
+
+/// Borrowed Mini Page
+///
+/// It does not allocate its own memory. 
+/// Instead, just share the contents of other minipage.
+pub struct BorrowedMiniPage<'a> 
+{
+  mini_page: &'a MiniPage  
+}
+
+impl<'a> MiniPage for BorrowedMiniPage<'a> {
+  #[inline]
+  fn bytesize(&self) -> u32 {
+    self.mini_page.bytesize()
+  }
+  
+  #[inline]
+  fn read_i8(&self, pos: PosId) -> i8 {
+    self.mini_page.read_i8(pos)
+  }
+  
+  #[inline]
+  fn read_i16(&self, pos: PosId) -> i16 {
+    self.mini_page.read_i16(pos)
+  }
+  
+  #[inline]
+  fn read_i32(&self, pos: PosId) -> i32 {
+    self.mini_page.read_i32(pos)
+  }
+  
+  #[inline]
+  fn read_i64(&self, pos: PosId) -> i64 {
+    self.mini_page.read_i64(pos)
+  }
+  
+  #[inline]
+  fn read_f32(&self, pos: PosId) -> f32 {
+    self.mini_page.read_f32(pos)
+  }
+  
+  #[inline]
+  fn read_f64(&self, pos: PosId) -> f64 {
+    self.mini_page.read_f64(pos)
+  }
+  
+  fn writer(&mut self) -> &mut MiniPageWriter 
+  {
+    unreachable!("BorrowedMiniPage::writer() are not intended to be used");
+  }
+  
+  fn copy(&self) -> Box<MiniPage> {
+  	self.mini_page.copy()
+  }
+}
