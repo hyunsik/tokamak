@@ -25,8 +25,6 @@ pub fn test() {
   let builder = Builder::new(&ctx);
   builder.position_at_end(entry);
   
-  let local = builder.create_alloca(Type::get::<u64>(&ctx));
-  
   let local1 = builder.create_alloca(Type::get::<u64>(&ctx));
   builder.create_store(8u64.compile(&ctx), local1);
   let local2 = builder.create_alloca(Type::get::<u64>(&ctx));
@@ -44,7 +42,7 @@ pub fn test() {
   builder.create_br(merge_bb);
   
   builder.position_at_end(merge_bb);
-  let mut phi = builder.create_phi(Type::get::<u64>(&ctx), "cond");
+  let phi = builder.create_phi(Type::get::<u64>(&ctx), "cond");
   phi.add_incoming(eight, then_bb);
   phi.add_incoming(sixteen, else_bb);
   builder.create_ret(phi);

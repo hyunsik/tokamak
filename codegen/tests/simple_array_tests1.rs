@@ -37,49 +37,41 @@ pub fn test() {
   let rownum = &func[3];
   
   let entry     = func.append("entry");
-  let loop_head = func.append("loop-head");
-  let loop_cond = func.append("loop-cond");
   let loop_body = func.append("loop-body");
-  let loop_end  = func.append("loop-end");
+  let loop_tail = func.append("loop-tail");
+  
+  let zero = 0i64.compile(&ctx);
   
   let builder = Builder::new(&ctx);
   builder.position_at_end(entry);
-  builder.create_br(loop_head);
-  
-  builder.position_at_end(loop_head);
-  // i = 0
-  let idx = builder.create_alloca(Type::get::<u64>(&ctx));
-  builder.create_store(0i64.compile(&ctx), idx);
-  builder.create_br(loop_cond);
-  
   {
-	  builder.position_at_end(loop_cond);
-	  let idx_value = builder.create_load(idx);
-	  let cond = builder.create_cmp(idx_value, 4i64.compile(&ctx), Predicate::LessThan);
-	  builder.create_cond_br(cond, loop_body, Some(loop_end));
+  	let cond = builder.create_cmp(zero, rownum, Predicate::LessThan);
+  	builder.create_cond_br(cond, loop_body, Some(loop_tail));
   }
   
   {
 	  builder.position_at_end(loop_body);
-	  let idx_value = builder.create_load(idx);
-	  let idx_list_ptr = &vec![idx_value];
-	  let lhs_ptr = builder.create_gep(vec1, idx_list_ptr);
+	  let mut phi = builder.create_phi(Type::get::<i64>(&ctx), "loop-cond");
+	  phi.add_incoming(zero, entry);
+	  let increment = builder.create_add(phi, 1i64.compile(&ctx));
+	  phi.add_incoming(increment, loop_body);
+	  
+	  //let phi_as_val: &Value = ;
+	  let idx_ptr: &Vec<&Value> = &vec![&*phi];
+	  let lhs_ptr = builder.create_gep(vec1, idx_ptr);
+	  let rhs_ptr = builder.create_gep(vec2, idx_ptr);
+	  let res_ptr = builder.create_gep(res,  idx_ptr); 
+	  
 	  let lhs_value = builder.create_load(lhs_ptr);
-	  
-	  let rhs_ptr = builder.create_gep(vec2, idx_list_ptr);
 	  let rhs_value = builder.create_load(rhs_ptr);
+	  let add = builder.create_add(lhs_value, rhs_value);
+	  builder.create_store(add, res_ptr);
 	  
-	  let lr_add = builder.create_add(lhs_value, rhs_value);
-	  
-	  let res_ptr = builder.create_gep(res, idx_list_ptr);
-	  //builder.create_store(lr_add, res_ptr);
-	  
-	  let idx_add = builder.create_add(idx_value, 1i64.compile(&ctx));
-	  builder.create_store(idx_add, idx);
-	  builder.create_br(loop_cond);
+	  let cond = builder.create_cmp(phi, rownum, Predicate::LessThan);
+	  builder.create_cond_br(cond, loop_body, Some(loop_tail));
   }
   
-  builder.position_at_end(loop_end);
+  builder.position_at_end(loop_tail);
   builder.create_ret_void();
   
   println!("--------------");
@@ -92,7 +84,15 @@ pub fn test() {
   let mut res = vec![0,0,0,0];
   
   let ee = JitEngine::new(&module, JitOptions {opt_level: 0}).unwrap();
-  ee.with_function(func, |map: extern fn((*mut i64, *const i64, *const i64, isize))| {      
-      map((res.as_mut_ptr(), lhs_vec.as_ptr(), rhs_vec.as_ptr(), 4));
-  });
+  
+  let map: fn(*mut i64, *const i64, *const i64, i64);
+  map = match unsafe { ee.get_function_raw(func) } {
+  	Some(f) => unsafe { mem::transmute(f)},
+  	_       => panic!("SS")
+  };
+  
+  map(res.as_mut_ptr(), lhs_vec.as_ptr(), rhs_vec.as_ptr(), 4i64);
+  
+  let expected = vec![3,7,5,5];
+  assert_eq!(expected, res);
 }
