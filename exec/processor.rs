@@ -82,19 +82,35 @@ pub struct BinaryFnEvaluator
 
 pub struct Interpreter<'a>
 {
-	ty_registry: &'a TypeRegistry,
-	fn_registry: &'a FuncRegistry,
+	input_types: &'a Vec<Ty>,
+	input_names: &'a Vec<&'a str>,
 	stack      : Vec<Box<EvaluatorFactory>>
 }
 
 impl<'a> Interpreter<'a>
 {
-	pub fn build(session: &Session,
-		        ty_register: &TypeRegistry, 
-					  fn_registry: &FuncRegistry,
+	fn new(session: &Session, 
+		     input_types: &'a Vec<Ty>, 
+		     input_names: &'a Vec<&'a str>) -> Interpreter<'a> {
+		Interpreter {
+			input_types: input_types,
+			input_names: input_names,
+			stack      : Vec::new()
+		}
+	}
+	pub fn build(session:  &'a Session,     
+					  input_types: &'a Vec<Ty>,
+					  input_names: &'a Vec<&'a str>, 
 					  expression : &Expr) -> Result<Box<EvaluatorFactory>>
 	{
-		unimplemented!()
+		let mut interpreter = Interpreter::new(session, input_types, input_names);
+		interpreter.accept(expression);
+		
+		match interpreter.stack.len() {
+			len if len == 1 => Ok(interpreter.stack.pop().unwrap()),
+			len if len > 1  => panic!("more than one stack item still remains in interpreter"),
+			_               => panic!("no more stack item in interpreter")
+		}
   }
 	
 	pub fn Not(&self, c: &Expr) 
@@ -184,6 +200,8 @@ impl<'a> visitor::Visitor for Interpreter<'a>
 	} 
 }
 
+pub type Schema<'a, 'b> = (&'a Vec<Ty>, &'a Vec<&'b str>);
+
 pub struct InterpreterProcessorFactory
 {
 	factories: Vec<Box<EvaluatorFactory>>
@@ -191,11 +209,17 @@ pub struct InterpreterProcessorFactory
 
 impl InterpreterProcessorFactory
 {
-	pub fn new(exprs: &Vec<Box<Expr>>) -> Box<ProcessorFactory>
+	pub fn new(session: &Session, 
+		         schema: &Schema, 
+		         exprs: &Vec<Box<Expr>>) -> Result<Box<ProcessorFactory>>
 	{
-		Box::new(InterpreterProcessorFactory {
-  		factories: Vec::new()
-		}) 
+		let factories = try!(
+			exprs.iter()
+		       .map(|e| Interpreter::build(session, schema.0, schema.1, e))
+		       .collect::<Result<Vec<Box<EvaluatorFactory>>>>()
+    );
+			
+		Ok(Box::new(InterpreterProcessorFactory { factories: factories }))
 	}
 }
 
@@ -273,7 +297,7 @@ mod tests {
 			l_shipmode string,
 			l_comment string
 		*/
-		let types: Vec<Ty> = vec![
+		let tb_types: Vec<Ty> = vec![
 	    i64_ty(), // l_orderkey      bigint
 	    i64_ty(), // l_partkey       bigint
 	    i64_ty(), // l_suppkey       bigint
@@ -283,6 +307,17 @@ mod tests {
 	    f64_ty(), // l_discount      double,
 	    f64_ty(), // l_tax           double,
 	    // string types are not implmeneted yet.	    
+	  ];
+	  
+	  let tb_field_names: Vec<&str> = vec![
+	  	"l_orderkey",
+	  	"l_partkey",
+	  	"l_suppkey",
+	  	"l_linenumber",
+	  	"l_quantity",
+	  	"l_extendedprice",
+	  	"l_discount",
+	  	"l_tax"
 	  ];
 
 	  let sum_disc_price = 
@@ -297,12 +332,15 @@ mod tests {
 	  	Box::new(sum_disc_price), 
 	  	Box::new(sum_charge)
   	];
-		let factory = InterpreterProcessorFactory::new(&exprs);
+  	
+  	let schema = (&tb_types, &tb_field_names);
+  	let session    = Session;
+  	
+		let factory = InterpreterProcessorFactory::new(&session, &schema, &exprs).ok().unwrap();
 		let drv_ctx = DriverContext::new(plugin_mgr.ty_registry(), plugin_mgr.fn_registry());
 		let processor = factory.create(&drv_ctx).ok().unwrap();
 		
-		let session    = Session;
-		let mut input  = RandomTable::new(&session, &types, 1024);
+		let mut input  = RandomTable::new(&session, &tb_types, 1024);
 		
 		let output_tys = exprs.iter()
 											.map(|e| e.ty().clone())
@@ -323,5 +361,7 @@ mod tests {
 		  output.write(builder.build(read_page.value_count()));
 		  builder.reset();
 		}
+		
+		assert_eq!(1024, output.row_num());
 	}
 }

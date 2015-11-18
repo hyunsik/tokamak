@@ -1,7 +1,4 @@
-use common::types::{
-	Ty,
-	bool_ty
-};
+use common::types::*;
 
 use util::boxed::{
 	ToBoxedVec,
@@ -100,6 +97,23 @@ pub enum Literal
   F32(f32),
   F64(f64),
   String(String)
+}
+
+impl Literal
+{
+	pub fn ty(&self) -> Ty
+	{
+		match *self {
+			Literal::Bool(_) => bool_ty(),
+			Literal::I8(_)   => i8_ty(),
+			Literal::I16(_)  => i16_ty(),
+			Literal::I32(_)  => i32_ty(),
+			Literal::I64(_)  => i64_ty(),
+			Literal::F32(_)  => f32_ty(),
+			Literal::F64(_)  => f64_ty(),
+			_                => unimplemented!()
+		}
+	}
 }
 
 macro_rules! into_literal(
@@ -218,12 +232,7 @@ pub fn Case(cond: Expr, result: Expr) -> Expr
 pub fn Const<T: Into<Literal>>(value: T) -> Expr
 {
 	let literal = value.into();
-	let ty = match literal {
-		Literal::Bool(_) => bool_ty(),
-		_                => panic!("unsupported type")
-	};
-	
-	Expr(ty, ExprKind::Const(literal))
+	Expr(literal.ty(), ExprKind::Const(literal))
 }
 
 #[allow(non_snake_case)]

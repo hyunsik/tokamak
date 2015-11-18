@@ -379,6 +379,16 @@ pub fn i8_ty() -> Ty {
 	Ty::new(I8_STR, true, true, handler)
 }
 
+pub fn i16_ty() -> Ty {
+	let handler = TypeHandler {
+	 	create_minipage: Rc::new(|| -> Box<MiniPage> {
+			Box::new(FMiniPage::new(mem::size_of::<i16>()))
+		})
+  };
+	
+	Ty::new(I32_STR, true, true, handler) 
+}
+
 pub fn i32_ty() -> Ty {
 	let handler = TypeHandler {
 	 	create_minipage: Rc::new(|| -> Box<MiniPage> {
