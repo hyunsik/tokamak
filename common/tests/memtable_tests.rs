@@ -67,3 +67,25 @@ pub fn test_next_multiple()
   assert_write_rows!(gen, mem, 100,           ROWBATCH_SIZE * 2 + 100); 
   assert_write_rows!(gen, mem, 0,             ROWBATCH_SIZE * 2 + 100);
 }
+
+#[test]
+pub fn test_read() 
+{
+  let types: Vec<Ty> = vec![
+    i32_ty(), 
+    f32_ty()
+  ];
+  
+  let session = Session;
+  let mut gen = RandomTable::new(&session, &types, 5);
+  let mut mem = MemTable::new(&session, &types, &vec!["x","y"]);
+  
+  assert_write_rows!(gen, mem, 5, 5);
+  assert_write_rows!(gen, mem, 0, 5);
+  
+  let reader = mem.reader();
+  for x in reader {
+  	let r: (i32, f32) = x.unwrap();
+  	println!("({}, {})", r.0, r.1);
+  }
+}

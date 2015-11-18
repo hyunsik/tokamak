@@ -37,6 +37,14 @@ pub struct DecodedRecords<'a, D>
 	marker: ::std::marker::PhantomData<D>,
 }
 
+impl<'a, D> Iterator for DecodedRecords<'a, D> where D: Decodable {
+  type Item = Result<D>;
+  
+  fn next(&mut self) -> Option<Result<D>> {
+  	unimplemented!()
+  }
+}
+
 impl MemTable 
 {
 	pub fn row_num(&self) -> usize
