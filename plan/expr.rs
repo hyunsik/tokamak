@@ -191,6 +191,12 @@ pub fn Const(value: Literal) -> Expr
 	Expr(ty, ExprKind::Const(value))
 }
 
+#[allow(non_snake_case)]
+pub fn Field(name: String, ty: Ty) -> Expr
+{
+	Expr(ty, ExprKind::Field(name))
+}
+
 pub fn clone(e: &Box<Expr>) -> Expr
 {
 	*(e.clone())
