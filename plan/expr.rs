@@ -181,10 +181,17 @@ pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
 	Expr(ret_type.clone(), ExprKind::Arithm(*op, Box::new(l), Box::new(r)))
 }
 
+#[warn(non_snake_case)]
+pub fn Plus(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+	Expr(ret_type.clone(), ExprKind::Arithm(ArithmOp::Plus, Box::new(l), Box::new(r)))
+}
+
+#[warn(non_snake_case)]
 pub fn Subtract(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	Expr(ret_type.clone(), ExprKind::Arithm(ArithmOp::Sub, Box::new(l), Box::new(r)))
 }
 
+#[warn(non_snake_case)]
 pub fn Mul(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	Expr(ret_type.clone(), ExprKind::Arithm(ArithmOp::Mul, Box::new(l), Box::new(r)))
 }
@@ -220,9 +227,9 @@ pub fn Const<T: Into<Literal>>(value: T) -> Expr
 }
 
 #[allow(non_snake_case)]
-pub fn Field(name: String, ty: Ty) -> Expr
+pub fn Field(ty: &Ty, name: &str) -> Expr
 {
-	Expr(ty, ExprKind::Field(name))
+	Expr(ty.clone(), ExprKind::Field(name.to_string()))
 }
 
 pub fn clone(e: &Box<Expr>) -> Expr
