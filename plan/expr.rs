@@ -102,6 +102,25 @@ pub enum Literal
   String(String)
 }
 
+macro_rules! into_literal(
+	($ty:ty, $literal_kind:ident) => (
+    impl Into<Literal> for $ty {
+	    fn into(self) -> Literal 
+	    {
+	    	Literal::$literal_kind(self)
+	    }
+    }
+  );
+);
+
+into_literal!(bool, Bool);
+into_literal!(i8,   I8);
+into_literal!(i16,  I16);
+into_literal!(i32,  I32);
+into_literal!(i64,  I64);
+into_literal!(f32,  F32);
+into_literal!(f64,  F64);
+
 #[allow(non_snake_case)]
 pub fn Not(c: Expr) -> Expr 
 {
@@ -162,6 +181,14 @@ pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
 	Expr(ret_type.clone(), ExprKind::Arithm(*op, Box::new(l), Box::new(r)))
 }
 
+pub fn Subtract(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+	Expr(ret_type.clone(), ExprKind::Arithm(ArithmOp::Sub, Box::new(l), Box::new(r)))
+}
+
+pub fn Mul(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+	Expr(ret_type.clone(), ExprKind::Arithm(ArithmOp::Mul, Box::new(l), Box::new(r)))
+}
+
 #[allow(non_snake_case)]
 pub fn Func(decl: FnDecl, args: Vec<Expr>) -> Expr
 {
@@ -181,14 +208,15 @@ pub fn Case(cond: Expr, result: Expr) -> Expr
 }
 
 #[allow(non_snake_case)]
-pub fn Const(value: Literal) -> Expr
+pub fn Const<T: Into<Literal>>(value: T) -> Expr
 {
-	let ty = match value {
+	let literal = value.into();
+	let ty = match literal {
 		Literal::Bool(_) => bool_ty(),
 		_                => panic!("unsupported type")
 	};
 	
-	Expr(ty, ExprKind::Const(value))
+	Expr(ty, ExprKind::Const(literal))
 }
 
 #[allow(non_snake_case)]
