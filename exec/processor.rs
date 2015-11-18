@@ -9,7 +9,7 @@
 
 use std::rc::Rc;
 
-use common::err::{Result, Void, void_ok};
+use common::err::{Error, Result, Void, void_ok};
 use common::func::{
 	NoArgFn,
 	UnaryFn,
@@ -21,6 +21,7 @@ use common::plugin::{
 	TypeRegistry
 };
 use common::rows::{
+	MiniPage,
 	Page,
 	PageBuilder,
 	PageId
@@ -32,7 +33,7 @@ use plan::expr::visitor::{accept_by_default, Visitor};
 
 use driver::DriverContext;
 
-pub trait Processor 
+pub trait Processor
 {
   fn process(
     &self, 
@@ -40,23 +41,11 @@ pub trait Processor
     builder: &mut PageBuilder) -> Void;
 }
 
-pub trait ProcessorFactory
-{
-	fn create(&self, ctx: &DriverContext) -> Result<Box<Processor>>;
-}
-
 pub trait Evaluator
 {
-	fn evaluate(&self, input: &Page, &mut PageBuilder) -> Void;
+	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage>;
 	
 	fn ty(&self) -> &Ty;
-}
-
-pub trait EvaluatorFactory
-{
-	fn create(&self, ctx: &DriverContext) -> Result<Box<Evaluator>>;
-  
-  fn types(&self) -> &Ty;
 }
 
 pub struct NoArgFnEvaluator
@@ -80,28 +69,51 @@ pub struct BinaryFnEvaluator
 	output_pid: PageId
 }
 
+#[derive(Clone)]
+pub struct FieldEvaluator 
+{
+	idx: usize,
+	ty:  Ty
+}
+
+impl Evaluator for FieldEvaluator
+{
+	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage> 
+	{
+		Ok(input.minipage(self.idx))
+	}
+	
+	fn ty(&self) -> &Ty 
+	{
+		&self.ty
+	}
+}
+
 pub struct Interpreter<'a>
 {
-	input_types: &'a Vec<Ty>,
-	input_names: &'a Vec<&'a str>,
-	stack      : Vec<Box<EvaluatorFactory>>
+	types: &'a Vec<Ty>,
+	names: &'a Vec<&'a str>,
+	stack: Vec<Box<Evaluator>>,
+	error: Option<Error>
 }
 
 impl<'a> Interpreter<'a>
 {
 	fn new(session: &Session, 
-		     input_types: &'a Vec<Ty>, 
-		     input_names: &'a Vec<&'a str>) -> Interpreter<'a> {
+		     types: &'a Vec<Ty>, 
+		     names: &'a Vec<&'a str>) -> Interpreter<'a> {
 		Interpreter {
-			input_types: input_types,
-			input_names: input_names,
-			stack      : Vec::new()
+			types : types,
+			names : names,
+			stack : Vec::new(),
+			error : None
 		}
 	}
+		     
 	pub fn build(session:  &'a Session,     
 					  input_types: &'a Vec<Ty>,
 					  input_names: &'a Vec<&'a str>, 
-					  expression : &Expr) -> Result<Box<EvaluatorFactory>>
+					  expression : &Expr) -> Result<Box<Evaluator>>
 	{
 		let mut interpreter = Interpreter::new(session, input_types, input_names);
 		interpreter.accept(expression);
@@ -156,11 +168,21 @@ impl<'a> Interpreter<'a>
 	pub fn Func(&self, f: &FnDecl, args: &Vec<Box<Expr>>)
 	{
 	}
-}
-
-pub struct UnaryEvaluatorFactory
-{
-	f: EvaluatorFactory
+	
+	pub fn Field(&mut self, ty: &Ty, name: &str)
+	{
+		let found: Option<(usize, &Ty, &&str)>;
+		
+		found = izip!(0 .. self.types.len(), self.types, self.names)
+						.find(|&(i, t, n)| *n == name);
+    
+    let eval = match found {
+    	Some(f) => FieldEvaluator {idx: f.0, ty: f.1.clone()},
+    	None    => panic!("no such field for {}", name)
+    };
+    						
+		self.stack.push(Box::new(eval));
+	}
 }
 
 impl<'a> visitor::Visitor for Interpreter<'a> 
@@ -182,7 +204,7 @@ impl<'a> visitor::Visitor for Interpreter<'a>
 
 	      
 	    ExprKind::Fn     (ref f, ref args)  => self.Func(f, args),  
-			ExprKind::Field  (_) 	          => {},
+			ExprKind::Field  (ref name)         => self.Field(e.ty(), name),
 			/*
 	    ExprKind::Const  (_)            => {}
 	    
@@ -202,46 +224,26 @@ impl<'a> visitor::Visitor for Interpreter<'a>
 
 pub type Schema<'a, 'b> = (&'a Vec<Ty>, &'a Vec<&'b str>);
 
-pub struct InterpreterProcessorFactory
-{
-	factories: Vec<Box<EvaluatorFactory>>
-}
-
-impl InterpreterProcessorFactory
-{
-	pub fn new(session: &Session, 
-		         schema: &Schema, 
-		         exprs: &Vec<Box<Expr>>) -> Result<Box<ProcessorFactory>>
-	{
-		let factories = try!(
-			exprs.iter()
-		       .map(|e| Interpreter::build(session, schema.0, schema.1, e))
-		       .collect::<Result<Vec<Box<EvaluatorFactory>>>>()
-    );
-			
-		Ok(Box::new(InterpreterProcessorFactory { factories: factories }))
-	}
-}
-
-impl ProcessorFactory for InterpreterProcessorFactory
-{
-	fn create(&self, ctx: &DriverContext) -> Result<Box<Processor>>
-	{
-		let evals = try!(self.factories
-									.iter()
-									.map(|f| f.create(ctx))
-									.collect::<Result<Vec<Box<Evaluator>>>>());
-		
-		Ok(Box::new(InterpreterProcessor {
-			evals: evals
-		}))
-	}
-}
-
 pub struct InterpreterProcessor
 {
 	evals: Vec<Box<Evaluator>>
 }
+
+impl InterpreterProcessor
+{
+	pub fn new(session: &Session, 
+		         schema : &Schema, 
+		         exprs  : &Vec<Box<Expr>>) -> Result<InterpreterProcessor>
+	{
+		let evals = try!(
+			exprs.iter()
+		       .map(|e| Interpreter::build(session, schema.0, schema.1, e))
+		       .collect::<Result<Vec<Box<Evaluator>>>>()
+    );
+		
+		Ok(InterpreterProcessor { evals: evals })			
+	}
+} 
 
 impl Processor for InterpreterProcessor
 {
@@ -251,7 +253,7 @@ impl Processor for InterpreterProcessor
     builder: &mut PageBuilder) -> Void 
 	{
   	for e in self.evals.iter() {
-  		try!(e.evaluate(input, builder));
+  		try!(e.evaluate(input));
   	}
   	
   	void_ok
@@ -320,26 +322,26 @@ mod tests {
 	  	"l_tax"
 	  ];
 
+		/*
 	  let sum_disc_price = 
 	  	Mul(
 	  		&f64_ty(), Field(&f64_ty(), "l_extendedprice"), Subtract(&f64_ty(), Const(1), Field(&f64_ty(), "l_discount")));
 	  	
   	let sum_charge = 
-	  	Mul(&f64_ty(), sum_disc_price.clone(), Plus(&f64_ty(), Const(1), Field(&f64_ty(), "l_tax")));	   
-	  
+	  	Mul(&f64_ty(), sum_disc_price.clone(), Plus(&f64_ty(), Const(1), Field(&f64_ty(), "l_tax")));*/
+		
+		let l_quantity = Field(&f64_ty(), "l_quantity");	  
 	  
 	  let exprs = vec![
-	  	Box::new(sum_disc_price), 
-	  	Box::new(sum_charge)
+//	  	Box::new(sum_disc_price), 
+//	  	Box::new(sum_charge)
+				Box::new(l_quantity)
   	];
   	
   	let schema = (&tb_types, &tb_field_names);
   	let session    = Session;
   	
-		let factory = InterpreterProcessorFactory::new(&session, &schema, &exprs).ok().unwrap();
-		let drv_ctx = DriverContext::new(plugin_mgr.ty_registry(), plugin_mgr.fn_registry());
-		let processor = factory.create(&drv_ctx).ok().unwrap();
-		
+		let processor = InterpreterProcessor::new(&session, &schema, &exprs).ok().unwrap();
 		let mut input  = RandomTable::new(&session, &tb_types, 1024);
 		
 		let output_tys = exprs.iter()
@@ -362,6 +364,7 @@ mod tests {
 		  builder.reset();
 		}
 		
+		assert_eq!(1, output.col_num());
 		assert_eq!(1024, output.row_num());
 	}
 }

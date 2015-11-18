@@ -25,7 +25,7 @@
 /// 
 
 extern crate alloc;
-extern crate itertools;
+#[macro_use] extern crate itertools;
 extern crate libc;
 
 extern crate common;

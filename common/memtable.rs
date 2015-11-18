@@ -44,6 +44,11 @@ impl MemTable
 		self.row_num
 	}
 	
+	pub fn col_num(&self) -> usize
+	{
+		self.types.len()
+	}
+	
 	pub fn types(&self) -> &Vec<Ty>
 	{
 		&self.types
