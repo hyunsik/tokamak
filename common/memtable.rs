@@ -34,6 +34,7 @@ impl MemTable
 pub struct DecodedRecords<'a, D>
 {
 	pages: &'a Vec<Page>,
+	types: &'a Vec<Ty>,
 	marker: ::std::marker::PhantomData<D>,
 }
 
@@ -71,6 +72,7 @@ impl MemTable
 	{
 		DecodedRecords {
 			pages: &self.pages,
+			types: &self.types,
 			marker: ::std::marker::PhantomData
 		}
 	}
