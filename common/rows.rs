@@ -76,7 +76,7 @@ impl Page
   		.map(|mp| mp.copy())
   		.collect::<Vec<Box<MiniPage>>>();
   	
-  	Page {mini_pages: copied_mpages, value_count: 0}
+  	Page {mini_pages: copied_mpages, value_count: self.value_count}
   }
 }
 

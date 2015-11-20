@@ -85,7 +85,6 @@ pub fn test_read()
   
   let reader = mem.reader();
   for x in reader {
-  	let r: (i32, f32) = x.unwrap();
-  	println!("({}, {})", r.0, r.1);
+  	let r: (i32, f32) = x.ok().unwrap();
   }
 }
