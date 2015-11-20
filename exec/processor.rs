@@ -347,7 +347,7 @@ mod tests {
 		let output_tys = exprs.iter()
 											.map(|e| e.ty().clone())
 											.collect::<Vec<Ty>>();
-		let mut output = MemTable::new(&session, &output_tys, &vec!["x","y"]);
+		let mut output = MemTable::new(&session, &output_tys, &vec!["x"]);
 		
 		let mut builder = PageBuilder::new(&output_tys);
 		
@@ -366,5 +366,10 @@ mod tests {
 		
 		assert_eq!(1, output.col_num());
 		assert_eq!(1024, output.row_num());
+		
+		for x in output.reader() {
+			let r: (f64) = x.ok().unwrap();
+			println!("{}", r);
+		}
 	}
 }
