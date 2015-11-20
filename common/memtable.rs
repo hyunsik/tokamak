@@ -96,7 +96,7 @@ pub struct DecodedRecords<'a, D>
 
 impl<'a, D> DecodedRecords<'a, D>
 {
-	pub fn next_page(&mut self) {
+	fn next_page(&mut self) {
 		loop {
   		self.cur_page = self.pages_it.next();
   		
@@ -111,6 +111,12 @@ impl<'a, D> DecodedRecords<'a, D>
 			}
 		}
 		self.row_pos  = 0;
+	}
+	
+	#[inline(always)]
+	fn validate(&self) {
+		debug_assert!(self.row_pos  < self.cur_page.unwrap().value_count());
+   	debug_assert!(self.col_pos  < self.types.len());
 	}
 }
 
@@ -200,8 +206,7 @@ impl<'a, D> Decoder for DecodedRecords<'a, D> {
     
     fn read_i32(&mut self) -> Result<i32, Self::Error>
     {
-    	debug_assert!(self.row_pos  < self.cur_page.unwrap().value_count());
-    	debug_assert!(self.col_pos  < self.types.len());
+    	self.validate();
 
     	let row_pos  = self.row_pos;
     	let col_pos  = self.col_pos;
@@ -258,8 +263,7 @@ impl<'a, D> Decoder for DecodedRecords<'a, D> {
     
     fn read_f32(&mut self) -> Result<f32, Self::Error>
     {
-			debug_assert!(self.row_pos  < self.cur_page.unwrap().value_count());
-    	debug_assert!(self.col_pos  < self.types.len());
+			self.validate();
 
     	let row_pos  = self.row_pos;
     	let col_pos  = self.col_pos;
