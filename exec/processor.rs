@@ -252,7 +252,7 @@ impl Processor for InterpreterProcessor
     input: &Page, 
     builder: &mut PageBuilder) -> Void 
 	{
-  	for e in self.evals.iter() {
+  	for (w, e) in izip!(builder.iter_mut(), self.evals.iter()) {
   		try!(e.evaluate(input));
   	}
   	

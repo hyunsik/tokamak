@@ -96,6 +96,18 @@ pub trait MiniPage
   
   fn read_f64(&self, pos: PosId) -> f64;
   
+  fn as_i8_slice(&self) -> &[i8];
+  
+  fn as_i16_slice(&self) -> &[i16];
+  
+  fn as_i32_slice(&self) -> &[i32];
+  
+  fn as_i64_slice(&self) -> &[i64];
+  
+  fn as_f32_slice(&self) -> &[f32];
+  
+  fn as_f64_slice(&self) -> &[f64];
+  
   fn writer(&mut self) -> &mut MiniPageWriter;
   
   fn copy(&self) -> Box<MiniPage>;
@@ -228,35 +240,45 @@ fn read_fixed_len_value<T>(ptr: *const u8, pos: PosId) -> T where T: Copy {
   }
 }
 
+macro_rules! read_field_for_fminipage(
+	($name:ident, $ty:ty) => (
+    #[inline]
+	  fn $name(&self, pos: PosId) -> $ty {
+    	read_fixed_len_value(self.ptr, pos)
+    }
+  );
+);
+
+macro_rules! as_slice_for_fminipage(
+	($name:ident, $ty:ty) => (
+    #[inline]
+	  fn $name(&self) -> &[$ty] {
+    	unsafe {
+    		slice::from_raw_parts(self.ptr as *const $ty, 1024)
+  		}
+    }
+  );
+);
+
 impl<'a> MiniPage for FMiniPage<'a> {
   #[inline]
   fn bytesize(&self) -> u32 {
     self.bytesize
   }
   
-  fn read_i8(&self, pos: PosId) -> i8 {
-    read_fixed_len_value(self.ptr, pos)
-  }
+  read_field_for_fminipage!(read_i8,  i8);
+  read_field_for_fminipage!(read_i16, i16);
+  read_field_for_fminipage!(read_i32, i32);
+  read_field_for_fminipage!(read_i64, i64);
+  read_field_for_fminipage!(read_f32, f32);
+  read_field_for_fminipage!(read_f64, f64);
   
-  fn read_i16(&self, pos: PosId) -> i16 {
-    read_fixed_len_value(self.ptr, pos)
-  }
-  
-  fn read_i32(&self, pos: PosId) -> i32 {
-    read_fixed_len_value(self.ptr, pos)
-  }
-  
-  fn read_i64(&self, pos: PosId) -> i64 {
-    read_fixed_len_value(self.ptr, pos)
-  }
-  
-  fn read_f32(&self, pos: PosId) -> f32 {
-    read_fixed_len_value(self.ptr, pos)
-  }
-  
-  fn read_f64(&self, pos: PosId) -> f64 {
-    read_fixed_len_value(self.ptr, pos)
-  }
+  as_slice_for_fminipage!(as_i8_slice,  i8);
+  as_slice_for_fminipage!(as_i16_slice, i16);
+  as_slice_for_fminipage!(as_i32_slice, i32);
+  as_slice_for_fminipage!(as_i64_slice, i64);
+  as_slice_for_fminipage!(as_f32_slice, f32);
+  as_slice_for_fminipage!(as_f64_slice, f64);
   
   fn writer(&mut self) -> &mut MiniPageWriter 
   {
@@ -293,43 +315,24 @@ fn write_fixed_value<T>(ptr: *mut u8, pos: usize, val: T) {
   }
 }
 
+macro_rules! write_value(
+	($name:ident, $ty:ty) => (
+    #[inline]
+	  fn $name(&mut self, v: $ty) {
+	    write_fixed_value(self.ptr, self.pos, v);
+	    self.pos = self.pos + 1;
+	  }
+  );
+);
+
 impl MiniPageWriter for FMiniPageWriter 
 {
-  #[inline]
-  fn write_i8(&mut self, v: i8) {
-    write_fixed_value(self.ptr, self.pos, v);
-    self.pos = self.pos + 1;
-  }
-  
-  #[inline]
-  fn write_i16(&mut self, v: i16) {
-    write_fixed_value(self.ptr, self.pos, v);
-    self.pos = self.pos + 1;
-  }
-  
-  #[inline]
-  fn write_i32(&mut self, v: i32) {
-    write_fixed_value(self.ptr, self.pos, v);
-    self.pos = self.pos + 1;
-  }
-  
-  #[inline]
-  fn write_i64(&mut self, v: i64) {
-    write_fixed_value(self.ptr, self.pos, v);
-    self.pos = self.pos + 1;
-  }
-  
-  #[inline]
-  fn write_f32(&mut self, v: f32) {
-    write_fixed_value(self.ptr, self.pos, v);
-    self.pos = self.pos + 1;
-  }
-
-  #[inline]  
-  fn write_f64(&mut self, v: f64) {
-    write_fixed_value(self.ptr, self.pos, v);
-    self.pos = self.pos + 1;
-  }
+	write_value!(write_i8, i8);
+	write_value!(write_i16, i16);
+	write_value!(write_i32, i32);
+	write_value!(write_i64, i64);
+	write_value!(write_f32, f32);
+	write_value!(write_f64, f64);  
   
   #[inline]
   fn write_bytes(&mut self, v: &[u8]) {
@@ -354,41 +357,43 @@ pub struct BorrowedMiniPage<'a>
   mini_page: &'a MiniPage  
 }
 
+macro_rules! read_field_for_bminipage(
+	($name:ident, $ty:ty) => (
+    #[inline]
+	  fn $name(&self, pos: PosId) -> $ty {
+    	self.mini_page.$name(pos)
+    }
+  );
+);
+
+macro_rules! as_slice_for_bminipage(
+	($name:ident, $ty:ty) => (
+    #[inline]
+	  fn $name(&self) -> &[$ty] {
+    	self.mini_page.$name()
+    }
+  );
+);
+
 impl<'a> MiniPage for BorrowedMiniPage<'a> {
   #[inline]
   fn bytesize(&self) -> u32 {
     self.mini_page.bytesize()
   }
   
-  #[inline]
-  fn read_i8(&self, pos: PosId) -> i8 {
-    self.mini_page.read_i8(pos)
-  }
+  read_field_for_bminipage!(read_i8, i8);
+  read_field_for_bminipage!(read_i16, i16);
+  read_field_for_bminipage!(read_i32, i32);
+  read_field_for_bminipage!(read_i64, i64);
+  read_field_for_bminipage!(read_f32, f32);
+  read_field_for_bminipage!(read_f64, f64);
   
-  #[inline]
-  fn read_i16(&self, pos: PosId) -> i16 {
-    self.mini_page.read_i16(pos)
-  }
-  
-  #[inline]
-  fn read_i32(&self, pos: PosId) -> i32 {
-    self.mini_page.read_i32(pos)
-  }
-  
-  #[inline]
-  fn read_i64(&self, pos: PosId) -> i64 {
-    self.mini_page.read_i64(pos)
-  }
-  
-  #[inline]
-  fn read_f32(&self, pos: PosId) -> f32 {
-    self.mini_page.read_f32(pos)
-  }
-  
-  #[inline]
-  fn read_f64(&self, pos: PosId) -> f64 {
-    self.mini_page.read_f64(pos)
-  }
+  as_slice_for_bminipage!(as_i8_slice, i8);
+  as_slice_for_bminipage!(as_i16_slice, i16);
+  as_slice_for_bminipage!(as_i32_slice, i32);
+  as_slice_for_bminipage!(as_i64_slice, i64);
+  as_slice_for_bminipage!(as_f32_slice, f32);
+  as_slice_for_bminipage!(as_f64_slice, f64);
   
   fn writer(&mut self) -> &mut MiniPageWriter 
   {

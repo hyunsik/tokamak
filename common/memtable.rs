@@ -21,11 +21,13 @@ pub struct MemTable
 
 impl MemTable
 {
-	pub fn new(session: &Session, types: &Vec<Ty>, fields_name: &Vec<&str>) -> MemTable
+	pub fn new(session: &Session, types: &Vec<Ty>, field_names: &Vec<&str>) -> MemTable
 	{
+		debug_assert!(types.len() == field_names.len());
+		
 		MemTable {
 			types      : types.clone(),
-			field_names: ::util::str::to_owned_vec(fields_name),
+			field_names: ::util::str::to_owned_vec(field_names),
 			pages      : Vec::new(),
 			row_num    : 0
 		}
@@ -248,17 +250,13 @@ impl<'a, D> Decoder for DecodedRecords<'a, D> {
     
     fn read_f64(&mut self) -> Result<f64, Self::Error>
     {
-//    	debug_assert!(self.page_pos < self.pages.len());
-//    	debug_assert!(self.row_pos  < self.pages[self.page_pos].value_count());
-//    	debug_assert!(self.col_pos  < self.types.len());
-//    	
-//    	let page_pos = self.page_pos;
-//    	let row_pos  = self.row_pos;
-//    	let col_pos  = self.col_pos;
-//    	
-//    	let mini_page = self.pages[page_pos].minipage(col_pos);
-//    	Ok(mini_page.read_f64(row_pos))
-			unimplemented!();
+			self.validate();
+
+    	let row_pos  = self.row_pos;
+    	let col_pos  = self.col_pos;
+    	
+    	let mini_page = self.cur_page.unwrap().minipage(col_pos);
+    	Ok(mini_page.read_f64(row_pos))
     }
     
     fn read_f32(&mut self) -> Result<f32, Self::Error>
