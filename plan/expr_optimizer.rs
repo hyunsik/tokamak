@@ -5,7 +5,7 @@ pub fn transform_or<V, F>(v: &V, cond: bool, e: &Expr, f: F) -> Expr
 		where V: visitor::TransformVisitor + Sized, 
 		      F: Fn(&Expr) -> Expr
 {
-	if  cond {
+	if cond {
 		f(e)
 	} else {
 		visitor::transform_by_default(v, e)

@@ -13,25 +13,25 @@ use types::{Ty};
 use rows::{
   MiniPageWriter,
   Page,
-  PageBuilder,
+  OwnedPageBuilder,
   ROWBATCH_SIZE
 };
 use input::InputSource;
 
 pub struct RandomTable 
 {  
-  builder: Box<PageBuilder>,
+  builder  : Box<OwnedPageBuilder>,
   write_fns: Vec<Box<Fn(&mut MiniPageWriter, usize)>>,
-  row_num : usize, // number of rows to generate   
-  cur_pos : usize  // how many rows are generated so far?
+  row_num  : usize, // number of rows to generate   
+  cur_pos  : usize  // how many rows are generated so far?
 }
 
 impl RandomTable 
 {
   pub fn new(session: &Session, types: &Vec<Ty>, row_num: usize) -> Box<InputSource> {
     
-    Box::new(RandomTable {
-      builder: Box::new(PageBuilder::new(types)),
+    Box::new(RandomTable {      
+      builder: Box::new(OwnedPageBuilder::new(types)),
       write_fns: types.iter()
         .map(|ty| choose_random_fn(ty)) // choose random functions for types
         .collect::<Vec<Box<Fn(&mut MiniPageWriter, usize)>>>(),

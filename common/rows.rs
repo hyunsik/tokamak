@@ -35,25 +35,40 @@ pub type PageId = usize;
 /// Type for row position
 pub type PosId = usize;
 
-pub struct Page 
+pub trait Page
+{
+	fn minipage_num(&self) -> usize;
+	
+	fn set_value_count(&mut self, value_count: usize);
+	
+	fn value_count(&self) -> usize;
+	
+	fn minipage(&self, id: PageId) -> &MiniPage;
+	
+	fn bytesize(&self) -> u32;
+	
+	fn to_owned(&self) -> OwnedPage;
+}
+
+pub struct OwnedPage 
 {
   mini_pages: Vec<Box<MiniPage>>,
   
   value_count: usize
 }
 
-impl Page 
+impl Page for OwnedPage 
 {
   #[inline]
-  pub fn minipage_num(&self) -> usize { self.mini_pages.len() }
+  fn minipage_num(&self) -> usize { self.mini_pages.len() }
   
   fn set_value_count(&mut self, value_count: usize) { self.value_count = value_count }
   
   #[inline]
-  pub fn value_count(&self) -> usize { self.value_count }
+  fn value_count(&self) -> usize { self.value_count }
   
   #[inline]
-  pub fn minipage(&self, id: PageId) -> &MiniPage 
+  fn minipage(&self, id: PageId) -> &MiniPage 
   {
     debug_assert!(id < self.minipage_num());
      
@@ -62,21 +77,21 @@ impl Page
   
   /// Total byte size of this page
   #[inline]
-  pub fn bytesize(&self) -> u32 
+  fn bytesize(&self) -> u32 
   {
     self.mini_pages.iter()
       .map(|m| m.bytesize())
       .fold(0, |acc, size| acc + size)
   }
   
-  pub fn copy(&self) -> Page
+  fn to_owned(&self) -> OwnedPage
   {
   	let copied_mpages = self.mini_pages
   		.iter()
   		.map(|mp| mp.copy())
   		.collect::<Vec<Box<MiniPage>>>();
   	
-  	Page {mini_pages: copied_mpages, value_count: self.value_count}
+  	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
   }
 }
 
@@ -137,13 +152,24 @@ pub trait MiniPageWriter
   fn finalize(&mut self);
 }
 
-
-pub struct PageBuilder 
+pub struct BorrowedPage<'a>
 {
-  page: Page
+	mini_pages: Vec<&'a MiniPage>
 }
 
-impl PageBuilder 
+pub trait PageBuilder
+{
+	fn writer(&mut self, id: PageId) -> &mut MiniPageWriter);
+	
+	fn iter_mut<'a>(&'a mut self) -> Box<Iterator<Item=&'a mut MiniPageWriter> + 'a>;
+}
+
+pub struct OwnedPageBuilder 
+{
+  page: OwnedPage
+}
+
+impl OwnedPageBuilder 
 {
   pub fn new(types: &Vec<Ty>) -> Self 
   {
@@ -153,7 +179,7 @@ impl PageBuilder
       .map(|f| (f.create_minipage)())
       .collect::<Vec<Box<MiniPage>>>();
     
-    PageBuilder {page: Page {mini_pages: mini_pages, value_count: 0}}
+    OwnedPageBuilder {page: OwnedPage {mini_pages: mini_pages, value_count: 0}}
   }
   
   #[inline]

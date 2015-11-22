@@ -7,7 +7,7 @@ use rustc_serialize::{Decoder, Decodable};
 use session::Session;
 use err;
 use err::{Void, void_ok};
-use rows::*;
+use rows::{OwnedPage, Page};
 use types::Ty;
 
 pub struct MemTable
@@ -15,7 +15,7 @@ pub struct MemTable
 	types      : Vec<Ty>,
 	field_names: Vec<String>,
 	
-	pages      : Vec<Page>,
+	pages      : Vec<OwnedPage>,
 	row_num    : usize
 }
 
@@ -71,7 +71,7 @@ impl MemTable
 	pub fn write(&mut self, page: &Page) -> Void
 	{
 		self.row_num += page.value_count() as usize;
-		self.pages.push(page.copy());
+		self.pages.push(page.to_owned());
 		
 		void_ok
 	}
@@ -88,8 +88,8 @@ use std::slice::Iter;
 
 pub struct DecodedRecords<'a, D>
 {
-	pages_it: Iter<'a, Page>,
-	cur_page: Option<&'a Page>,
+	pages_it: Iter<'a, OwnedPage>,
+	cur_page: Option<&'a OwnedPage>,
 	types   : &'a Vec<Ty>,
 	row_pos : usize,
 	col_pos : usize,

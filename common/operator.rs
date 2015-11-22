@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 //use super::datum::Datum;
 use super::types::Ty;
-use super::rows::{MiniPage,PageBuilder};
+use super::rows::{Page, MiniPage, MiniPageWriter};
 
 /// Expression Element
 #[derive(Clone)]
@@ -59,9 +59,9 @@ pub struct WinFnDecl {
 }
 
 
-pub type UnaryFn   = Fn(&MiniPage, &mut PageBuilder);
-pub type BinaryFn  = Fn(&MiniPage, &MiniPage, &mut PageBuilder);
-pub type TrinityFn = Fn(&MiniPage, &MiniPage, &MiniPage, &mut PageBuilder);
+pub type UnaryFn   = Fn(&MiniPage, &mut MiniPageWriter);
+pub type BinaryFn  = Fn(&MiniPage, &MiniPage, &mut MiniPageWriter);
+pub type TrinityFn = Fn(&MiniPage, &MiniPage, &MiniPage, &mut MiniPageWriter);
 
 pub enum InvokeAction
 {
