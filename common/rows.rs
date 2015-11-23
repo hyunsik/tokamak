@@ -53,7 +53,9 @@ pub trait Page
   {
   	let projected = ids.iter()
   		.map(|i| self.minipage(*i))
-  		.collect::<Vec<&MiniPage>>();	
+  		.collect::<Vec<&MiniPage>>();
+  		
+    println!("projected: {}, vc: {}", projected.len(), self.value_count());  			
   		
   	BorrowedPage::new(projected, self.value_count())	
   }
@@ -174,7 +176,7 @@ impl<'a> BorrowedPage<'a>
 	{
 		BorrowedPage {
 			borrowed   : borrowed,
-			value_count: 0
+			value_count: value_count
 		}
 	}
 }

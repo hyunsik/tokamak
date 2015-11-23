@@ -2,7 +2,7 @@ extern crate common;
 
 use common::session::Session;
 use common::types::{i32_ty, f32_ty, Ty};
-use common::rows::{MiniPage, ROWBATCH_SIZE};
+use common::rows::{Page, MiniPage, ROWBATCH_SIZE};
 use common::input::InputSource;
 use common::storage::RandomTable;
 
@@ -20,8 +20,7 @@ pub fn test_minipage_copy()
   {
 		let page = generator.next().unwrap();
 		let m1: &MiniPage = page.minipage(0);
-		let m2: &MiniPage = page.minipage(1);
-	  
+		let m2: &MiniPage = page.minipage(1);	  
 	  
 	  let m1_copy = m1.copy();
 	  let m2_copy = m2.copy();
@@ -33,6 +32,33 @@ pub fn test_minipage_copy()
   }
   
   generator.close().ok().unwrap();
+}
+
+#[test]
+pub fn test_project() 
+{
+  let types: Vec<Ty> = vec![
+    i32_ty(), 
+    f32_ty(),
+    i32_ty(),
+  ];
+  
+  let session = Session;
+  let mut gen = RandomTable::new(&session, &types, 5);
+  
+  let page      = gen.next().unwrap();
+  let projected = page.project(&vec![1,2]);
+  
+  assert_eq!(5, page.value_count());
+  assert_eq!(5, projected.value_count());
+  
+  assert_eq!(3, page.minipage_num());
+  assert_eq!(2, projected.minipage_num());
+  
+  for x in 0 .. 5 {
+		assert_eq!(page.minipage(1).read_f32(x), projected.minipage(0).read_f32(x));
+		assert_eq!(page.minipage(2).read_i32(x), projected.minipage(1).read_i32(x));
+  }
 }
 
 #[test]
@@ -48,8 +74,7 @@ pub fn test_page_copy()
   
   {
 		let page = generator.next().unwrap();
-		
-		let copied_page = page.copy();
+		let copied_page = page.to_owned();
 		
 		let m1 = page.minipage(0);
 		let m2 = page.minipage(1);	  

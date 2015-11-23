@@ -2,7 +2,7 @@ extern crate common;
 
 use common::session::Session;
 use common::types::{i32_ty, f32_ty, Ty};
-use common::rows::{ROWBATCH_SIZE};
+use common::rows::{Page, ROWBATCH_SIZE};
 use common::input::InputSource;
 use common::storage::{MemTable, RandomTable};
 
@@ -86,5 +86,41 @@ pub fn test_read()
   let reader = mem.reader();
   for x in reader {
   	let r: (i32, f32) = x.ok().unwrap();
+  }
+}
+
+#[test]
+pub fn test_write_projected() 
+{
+  let types: Vec<Ty> = vec![
+    i32_ty(), 
+    f32_ty(),
+    i32_ty(),
+  ];
+  
+  let session = Session;
+  let mut gen = RandomTable::new(&session, &types, 5);
+  let mut mem = MemTable::new(&session, &vec![f32_ty(), i32_ty()], &vec!["x", "y"]);
+  
+  let page      = gen.next().unwrap();
+  let projected = page.project(&vec![1,2]);
+  
+  assert_eq!(5, page.value_count());
+  assert_eq!(5, projected.value_count());
+  
+  assert_eq!(3, page.minipage_num());
+  assert_eq!(2, projected.minipage_num());
+  
+  mem.write(&projected).ok().unwrap();
+  assert_eq!(5, mem.row_num());
+  
+  let reader = mem.reader();
+  let mut row_id = 0usize;
+  for x in reader {
+  	let r: (f32, i32) = x.ok().unwrap();
+  	assert_eq!(page.minipage(1).read_f32(row_id), r.0);
+  	assert_eq!(page.minipage(2).read_i32(row_id), r.1);
+  	
+  	row_id += 1;
   }
 }
