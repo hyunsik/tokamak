@@ -7,36 +7,42 @@ use common::rows::{
 
 use super::Schema;
 
-pub struct Projector
+pub struct Projector<'a>
 {
-	pos_list: Vec<PosId> 
+	pos_list: Vec<PosId>,
+	borrowed: BorrowedPage<'a>, 
 }
-//
-//impl Projector
-//{
-//	pub fn new(schema: &Schema, Vec<&Expr>)
-//	{
-//		Projector
-//	}
-//}
 
-impl Projector
+impl<'a> Projector<'a>
 {
-	pub fn next<'a>(&self, page: &'a Page, writer: &mut BorrowedPage<'a>)
+	pub fn new(schema: &Schema, fields: &Vec<&str>) -> Projector<'a>
 	{
-		let projected = self.pos_list.iter()
-			.map(|id| page.minipage(*id))
-			.collect::<Vec<&MiniPage>>();
+		Projector {
+			pos_list: schema.find_ids(fields),
+			borrowed: BorrowedPage::new()
+		}
+	}
+}
+
+impl<'a> Projector<'a>
+{
+	pub fn next(&'a mut self, page: &'a Page) -> &'a Page
+	{
+		self.borrowed.set(
+			self.pos_list.iter()
+				.map(|id| page.minipage(*id))
+				.collect::<Vec<&MiniPage>>()
+		);
 		
-		writer.set(projected);
+		&self.borrowed
 	}
 }
 
 #[cfg(test)]
 mod tests {
 	use common::rows::{
+		BorrowedPage,
 		Page,
-		OwnedPageBuilder,
 		PageId
 	};
 	use common::plugin::*;
@@ -47,6 +53,7 @@ mod tests {
 	use plan::expr::*;
 	use driver::DriverContext;
 	
+	use super::super::Schema;
 	use super::*;
 	
 	#[test]
@@ -84,32 +91,29 @@ mod tests {
 				Box::new(l_quantity)
   	];
   	
-  	let schema = (&tb_types, &tb_field_names);
-  	let session    = Session;
+  	let schema  = Schema::new(&tb_field_names, &tb_types);
+  	let session = Session;
   			
 		let mut input  = RandomTable::new(&session, &tb_types, 1024);
 		let output_tys = exprs.iter()
 											.map(|e| e.ty().clone())
 											.collect::<Vec<Ty>>();
-		let mut output = MemTable::new(&session, &output_tys, &vec!["x"]);
+		let project_fields = &vec!["l_orderkey", "l_quantity"];
+		let mut output = MemTable::new(&session, &output_tys, &project_fields);
 		
-		//let projector = Projector::new(&schema, &exprs).ok().unwrap();
-		let mut builder = OwnedPageBuilder::new(&output_tys);
-		
+		let mut projector = Projector::new(&schema, project_fields);
 		
 		loop { 
-		  let mut read_page = input.next().unwrap();
+		  let read_page = input.next().unwrap();
 		  
 		  if read_page.value_count() == 0 {
 		  	break;
 		  }
 		  
-		  //processor.process(read_page, &mut builder);
-		  //output.write(builder.build(read_page.value_count()));
-		  //builder.reset();
+		  output.write(read_page);
 		}
 		
-		assert_eq!(1, output.col_num());
+		assert_eq!(2, output.col_num());
 		assert_eq!(1024, output.row_num());
 		
 		for x in output.reader() {

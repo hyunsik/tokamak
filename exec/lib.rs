@@ -65,4 +65,29 @@ pub trait ExecutorFactory
   fn types(&self) -> &Vec<Ty>;
 }
 
-pub type Schema<'a, 'b> = (&'a Vec<Ty>, &'a Vec<&'b str>);
+pub struct Schema<'a> 
+{
+	pub names: &'a Vec<&'a str>,
+	pub types: &'a Vec<Ty>
+}
+
+impl<'a> Schema<'a>
+{
+	pub fn new(names: &'a Vec<&'a str>, types: &'a Vec<Ty>) -> Schema<'a>
+	{
+		debug_assert_eq!(names.len(), types.len());
+		
+		Schema {
+			names: names,
+			types: types
+		}
+	}
+	
+	pub fn find_ids(&self, names: &Vec<&str>) -> Vec<usize>
+	{	
+		(0..self.names.len()).zip(self.names)
+			.filter(|&(id, name)| names.contains(name))
+			.map(|(id, name)| id)
+			.collect::<Vec<usize>>()
+	}
+}

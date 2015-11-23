@@ -236,7 +236,7 @@ impl InterpreterProcessor
 	{
 		let evals = try!(
 			exprs.iter()
-		       .map(|e| Interpreter::build(session, schema.0, schema.1, e))
+		       .map(|e| Interpreter::build(session, schema.types, schema.names, e))
 		       .collect::<Result<Vec<Box<Evaluator>>>>()
     );
 		
@@ -273,6 +273,8 @@ mod tests {
 	
 	use plan::expr::*;
 	use driver::DriverContext;
+	
+	use super::super::Schema;
 	
 	use super::*;
 	
@@ -337,8 +339,8 @@ mod tests {
 				Box::new(l_quantity)
   	];
   	
-  	let schema = (&tb_types, &tb_field_names);
-  	let session    = Session;
+  	let schema  = Schema::new(&tb_field_names, &tb_types);
+  	let session = Session;
   	
 		let processor = InterpreterProcessor::new(&session, &schema, &exprs).ok().unwrap();
 		let mut input  = RandomTable::new(&session, &tb_types, 1024);

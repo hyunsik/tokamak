@@ -160,6 +160,13 @@ pub struct BorrowedPage<'a>
 
 impl<'a> BorrowedPage<'a>
 {
+	pub fn new() -> BorrowedPage<'a>
+	{
+		BorrowedPage {
+			borrowed   : None,
+			value_count: 0
+		}
+	}
 	pub fn set(&mut self, borrowed: Vec<&'a MiniPage>)
 	{
 		self.borrowed = Some(borrowed);
