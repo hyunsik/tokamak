@@ -1,7 +1,7 @@
 use common::err::{Error, Result, Void, void_ok};
 use common::input::{InputSource, InputSourceFactory};
 use common::types::Ty;
-use common::rows::{Page, PageBuilder};
+use common::rows::{Page, BorrowedPage};
 
 use driver::DriverContext;
 use super::{Executor, ExecutorFactory};
@@ -37,16 +37,16 @@ impl<'a> ExecutorFactory for TableScanExecFactory
   }
 }
 
-pub struct TableScanExec 
+pub struct TableScanExec<'a> 
 {
-  page_builder: Box<PageBuilder>,
+  output: BorrowedPage<'a>,
   input: Box<InputSource>,
   processor: Box<Processor>,
   
   cur_pos: usize
 }
 
-impl Executor for TableScanExec 
+impl<'a> Executor for TableScanExec<'a> 
 {
   fn init(&mut self) -> Void
   {
@@ -65,11 +65,13 @@ impl Executor for TableScanExec
   {
     let read_page: &Page = try!(self.input.next());
     
+    /*
     try!(self.processor.process(
         read_page, 
-        &mut self.page_builder));
+        &mut self.output));
+       */
     
-    Ok(self.page_builder.build(read_page.value_count()))
+    Ok(&self.output)
   }
   
   fn close(&mut self) -> Void 

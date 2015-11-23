@@ -23,7 +23,7 @@ use common::plugin::{
 use common::rows::{
 	MiniPage,
 	Page,
-	PageBuilder,
+	OwnedPageBuilder,
 	PageId
 };
 use common::session::Session;
@@ -32,13 +32,14 @@ use plan::expr::*;
 use plan::expr::visitor::{accept_by_default, Visitor};
 
 use driver::DriverContext;
+use super::Schema;
 
 pub trait Processor
 {
   fn process(
     &self, 
     input: &Page, 
-    builder: &mut PageBuilder) -> Void;
+    builder: &mut OwnedPageBuilder) -> Void;
 }
 
 pub trait Evaluator
@@ -222,8 +223,6 @@ impl<'a> visitor::Visitor for Interpreter<'a>
 	} 
 }
 
-pub type Schema<'a, 'b> = (&'a Vec<Ty>, &'a Vec<&'b str>);
-
 pub struct InterpreterProcessor
 {
 	evals: Vec<Box<Evaluator>>
@@ -250,7 +249,7 @@ impl Processor for InterpreterProcessor
 	fn process(
     &self, 
     input: &Page, 
-    builder: &mut PageBuilder) -> Void 
+    builder: &mut OwnedPageBuilder) -> Void 
 	{
   	for (w, e) in izip!(builder.iter_mut(), self.evals.iter()) {
   		try!(e.evaluate(input));
@@ -264,7 +263,7 @@ impl Processor for InterpreterProcessor
 mod tests {
 	use common::rows::{
 		Page,
-		PageBuilder,
+		OwnedPageBuilder,
 		PageId
 	};
 	use common::plugin::*;
@@ -349,7 +348,7 @@ mod tests {
 											.collect::<Vec<Ty>>();
 		let mut output = MemTable::new(&session, &output_tys, &vec!["x"]);
 		
-		let mut builder = PageBuilder::new(&output_tys);
+		let mut builder = OwnedPageBuilder::new(&output_tys);
 		
 		
 		loop { 

@@ -154,14 +154,57 @@ pub trait MiniPageWriter
 
 pub struct BorrowedPage<'a>
 {
-	mini_pages: Vec<&'a MiniPage>
+	borrowed: Option<Vec<&'a MiniPage>>,
+	value_count: usize
 }
 
-pub trait PageBuilder
+impl<'a> BorrowedPage<'a>
 {
-	fn writer(&mut self, id: PageId) -> &mut MiniPageWriter);
+	pub fn set(&mut self, borrowed: Vec<&'a MiniPage>)
+	{
+		self.borrowed = Some(borrowed);
+	}
+}
+
+impl<'a> Page for BorrowedPage<'a>
+{
+	fn minipage_num(&self) -> usize 
+	{
+		self.borrowed.as_ref().unwrap().len()		
+	}
 	
-	fn iter_mut<'a>(&'a mut self) -> Box<Iterator<Item=&'a mut MiniPageWriter> + 'a>;
+	fn set_value_count(&mut self, value_count: usize)
+	{
+		self.value_count = value_count;
+	}
+	
+	fn value_count(&self) -> usize
+	{
+		self.value_count
+	}
+	
+	fn minipage(&self, id: PageId) -> &MiniPage
+	{
+		self.borrowed.as_ref().unwrap()[id]
+	}
+	
+	fn bytesize(&self) -> u32
+	{
+		self.borrowed.as_ref().unwrap()
+			.iter()
+			.map(|m| m.bytesize())
+			.fold(0, |acc, size| acc + size)
+	}
+	
+	fn to_owned(&self) -> OwnedPage
+	{
+		let copied_mpages = self.borrowed.as_ref().unwrap()
+  		.iter()
+  		.map(|mp| mp.copy())
+  		.collect::<Vec<Box<MiniPage>>>();
+  	
+  	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
+	}
 }
 
 pub struct OwnedPageBuilder 

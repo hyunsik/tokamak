@@ -44,7 +44,7 @@ pub mod hash_join;
 pub mod scan;
 
 use common::err::{Void, Result};
-use common::rows::{Page, PageBuilder};
+use common::rows::Page;
 use common::types::Ty;
 
 use driver::DriverContext;
@@ -65,19 +65,4 @@ pub trait ExecutorFactory
   fn types(&self) -> &Vec<Ty>;
 }
 
-/*
-#[test]
-pub fn test_pipeline() {
-  let page_builder: Box<PageBuilder> = Box::new(DefaultPageBuilder);
-  
-  let input_page = page_builder.create(&vec![
-    Box::new(Int4Type),
-    Box::new(Float4Type),
-  ]);
-  
-  let mut output_page = page_builder.create(&vec![
-    Box::new(Int4Type),
-    Box::new(Float4Type),
-  ]);
-}
-*/
+pub type Schema<'a, 'b> = (&'a Vec<Ty>, &'a Vec<&'b str>);
