@@ -6,37 +6,37 @@ use common::rows::{
 };
 
 use super::Schema;
-
-pub struct Projector<'a>
-{
-	pos_list: Vec<PosId>,
-	borrowed: BorrowedPage<'a>, 
-}
-
-impl<'a> Projector<'a>
-{
-	pub fn new(schema: &Schema, fields: &Vec<&str>) -> Projector<'a>
-	{
-		Projector {
-			pos_list: schema.find_ids(fields),
-			borrowed: BorrowedPage::new()
-		}
-	}
-}
-
-impl<'a> Projector<'a>
-{
-	pub fn next(&'a mut self, page: &'a Page) -> &'a Page
-	{
-		self.borrowed.set(
-			self.pos_list.iter()
-				.map(|id| page.minipage(*id))
-				.collect::<Vec<&MiniPage>>()
-		);
-		
-		&self.borrowed
-	}
-}
+//
+//pub struct Projector<'a>
+//{
+//	pos_list: Vec<PosId>,
+//	borrowed: BorrowedPage<'a>, 
+//}
+//
+//impl<'a> Projector<'a>
+//{
+//	pub fn new(schema: &Schema, fields: &Vec<&str>) -> Projector<'a>
+//	{
+//		Projector {
+//			pos_list: schema.find_ids(fields),
+//			borrowed: BorrowedPage::new()
+//		}
+//	}
+//}
+//
+//impl<'a> Projector<'a>
+//{
+//	pub fn next(&'a mut self, page: &'a Page) -> &'a Page
+//	{
+//		self.borrowed.set(
+//			self.pos_list.iter()
+//				.map(|id| page.minipage(*id))
+//				.collect::<Vec<&MiniPage>>()
+//		);
+//		
+//		&self.borrowed
+//	}
+//}
 
 #[cfg(test)]
 mod tests {
@@ -83,7 +83,7 @@ mod tests {
 	  	"l_tax"
 	  ];
 		
-		let l_orderkey = Field(&f64_ty(), "l_orderkey");
+		let l_orderkey = Field(&i64_ty(), "l_orderkey");
 		let l_quantity = Field(&f64_ty(), "l_quantity");	  
 	  
 	  let exprs = vec![
@@ -100,25 +100,23 @@ mod tests {
 											.collect::<Vec<Ty>>();
 		let project_fields = &vec!["l_orderkey", "l_quantity"];
 		let mut output = MemTable::new(&session, &output_tys, &project_fields);
-		
-		let mut projector = Projector::new(&schema, project_fields);
+		let project_ids = schema.find_ids(project_fields);
 		
 		loop { 
-		  let read_page = input.next().unwrap();
+		  let read_page = input.next().unwrap().project(&project_ids);
 		  
 		  if read_page.value_count() == 0 {
 		  	break;
 		  }
 		  
-		  output.write(read_page);
-		}
-		
-		assert_eq!(2, output.col_num());
-		assert_eq!(1024, output.row_num());
-		
-		for x in output.reader() {
-			let r: (f64) = x.ok().unwrap();
-			println!("{}", r);
+		  output.write(&read_page);
+		  assert_eq!(2, output.col_num());
+			assert_eq!(1024, output.row_num());
+			
+			for x in output.reader() {
+				let r: (i64, f64) = x.ok().unwrap();
+				println!("{}, {}", r.0, r.1);
+			}
 		}
 	}
 }

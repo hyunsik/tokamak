@@ -48,6 +48,8 @@ pub trait Page
 	fn bytesize(&self) -> u32;
 	
 	fn to_owned(&self) -> OwnedPage;
+	
+	fn project<'a>(&'a self, ids: &[PageId]) -> BorrowedPage<'a>;
 }
 
 pub struct OwnedPage 
@@ -92,6 +94,15 @@ impl Page for OwnedPage
   		.collect::<Vec<Box<MiniPage>>>();
   	
   	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
+  }
+  
+  fn project<'a>(&'a self, ids: &[PageId]) -> BorrowedPage<'a>
+  {
+  	let projected = ids.iter()
+  		.map(|i| self.minipage(*i))
+  		.collect::<Vec<&MiniPage>>();
+  		
+  	BorrowedPage::new(projected, self.value_count)	
   }
 }
 
@@ -154,22 +165,19 @@ pub trait MiniPageWriter
 
 pub struct BorrowedPage<'a>
 {
-	borrowed: Option<Vec<&'a MiniPage>>,
+	borrowed: Vec<&'a MiniPage>,
 	value_count: usize
 }
 
 impl<'a> BorrowedPage<'a>
 {
-	pub fn new() -> BorrowedPage<'a>
+	#[inline]
+	pub fn new(borrowed: Vec<&'a MiniPage>, value_count: usize) -> BorrowedPage<'a>
 	{
 		BorrowedPage {
-			borrowed   : None,
+			borrowed   : borrowed,
 			value_count: 0
 		}
-	}
-	pub fn set(&mut self, borrowed: Vec<&'a MiniPage>)
-	{
-		self.borrowed = Some(borrowed);
 	}
 }
 
@@ -177,7 +185,7 @@ impl<'a> Page for BorrowedPage<'a>
 {
 	fn minipage_num(&self) -> usize 
 	{
-		self.borrowed.as_ref().unwrap().len()		
+		self.borrowed.len()		
 	}
 	
 	fn set_value_count(&mut self, value_count: usize)
@@ -192,12 +200,12 @@ impl<'a> Page for BorrowedPage<'a>
 	
 	fn minipage(&self, id: PageId) -> &MiniPage
 	{
-		self.borrowed.as_ref().unwrap()[id]
+		self.borrowed[id]
 	}
 	
 	fn bytesize(&self) -> u32
 	{
-		self.borrowed.as_ref().unwrap()
+		self.borrowed
 			.iter()
 			.map(|m| m.bytesize())
 			.fold(0, |acc, size| acc + size)
@@ -205,13 +213,22 @@ impl<'a> Page for BorrowedPage<'a>
 	
 	fn to_owned(&self) -> OwnedPage
 	{
-		let copied_mpages = self.borrowed.as_ref().unwrap()
+		let copied_mpages = self.borrowed
   		.iter()
   		.map(|mp| mp.copy())
   		.collect::<Vec<Box<MiniPage>>>();
   	
   	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
 	}
+	
+	fn project<'b>(&'b self, ids: &[PageId]) -> BorrowedPage<'b>
+  {
+  	let projected = ids.iter()
+  		.map(|i| self.minipage(*i))
+  		.collect::<Vec<&MiniPage>>();
+  		
+  	BorrowedPage::new(projected, self.value_count)	
+  }
 }
 
 pub struct OwnedPageBuilder 

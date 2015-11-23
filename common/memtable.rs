@@ -134,7 +134,6 @@ impl<'a, D> Iterator for DecodedRecords<'a, D> where D: Decodable {
   	};
   	
   	if let Some(p) = self.cur_page {
-  		println!("Enter decode point!");
   	  let r = Decodable::decode(self);
   	  self.row_pos += 1;
   	  
