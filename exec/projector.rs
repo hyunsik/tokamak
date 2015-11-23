@@ -102,7 +102,7 @@ mod tests {
 		let mut output = MemTable::new(&session, &output_tys, &project_fields);
 		let project_ids = schema.find_ids(project_fields);
 		
-		loop { 
+		loop {
 		  let read_page = input.next().unwrap().project(&project_ids);
 		  
 		  if read_page.value_count() == 0 {

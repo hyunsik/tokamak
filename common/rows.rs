@@ -49,7 +49,14 @@ pub trait Page
 	
 	fn to_owned(&self) -> OwnedPage;
 	
-	fn project<'a>(&'a self, ids: &[PageId]) -> BorrowedPage<'a>;
+	fn project<'a>(&'a self, ids: &[PageId]) -> BorrowedPage<'a>
+  {
+  	let projected = ids.iter()
+  		.map(|i| self.minipage(*i))
+  		.collect::<Vec<&MiniPage>>();	
+  		
+  	BorrowedPage::new(projected, self.value_count())	
+  }
 }
 
 pub struct OwnedPage 
@@ -94,15 +101,6 @@ impl Page for OwnedPage
   		.collect::<Vec<Box<MiniPage>>>();
   	
   	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
-  }
-  
-  fn project<'a>(&'a self, ids: &[PageId]) -> BorrowedPage<'a>
-  {
-  	let projected = ids.iter()
-  		.map(|i| self.minipage(*i))
-  		.collect::<Vec<&MiniPage>>();
-  		
-  	BorrowedPage::new(projected, self.value_count)	
   }
 }
 
@@ -220,15 +218,6 @@ impl<'a> Page for BorrowedPage<'a>
   	
   	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
 	}
-	
-	fn project<'b>(&'b self, ids: &[PageId]) -> BorrowedPage<'b>
-  {
-  	let projected = ids.iter()
-  		.map(|i| self.minipage(*i))
-  		.collect::<Vec<&MiniPage>>();
-  		
-  	BorrowedPage::new(projected, self.value_count)	
-  }
 }
 
 pub struct OwnedPageBuilder 
