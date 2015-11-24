@@ -58,10 +58,11 @@ impl InputSource for RandomTable
     // determine the row number to generate at this call
     let remain = self.row_num - self.cur_pos;  
     let min = ::std::cmp::min(remain, ROWBATCH_SIZE);
-    
+     
     for (gen_fn, writer) in Zip::new((self.write_fns.iter(), self.builder.iter_mut())) {
       (gen_fn)(writer, min)
     }
+    
     // move forward the position
     self.cur_pos += min;
     
@@ -79,7 +80,7 @@ fn write_rand_for_i32(builder: &mut MiniPageWriter, rownum: usize)
   }
 }
 
- #[allow(unused_variables)]
+#[allow(unused_variables)]
 fn write_rand_for_f32(builder: &mut MiniPageWriter, rownum: usize) 
 {
   for pos in 0 .. rownum {
@@ -87,11 +88,29 @@ fn write_rand_for_f32(builder: &mut MiniPageWriter, rownum: usize)
   }
 }
 
+#[allow(unused_variables)]
+fn write_rand_for_i64(builder: &mut MiniPageWriter, rownum: usize) 
+{
+  for pos in 0 .. rownum {
+    builder.write_i64(rand::random::<i64>());
+  }
+}
+
+#[allow(unused_variables)]
+fn write_rand_for_f64(builder: &mut MiniPageWriter, rownum: usize) 
+{
+  for pos in 0 .. rownum {
+    builder.write_f64(rand::random::<f64>());
+  }
+}
+
 fn choose_random_fn(ty: &Ty) -> Box<Fn(&mut MiniPageWriter, usize)> 
 {
   match ty.base() {
     "i32" => Box::new(write_rand_for_i32),
+    "i64" => Box::new(write_rand_for_i64),
     "f32" => Box::new(write_rand_for_f32),
+    "f64" => Box::new(write_rand_for_f64),
     _ => panic!("not supported type")
   }
 }

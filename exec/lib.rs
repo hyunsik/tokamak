@@ -37,7 +37,6 @@ pub mod split;
 pub mod task;
 pub mod planner;
 pub mod processor;
-pub mod projector;
 
 pub mod filter;
 pub mod hash_join;

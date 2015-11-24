@@ -323,20 +323,17 @@ mod tests {
 	  	"l_tax"
 	  ];
 
-		/*
+
 	  let sum_disc_price = 
-	  	Mul(
-	  		&f64_ty(), Field(&f64_ty(), "l_extendedprice"), Subtract(&f64_ty(), Const(1), Field(&f64_ty(), "l_discount")));
+	  	Mul(&f64_ty(), Field(&f64_ty(), "l_extendedprice"), 
+	  		Subtract(&f64_ty(), Const(1), Field(&f64_ty(), "l_discount")));
 	  	
   	let sum_charge = 
-	  	Mul(&f64_ty(), sum_disc_price.clone(), Plus(&f64_ty(), Const(1), Field(&f64_ty(), "l_tax")));*/
-		
-		let l_quantity = Field(&f64_ty(), "l_quantity");	  
+	  	Mul(&f64_ty(), sum_disc_price.clone(), Plus(&f64_ty(), Const(1), Field(&f64_ty(), "l_tax")));
 	  
 	  let exprs = vec![
-//	  	Box::new(sum_disc_price), 
-//	  	Box::new(sum_charge)
-				Box::new(l_quantity)
+	  	Box::new(sum_disc_price), 
+	  	Box::new(sum_charge)
   	];
   	
   	let schema  = Schema::new(&tb_field_names, &tb_types);

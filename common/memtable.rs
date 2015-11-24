@@ -58,6 +58,8 @@ impl MemTable
 	
 	pub fn reader<'a, D: Decodable>(&'a self) -> DecodedRecords<'a, D> 
 	{
+		println!(">> Num of pages: {}", self.pages.len());
+		
 		DecodedRecords {
 			pages_it: self.pages.iter(),
 			cur_page: None,
@@ -99,6 +101,7 @@ pub struct DecodedRecords<'a, D>
 impl<'a, D> DecodedRecords<'a, D>
 {
 	fn next_page(&mut self) {
+		println!(">>> DecodedRecords::next_page() invoked.");
 		loop {
   		self.cur_page = self.pages_it.next();
   		
@@ -126,6 +129,7 @@ impl<'a, D> Iterator for DecodedRecords<'a, D> where D: Decodable {
   type Item = DecodingResult<D>;
   
   fn next(&mut self) -> Option<DecodingResult<D>> {
+  	println!(">>> row pos: {}", self.row_pos);
   	
   	match self.cur_page {
   		Some(p) if self.row_pos >= p.value_count()  => self.next_page(),
@@ -192,17 +196,13 @@ impl<'a, D> Decoder for DecodedRecords<'a, D> {
     
     fn read_i64(&mut self) -> Result<i64, Self::Error>
     {
-//    	debug_assert!(self.page_pos < self.pages.len());
-//    	debug_assert!(self.row_pos  < self.pages[self.page_pos].value_count());
-//    	debug_assert!(self.col_pos  < self.types.len());
-//    	
-//    	let page_pos = self.page_pos;
-//    	let row_pos  = self.row_pos;
-//    	let col_pos  = self.col_pos;
-//    	
-//    	let mini_page = self.pages[page_pos].minipage(col_pos);
-//    	Ok(mini_page.read_i64(row_pos))
-			unimplemented!();
+			self.validate();
+
+    	let row_pos  = self.row_pos;
+    	let col_pos  = self.col_pos;
+    	
+    	let mini_page = self.cur_page.unwrap().minipage(col_pos);
+    	Ok(mini_page.read_i64(row_pos))
     }
     
     fn read_i32(&mut self) -> Result<i32, Self::Error>

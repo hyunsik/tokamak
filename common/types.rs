@@ -355,9 +355,9 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
 pub const BOOL_STR      : &'static str = "bool";
 pub const I8_STR        : &'static str = "i32";
 pub const I32_STR       : &'static str = "i32";
-pub const I64_STR       : &'static str = "i32";
-pub const F32_STR       : &'static str = "i32";
-pub const F64_STR       : &'static str = "i32";
+pub const I64_STR       : &'static str = "i64";
+pub const F32_STR       : &'static str = "f32";
+pub const F64_STR       : &'static str = "f64";
 
 pub fn bool_ty() -> Ty {
 	let handler = TypeHandler {
