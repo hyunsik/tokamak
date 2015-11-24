@@ -116,7 +116,8 @@ pub struct Interpreter<'a>
 
 impl<'a> Interpreter<'a>
 {
-	fn new(session: &Session, 
+	fn new(fn_registry: &FuncRegistry,
+		     session: &Session, 
 		     types: &'a Vec<Ty>, 
 		     names: &'a Vec<&'a str>) -> Interpreter<'a> {
 		Interpreter {
@@ -127,12 +128,14 @@ impl<'a> Interpreter<'a>
 		}
 	}
 		     
-	pub fn build(session:  &'a Session,     
+	pub fn build(
+						fn_registry: &FuncRegistry,
+		        session    : &'a Session,     
 					  input_types: &'a Vec<Ty>,
 					  input_names: &'a Vec<&'a str>, 
 					  expression : &Expr) -> Result<Box<Evaluator>>
 	{
-		let mut interpreter = Interpreter::new(session, input_types, input_names);
+		let mut interpreter = Interpreter::new(fn_registry, session, input_types, input_names);
 		interpreter.accept(expression);
 		
 		match interpreter.stack.len() {
@@ -257,13 +260,14 @@ pub struct InterpreterProcessor
 
 impl InterpreterProcessor
 {
-	pub fn new(session: &Session, 
-		         schema : &Schema, 
-		         exprs  : &Vec<Box<Expr>>) -> Result<InterpreterProcessor>
+	pub fn new(fn_registry: &FuncRegistry,
+		         session    : &Session, 
+		         schema     : &Schema, 
+		         exprs      : &Vec<Box<Expr>>) -> Result<InterpreterProcessor>
 	{
 		let evals = try!(
 			exprs.iter()
-		       .map(|e| Interpreter::build(session, schema.types, schema.names, e))
+		       .map(|e| Interpreter::build(fn_registry, session, schema.types, schema.names, e))
 		       .collect::<Result<Vec<Box<Evaluator>>>>()
     );
 		
@@ -366,7 +370,10 @@ mod tests {
   	let schema  = Schema::new(&tb_field_names, &tb_types);
   	let session = Session;
   	
-		let processor = InterpreterProcessor::new(&session, &schema, &exprs).ok().unwrap();
+		let processor = InterpreterProcessor::new(plugin_mgr.fn_registry(), 
+																						  &session, 
+																						  &schema, 
+																						  &exprs).ok().unwrap();
 		let mut input  = RandomTable::new(&session, &tb_types, 1024);
 		
 		let output_tys = exprs.iter()
