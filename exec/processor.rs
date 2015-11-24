@@ -62,12 +62,28 @@ pub struct UnaryFnEvaluator
 	output_pid: PageId
 }
 
-pub struct BinaryFnEvaluator
+pub struct BinEvaluator
 {
-	f: BinaryFn,
-	lhs_pid: PageId,
-	rhs_pid: PageId,
-	output_pid: PageId
+	ty: Ty,
+	lhs: Box<Evaluator>,
+	rhs: Box<Evaluator>,
+	result: Box<MiniPage>
+}
+
+impl Evaluator for BinEvaluator
+{
+	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage> 
+	{
+		let lhs_res = try!(self.lhs.evaluate(input));
+		let rhs_res = try!(self.rhs.evaluate(input));
+		
+		unimplemented!();
+	}
+	
+	fn ty(&self) -> &Ty 
+	{
+		&self.ty
+	}
 }
 
 #[derive(Clone)]
@@ -162,8 +178,19 @@ impl<'a> Interpreter<'a>
 	{
 	}
 	
-	pub fn Arithm(&self, op: &ArithmOp, lhs: &Expr, rhs: &Expr) 
+	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr) 
 	{
+		self.accept(lhs);
+		self.accept(rhs);
+		
+		let eval = Box::new(BinEvaluator {
+			ty     : ty.clone(),
+			rhs    : self.stack.pop().unwrap(),
+			lhs    : self.stack.pop().unwrap(),
+			result : (ty.handler().create_minipage)()
+		});
+		
+		self.stack.push(eval);
 	}
 	
 	pub fn Func(&self, f: &FnDecl, args: &Vec<Box<Expr>>)
@@ -199,9 +226,9 @@ impl<'a> visitor::Visitor for Interpreter<'a>
 	    ExprKind::Cast     (ref c, ref f, ref t) => self.Cast(c, f, t),
 	    
 	    ExprKind::And      (ref l, ref r)        => self.And(l, r),
-	    ExprKind::Or       (ref l, ref r)        => self.And(l, r),
+	    ExprKind::Or       (ref l, ref r)        => self.Or(l, r),
 	    ExprKind::Cmp      (ref o, ref l, ref r) => self.Cmp(o, l, r),
-	    ExprKind::Arithm   (ref o, ref l, ref r) => self.Arithm(o, l, r), 
+	    ExprKind::Arithm   (ref o, ref l, ref r) => self.Arithm(e.ty(), o, l, r), 
 
 	      
 	    ExprKind::Fn     (ref f, ref args)  => self.Func(f, args),  
