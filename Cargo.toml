@@ -7,6 +7,8 @@ authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
 license = "Apache-2.0"
 keywords = ["Data Analysis", "Data Processing", "Database"]
 
+build = "build.rs"
+
 [lib]
 name = "tajo"
 path = "src/lib.rs"
