@@ -11,14 +11,5 @@ keywords = ["Data Analysis", "Data Processing", "Database"]
 name = "tajo"
 path = "src/lib.rs"
 
-[dependencies]
-bytesize = "*"
-log = "*"
-url = "*"
-itertools = "0.4.0"
-
-[dependencies.common]
-path = "common"
-
-[dependencies.memory]
-path = "memory"
+[dependencies.api]
+path = "api"
