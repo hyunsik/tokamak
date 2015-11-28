@@ -1,0 +1,4 @@
+[submodule "llvm-rs"]
+	path = llvm-rs
+	url = git@github.com:hyunsik/llvm-rs.git
+	branch = master
