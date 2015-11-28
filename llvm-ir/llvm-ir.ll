@@ -8,14 +8,11 @@ entry:
   ret double 1.980410e+03
 }
 
-; Function Attrs: nounwind readnone uwtable
-define zeroext i1 @_ZN5Field3abcEv() #0 align 2 {
-entry:
-  ret i1 true
+define float @f1(float) {
+EntryBlock:
+  %1 = call float @llvm.sin.f32(float %0)
+  ret float %1
 }
 
-attributes #0 = { nounwind readnone uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-
-!llvm.ident = !{!0}
-
-!0 = !{!"clang version 3.6.0 (tags/RELEASE_360/final)"}
+; Function Attrs: nounwind readnone
+declare float @llvm.sin.f32(float) #0
