@@ -1,5 +1,8 @@
+# Preliminary
+This documentation mostly address the overall production design of Tokamak  rather than the implementation issues.
+
 # Design Goals
-* Easy to embed and interoperate general-purpose programming languages
+* Easy to embed and interoperate general-purposed programming languages
 * Look like a functional programming language which are executed across cluster nodes.
 * Basically it will be an array computing system.
 * Declarative language support and query optimization
@@ -11,7 +14,7 @@
 * Primarily targets ~ TB sized input data
 * Workload will be interactive if cluster resources are available.
 
-# Programming Model
+# Query and Programming Model
 
 ## Data Types
 ### Primitive data types for elements
@@ -35,6 +38,12 @@
   * data set vs primitive data
   * primitive data
 
+## User Interfaces
+### Extended SQL
+(TODO)
+### Functional language APIs
+(TODO)
+
 # Physical materialization model
 
 ## Physical format for data sets
@@ -42,3 +51,5 @@
 * BLOB type values in external SQL or NoSQL storages
 * Column storage file formats in file systems
 * Column storage in block storage or object storage in Cloud
+
+# Query Processing
