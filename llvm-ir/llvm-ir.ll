@@ -4,15 +4,11 @@ target triple = "x86_64-unknown-linux-gnu"
 
 ; Function Attrs: nounwind readnone uwtable
 define double @cos1(double %x) #0 {
-entry:
   ret double 1.980410e+03
 }
 
-define float @f1(float) {
-EntryBlock:
-  %1 = call float @llvm.sin.f32(float %0)
-  ret float %1
-}
+attributes #0 = { nounwind readnone uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
-; Function Attrs: nounwind readnone
-declare float @llvm.sin.f32(float) #0
+!llvm.ident = !{!0}
+
+!0 = !{!"clang version 3.6.0 (tags/RELEASE_360/final)"}

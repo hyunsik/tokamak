@@ -10,6 +10,8 @@ use err::{Void, void_ok};
 use rows::{OwnedPage, Page};
 use types::Ty;
 
+use util::collection::vec;
+
 pub struct MemTable
 {
 	types      : Vec<Ty>,
@@ -17,6 +19,11 @@ pub struct MemTable
 	
 	pages      : Vec<OwnedPage>,
 	row_num    : usize
+}
+
+pub fn to_owned_vec<T: Clone>(v: &Vec<&T>) -> Vec<T>
+{
+  v.iter().map(|e| (*e).clone()).collect::<Vec<T>>()
 }
 
 impl MemTable

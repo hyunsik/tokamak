@@ -1,7 +1,7 @@
-extern crate common;
+#[macro_use] extern crate common;
 
 use common::session::Session;
-use common::types::{i32_ty, f32_ty, Ty};
+use common::types::{F32, I32};
 use common::rows::{Page, MiniPage, ROWBATCH_SIZE};
 use common::input::InputSource;
 use common::storage::RandomTable;
@@ -9,13 +9,10 @@ use common::storage::RandomTable;
 #[test]
 pub fn test_minipage_copy() 
 {
-  let types: Vec<Ty> = vec![
-    i32_ty(), 
-    f32_ty()
-  ];
+  let schema = schema!(I32, F32);
   
   let session = Session;
-  let mut generator = RandomTable::new(&session, &types, ROWBATCH_SIZE);
+  let mut generator = RandomTable::new(&session, &schema, ROWBATCH_SIZE);
   
   {
 		let page = generator.next().unwrap();
@@ -37,14 +34,10 @@ pub fn test_minipage_copy()
 #[test]
 pub fn test_project() 
 {
-  let types: Vec<Ty> = vec![
-    i32_ty(), 
-    f32_ty(),
-    i32_ty(),
-  ];
+  let schema = schema!(I32, F32, F32);
   
   let session = Session;
-  let mut gen = RandomTable::new(&session, &types, 5);
+  let mut gen = RandomTable::new(&session, &schema, 5);
   
   let page      = gen.next().unwrap();
   let projected = page.project(&vec![1,2]);
@@ -64,13 +57,10 @@ pub fn test_project()
 #[test]
 pub fn test_page_copy() 
 {
-  let types: Vec<Ty> = vec![
-    i32_ty(), 
-    f32_ty()
-  ];
+  let schema = schema!(I32, F32);
   
   let session = Session;
-  let mut generator = RandomTable::new(&session, &types, ROWBATCH_SIZE);
+  let mut generator = RandomTable::new(&session, &schema, ROWBATCH_SIZE);
   
   {
 		let page = generator.next().unwrap();

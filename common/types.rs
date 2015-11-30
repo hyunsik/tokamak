@@ -16,6 +16,7 @@ pub struct TypeHandler {
   pub create_minipage: Rc<Fn() -> Box<MiniPage>>
 }
 
+/*
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Ty {
   base         : String,
@@ -23,7 +24,9 @@ pub struct Ty {
   orderable    : bool,
   handler      : TypeHandler
 }
+*/
 
+/*
 impl Ty {
 	pub fn new(base: &str, comparable: bool, orderable: bool, handler: TypeHandler) -> Ty {
 		Ty {
@@ -67,7 +70,7 @@ impl Ord for TypeHandler {
   fn cmp(&self, other: &TypeHandler) -> Ordering {
     Ordering::Equal
   }
-}
+}*/
 
 //impl Ty {
 //  pub fn kind(&self) -> &TyKind {
@@ -92,35 +95,133 @@ impl Ord for TypeHandler {
 //}
 //
 
+pub mod name {
+  pub static BOOL : &'static str = "bool";
+  pub static U8   : &'static str = "u8";
+  pub static I8   : &'static str = "i8";
+  pub static I16  : &'static str = "i16";
+  pub static I32  : &'static str = "i32";
+  pub static I64  : &'static str = "i64";
+  pub static F32  : &'static str = "f32";
+  pub static F64  : &'static str = "f64";
+}
 
-/*
+pub static BOOL :&'static Ty = &Ty::Bool;
+pub static U8   :&'static Ty = &Ty::U8;
+pub static I8   :&'static Ty = &Ty::I8;
+pub static I16  :&'static Ty = &Ty::I16;
+pub static I32  :&'static Ty = &Ty::I32;
+pub static I64  :&'static Ty = &Ty::I64;
+pub static F32  :&'static Ty = &Ty::F32;
+pub static F64  :&'static Ty = &Ty::F64;
 
-#[derive(Clone, PartialEq, Debug)]
+#[macro_export]
+macro_rules! schema {
+  ( $( $t:expr ),* ) => {
+    {
+      let mut schema = Vec::new();
+        $(
+          schema.push($t.clone());
+        )*
+
+        schema
+    }
+  };
+}
+
+/// Ty
+/// * Bool
+/// * U8:
+/// * I8:
+/// * I16:
+/// * I32:
+/// * I64:
+/// * F32: single precision floating type
+/// * F64: double precision floating type
+/// * Vector: an ordered list of same elements
+/// * Tuple: an ordered list of arbtrary type values
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub enum Ty 
 {
   Bool,
-  Int1,
-  Int2,
-  Int4,
-  Int8,
-  Float4,
-  Float8,
-  Numeric(u8, Option<u8>), // precision (1~38), scale (0 <= scale <= precision)
-  Date,
-  Time,
-  Timez,
-  Timestamp,
-  Timestampz,
-  Interval,
-  Char(u8),                // its maximum length is 127
-  Binary(u8),              // its maximum length is 127
-  Clob,
-  Blob,
-  Array(Box<Ty>),
-  Struct(Vec<Ty>),
-  Map(Box<Ty>, Box<Ty>)
+  U8,
+  I8,
+  I16,
+  I32,
+  I64,
+  F32,
+  F64,  
+  Vector(Box<Ty>), 
+  Tuple (Vec<Ty>),
 }
 
+impl Ty
+{
+  /// Get a base name
+  pub fn base(&self) -> &str
+  {
+    match *self {
+      Ty::Bool => name::BOOL,
+      Ty::U8   => name::U8,
+      Ty::I8   => name::I8,
+      Ty::I16  => name::I16,
+      Ty::I32  => name::I32,
+      Ty::I64  => name::I64,
+      Ty::F32  => name::F32,
+      Ty::F64  => name::F64,
+      Ty::Vector(_) => panic!("unsupported type: vector"),
+      Ty::Tuple (_) => panic!("unsupported type: tuple"),
+    }
+  }  
+  
+  pub fn size_of(&self) -> usize 
+  {
+    match *self {
+      Ty::Bool                  => 1,
+      Ty::U8 | Ty::I8           => 1,      
+      Ty::I16                   => 2,
+      Ty::I32 | Ty::F32         => 4,
+      Ty::I64 | Ty::F64         => 8,
+      Ty::Vector(_) => panic!("unsupported type: vector"),
+      Ty::Tuple (_) => panic!("unsupported type: tuple"),
+    }
+  }
+  
+  pub fn is_variable(&self) -> bool
+  {
+    false
+  }
+}
+
+pub fn u(size: u32) -> &'static Ty
+{
+  match size {
+    8  => U8,
+    _  => panic!("unsupported integer type: i{}", size)
+  }
+}
+
+pub fn i(size: u32) -> &'static Ty
+{
+  match size {
+    8  => I8,
+    16 => I16,
+    32 => I32,
+    64 => I64,
+    _  => panic!("unsupported integer type: i{}", size)
+  }
+}
+
+pub fn f(size: u32) -> &'static Ty
+{
+  match size {
+    32 => F32,
+    64 => F64,
+    _  => panic!("unsupported integer type: f{}", size)
+  }
+}
+
+/*
 impl Ty 
 {
   #[allow(unused_variables)]
@@ -352,13 +453,7 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
 }
 */
 
-pub const BOOL_STR      : &'static str = "bool";
-pub const I8_STR        : &'static str = "i32";
-pub const I32_STR       : &'static str = "i32";
-pub const I64_STR       : &'static str = "i64";
-pub const F32_STR       : &'static str = "f32";
-pub const F64_STR       : &'static str = "f64";
-
+/*
 pub fn bool_ty() -> Ty {
 	let handler = TypeHandler {
 	 	create_minipage: Rc::new(|| -> Box<MiniPage> {
@@ -428,3 +523,4 @@ pub fn f64_ty() -> Ty {
 	
 	Ty::new(F64_STR, true, true, handler) 
 }
+*/

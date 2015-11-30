@@ -233,8 +233,7 @@ impl OwnedPageBuilder
   {
     let mini_pages = types
       .iter()
-      .map(|ty| ty.handler())
-      .map(|f| (f.create_minipage)())
+      .map(|ty| Box::new(FMiniPage::new(ty.size_of())) as Box<MiniPage>)
       .collect::<Vec<Box<MiniPage>>>();
     
     OwnedPageBuilder {page: OwnedPage {mini_pages: mini_pages, value_count: 0}}

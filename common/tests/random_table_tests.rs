@@ -1,7 +1,7 @@
-extern crate common;
+#[macro_use] extern crate common;
 
 use common::session::Session;
-use common::types::{i32_ty, f32_ty, i64_ty, f64_ty, Ty};
+use common::types::{F32, I32, Ty};
 use common::rows::{MiniPage, ROWBATCH_SIZE};
 use common::input::InputSource;
 use common::storage::RandomTable;
@@ -18,13 +18,10 @@ macro_rules! assert_next_rows {
 #[test]
 pub fn test_next_once() 
 {
-  let types: Vec<Ty> = vec![
-    i32_ty(), 
-    f32_ty()
-  ];
+  let schema = schema!(I32, F32);
   
   let session = Session;
-  let mut gen = RandomTable::new(&session, &types, 5);
+  let mut gen = RandomTable::new(&session, &schema, 5);
   
   assert_next_rows!(gen, 5);
   assert_next_rows!(gen, 0);
@@ -33,13 +30,10 @@ pub fn test_next_once()
 #[test]
 pub fn test_next_once2() 
 {
-  let types: Vec<Ty> = vec![
-    i32_ty(), 
-    f32_ty()
-  ];
+  let schema = schema!(I32, F32);
   
   let session = Session;
-  let mut gen = RandomTable::new(&session, &types, ROWBATCH_SIZE);
+  let mut gen = RandomTable::new(&session, &schema, ROWBATCH_SIZE);
   
   assert_next_rows!(gen, ROWBATCH_SIZE);
   assert_next_rows!(gen, 0);
@@ -48,13 +42,10 @@ pub fn test_next_once2()
 #[test]
 pub fn test_next_multiple() 
 {
-  let types: Vec<Ty> = vec![
-    i32_ty(), 
-    f32_ty()
-  ];
+  let schema = schema!(I32, F32);
   
   let session = Session;
-  let mut gen = RandomTable::new(&session, &types, (ROWBATCH_SIZE * 2) + 100);
+  let mut gen = RandomTable::new(&session, &schema, (ROWBATCH_SIZE * 2) + 100);
   
   assert_next_rows!(gen, ROWBATCH_SIZE);
   assert_next_rows!(gen, ROWBATCH_SIZE);
@@ -65,13 +56,10 @@ pub fn test_next_multiple()
 #[test]
 pub fn test_next_value() 
 {
-  let types: Vec<Ty> = vec![
-    i64_ty(), 
-    f64_ty()
-  ];
+  let schema = schema!(I32, F32);
   
   let session = Session;
-  let mut gen = RandomTable::new(&session, &types, 1024);
+  let mut gen = RandomTable::new(&session, &schema, 1024);
   
   let page = gen.next().unwrap();
   
