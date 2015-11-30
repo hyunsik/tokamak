@@ -2,10 +2,9 @@ use std::rc::Rc;
 
 use rand;
 
-use common::err::{Result, Void, void_ok};
-use common::plugin::{PluginManager, TypeRegistry};
+use common::err::{Void, void_ok};
+use common::plugin::{PluginManager};
 use common::plugin::util::*;
-use common::rows::ROWBATCH_SIZE;
 use common::rows::MiniPageWriter;
 
 pub fn register_funcs(pkg_mgr: &mut PluginManager) -> Void

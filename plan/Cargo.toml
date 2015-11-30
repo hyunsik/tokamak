@@ -8,7 +8,7 @@ name = "plan"
 path = "lib.rs"
 
 [dependencies]
-itertools = "0.4.1"
+itertools = "0.4.3"
 
 [dependencies.algebra]
 path = "../algebra"
