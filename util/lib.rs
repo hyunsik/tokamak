@@ -3,7 +3,7 @@
 
 extern crate libc;
 
-pub mod boxed;
+pub mod collection;
 pub mod str;
 pub mod tree;
 pub mod ffi;
