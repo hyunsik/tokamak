@@ -16,6 +16,12 @@ pub fn to_boxed_vec<T>(v: Vec<T>) -> Vec<Box<T>>
   v.into_iter().map(|e| Box::new(e)).collect::<Vec<Box<T>>>()
 }
 
+/// Convert Vec<Box<T>> to Vec<T>
+pub fn strip_box_from_vec<T>(v: Vec<Box<T>>) -> Vec<T>
+{
+  v.into_iter().map(|e: Box<T>| *e).collect::<Vec<T>>()
+}
+
 #[inline]
 
 #[test]
