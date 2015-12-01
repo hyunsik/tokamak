@@ -1,5 +1,4 @@
 #![feature(libc)]
-#![feature(split_off)]
 
 extern crate libc;
 

@@ -4,9 +4,6 @@
 extern crate common;
 extern crate plan;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use common::err::Result;
 use common::session::Session;
 use common::plugin::{FuncRegistry, TypeRegistry};
@@ -21,6 +18,7 @@ impl LogicalOptimizer
     LogicalOptimizer
   }
   
+  #[allow(unused_variables)]
   pub fn optimize(&self, 
   	type_registry: &TypeRegistry,
   	func_registry: &FuncRegistry,
