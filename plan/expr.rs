@@ -1,14 +1,18 @@
 use common::types::*;
-
-use util::boxed::{
-	ToBoxedVec,
-};
+use util::collection::vec;
 
 #[derive(Clone)]
 pub struct Expr (pub Ty, pub ExprKind);
 
+#[inline(always)]
+pub fn expr(ty: &Ty, kind: ExprKind) -> Expr 
+{
+  Expr (ty.clone(), kind)
+}
+
 impl Expr 
 {
+  
 	#[inline]
 	pub fn ty(&self) -> &Ty
 	{
@@ -90,6 +94,7 @@ impl FnDecl
 pub enum Literal 
 {
   Bool(bool),
+  U8(u8),
   I8(i8),
   I16(i16),
   I32(i32),
@@ -101,16 +106,17 @@ pub enum Literal
 
 impl Literal
 {
-	pub fn ty(&self) -> Ty
+	pub fn ty(&self) -> &Ty
 	{
 		match *self {
-			Literal::Bool(_) => bool_ty(),
-			Literal::I8(_)   => i8_ty(),
-			Literal::I16(_)  => i16_ty(),
-			Literal::I32(_)  => i32_ty(),
-			Literal::I64(_)  => i64_ty(),
-			Literal::F32(_)  => f32_ty(),
-			Literal::F64(_)  => f64_ty(),
+			Literal::Bool(_) => BOOL,
+      Literal::U8(_)   => U8,
+			Literal::I8(_)   => I8,
+			Literal::I16(_)  => I16,
+			Literal::I32(_)  => I32,
+			Literal::I64(_)  => I64,
+			Literal::F32(_)  => F32,
+			Literal::F64(_)  => F64,
 			_                => unimplemented!()
 		}
 	}
@@ -144,25 +150,25 @@ pub fn Not(c: Expr) -> Expr
 #[allow(non_snake_case)]
 pub fn IsNull(c: Expr) -> Expr 
 {
-	Expr(bool_ty(), ExprKind::IsNull(Box::new(c)))
+	expr(BOOL, ExprKind::IsNull(Box::new(c)))
 }
 
 #[allow(non_snake_case)]
 pub fn IsNotNull(c: Expr) -> Expr 
 {
-	Expr(bool_ty(), ExprKind::IsNull(Box::new(c)))
+	expr(BOOL, ExprKind::IsNull(Box::new(c)))
 }
 
 #[allow(non_snake_case)]
 pub fn Cast(c: Expr, from_ty: &Ty, to_ty: &Ty) -> Expr
 {
-	Expr(to_ty.clone(), ExprKind::Cast(Box::new(c), from_ty.clone(), to_ty.clone()))
+	expr(BOOL, ExprKind::Cast(Box::new(c), from_ty.clone(), to_ty.clone()))
 }
 
 #[allow(non_snake_case)]
 pub fn PlusSign(c: Expr) -> Expr
 {
-	Expr(c.ty().	clone(), ExprKind::PlusSign(Box::new(c)))
+	Expr(c.ty().clone(), ExprKind::PlusSign(Box::new(c)))
 }
 
 #[allow(non_snake_case)]
@@ -174,52 +180,52 @@ pub fn MinusSign(c: Expr) -> Expr
 #[allow(non_snake_case)]
 pub fn And(l: Expr, r: Expr) -> Expr
 {
-	Expr(bool_ty(), ExprKind::And(Box::new(l), Box::new(r)))
+	expr(BOOL, ExprKind::And(Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
 pub fn Or(l: Expr, r: Expr) -> Expr
 {
-	Expr(bool_ty(), ExprKind::Or(Box::new(l), Box::new(r)))
+	expr(BOOL, ExprKind::Or(Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
 pub fn Cmp(op: CmpOp, l: Expr, r: Expr) -> Expr
 {
-	Expr(bool_ty(), ExprKind::Cmp(op, Box::new(l), Box::new(r)))
+	expr(BOOL, ExprKind::Cmp(op, Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
 pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
 {
-	Expr(ret_type.clone(), ExprKind::Arithm(*op, Box::new(l), Box::new(r)))
+	expr(ret_type, ExprKind::Arithm(*op, Box::new(l), Box::new(r)))
 }
 
-#[warn(non_snake_case)]
+#[allow(non_snake_case)]
 pub fn Plus(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
-	Expr(ret_type.clone(), ExprKind::Arithm(ArithmOp::Plus, Box::new(l), Box::new(r)))
+	expr(ret_type, ExprKind::Arithm(ArithmOp::Plus, Box::new(l), Box::new(r)))
 }
 
-#[warn(non_snake_case)]
+#[allow(non_snake_case)]
 pub fn Subtract(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
-	Expr(ret_type.clone(), ExprKind::Arithm(ArithmOp::Sub, Box::new(l), Box::new(r)))
+	expr(ret_type, ExprKind::Arithm(ArithmOp::Sub, Box::new(l), Box::new(r)))
 }
 
-#[warn(non_snake_case)]
+#[allow(non_snake_case)]
 pub fn Mul(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
-	Expr(ret_type.clone(), ExprKind::Arithm(ArithmOp::Mul, Box::new(l), Box::new(r)))
+	expr(ret_type, ExprKind::Arithm(ArithmOp::Mul, Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
 pub fn Func(decl: FnDecl, args: Vec<Expr>) -> Expr
 {
-	Expr(decl.ty().clone(), ExprKind::Fn(decl, args.to_boxed())) 
+	Expr(decl.ty().clone(), ExprKind::Fn(decl, vec::to_boxed(args))) 
 }
 
 #[allow(non_snake_case)]
 pub fn Switch(cases: Vec<Expr>, default: Expr) -> Expr
 {
-	Expr(default.ty().clone(), ExprKind::Switch(cases.to_boxed(), Box::new(default)))
+	Expr(default.ty().clone(), ExprKind::Switch(vec::to_boxed(cases), Box::new(default)))
 }
 
 #[allow(non_snake_case)]
@@ -232,13 +238,13 @@ pub fn Case(cond: Expr, result: Expr) -> Expr
 pub fn Const<T: Into<Literal>>(value: T) -> Expr
 {
 	let literal = value.into();
-	Expr(literal.ty(), ExprKind::Const(literal))
+	Expr(literal.ty().clone(), ExprKind::Const(literal))
 }
 
 #[allow(non_snake_case)]
 pub fn Field(ty: &Ty, name: &str) -> Expr
 {
-	Expr(ty.clone(), ExprKind::Field(name.to_string()))
+	expr(ty, ExprKind::Field(name.to_string()))
 }
 
 pub fn clone(e: &Box<Expr>) -> Expr
