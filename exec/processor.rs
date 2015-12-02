@@ -22,6 +22,7 @@ use common::plugin::{
 };
 use common::rows::{
 	MiniPage,
+  FMiniPage,
 	Page,
 	OwnedPageBuilder,
 	PageId
@@ -32,7 +33,7 @@ use plan::expr::*;
 use plan::expr::visitor::{accept_by_default, Visitor};
 
 use driver::DriverContext;
-use super::Schema;
+use super::NamedSchema;
 
 pub trait Processor
 {
@@ -62,15 +63,15 @@ pub struct UnaryFnEvaluator
 	output_pid: PageId
 }
 
-pub struct BinEvaluator
+pub struct BinEvaluator<'a>
 {
 	ty: Ty,
 	lhs: Box<Evaluator>,
 	rhs: Box<Evaluator>,
-	result: Box<MiniPage>
+	result: FMiniPage<'a>
 }
 
-impl Evaluator for BinEvaluator
+impl<'a> Evaluator for BinEvaluator<'a>
 {
 	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage> 
 	{
@@ -190,7 +191,7 @@ impl<'a> Interpreter<'a>
 			ty     : ty.clone(),
 			rhs    : self.stack.pop().unwrap(),
 			lhs    : self.stack.pop().unwrap(),
-			result : (ty.handler().create_minipage)()
+			result : FMiniPage::new(ty.size_of())
 		});
 		
 		self.stack.push(eval);
@@ -262,7 +263,7 @@ impl InterpreterProcessor
 {
 	pub fn new(fn_registry: &FuncRegistry,
 		         session    : &Session, 
-		         schema     : &Schema, 
+		         schema     : &NamedSchema, 
 		         exprs      : &Vec<Box<Expr>>) -> Result<InterpreterProcessor>
 	{
 		let evals = try!(
@@ -305,7 +306,7 @@ mod tests {
 	use plan::expr::*;
 	use driver::DriverContext;
 	
-	use super::super::Schema;
+	use super::super::NamedSchema;
 	
 	use super::*;
 	
@@ -331,19 +332,19 @@ mod tests {
 			l_shipmode string,
 			l_comment string
 		*/
-		let tb_types: Vec<Ty> = vec![
-	    i64_ty(), // l_orderkey      bigint
-	    i64_ty(), // l_partkey       bigint
-	    i64_ty(), // l_suppkey       bigint
-	    i32_ty(), // l_linenumber    int
-	    f64_ty(), // l_quantity      double,
-	    f64_ty(), // l_extendedprice double,
-	    f64_ty(), // l_discount      double,
-	    f64_ty(), // l_tax           double,
+		let types: Vec<Ty> = schema!(
+	    I64, // l_orderkey      bigint
+	    I64, // l_partkey       bigint
+	    I64, // l_suppkey       bigint
+	    I32, // l_linenumber    int
+	    F64, // l_quantity      double,
+	    F64, // l_extendedprice double,
+	    F64, // l_discount      double,
+	    F64  // l_tax           double,
 	    // string types are not implmeneted yet.	    
-	  ];
+    );
 	  
-	  let tb_field_names: Vec<&str> = vec![
+	  let names: Vec<&str> = vec![
 	  	"l_orderkey",
 	  	"l_partkey",
 	  	"l_suppkey",
@@ -356,25 +357,25 @@ mod tests {
 
 
 	  let sum_disc_price = 
-	  	Mul(&f64_ty(), Field(&f64_ty(), "l_extendedprice"), 
-	  		Subtract(&f64_ty(), Const(1), Field(&f64_ty(), "l_discount")));
+	  	Mul(F64, Field(F64, "l_extendedprice"), 
+	  		Subtract(F64, Const(1), Field(F64, "l_discount")));
 	  	
   	let sum_charge = 
-	  	Mul(&f64_ty(), sum_disc_price.clone(), Plus(&f64_ty(), Const(1), Field(&f64_ty(), "l_tax")));
+	  	Mul(F64, sum_disc_price.clone(), Plus(F64, Const(1), Field(F64, "l_tax")));
 	  
 	  let exprs = vec![
 	  	Box::new(sum_disc_price), 
 	  	Box::new(sum_charge)
   	];
   	
-  	let schema  = Schema::new(&tb_field_names, &tb_types);
+  	let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
   	
 		let processor = InterpreterProcessor::new(plugin_mgr.fn_registry(), 
 																						  &session, 
 																						  &schema, 
 																						  &exprs).ok().unwrap();
-		let mut input  = RandomTable::new(&session, &tb_types, 1024);
+		let mut input  = RandomTable::new(&session, &types, 1024);
 		
 		let output_tys = exprs.iter()
 											.map(|e| e.ty().clone())

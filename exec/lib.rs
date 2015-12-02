@@ -28,7 +28,7 @@ extern crate alloc;
 #[macro_use] extern crate itertools;
 extern crate libc;
 
-extern crate common;
+#[macro_use] extern crate common;
 extern crate plan;
 extern crate storage;
 
@@ -64,19 +64,19 @@ pub trait ExecutorFactory
   fn types(&self) -> &Vec<Ty>;
 }
 
-pub struct Schema<'a> 
+pub struct NamedSchema<'a> 
 {
 	pub names: &'a Vec<&'a str>,
 	pub types: &'a Vec<Ty>
 }
 
-impl<'a> Schema<'a>
+impl<'a> NamedSchema<'a>
 {
-	pub fn new(names: &'a Vec<&'a str>, types: &'a Vec<Ty>) -> Schema<'a>
+	pub fn new(names: &'a Vec<&'a str>, types: &'a Vec<Ty>) -> NamedSchema<'a>
 	{
 		debug_assert_eq!(names.len(), types.len());
 		
-		Schema {
+		NamedSchema {
 			names: names,
 			types: types
 		}

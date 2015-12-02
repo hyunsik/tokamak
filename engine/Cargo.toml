@@ -8,7 +8,7 @@ name = "engine"
 path = "lib.rs"
 
 [dependencies]
-itertools = "0.4.1"
+itertools = "0.4.3"
 
 [dependencies.common]
 path = "../common"
