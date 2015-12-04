@@ -1,0 +1,17 @@
+[package]
+name = "algebra"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "algebra"
+path = "lib.rs"
+
+[dependencies]
+rustc-serialize = "0.3.16"
+
+[dependencies.common]
+path = "../common"
+
+[dependencies.util]
+path = "../util"

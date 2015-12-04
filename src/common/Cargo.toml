@@ -1,0 +1,17 @@
+[package]
+name = "common"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "common"
+path = "lib.rs"
+
+[dependencies]
+itertools = "0.4.3"
+uuid = "0.1.17"
+rand = "*"
+rustc-serialize = "*"
+
+[dependencies.util]
+path = "../util"

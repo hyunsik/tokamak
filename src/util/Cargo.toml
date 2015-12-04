@@ -1,0 +1,8 @@
+[package]
+name = "util"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "util"
+path = "lib.rs"

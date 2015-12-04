@@ -1,0 +1,19 @@
+[package]
+name = "storage"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "storage"
+path = "lib.rs"
+
+[dependencies]
+itertools = "0.4.3"
+rand = "0.3.11"
+
+[dependencies.common]
+path = "../common"
+
+[dependencies.sql]
+path = "../sql"
+
