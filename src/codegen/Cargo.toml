@@ -19,3 +19,6 @@ path = "../common"
 
 [dependencies.util]
 path = "../util"
+
+[dependencies.platform-intrinsics]
+path = "../platform-intrinsics"

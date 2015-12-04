@@ -1,0 +1,11 @@
+[package]
+name = "platform-intrinsics"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik at apache dot org>" ]
+
+[lib]
+name = "platform_intrinsics"
+path = "lib.rs"
+
+[denepdencies]
+libc = "*"
