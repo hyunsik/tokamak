@@ -1,5 +1,6 @@
 mod x86;
 //mod arm;
+//mod aarch64;
 
 pub struct Intrinsic {
   pub inputs: Vec<Type>,
@@ -10,16 +11,16 @@ pub struct Intrinsic {
 
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub enum Type {
-    Void,
-    Integer(/* signed */ bool, u8, /* llvm width */ u8),
-    Float(u8),
-    Pointer(Box<Type>, Option<Box<Type>>, /* const */ bool),
-    Vector(Box<Type>, Option<Box<Type>>, u8),
-    Aggregate(bool, Vec<Type>),
+  Void,
+  Integer(/* signed */ bool, u8, /* llvm width */ u8),
+  Float(u8),
+  Pointer(Box<Type>, Option<Box<Type>>, /* const */ bool),
+  Vector(Box<Type>, Option<Box<Type>>, u8),
+  Aggregate(bool, Vec<Type>),
 }
 
 pub enum IntrinsicDef {
-    Named(&'static str),
+  Named(&'static str),
 }
 
 fn i(width: u8) -> Type { Type::Integer(true, width, width) }
