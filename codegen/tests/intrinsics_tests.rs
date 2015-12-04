@@ -11,11 +11,6 @@ use llvm::Attribute::*;
 
 use std::mem;
 
-#[no_mangle]
-pub extern fn cos1(a: f64) -> f64 {
-	1.2345f64
-}
-
 #[test]
 pub fn test() {
   let ctx = Context::new();
