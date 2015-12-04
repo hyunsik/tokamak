@@ -1,14 +1,14 @@
 [package]
 
-name = "tajo-kernel"
-description = "Tajo Data Processing Kernel using Modern Hardware Features"
+name = "tokamak"
+description = "Data Processing Kernel using Modern Hardware"
 version = "0.0.1"
-authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
+authors = [ "Hyunsik Choi <hyunsik at apache dot org>" ]
 license = "Apache-2.0"
-keywords = ["Data Analysis", "Data Processing", "Database"]
+keywords = ["Data Analysis", "Data Processing", "MapReduce", "DataFrame", "Database", "Distributed Computing"]
 
 [lib]
-name = "tajo"
+name = "tokamak"
 path = "src/lib.rs"
 
 [dependencies.api]
