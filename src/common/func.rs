@@ -5,9 +5,7 @@
 //! can be represented as a triple ("+", [i32, i32], FuncKind::Scalar).
 //!
 
-use std::cmp::Ordering;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 use err::{Result, Void, void_ok};
 use plugin::{PluginManager, TypeRegistry};
