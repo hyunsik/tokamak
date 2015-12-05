@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use err::{Error, Result, Void, void_ok};
-use func::{FuncSignature, FuncBody};
+use func::Function;
 use types::{Ty, TypeFactory};
 use input::InputSource;
 
@@ -51,7 +51,7 @@ impl<'a> PluginManager<'a>
   }
   
   #[inline]
-  pub fn register_func(&mut self, func: (FuncSignature, FuncBody)) -> Void
+  pub fn register_func(&mut self, func: (&str, Function)) -> Void
   {
   	self.func_registry.add(func)
   } 
@@ -74,7 +74,7 @@ impl<'a> PluginManager<'a>
   }
   
   #[inline]
-  pub fn find_func(&self, name: &str, types: &Vec<Ty>) -> Option<FuncBody>
+  pub fn find_func(&self, name: &str, types: &Vec<Ty>) -> Option<Function>
   {
   	None
   }
@@ -84,7 +84,7 @@ impl<'a> PluginManager<'a>
 pub struct FuncRegistry
 {
   // key and value will be kept immutable as a just reference
-  funcs: BTreeMap<FuncSignature, FuncBody>
+  funcs: BTreeMap<String, Function>
 }
 
 impl FuncRegistry 
@@ -97,9 +97,9 @@ impl FuncRegistry
   }
   
   #[inline]
-  fn add(&mut self, func: (FuncSignature, FuncBody)) -> Void 
+  fn add(&mut self, func: (&str, Function)) -> Void 
 	{
-		match self.funcs.entry(func.0) {
+		match self.funcs.entry(func.0.to_string()) {
       Vacant(e)   => { 
         e.insert(func.1);
         void_ok 
@@ -109,7 +109,7 @@ impl FuncRegistry
 	}
 	
 	#[inline]
-	fn find(&self, fn_sign: &FuncSignature) -> Option<&FuncBody>
+	fn find(&self, fn_sign: &str) -> Option<&Function>
 	{
 		self.funcs.get(fn_sign)
 	}
@@ -178,7 +178,7 @@ impl InputSourceRegistry
 
 pub mod util {
 	use err::{Void, Result};
-	use func::{FnKind, FuncSignature, FuncBody, InvokeMethod, NoArgFn};
+	use func::{Function, FnKind, InvokeMethod, NoArgFn};
 	use types::Ty;
 	use super::PluginManager;
 	
@@ -187,9 +187,9 @@ pub mod util {
 	pub fn register_scalar_fn(
 	  plugin_mgr   : &mut PluginManager,
 	  name         : &str, 
-	  raw_arg_types: Vec<&str>,
-	  raw_ret_type : &str,
-	  invoke_method: InvokeMethod) -> Void 
+    raw_ret_type : &str,
+	  raw_arg_types: Vec<&str>,	  
+	  method       : InvokeMethod) -> Void 
 	{
 	  let arg_types = try!(raw_arg_types
 	                    .iter()
@@ -197,9 +197,8 @@ pub mod util {
 	                    .collect::<Result<Vec<Ty>>>());
 	   
 	  let ret_type = try!(plugin_mgr.get_type(raw_ret_type));
-	  let fn_sig   = FuncSignature::new(name.to_string(), arg_types, FnKind::Scalar);
-	  let fn_body  = FuncBody::new(ret_type, FnKind::Scalar, invoke_method);
-	  let fn_tuple = (fn_sig, fn_body);
+	  let fn_body  = Function::new(ret_type, arg_types, FnKind::Scalar, method);
+	  let fn_tuple = (name, fn_body);
 	  
 	  plugin_mgr.register_func(fn_tuple)
 	}
