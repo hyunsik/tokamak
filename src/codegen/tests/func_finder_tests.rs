@@ -11,8 +11,28 @@ use llvm::Attribute::*;
 
 use std::mem;
 
+fn test_func_find(name: &str, lang: &str) {
+  let ctx = Context::new();
+  let module = Module::parse_bitcode(&ctx, "tests/test-module.bc").expect("loading test-module.bc failed...");
+  module.verify().expect("verifying the module failed...");
+  
+  for x in module.into_iter() {
+  	x.add_attribute(Attribute::AlwaysInline);
+  }
+ 
+  let ee = JitEngine::new(&module, JitOptions {opt_level: 0}).unwrap();  
+  let func = ee.find_function(name).expect(&format!("find_function: couldn't find {} from {}", name, lang));
+	let f: fn(f64) -> f64;
+  f = match unsafe { ee.get_function_raw(func) } {
+  	Some(f) => unsafe { mem::transmute(f)},
+  	_       => panic!("get_function_raw: couldn't find {} from {}", name, lang)
+  };
+  
+  assert_eq!(98.0f64, f(98.0f64));
+}
+
 #[test]
-pub fn test() {
+pub fn test_func_declaration() {
   let ctx = Context::new();
   let module = Module::parse_bitcode(&ctx, "tests/test-module.bc").expect("loading test-module.bc failed...");
   module.verify().expect("verifying the module failed...");
@@ -21,25 +41,19 @@ pub fn test() {
   	x.add_attribute(Attribute::AlwaysInline);
   }
   
-  module.dump();
- 
-  let ee = JitEngine::new(&module, JitOptions {opt_level: 0}).unwrap();
+  let func = module.get_function("test_func1").unwrap();
+  assert_eq!(1, func.num_params());
   
-  let func1 = ee.find_function("test_func1").expect("No such a function: test_func1");
-	let f1: fn(f64) -> f64;
-  f1 = match unsafe { ee.get_function_raw(func1) } {
-  	Some(f) => unsafe { mem::transmute(f)},
-  	_       => panic!("get_function_raw:: no such function" )
-  };
-  
-  assert_eq!(98.0f64, f1(98.0f64));
-  
-  let func2 = ee.find_function("test_func2").expect("No such a function: test_func2");
-	let f2: fn(f64) -> f64;
-  f2 = match unsafe { ee.get_function_raw(func2) } {
-  	Some(f) => unsafe { mem::transmute(f)},
-  	_       => panic!("get_function_raw:: no such function" )
-  };
-    
-  assert_eq!(98.0f64, f2(98.0f64));
+  let param = &func[0];
+  assert_eq!(Type::get::<f64>(&ctx), param.get_type());
+}
+
+#[test]
+pub fn test_c_func() {
+  test_func_find("test_func1", "c");
+}
+
+#[test]
+pub fn test_rust_func() {
+  test_func_find("test_func2", "rust");
 }
