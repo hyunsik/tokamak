@@ -16,8 +16,7 @@
 //! ```
 
 use alloc::heap;
-use libc::funcs::c95::string::memcmp;
-use libc::types::common::c95::c_void;
+use libc::{c_void, memcmp};
 use std::cmp;
 use std::cmp::Ordering;
 use std::fmt::{Error, Display, Formatter};
@@ -138,7 +137,7 @@ fn rawcmp(x: *const u8, y: *const u8, len: i32) -> i32 {
     memcmp(
       x as *const c_void,
       y as *const c_void,
-      len as u64
+      len as usize
     )
   }
 }

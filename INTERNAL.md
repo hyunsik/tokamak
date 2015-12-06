@@ -43,9 +43,9 @@ A fixed-length minipage implementation allows different encoding ways. Basically
 For a variable length field or huge-sized values like BLOB, MiniPage provides an indirect way to access its data, i.e., just pointers to data are stored in minipages and each pointer indicates an actual field value. Another application of indirect minipage is dictionary encoding.
 
 # Function System
-In Tokamak, function is the first-class citizen for operations between data elements and data sets. Basic operations, user programmed codes, explicit or implicit type castings are based on Tokamak function system. It keeps Tokamak's system design simple and consistent.
+In Tokamak, function is the first-class citizen for operations between data elements and data sets. Basic operations, user codes, explicit or implicit type castings are based on Tokamak function system. It keeps Tokamak's system design simple and consistent.
 
-For it, we need abundant functions and a flexible function system to allow users and developers to easily add functions.
+For it, a flexible function system to allow users and developers to easily add functions.
 
 * Various invocation methods
   * LLVM intrinsics
@@ -57,3 +57,8 @@ For it, we need abundant functions and a flexible function system to allow users
   * Map from LLVM intrinsics to Tokamak function
   * Map from external functions (C or Java functions) to Tokamak function
 * LLVM bitcode or IR execution as a function in runtime
+
+## Function Overloading
+Tokamak provides function overloading. The same function name can be defined multiple times with different arguments.
+
+## Platform-dependent implementation
