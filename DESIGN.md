@@ -1,18 +1,18 @@
 # Preliminary
-This documentation mostly address the overall production design of Tokamak  rather than the implementation issues.
+This documentation mostly addresses overall production design of Tokamak rather than implementation issues.
 
 # Design Goals
 * Easy to embed and interoperate general-purposed programming languages
-* Look like a functional programming language which are executed across cluster nodes.
-* Basically it will be an array computing system.
+* Look like a functional programming language which is executed across cluster nodes.
+* Basically it will be an array computation system.
 * Declarative language support and query optimization
-  * You don't need to think about optimization, just write your logics.
-* Highly parallel and distributed computing in local clusters or cloud environments which provide high bandwidth networks.
+  * You don't need to care about optimization, just write your logics.
+* Highly parallel and distributed computing on local clusters or cloud environments which provide high-bandwidth networks.
 * Easy configuration (for cloud environment and large clusters)
-* Only if necessary, fault tolerance will be guaranteed. Otherwise, it finishes jobs as faster as possible.
-* Primarily designed for in-memory storages, like DRAM or extremely fast non volatile memory.
+* Fast job execution is the first goal. Thus, other goals like fault-tolerance will be guaranteed only when they are explicitly specified.
+* Primarily designed for in-memory processing, like DRAM or extremely fast non volatile memory.
 * Primarily targets ~ TB sized input data
-* Workload will be interactive if cluster resources are available.
+* Workload will be interactive if cluster resources are sufficiently available.
 
 # Query and Programming Model
 
@@ -23,11 +23,11 @@ This documentation mostly address the overall production design of Tokamak  rath
 * Vector types
 * Matrix types
   * D-dimentional arrays (raster data)
-* Set, Bag, Tuple, Struct (== Tuple, actually, a syntactic sugar of tuple)
+* Set, Bag, Tuple, Struct (== Tuple, actually, a syntactic sugar for tuple)
 
 ### Data set types
 * Vector
-* Matrix (N-dimentional vector)
+* Matrix (D-dimentional vector)
 * Set
 * Bag
  * A bag of tuples == a relational table
@@ -48,8 +48,9 @@ This documentation mostly address the overall production design of Tokamak  rath
 
 ## Physical format for data sets
 * In-memory row or columnar tables
-* BLOB type values in external SQL or NoSQL storages
+* BLOB type values in external SQL or NoSQL stores
 * Column storage file formats in file systems
 * Column storage in block storage or object storage in Cloud
 
 # Query Processing
+(TODO)

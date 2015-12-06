@@ -4,7 +4,7 @@ This page describes the modules and their dependencies. This documentation has b
 
 * ``api`` provides user-level API for Tokamak library.
 * ``common`` mostly provides abstracted interfaces, data structures used in most modules, and utilities.
-* ``engine`` -
+* ``engine`` is the core engine of Tokamak.
 * ``func`` provides the function interface and some builtin functions.
 * ``rows`` provides containers for rows, matrix, and vectors.
 * ``sql`` provides data types, operators, and executors for SQL processing.
@@ -16,7 +16,7 @@ api
  |--- common
  |--- sql
  |--- engine
- 
+
 common
 
 engine
