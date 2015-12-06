@@ -42,23 +42,65 @@ A fixed-length minipage implementation allows different encoding ways. Basically
 ### Variable-length MiniPage
 For a variable length field or huge-sized values like BLOB, MiniPage supports indirect minipage, just storing pointers in the minipage and each pointer indicates an actual field value. Another application of indirect minipage is dictionary encoding.
 
+# JIT Compilation
+(TODO)
+In Tokamak, JitManager generates some JIT code fragments in runtime for arithmetic, comparison, other logical expressions and predicates.
+
+Access to nested fields
+
+Hash function
+
+Sort comparator
+
+Field projection in scanner
+
+Serialization/Deserialization for tuples
+
+Function adapter (some emulation of reflection) 
+
 # Function System
-In Tokamak, function is the everything for operations between data elements or data sets. Basic operations, user code, explicit or implicit type casting all are based on Tokamak function system. It keeps Tokamak simple with the system design consistency.
+In Tokamak, every operations including arithmetic, comparison, other complex operations between data elements or data sets are functions. Builtin operations, user code, explicit or implicit type casting all are based on Tokamak function system. It keeps Tokamak simple with the system design consistency.
 
-For it, a flexible function system to allow users and developers to easily add functions.
+## Design Conderations
+### Design Goals
+* Easy to use user-defined functions: it should be easy for users to implement and embed user codes to their processing jobs. Also, we should hide low-level stuff and unsafe parts from users.
+* Less overhead: virtual call and (de)serialization from/to tuples can cause the significant overhead, especially an in-memory proessing system. We need to keep its overhead less or zero if possible.
 
-* Various invocation methods
-  * LLVM intrinsics
-  * Rust function
-  * Python function (including lambda)
-  * External functions via C FFI and JNI
-* UDF from user's JAR or dynamic libraries
-* A simple way to map from external functions to Tokamak functions
-  * Map from LLVM intrinsics to Tokamak function
-  * Map from external functions (C or Java functions) to Tokamak function
-* LLVM bitcode or IR execution as a function in runtime
+### Design Decisions
+To achieve the goals, we did the following decisions:
+
+* Various Language binding support: C, Rust, Java, and Python function implementation should be supported for abundant functions. Depending on their purpose, users can use high-level abstract programming languages (e.g., Python) familar with data analysts. They also can reuse existing libraries for their processing jobs. Besides, users can use C or Rust for high thoughput operations.
+* LLVM-based JIT: basically, JIT provides seamless and zero cost ways to bind the internal codes with external user functions. Besides, JIT gives abundant optimization opportunities, such as function inlining, platform-dependent instrinsics, and branch elimination. 
+
+## Supported function bindings
+* LLVM intrinsics (builtin function only)
+* Rust function
+* Python function, including lambda
+* External functions via C FFI and JNI
+
+## Function Declarations
+Function declarations for Tokamak must be available to LLVM JIT engine. In other words, a function declaration should be one of them:
+* One of the ABIs compatable with LLVM calling convention.
+* Direct IR generation
+
+(TODO - code examples will be in following sections)
+### LLVM intrinsics
+ * IR generation
+ 
+### Rust
+ * IR generation via Rustc IR emission or extern function
+
+### Python function
+ * CPython binding or IR generation (Numba)
+ 
+### C function
+ * IR generation via Clang IR emission, or extern function
+ 
+### Java function
+ * JNI
+
+
+## Function Registration
 
 ## Function Overloading
 Tokamak provides function overloading. The same function name can be defined multiple times with different arguments.
-
-## Platform-dependent implementation
