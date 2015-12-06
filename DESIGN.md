@@ -4,7 +4,7 @@ This documentation mostly addresses overall production design of Tokamak rather 
 # Design Goals
 * Easy to embed and interoperate general-purposed programming languages
 * Look like a functional programming language which is executed across cluster nodes.
-* Basically it will be an array computation system.
+* Basically it will be an array processing system.
 * Declarative language support and query optimization
   * You don't need to care about optimization, just write your logics.
 * Highly parallel and distributed computing on local clusters or cloud environments which provide high-bandwidth networks.
