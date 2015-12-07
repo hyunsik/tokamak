@@ -10,9 +10,10 @@ path = "lib.rs"
 
 [denepdencies]
 libc = "*"
+llvm-sys = "*"
 
-[dependencies.llvm-alt]
-path = "../llvm-rs"
+[dependencies.llvm]
+path = "../llvm-rust"
 
 [dependencies.common]
 path = "../common"

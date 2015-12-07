@@ -2,18 +2,32 @@
 
 extern crate libc;
 extern crate llvm;
+//extern crate llvm_sys;
 
 #[macro_use]
 extern crate util;
 
+extern crate codegen;
+
 use llvm::*;
 use llvm::Attribute::*;
+//use llvm_sys::core::LLVMSetLinkage;
+//use llvm_sys::LLVMLinkage;
 
 use std::mem;
+
+use codegen::test_func3;
 
 fn test_func_find(name: &str, lang: &str) {
   let ctx = Context::new();
   let module = Module::parse_bitcode(&ctx, "tests/test-module.bc").expect("loading test-module.bc failed...");
+  
+  //let ret_type = Type::get::<f64>(&ctx);
+  //let param = vec![Type::get::<f64>(&ctx)];
+  //let fn_ty = Type::function_ty(ret_type, &param);
+  //let f = module.add_function("test_func3", fn_ty);
+  //core::LLVMSetLinkage(f, LLVMLinkage::LLVMExternalLinkage);
+  
   module.verify().expect("verifying the module failed...");
   
   for x in module.into_iter() {
@@ -31,7 +45,7 @@ fn test_func_find(name: &str, lang: &str) {
   assert_eq!(98.0f64, f(98.0f64));
 }
 
-#[test]
+//#[test]
 pub fn test_func_declaration() {
   let ctx = Context::new();
   let module = Module::parse_bitcode(&ctx, "tests/test-module.bc").expect("loading test-module.bc failed...");
@@ -48,12 +62,19 @@ pub fn test_func_declaration() {
   assert_eq!(Type::get::<f64>(&ctx), param.get_type());
 }
 
-#[test]
+//#[test]
 pub fn test_c_func() {
   test_func_find("test_func1", "c");
 }
 
-#[test]
+//#[test]
 pub fn test_rust_func() {
   test_func_find("test_func2", "rust");
+}
+
+#[test]
+pub fn test_rust_func2() {
+  println!("{}", test_func3(1980.0f64));
+  
+  test_func_find("test_func3", "rust");
 }
