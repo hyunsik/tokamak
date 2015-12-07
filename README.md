@@ -25,8 +25,8 @@ clusters.
 
 # Build
 *Requirements*
- * LLVM (3.6 or higher) with Clang
- * RUST (1.5-nightly or higher)
+ * LLVM (3.7 or higher) with Clang
+ * RUST (1.6-nightly or higher)
 
 *Building*
 ```
