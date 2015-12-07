@@ -206,23 +206,23 @@ pub mod util {
 	#[macro_export]
 	macro_rules! register_noarg_fn {
 	  ( $mgr:expr, $name:expr, $ret_type:expr, $fn_impl:expr ) => { 	
-     try!(register_scalar_fn($mgr, $name, vec![], $ret_type, 
+     try!(register_scalar_fn($mgr, $name, $ret_type, vec![], 
      		::common::func::InvokeMethod::NoArgOp(Rc::new($fn_impl))))
     };
   }
 	
 	#[macro_export]
 	macro_rules! register_unary_fn {
-	  ( $mgr:expr, $name:expr, $arg_types:expr, $ret_type:expr, $fn_impl:expr ) => { 	
-     try!(register_scalar_fn($mgr, $name, $arg_types, $ret_type, 
+	  ( $mgr:expr, $name:expr, $ret_type:expr, $arg_types:expr, $fn_impl:expr ) => { 	
+     try!(register_scalar_fn($mgr, $name, $ret_type, $arg_types, 
      		::common::func::InvokeMethod::UnaryOp(Rc::new($fn_impl))))
     };
   }
 	
 	#[macro_export]
 	macro_rules! register_bin_fn {
-	  ( $mgr:expr, $name:expr, $arg_types:expr, $ret_type:expr, $fn_impl:expr ) => { 	
-     try!(register_scalar_fn($mgr, $name, $arg_types, $ret_type, 
+	  ( $mgr:expr, $name:expr, $ret_type:expr, $arg_types:expr, $fn_impl:expr ) => { 	
+     try!(register_scalar_fn($mgr, $name, $ret_type, $arg_types, 
      		::common::func::InvokeMethod::BinOp(Rc::new($fn_impl))))
     };
   }
