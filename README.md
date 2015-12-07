@@ -7,3 +7,16 @@ Array computing is usually computation intensive. For high throughput, Tokamak b
 
 ## See Also
  1. [Array DBMS](https://en.wikipedia.org/wiki/Array_DBMS)
+
+# Build
+*Requirements*
+ * LLVM (3.6 or higher) with Clang
+ * RUST (1.5-nightly or higher)
+
+*Building*
+```
+cargo build --release
+```
+
+### Building LLVM (if necessary)
+If your OS distribution does not provide llvm-3.6-dev package, you may need to manually compile LLVM. Please refer to http://clang.llvm.org/get_started.html.
