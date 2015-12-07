@@ -8,7 +8,7 @@ use common::rows::{MiniPage, MiniPageWriter};
 
 pub fn register_funcs(pkg_mgr: &mut PluginManager) -> Void
 {
-	register_unary_fn!(pkg_mgr, "+",     vec!["i32", "i32"], "i32", plus_v_v::<i32>);
+	register_unary_fn!(pkg_mgr, "+", "i32", vec!["i32", "i32"], plus_v_v::<i32>);
 
   void_ok  
 }
