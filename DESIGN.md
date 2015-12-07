@@ -1,16 +1,21 @@
 # Preliminary
-This documentation mostly address the overall production design of Tokamak  rather than the implementation issues.
+This documentation mostly address the overall production design of Tokamak 
+rather than the implementation issues.
 
 # Design Goals
 * Easy to embed and interoperate general-purposed programming languages
-* Look like a functional programming language which are executed across cluster nodes.
+* Look like a functional programming language which are executed across 
+cluster nodes.
 * Basically it will be an array computing system.
 * Declarative language support and query optimization
   * You don't need to think about optimization, just write your logics.
-* Highly parallel and distributed computing in local clusters or cloud environments which provide high bandwidth networks.
+* Highly parallel and distributed computing in local clusters or cloud 
+environments which provide high bandwidth networks.
 * Easy configuration (for cloud environment and large clusters)
-* Only if necessary, fault tolerance will be guaranteed. Otherwise, it finishes jobs as faster as possible.
-* Primarily designed for in-memory storages, like DRAM or extremely fast non volatile memory.
+* Only if necessary, fault tolerance will be guaranteed. Otherwise, it 
+finishes jobs as faster as possible.
+* Primarily designed for in-memory storages, like DRAM or extremely fast
+non volatile memory.
 * Primarily targets ~ TB sized input data
 * Workload will be interactive if cluster resources are available.
 
