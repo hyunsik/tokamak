@@ -30,6 +30,8 @@ clusters.
 
 *Building*
 ```
+git submodule init
+git submodule update
 cargo build --release
 ```
 
