@@ -55,17 +55,17 @@ impl<'a> JitCompiler<'a>
   }
 }
 
-pub struct JitCompilerBuilder<'a>
+pub struct JitEngineBuilder<'a>
 {
   ctx: &'a Context
 }
 
-impl<'a> JitCompilerBuilder<'a>
+impl<'a> JitEngineBuilder<'a>
 {
-  pub fn new(ctx: &'a Context) -> JitCompilerBuilder<'a>
+  pub fn new(ctx: &'a Context) -> JitEngineBuilder<'a>
   {
-    JitCompilerBuilder {
-      ctx: ctx
+    JitEngineBuilder {
+      ctx: ctx      
     }
   }
   
@@ -102,3 +102,27 @@ pub struct ModuleBuilder<'a>
   module: CSemiBox<'a, Module>
 }
 
+impl<'a> ModuleBuilder<'a>
+{
+  pub fn build(mut self, opt: JitOptions) -> EngineBuilder<'a> {
+    EngineBuilder {
+      ctx: self.ctx,
+      module: self.module,
+      engine: None
+    }
+  }
+}
+
+pub struct EngineBuilder<'a>
+{
+  ctx: &'a Context,
+  module: CSemiBox<'a, Module>,
+  engine: Option<JitEngine<'a>>
+}
+
+impl<'a> EngineBuilder<'a>
+{
+  pub fn build(&'a mut self, opt: JitOptions) {
+    self.engine = JitEngine::new(&self.module, opt).ok();
+  }
+}
