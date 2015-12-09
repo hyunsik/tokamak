@@ -15,46 +15,6 @@ use common::err::{Void, void_ok};
 
 pub const JIT_OPT_LVEL: usize = 2;
 
-pub struct JitCompiler<'a> 
-{
-  ctx   : Option<CBox<Context>>,
-  module: Option<CSemiBox<'a, Module>>,
-  ee    : Option<JitEngine<'a>>,
-  
-  _marker: PhantomData<&'a ()>
-}
-
-impl<'a> JitCompiler<'a>
-{
-  pub fn new() -> JitCompiler<'a>
-  {
-    JitCompiler {      
-      ctx    : Some(Context::new()),
-      module : None,
-      ee     : None,
-      
-      _marker: PhantomData
-    }
-  }
-  
-  pub fn init_module(&'a mut self) -> Void
-  {    
-    self.module = Some(Module::new("xxx", self.ctx.as_ref().unwrap()));      
-    self.ee     = Some(JitEngine::new((self.module.as_ref()).unwrap(), JitOptions {opt_level: JIT_OPT_LVEL}).unwrap());
-    
-    void_ok
-  }
-
-  pub fn load_from_bitcode(&'a mut self, path: &str) -> Void
-  {    
-    self.module = Some(Module::parse_bitcode(self.ctx.as_ref().unwrap(), path)
-      .expect(&format!("loading {} failed...", path)));
-    self.ee     = Some(JitEngine::new((self.module.as_ref()).unwrap(), JitOptions {opt_level: JIT_OPT_LVEL}).unwrap());
-    
-    void_ok
-  }
-}
-
 pub struct JitEngineBuilder<'a>
 {
   ctx: &'a Context
@@ -122,7 +82,25 @@ pub struct EngineBuilder<'a>
 
 impl<'a> EngineBuilder<'a>
 {
-  pub fn build(&'a mut self, opt: JitOptions) {
+  pub fn set_jit(&'a mut self, opt: JitOptions) -> Void {
     self.engine = JitEngine::new(&self.module, opt).ok();
+    
+    void_ok
   }
+  
+  pub fn build(mut self) -> JitCompiler<'a>
+  {
+    JitCompiler {
+      ctx: self.ctx,
+      module: self.module,
+      engine: self.engine.unwrap()
+    }
+  }
+}
+
+pub struct JitCompiler<'a>
+{
+  ctx: &'a Context,
+  module: CSemiBox<'a, Module>,
+  engine: JitEngine<'a>
 }
