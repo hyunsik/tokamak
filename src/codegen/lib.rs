@@ -13,55 +13,92 @@ use llvm::*;
 
 use common::err::{Void, void_ok};
 
+pub const JIT_OPT_LVEL: usize = 2;
+
 pub struct JitCompiler<'a> 
 {
-  ctx   : CBox<Context>,
+  ctx   : Option<CBox<Context>>,
   module: Option<CSemiBox<'a, Module>>,
   ee    : Option<JitEngine<'a>>,
   
   _marker: PhantomData<&'a ()>
 }
 
-struct JitCompilerBuilder<'a>
-{
-  ctx   : CBox<Context>,
-  module: Option<CSemiBox<'a, Module>>,
-  ee    : Option<JitEngine<'a>>,
-  _marker: PhantomData<&'a ()>
-}
-
-impl<'a> JitCompilerBuilder<'a>
-{
-  pub fn init_module(&'a mut self, name: &str) -> &'a mut JitCompilerBuilder 
-  {
-    self.module = Some(Module::new(name, self.ctx.borrow()));
-    self.ee     = Some(JitEngine::new((self.module.as_ref()).unwrap(), JitOptions {opt_level: 0}).unwrap());
-    
-    self
-  }
-}
-
-/*
 impl<'a> JitCompiler<'a>
 {
-  pub fn new() -> JitCompilerBuilder<'a>
+  pub fn new() -> JitCompiler<'a>
   {
     JitCompiler {      
-      ctx    : Context::new(),
+      ctx    : Some(Context::new()),
       module : None,
       ee     : None,
       
       _marker: PhantomData
     }
   }
+  
+  pub fn init_module(&'a mut self) -> Void
+  {    
+    self.module = Some(Module::new("xxx", self.ctx.as_ref().unwrap()));      
+    self.ee     = Some(JitEngine::new((self.module.as_ref()).unwrap(), JitOptions {opt_level: JIT_OPT_LVEL}).unwrap());
+    
+    void_ok
+  }
 
   pub fn load_from_bitcode(&'a mut self, path: &str) -> Void
   {    
-    self.module = Some(Module::parse_bitcode(self.ctx.borrow(), path)
+    self.module = Some(Module::parse_bitcode(self.ctx.as_ref().unwrap(), path)
       .expect(&format!("loading {} failed...", path)));
-    self.ee     = Some(JitEngine::new((self.module.as_ref()).unwrap(), JitOptions {opt_level: 0}).unwrap());
+    self.ee     = Some(JitEngine::new((self.module.as_ref()).unwrap(), JitOptions {opt_level: JIT_OPT_LVEL}).unwrap());
     
     void_ok
   }
 }
-*/
+
+pub struct JitCompilerBuilder<'a>
+{
+  ctx: &'a Context
+}
+
+impl<'a> JitCompilerBuilder<'a>
+{
+  pub fn new(ctx: &'a Context) -> JitCompilerBuilder<'a>
+  {
+    JitCompilerBuilder {
+      ctx: ctx
+    }
+  }
+  
+  pub fn new_module(&'a self, name: &str) -> ModuleBuilder<'a> 
+  {
+    ModuleBuilder {
+      ctx: self.ctx,
+      module: Module::new(name, self.ctx)
+    }
+  }
+  
+  pub fn from_bitcode(&'a mut self, path: &str) -> ModuleBuilder<'a> 
+  {
+    ModuleBuilder {
+      ctx: self.ctx,
+      module: Module::parse_bitcode(self.ctx, path)
+                .expect(&format!("loading bitcode at '{}' failed...", path))
+    }
+  }
+  
+  pub fn from_ir(&'a mut self, path: &str) -> ModuleBuilder<'a> 
+  {
+    ModuleBuilder {
+      ctx: self.ctx,
+      module: Module::parse_ir(self.ctx, path)
+                .expect(&format!("loading IR at '{}' failed...", path))
+    }
+  }
+}
+
+pub struct ModuleBuilder<'a>
+{
+  ctx: &'a Context,
+  module: CSemiBox<'a, Module>
+}
+
