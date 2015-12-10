@@ -1,4 +1,6 @@
+#![allow(dead_code)]
 use std::fmt;
+use std::mem;
 
 use llvm_sys::core;
 use llvm_sys::prelude::{
@@ -14,6 +16,48 @@ impl Ty {
   #[inline(always)]
   pub fn as_ptr(&self) -> LLVMTypeRef { self.0 }
 }
+
+
+/// A function signature type.
+pub struct FunctionType(pub LLVMTypeRef);
+impl_display!(FunctionType, LLVMPrintTypeToString);
+
+impl FunctionType {
+  
+  /// Returns the number of parameters this signature takes.
+  pub fn num_params(&self) -> usize {
+    unsafe { core::LLVMCountParamTypes(self.0) as usize }
+  }
+
+  /// Returns a vector of this signature's parameters' types.
+  pub fn get_params(&self) -> Vec<Ty> {
+  	unsafe {
+    	let count = core::LLVMCountParamTypes(self.0);
+      let mut types: Vec<LLVMTypeRef> = (0..count).map(|_| mem::uninitialized()).collect();
+      core::LLVMGetParamTypes(self.0, types.as_mut_ptr() as *mut LLVMTypeRef);      
+      types.into_iter().map(|t| Ty(t)).collect::<Vec<Ty>>()
+    }
+  }
+  
+  /// Returns the type that this function returns.
+  pub fn get_return(&self) -> Ty {
+    Ty(unsafe { core::LLVMGetReturnType(self.0)})
+  }
+}
+
+/*
+impl From<FunctionType> for Ty {
+  fn from(ty: FunctionType) -> Ty {
+    Ty(ty.0)
+  }
+}
+
+impl From<Ty> for FunctionType {
+  fn from(ty: Ty) -> FunctionType {
+    FunctionType(ty.0)
+  }
+}
+*/
 
 pub trait LLVMTy {
   fn llvm_ty(ctx: LLVMContextRef) -> Ty;
