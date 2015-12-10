@@ -11,7 +11,7 @@ use libc::{c_char, c_uint};
 
 use types::Ty;
 use block::BasicBlock;
-use value::Value;
+use value::{PhiNode, Value};
 
 static NULL_NAME:[c_char; 1] = [0];
 
@@ -167,14 +167,14 @@ impl Builder {
     })
   }
   
-  /*
+  
   /// Build an instruction to select a value depending on the predecessor of the current block.
-  pub fn create_phi(&self, ty: &Type, name: &str) -> &PhiNode 
+  pub fn create_phi(&self, ty: &Ty, name: &str) -> PhiNode 
   {
-	  unsafe { 
-	  	core::LLVMBuildPhi(self.into(), ty.into(), CString::new(name).unwrap().as_ptr()) 
-  	}.into()
-  }*/ 
+	  PhiNode(unsafe { 
+	  	core::LLVMBuildPhi(self.0, ty.0, ::util::str_to_chars(name)) 
+  	})
+  } 
   
   /// Build an instruction that runs whichever block matches the value, or `default` if none of them matched it.
   pub fn create_switch(&self, 
