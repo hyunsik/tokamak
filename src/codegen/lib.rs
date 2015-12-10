@@ -5,6 +5,7 @@ extern crate llvm_sys;
 
 #[macro_use]
 mod macros;
+mod block;
 mod buffer;
 mod builder;
 mod util;
