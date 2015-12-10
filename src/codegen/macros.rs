@@ -10,7 +10,7 @@ macro_rules! llvm_ret(
 
 macro_rules! expect_noerr(
   ($ret:expr, $message:expr) => (
-    if ($ret == 1) {
+    if $ret == 1 {
       return Err($message.to_string());
     }
   );  

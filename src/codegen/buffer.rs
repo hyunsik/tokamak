@@ -1,6 +1,6 @@
 use std::mem;
 
-use llvm_sys::{core, LLVMMemoryBuffer};
+use llvm_sys::core;
 use llvm_sys::prelude::LLVMMemoryBufferRef;
 use libc::c_char;
 

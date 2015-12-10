@@ -1,6 +1,5 @@
 //! JIT Compiler to generate code fragments in runtime.
 
-#![feature(libc)]
 extern crate libc;
 extern crate llvm_sys;
 
@@ -33,15 +32,10 @@ use llvm_sys::target_machine::LLVMCodeModel;
 use libc::{c_char, c_uint};
 
 use buffer::MemoryBuffer;
-use util::{str_to_chars, chars_to_str};
+use util::chars_to_str;
 
 pub const JIT_OPT_LVEL: usize = 2;
 
-pub struct JitCompiler {
-  ctx   : LLVMContextRef,
-  module: LLVMModuleRef,
-  engine: LLVMExecutionEngineRef
-}
 
 fn new_module_from_bc(ctx: LLVMContextRef, path: &str) -> Result<LLVMModuleRef, String> 
 {
@@ -91,15 +85,30 @@ fn new_mcjit_compiler_options(opt_lv: usize) -> LLVMMCJITCompilerOptions
   }
 }
 
+pub struct JitCompiler 
+{
+  ctx   : LLVMContextRef,
+  module: LLVMModuleRef,
+  ee    : LLVMExecutionEngineRef
+}
+
 impl JitCompiler {
   pub fn new(bitcode_path: &str) -> Result<JitCompiler, String> 
   {
     let ctx    = unsafe { core::LLVMContextCreate() };
     let module = try!(new_module_from_bc(ctx, bitcode_path));
-    let ee     = new_jit_ee(module, JIT_OPT_LVEL);
+    let ee     = try!(new_jit_ee(module, JIT_OPT_LVEL));
     
-    Err("".to_string())    
+    Ok(JitCompiler {
+      ctx   : ctx,
+      module: module,
+      ee    : ee
+    })
   }
+  
+  pub fn ctx(&self) -> LLVMContextRef { self.ctx }
+  pub fn module(&self) -> LLVMModuleRef { self.module }
+  pub fn engine(&self) -> LLVMExecutionEngineRef { self.ee }
 }
 
 #[cfg(test)]
