@@ -41,6 +41,13 @@ use util::chars_to_str;
 pub const JIT_OPT_LVEL: usize = 2;
 
 
+fn new_module(ctx: LLVMContextRef, name: &str) -> LLVMModuleRef
+{
+  let c_name = util::str_to_chars(name);
+  unsafe { 
+  	core::LLVMModuleCreateWithNameInContext(c_name, ctx) 
+  }
+}
 fn new_module_from_bc(ctx: LLVMContextRef, path: &str) -> Result<LLVMModuleRef, String> 
 {
   unsafe {
@@ -98,10 +105,23 @@ pub struct JitCompiler
 }
 
 impl JitCompiler {
-  pub fn new(bitcode_path: &str) -> Result<JitCompiler, String> 
+  
+  pub fn new(module_name: &str) -> Result<JitCompiler, String>
+  {
+    let ctx     = unsafe { core::LLVMContextCreate() };
+    let module  = new_module(ctx, module_name);
+    JitCompiler::new_internal(ctx, module)
+  }
+  
+  pub fn new_from_bc(bitcode_path: &str) -> Result<JitCompiler, String> 
   {
     let ctx     = unsafe { core::LLVMContextCreate() };
     let module  = try!(new_module_from_bc(ctx, bitcode_path));
+    JitCompiler::new_internal(ctx, module)
+  }
+  
+  fn new_internal(ctx: LLVMContextRef, module: LLVMModuleRef) -> Result<JitCompiler, String>
+  {
     let ee      = try!(new_jit_ee(module, JIT_OPT_LVEL));
     let builder = Builder(unsafe { core::LLVMCreateBuilderInContext(ctx) });
     
