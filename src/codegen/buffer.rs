@@ -27,3 +27,5 @@ impl MemoryBuffer
     }
   }
 }
+
+dispose_impl!(MemoryBuffer, core::LLVMDisposeMemoryBuffer);

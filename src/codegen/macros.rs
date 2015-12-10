@@ -15,3 +15,15 @@ macro_rules! expect_noerr(
     }
   );  
 );
+
+macro_rules! dispose_impl (
+  ($ty:ty, $func:expr) => (
+    impl Drop for $ty {
+      fn drop(&mut self) {
+        unsafe {
+          $func(self.0);
+        }
+      }
+    }    
+  );
+);

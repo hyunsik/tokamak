@@ -116,6 +116,16 @@ impl JitCompiler {
   pub fn builder(&self) -> LLVMBuilderRef { self.builder }
 }
 
+impl Drop for JitCompiler {
+  fn drop(&mut self) {
+    unsafe {
+      core::LLVMDisposeBuilder(self.builder);
+      core::LLVMDisposeModule(self.module);      
+      core::LLVMContextDispose(self.ctx);
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
