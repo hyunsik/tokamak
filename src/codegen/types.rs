@@ -7,7 +7,7 @@ use llvm_sys::prelude::{
 };
 use libc::c_uint;
 
-pub struct Ty(LLVMTypeRef);
+pub struct Ty(pub LLVMTypeRef);
 impl_display!(Ty, LLVMPrintTypeToString);
 
 impl Ty {
