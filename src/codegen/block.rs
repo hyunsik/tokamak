@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use llvm_sys::core;
 use llvm_sys::prelude::LLVMBasicBlockRef;
 

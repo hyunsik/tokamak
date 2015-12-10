@@ -1,8 +1,11 @@
+#![allow(dead_code)]
+
 use std::mem;
 
 use llvm_sys::core;
 use llvm_sys::prelude::{
-  LLVMBuilderRef
+  LLVMBuilderRef,
+  LLVMValueRef  
 };
 use libc::{c_char, c_uint};
 
@@ -100,6 +103,94 @@ impl Builder {
     		                    cond.0, 
     		                    if_block.0, 
     		                    mem::transmute(else_block)) 
+    })
+  }
+  
+  
+  /// Build an instruction that yields to `true_val` if `cond` is equal to `1`, and `false_val` otherwise.
+  pub fn create_select(&self, cond: &Value, true_val: &Value, false_val: &Value) -> Value 
+  {
+    Value(unsafe { 
+    	core::LLVMBuildSelect(self.0, 
+    		                    cond.0, 
+    		                    true_val.0, 
+    		                    false_val.0, 
+    		                    NULL_NAME.as_ptr()) })
+  }
+  
+  /// Build an instruction that casts a value into a certain type.
+  pub fn create_bit_cast(&self, value: &Value, dest: &Ty) -> Value 
+  {
+    Value(unsafe { core::LLVMBuildBitCast(
+    		self.0, 
+    		value.0, 
+    		dest.0, 
+    		NULL_NAME.as_ptr()) 
+    })
+  }
+  
+  /// Build an instruction that inserts a value into an aggregate data value.
+  pub fn create_insert_value(&self, agg: &Value, elem: &Value, index: usize) -> Value 
+  {
+    Value(unsafe { 
+    	core::LLVMBuildInsertValue(self.0, 
+    		                         agg.0, 
+    		                         elem.0, 
+    		                         index as c_uint, 
+    		                         NULL_NAME.as_ptr()) 
+    })
+  }
+  
+  /// Build an instruction that extracts a value from an aggregate type.
+	pub fn create_extract_value(&self, agg: &Value, index: usize) -> Value {
+    Value(unsafe { 
+    	core::LLVMBuildExtractValue(self.0, 
+    		                          agg.0, 
+    		                          index as c_uint, 
+    		                          NULL_NAME.as_ptr()) 
+   	})
+  }
+  
+  /// Build an instruction that computes the address of a subelement of an aggregate data structure.
+  ///
+  /// Basically type-safe pointer arithmetic.
+  pub fn create_gep(&self, pointer: &Value, indices: &[&Value]) -> Value 
+  {
+    let values = indices.iter().map(|v| v.0).collect::<Vec<LLVMValueRef>>();
+    
+    Value(unsafe { 
+    	core::LLVMBuildInBoundsGEP(self.0, 
+    	                           pointer.0, 
+    	                           values.as_ptr() as *mut LLVMValueRef, 
+    	                           indices.len() as c_uint, 
+    	                           NULL_NAME.as_ptr()) 
+    })
+  }
+  
+  /*
+  /// Build an instruction to select a value depending on the predecessor of the current block.
+  pub fn create_phi(&self, ty: &Type, name: &str) -> &PhiNode 
+  {
+	  unsafe { 
+	  	core::LLVMBuildPhi(self.into(), ty.into(), CString::new(name).unwrap().as_ptr()) 
+  	}.into()
+  }*/ 
+  
+  /// Build an instruction that runs whichever block matches the value, or `default` if none of them matched it.
+  pub fn create_switch(&self, 
+  	                   value: &Value, 
+  	                   default: &BasicBlock, 
+  	                   cases: &[(&Value, &BasicBlock)]) -> Value {
+    Value(unsafe {
+      let switch = core::LLVMBuildSwitch(self.0, 
+      	                                 value.0, 
+      	                                 default.0, 
+      	                                 cases.len() as c_uint);
+      for case in cases {
+        core::LLVMAddCase(switch, (case.0).0, (case.1).0);
+      }
+      
+      switch
     })
   }
 }
