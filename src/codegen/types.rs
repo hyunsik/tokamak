@@ -3,8 +3,14 @@ use llvm_sys::prelude::{
   LLVMContextRef,
   LLVMTypeRef
 };
+use libc::c_uint;
 
 pub struct Ty(LLVMTypeRef);
+
+impl Ty {
+  #[inline(always)]
+  pub fn as_ptr(&self) -> LLVMTypeRef { self.0 }
+}
 
 pub trait LLVMTy {
   fn get_ty(ctx: LLVMContextRef) -> Ty;
@@ -32,3 +38,16 @@ impl_llvm_ty!(u64, core::LLVMInt64TypeInContext);
 impl_llvm_ty!(f32, core::LLVMFloatTypeInContext);
 impl_llvm_ty!(f64, core::LLVMDoubleTypeInContext);
 
+impl LLVMTy for usize {
+  fn get_ty(ctx: LLVMContextRef) -> Ty
+  {
+    Ty(unsafe{core::LLVMIntTypeInContext(ctx, ::std::mem::size_of::<isize>() as c_uint * 8)})
+  }
+}
+
+impl LLVMTy for isize {
+  fn get_ty(ctx: LLVMContextRef) -> Ty
+  {
+    Ty(unsafe{core::LLVMIntTypeInContext(ctx, ::std::mem::size_of::<isize>() as c_uint * 8)})
+  }
+}
