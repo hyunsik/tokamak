@@ -2,170 +2,102 @@
 
 #![feature(libc)]
 extern crate libc;
-extern crate llvm;
+extern crate llvm_sys;
 
-extern crate common;
+#[macro_use]
+mod macros;
+mod buffer;
+mod util;
 
-use llvm::*;
+use std::mem;
+use std::ptr;
 
-use common::err::{Void, void_ok};
+use llvm_sys::core;
+use llvm_sys::prelude::{
+  LLVMContextRef,
+  LLVMModuleRef
+};
+use llvm_sys::bit_reader::LLVMParseBitcodeInContext;
+use llvm_sys::execution_engine::{
+  LLVMExecutionEngineRef,
+  LLVMLinkInMCJIT,
+  LLVMMCJITCompilerOptions,
+  LLVMCreateMCJITCompilerForModule
+};  
+use llvm_sys::target::{
+  LLVM_InitializeNativeTarget,
+  LLVM_InitializeNativeAsmPrinter
+};
+use llvm_sys::target_machine::LLVMCodeModel;
+
+use libc::{c_char, c_uint};
+
+use buffer::MemoryBuffer;
+use util::{str_to_chars, chars_to_str};
 
 pub const JIT_OPT_LVEL: usize = 2;
 
-pub struct JitEngineBuilder<'a>
-{
-  ctx: &'a Context,
+pub struct JitCompiler {
+  ctx   : LLVMContextRef,
+  module: LLVMModuleRef,
+  engine: LLVMExecutionEngineRef
 }
 
-impl<'a> JitEngineBuilder<'a>
+fn new_module_from_bc(ctx: LLVMContextRef, path: &str) -> Result<LLVMModuleRef, String> 
 {
-  pub fn new(ctx: &'a Context) -> JitEngineBuilder<'a>
-  {
-    JitEngineBuilder {
-      ctx: ctx      
-    }
-  }
-  
-  pub fn new_module(self, name: &str) -> ModuleBuilder<'a> 
-  {
-    ModuleBuilder {
-      ctx: self.ctx,
-      module: Module::new(name, self.ctx)
-    }
-  }
-  
-  pub fn from_bitcode(self, path: &str) -> ModuleBuilder<'a> 
-  {
-    ModuleBuilder {
-      ctx: self.ctx,
-      module: Module::parse_bitcode(self.ctx, path)
-                .expect(&format!("loading bitcode at '{}' failed...", path))
-    }
-  }
-  
-  pub fn from_ir(self, path: &str) -> ModuleBuilder<'a> 
-  {
-    ModuleBuilder {
-      ctx: self.ctx,
-      module: Module::parse_ir(self.ctx, path)
-                .expect(&format!("loading IR at '{}' failed...", path))
-    }
-  }
-}
-
-pub struct ModuleBuilder<'a>
-{
-  ctx: &'a Context,
-  module: CSemiBox<'a, Module>
-}
-
-impl<'a> ModuleBuilder<'a>
-{
-  pub fn optimize(self, opt_level: usize, size_level: usize) 
-      -> ModuleBuilder<'a>
-  {
-    self.module.optimize(opt_level, size_level);
-    self
-  }
-  
-  pub fn set_target(self, target: &str) -> ModuleBuilder<'a>
-  {
-    self.module.set_target(target);
-    self
-  }
-  
-  pub fn set_data_layout(self, layout: &str) -> ModuleBuilder<'a>
-  {
-    self.module.set_data_layout(layout);
-    self
-  }
-  
-  pub fn build(mut self) -> EngineBuilder<'a> 
-  {
-    EngineBuilder {
-      ctx: self.ctx,
-      module: self.module,
-      jit_opt: None,
-      engine: None      
-    }
-  }
-}
-
-pub struct EngineBuilder<'a>
-{
-  ctx    : &'a Context,
-  module : CSemiBox<'a, Module>,  
-  engine : Option<JitEngine<'a>>,
-  jit_opt: Option<JitOptions>,
-}
-
-impl<'a> EngineBuilder<'a>
-{
-  pub fn set_opt_level(mut self, opt: JitOptions) -> EngineBuilder<'a> {
-    if let Some(opt) = self.jit_opt {
-      panic!("EngineBuilder::set_opt_level should be called before create()");
-    }
+  unsafe {
+    let mut out: LLVMModuleRef = mem::uninitialized();
+    let mut err: *mut c_char   = mem::uninitialized();
+    let buf = try!(MemoryBuffer::from_file(path));
     
-    self.jit_opt = Some(opt);    
-    self
-  }
-  
-  pub fn create(&'a mut self) {
-    self.engine = JitEngine::new(&self.module, self.jit_opt.unwrap()).ok();
-  }
-  
-  pub fn add_module(&'a self, m: &'a Module) -> &'a EngineBuilder
-  {
-    let ee = self.engine.as_ref().expect("Must be create() before add_module()");
-    ee.add_module(m);    
-    self
-  }
-  
-  pub fn build(mut self) -> JitCompiler<'a>
-  {
-    JitCompiler {
-      ctx: self.ctx,
-      module: self.module,
-      builder: Builder::new(self.ctx),
-      engine: self.engine.unwrap()
-    }
+    let ret = LLVMParseBitcodeInContext(ctx, 
+                                        buf.as_ptr(), 
+    	                                  &mut out, 
+    	                                  &mut err);
+    llvm_ret!(ret, out, err)                                   
   }
 }
 
-pub struct JitCompiler<'a>
+fn new_jit_ee(m: LLVMModuleRef, opt_lv: usize) -> Result<LLVMExecutionEngineRef, String> 
 {
-  ctx    : &'a Context,
-  module : CSemiBox<'a, Module>,
-  builder: CSemiBox<'a, Builder>,
-  engine : JitEngine<'a>
+  unsafe {
+    let mut ee : LLVMExecutionEngineRef = mem::uninitialized();
+    let mut err: *mut c_char = mem::uninitialized();
+    
+    LLVMLinkInMCJIT();
+    expect_noerr!(LLVM_InitializeNativeTarget(), "failed to initialize native target");
+    expect_noerr!(LLVM_InitializeNativeAsmPrinter(), "failed to initialize native asm printer");
+    
+    let mut opts = new_mcjit_compiler_options(opt_lv);
+    let opts_size = mem::size_of::<LLVMMCJITCompilerOptions>();
+    
+    let ret = LLVMCreateMCJITCompilerForModule(&mut ee, 
+      		                                     m, 
+      		                                     &mut opts, 
+      		                                     opts_size as u64, 
+      		                                     &mut err);
+    llvm_ret!(ret, ee, err)                                                       
+  }
 }
 
-impl<'a> JitCompiler<'a>
+fn new_mcjit_compiler_options(opt_lv: usize) -> LLVMMCJITCompilerOptions
 {
-  pub fn context(&'a self) -> &'a Context { self.ctx }
-  
-  pub fn module(&'a self) -> &'a Module { &self.module }
-  
-  pub fn builder(&'a self) -> &'a Builder { &self.builder }
-  
-  pub fn engine(&'a self) -> &'a JitEngine { &self.engine }
+  LLVMMCJITCompilerOptions {
+    OptLevel: opt_lv as c_uint,
+    CodeModel: LLVMCodeModel::LLVMCodeModelJITDefault,
+    NoFramePointerElim: 0,
+    EnableFastISel: 1,
+    MCJMM: ptr::null_mut()
+  }
 }
 
-#[cfg(test)]
-mod tests {
-  use llvm::Context;
-  use super::JitCompiler;
-  use super::JitEngineBuilder;
-  use super::ModuleBuilder;
-  
-  #[test]
-  fn test() {
-    let ctx = Context::new();
-    let x = JitEngineBuilder::new(&ctx)
-      .new_module("test1")
-      .build();
-    // let y = x.new_module("test1");
-    // let m: ModuleBuilder = JitEngineBuilder::new(&ctx)
-    //                          .new_module("test1");
+impl JitCompiler {
+  pub fn create(bitcode_path: &str) -> Result<JitCompiler, String> 
+  {
+    let ctx    = unsafe { core::LLVMContextCreate() };
+    let module = try!(new_module_from_bc(ctx, bitcode_path));
+    let ee     = new_jit_ee(module, JIT_OPT_LVEL);
+    
+    Err("".to_string())    
   }
 }
