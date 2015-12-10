@@ -9,9 +9,8 @@ use types::LLVMTy;
 #[derive(Copy, Clone)]
 pub struct Value(pub LLVMValueRef);
 
-/// A type that can be represented as a constant in LLVM IR.
 pub trait ToValue {
-	/// Compile this value into a constant in the context given.
+	/// Transform this value into a constant in the context given.
   fn to_value(self, ctx: LLVMContextRef) -> Value;
 }
 
