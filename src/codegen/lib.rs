@@ -92,12 +92,22 @@ fn new_mcjit_compiler_options(opt_lv: usize) -> LLVMMCJITCompilerOptions
 }
 
 impl JitCompiler {
-  pub fn create(bitcode_path: &str) -> Result<JitCompiler, String> 
+  pub fn new(bitcode_path: &str) -> Result<JitCompiler, String> 
   {
     let ctx    = unsafe { core::LLVMContextCreate() };
     let module = try!(new_module_from_bc(ctx, bitcode_path));
     let ee     = new_jit_ee(module, JIT_OPT_LVEL);
     
     Err("".to_string())    
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  
+  #[test]
+  fn test_ctor() {
+    let jit = JitCompiler::new("target/test-ir/test-module.bc").ok().unwrap();
   }
 }
