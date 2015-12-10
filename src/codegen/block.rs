@@ -3,12 +3,13 @@ use llvm_sys::prelude::LLVMBasicBlockRef;
 
 use value::Value;
 
+/// A container of instructions that execute sequentially.
 pub struct BasicBlock(pub LLVMBasicBlockRef);
 
 impl BasicBlock 
 {
   /// Return the enclosing method, or `None` if it is not attached to a method.
-  pub fn get_parent(&self) -> Option<Value> 
+  pub fn parent(&self) -> Option<Value> 
   {
     unsafe { 
       let ptr = core::LLVMGetBasicBlockParent(self.0);
