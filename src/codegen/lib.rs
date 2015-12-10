@@ -14,7 +14,8 @@ use std::ptr;
 use llvm_sys::core;
 use llvm_sys::prelude::{
   LLVMContextRef,
-  LLVMModuleRef
+  LLVMModuleRef,
+  LLVMBuilderRef
 };
 use llvm_sys::bit_reader::LLVMParseBitcodeInContext;
 use llvm_sys::execution_engine::{
@@ -87,28 +88,32 @@ fn new_mcjit_compiler_options(opt_lv: usize) -> LLVMMCJITCompilerOptions
 
 pub struct JitCompiler 
 {
-  ctx   : LLVMContextRef,
-  module: LLVMModuleRef,
-  ee    : LLVMExecutionEngineRef
+  ctx    : LLVMContextRef,
+  module : LLVMModuleRef,
+  ee     : LLVMExecutionEngineRef,
+  builder: LLVMBuilderRef 
 }
 
 impl JitCompiler {
   pub fn new(bitcode_path: &str) -> Result<JitCompiler, String> 
   {
-    let ctx    = unsafe { core::LLVMContextCreate() };
-    let module = try!(new_module_from_bc(ctx, bitcode_path));
-    let ee     = try!(new_jit_ee(module, JIT_OPT_LVEL));
+    let ctx     = unsafe { core::LLVMContextCreate() };
+    let module  = try!(new_module_from_bc(ctx, bitcode_path));
+    let ee      = try!(new_jit_ee(module, JIT_OPT_LVEL));
+    let builder = unsafe { core::LLVMCreateBuilderInContext(ctx) };
     
     Ok(JitCompiler {
-      ctx   : ctx,
-      module: module,
-      ee    : ee
+      ctx    : ctx,
+      module : module,
+      ee     : ee,
+      builder: builder
     })
   }
   
   pub fn ctx(&self) -> LLVMContextRef { self.ctx }
   pub fn module(&self) -> LLVMModuleRef { self.module }
   pub fn engine(&self) -> LLVMExecutionEngineRef { self.ee }
+  pub fn builder(&self) -> LLVMBuilderRef { self.builder }
 }
 
 #[cfg(test)]
