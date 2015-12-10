@@ -16,7 +16,7 @@ macro_rules! expect_noerr(
   );  
 );
 
-macro_rules! dispose_impl (
+macro_rules! impl_dispose (
   ($ty:ty, $func:expr) => (
     impl Drop for $ty {
       fn drop(&mut self) {

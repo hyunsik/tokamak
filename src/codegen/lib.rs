@@ -17,8 +17,7 @@ use std::ptr;
 use llvm_sys::core;
 use llvm_sys::prelude::{
   LLVMContextRef,
-  LLVMModuleRef,
-  LLVMBuilderRef
+  LLVMModuleRef
 };
 use llvm_sys::bit_reader::LLVMParseBitcodeInContext;
 use llvm_sys::execution_engine::{
@@ -123,7 +122,6 @@ impl JitCompiler {
 impl Drop for JitCompiler {
   fn drop(&mut self) {
     unsafe {
-      core::LLVMDisposeBuilder(self.builder.0);
       core::LLVMDisposeModule(self.module);      
       core::LLVMContextDispose(self.ctx);
     }
