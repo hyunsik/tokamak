@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::fmt;
 
 use libc::c_ulonglong;
@@ -6,7 +7,9 @@ use llvm_sys::prelude::{
   LLVMValueRef,
   LLVMContextRef
 };
+
 use types::LLVMTy;
+use block::BasicBlock;
 
 #[derive(Copy, Clone)]
 pub struct Value(pub LLVMValueRef);
@@ -52,6 +55,35 @@ impl ToValue for f64 {
   fn to_value(self, ctx: LLVMContextRef) -> Value
   {
     Value(unsafe{core::LLVMConstReal(Self::llvm_ty(ctx).as_ptr(), self)})
+  }
+}
+
+
+/// A PHI node represents a value which is selected based on the predecessor of the current block.
+pub struct PhiNode(pub LLVMValueRef);
+impl_display!(PhiNode, LLVMPrintValueToString);
+
+impl PhiNode {
+  /// Adds an incoming value to the end of this PHI node.
+  pub fn add_incoming(&self, val: &Value, block: &BasicBlock) {
+    let mut values = vec![val.0];
+    let mut blocks = vec![block.0];
+    unsafe { core::LLVMAddIncoming(self.0, values.as_mut_ptr(), blocks.as_mut_ptr(), 1) }
+  }
+  
+  /// Counts the number of incoming values attached to this PHI node.
+  pub fn count_incoming(&self) -> u32 {
+    unsafe { core::LLVMCountIncoming(self.0) }
+  }
+  
+  /// Gets an incoming value from this PHI node from a specific index.
+  pub fn get_incoming_value(&self, index: u32) -> Value {
+    Value(unsafe { core::LLVMGetIncomingValue(self.0, index) })
+  }
+  
+  /// Gets an incoming basic block from this PHI node from a specific index.
+  pub fn get_incoming_block(&self, index: u32) -> BasicBlock {
+    BasicBlock(unsafe { core::LLVMGetIncomingBlock(self.0, index)})
   }
 }
 
