@@ -49,7 +49,8 @@ impl Builder {
     Value(unsafe { core::LLVMBuildRet(self.0, value.0)})
   }
   
-  /// Build an instruction that allocates an array with the element type `elem` and the size `size`.
+  /// Build an instruction that allocates an array with the element type `elem` and 
+  /// the size `size`.
   ///
   /// The size of this array will be the size of `elem` times `size`.
   pub fn build_array_alloca(&self, elem: &Ty, size: &Value) -> Value 
@@ -62,7 +63,8 @@ impl Builder {
     })
   }
   
-  /// Build an instruction that allocates a pointer to fit the size of `ty` then returns this pointer.
+  /// Build an instruction that allocates a pointer to fit the size of `ty` then returns this 
+  /// pointer.
   ///
   /// Make sure to call `build_free` with the pointer value when you're done with it, or you're
   /// gonna have a bad time.
@@ -94,7 +96,8 @@ impl Builder {
     Value(unsafe { core::LLVMBuildBr(self.0, dest.0)})
   }
   
-  /// Build an instruction that branches to `if_block` if `cond` evaluates to true, and `else_block` otherwise.
+  /// Build an instruction that branches to `if_block` if `cond` evaluates to true, and 
+  /// `else_block` otherwise.
   pub fn create_cond_br(&self, cond: &Value, 
   	                    if_block: &BasicBlock, else_block: Option<&BasicBlock>) -> Value 
   {
@@ -107,7 +110,8 @@ impl Builder {
   }
   
   
-  /// Build an instruction that yields to `true_val` if `cond` is equal to `1`, and `false_val` otherwise.
+  /// Build an instruction that yields to `true_val` if `cond` is equal to `1`, and `false_val` 
+  /// otherwise.
   pub fn create_select(&self, cond: &Value, true_val: &Value, false_val: &Value) -> Value 
   {
     Value(unsafe { 
@@ -151,7 +155,8 @@ impl Builder {
    	})
   }
   
-  /// Build an instruction that computes the address of a subelement of an aggregate data structure.
+  /// Build an instruction that computes the address of a subelement of an aggregate data 
+  /// structure.
   ///
   /// Basically type-safe pointer arithmetic.
   pub fn create_gep(&self, pointer: &Value, indices: &[&Value]) -> Value 
@@ -176,7 +181,8 @@ impl Builder {
   	})
   } 
   
-  /// Build an instruction that runs whichever block matches the value, or `default` if none of them matched it.
+  /// Build an instruction that runs whichever block matches the value, or `default` if none of 
+  /// them matched it.
   pub fn create_switch(&self, 
   	                   value: &Value, 
   	                   default: &BasicBlock, 
