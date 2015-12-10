@@ -101,7 +101,7 @@ pub struct JitCompiler
   ctx    : LLVMContextRef,
   module : LLVMModuleRef,
   ee     : LLVMExecutionEngineRef,
-  builder: Builder 
+  //builder: Builder // internal use
 }
 
 impl JitCompiler {
@@ -123,20 +123,24 @@ impl JitCompiler {
   fn new_internal(ctx: LLVMContextRef, module: LLVMModuleRef) -> Result<JitCompiler, String>
   {
     let ee      = try!(new_jit_ee(module, JIT_OPT_LVEL));
-    let builder = Builder(unsafe { core::LLVMCreateBuilderInContext(ctx) });
+    //let builder = Builder(unsafe { core::LLVMCreateBuilderInContext(ctx) });
     
     Ok(JitCompiler {
       ctx    : ctx,
       module : module,
       ee     : ee,
-      builder: builder
+      //builder: builder
     })
   }
   
   pub fn context(&self) -> LLVMContextRef { self.ctx }
   pub fn module(&self) -> LLVMModuleRef { self.module }
   pub fn engine(&self) -> LLVMExecutionEngineRef { self.ee }
-  pub fn builder(&self) -> &Builder { &self.builder }
+  
+  pub fn new_builder(&self) -> Builder 
+  { 
+    Builder(unsafe { core::LLVMCreateBuilderInContext(self.ctx) }) 
+  }
 }
 
 impl Drop for JitCompiler {
