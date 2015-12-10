@@ -133,7 +133,7 @@ impl JitCompiler {
     })
   }
   
-  pub fn ctx(&self) -> LLVMContextRef { self.ctx }
+  pub fn context(&self) -> LLVMContextRef { self.ctx }
   pub fn module(&self) -> LLVMModuleRef { self.module }
   pub fn engine(&self) -> LLVMExecutionEngineRef { self.ee }
   pub fn builder(&self) -> &Builder { &self.builder }

@@ -27,3 +27,25 @@ macro_rules! impl_dispose (
     }    
   );
 );
+
+macro_rules! impl_display(
+	($ty:ty, $func:ident) => (
+  	impl fmt::Debug for $ty {
+    	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+				fmt.write_str(unsafe {
+        	let c_str = core::$func(self.0);
+        	::util::chars_to_str(c_str)
+        })
+		  }
+    }
+  	
+  	impl fmt::Display for $ty {
+    	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+				fmt.write_str(unsafe {
+        	let c_str = core::$func(self.0);
+        	::util::chars_to_str(c_str)
+        })
+		  }
+    }
+  );
+);

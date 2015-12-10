@@ -4,5 +4,4 @@ use llvm_sys::prelude::{
 };
 
 pub struct Builder(pub LLVMBuilderRef);
-
 impl_dispose!(Builder, core::LLVMDisposeBuilder);
