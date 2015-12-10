@@ -6,6 +6,7 @@ extern crate llvm_sys;
 #[macro_use]
 mod macros;
 mod buffer;
+mod builder;
 mod util;
 mod types;
 mod value;
@@ -35,6 +36,7 @@ use llvm_sys::target_machine::LLVMCodeModel;
 use libc::{c_char, c_uint};
 
 use buffer::MemoryBuffer;
+use builder::Builder;
 use util::chars_to_str;
 
 pub const JIT_OPT_LVEL: usize = 2;
@@ -93,7 +95,7 @@ pub struct JitCompiler
   ctx    : LLVMContextRef,
   module : LLVMModuleRef,
   ee     : LLVMExecutionEngineRef,
-  builder: LLVMBuilderRef 
+  builder: Builder 
 }
 
 impl JitCompiler {
@@ -102,7 +104,7 @@ impl JitCompiler {
     let ctx     = unsafe { core::LLVMContextCreate() };
     let module  = try!(new_module_from_bc(ctx, bitcode_path));
     let ee      = try!(new_jit_ee(module, JIT_OPT_LVEL));
-    let builder = unsafe { core::LLVMCreateBuilderInContext(ctx) };
+    let builder = Builder(unsafe { core::LLVMCreateBuilderInContext(ctx) });
     
     Ok(JitCompiler {
       ctx    : ctx,
@@ -115,13 +117,13 @@ impl JitCompiler {
   pub fn ctx(&self) -> LLVMContextRef { self.ctx }
   pub fn module(&self) -> LLVMModuleRef { self.module }
   pub fn engine(&self) -> LLVMExecutionEngineRef { self.ee }
-  pub fn builder(&self) -> LLVMBuilderRef { self.builder }
+  pub fn builder(&self) -> &Builder { &self.builder }
 }
 
 impl Drop for JitCompiler {
   fn drop(&mut self) {
     unsafe {
-      core::LLVMDisposeBuilder(self.builder);
+      core::LLVMDisposeBuilder(self.builder.0);
       core::LLVMDisposeModule(self.module);      
       core::LLVMContextDispose(self.ctx);
     }
