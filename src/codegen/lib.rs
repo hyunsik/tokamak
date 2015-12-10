@@ -7,6 +7,8 @@ extern crate llvm_sys;
 mod macros;
 mod buffer;
 mod util;
+mod types;
+mod value;
 
 use std::mem;
 use std::ptr;
