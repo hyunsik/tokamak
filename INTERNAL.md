@@ -61,17 +61,6 @@ arithmetic, comparison, other logical expressions and predicates.
 
 Access to nested fields
 
-* Various invocation methods
-  * LLVM intrinsics
-  * Rust function
-  * Python function (including lambda)
-  * External functions via C FFI and JNI
-* UDF from user's JARs or dynamic libraries
-* A simple way to map from external functions to Tokamak functions
-  * Map from LLVM intrinsics to Tokamak function
-  * Map from external functions (C or Java functions) to Tokamak function
-* LLVM bitcode or IR execution as a function in runtime
-
 Sort comparator
 
 Field projection in scanner
