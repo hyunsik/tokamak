@@ -1,24 +1,13 @@
 [package]
-name = "codegen"
-version = "0.0.1"
-authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+name = "jit"
+version = "0.0.2"
+authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
 build = "build.rs"
 
 [lib]
 name = "codegen"
 path = "lib.rs"
 
-[denepdencies]
+[dependencies]
 libc = "*"
-
-[dependencies.llvm-alt]
-path = "../llvm-rs"
-
-[dependencies.common]
-path = "../common"
-
-[dependencies.util]
-path = "../util"
-
-[dependencies.platform-intrinsics]
-path = "../platform-intrinsics"
+llvm-sys = "*"
