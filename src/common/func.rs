@@ -1,7 +1,7 @@
 //! Function System
 //!
 //! In Tokamak, all arithmetic operators, predicates, and functions are regarded as
-//! a kind of functions. For example, the arithmetic operator plus (+) for i32 values 
+//! a kind of functions. For example, the arithmetic operator plus (+) for i32 values
 //! can be represented as a triple ("+", [i32, i32], FuncKind::Scalar).
 //!
 
@@ -18,30 +18,37 @@ pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> 
 pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, &mut MiniPageWriter, usize) -> Void>;
 
 #[derive(Clone)]
-pub struct Function 
+pub struct Function
 {
-  ret_ty  : Ty,      // return type
-  arg_tys : Vec<Ty>, // argument data types  
-  kind    : FnKind,  
-  method  : InvokeMethod
+  namespace : String,  // namespace name. It is same with the package name
+  ret_ty    : Ty,      // return type
+  arg_tys   : Vec<Ty>, // argument data types
+  kind      : FnKind,
+  method    : InvokeMethod
 }
 
 
 impl Function
 {
-	pub fn new(ret_ty: Ty, arg_tys: Vec<Ty>, kind: FnKind, method: InvokeMethod) -> Function 
+	pub fn new(namespace: &str, ret_ty: Ty, arg_tys: Vec<Ty>, kind: FnKind, method: InvokeMethod) -> Function
 	{
 		Function {
+      namespace : namespace.to_string(),
 			ret_ty: ret_ty,
       arg_tys : arg_tys,
 			kind : kind,
 			method  : method
 		}
 	}
+
+  pub fn namespace(&self) -> &str
+  {
+    &self.namespace
+  }
 }
 
 #[derive(Eq, Copy, Clone, PartialEq, PartialOrd, Ord)]
-pub enum FnKind 
+pub enum FnKind
 {
   Scalar,
   Aggregation,
