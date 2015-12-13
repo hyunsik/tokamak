@@ -475,15 +475,15 @@ pub struct ValueIter<T: From<LLVMValueRef>> {
 
 impl<T: From<LLVMValueRef>> ValueIter<T>
 {
-	pub fn new(cur: LLVMValueRef, 
-		         step: unsafe extern "C" fn(LLVMValueRef) -> LLVMValueRef) -> Self
+  pub fn new(cur: LLVMValueRef, 
+             step: unsafe extern "C" fn(LLVMValueRef) -> LLVMValueRef) -> Self
 	{
-		ValueIter {
-			cur   : cur,
-			step  : step,
-			marker: ::std::marker::PhantomData
-		}
-	}
+    ValueIter {
+      cur   : cur,
+      step  : step,
+      marker: ::std::marker::PhantomData
+    }
+  }
 }
 
 impl<T: From<LLVMValueRef>> Iterator for ValueIter<T> 
