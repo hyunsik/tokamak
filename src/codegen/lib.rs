@@ -276,6 +276,19 @@ impl JitCompiler {
     }
   }
   
+  /// Verify that the module is safe to run, returning a string detailing the error
+  /// when an error occurs.
+  pub fn verify(&self) -> Result<(), String> 
+  {
+    unsafe {
+      let mut error = mem::uninitialized();
+      let action = analysis::LLVMVerifierFailureAction::LLVMReturnStatusAction;
+      let ret = analysis::LLVMVerifyModule(self.module, action, &mut error);
+      
+      llvm_ret!(ret, (), error)
+    }
+  }
+  
   pub fn new_builder(&self) -> Builder 
   { 
     Builder(unsafe { core::LLVMCreateBuilderInContext(self.ctx) }) 
