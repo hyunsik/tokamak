@@ -176,68 +176,7 @@ impl JitCompiler {
   		let layout = core::LLVMGetDataLayout(self.module);
   		chars::to_str(layout as *mut c_char)
   	}
-  }
-  
-  /// Add an external global to the module with the given type and name.
-  pub fn add_global(&self, name: &str, ty: &Ty) -> GlobalValue 
-  {    
-    let c_name = chars::from_str(name);        
-    GlobalValue(
-      unsafe {
-        core::LLVMAddGlobal(self.module, ty.0, c_name)
-      }
-    )
-  }
-  
-  /// Add a global in the given address space to the module with the given type and name.
-  pub fn add_global_in_addr_space(&self, 
-  	                              name: &str, 
-  	                              ty: &Ty, 
-  	                              sp: AddressSpace) -> GlobalValue 
-  {
-    let c_name = chars::from_str(name);        
-    GlobalValue(
-      unsafe {
-        core::LLVMAddGlobalInAddressSpace(self.module, ty.0, c_name, sp as c_uint)
-      }
-    )
-  }
-  
-  /// Add a constant global to the module with the given type, name and value.
-  pub fn add_global_constant(&self, name: &str, val: &Value) -> GlobalValue 
-  {
-    let c_name = chars::from_str(name);
-    GlobalValue(
-      unsafe {    
-        let global = core::LLVMAddGlobal(self.module, val.ty().0, c_name);
-        core::LLVMSetInitializer (global, val.0);
-        global
-      }
-    )
-  }
-  
-  /// Get the global with the name given, or `None` if no global with that name exists.
-  pub fn get_global(&self, name: &str) -> Option<GlobalValue> 
-  {
-    let c_name = chars::from_str(name);
-    unsafe {
-      let ptr = core::LLVMGetNamedGlobal(self.module, c_name);
-      if ptr.is_null() {
-        None
-      } else {
-        Some(GlobalValue(ptr))
-      }
-    }
-  }
-  
-  /// Get an iterator of global values
-  pub fn global_values(&self) -> ValueIter<GlobalValue>
-  {
-  	ValueIter::new(
- 			unsafe { core::LLVMGetFirstGlobal(self.module) },
- 			core::LLVMGetNextGlobal
- 		) 
-  }    
+  } 
   
   /// Link a module into this module, returning an error string if an error occurs.
   ///
@@ -305,6 +244,73 @@ impl JitCompiler {
   { 
     Builder(unsafe { core::LLVMCreateBuilderInContext(self.ctx) }) 
   }
+  
+  /// Returns the type with the name given, or `None`` if no type with that name exists.
+  pub fn get_type<'a>(&'a self, name: &str) -> Option<Ty> 
+  {
+    let c_name = chars::from_str(name);
+    unsafe {
+      let ty = core::LLVMGetTypeByName(self.module, c_name);
+      ::util::ret_nullable_ptr(ty)
+    }
+  }
+  
+  /// Add an external global to the module with the given type and name.
+  pub fn add_global(&self, name: &str, ty: &Ty) -> GlobalValue 
+  {    
+    let c_name = chars::from_str(name);        
+    GlobalValue(
+      unsafe {
+        core::LLVMAddGlobal(self.module, ty.0, c_name)
+      }
+    )
+  }
+  
+  /// Add a global in the given address space to the module with the given type and name.
+  pub fn add_global_in_addr_space(&self, 
+  	                              name: &str, 
+  	                              ty: &Ty, 
+  	                              sp: AddressSpace) -> GlobalValue 
+  {
+    let c_name = chars::from_str(name);        
+    GlobalValue(
+      unsafe {
+        core::LLVMAddGlobalInAddressSpace(self.module, ty.0, c_name, sp as c_uint)
+      }
+    )
+  }
+  
+  /// Add a constant global to the module with the given type, name and value.
+  pub fn add_global_constant(&self, name: &str, val: &Value) -> GlobalValue 
+  {
+    let c_name = chars::from_str(name);
+    GlobalValue(
+      unsafe {    
+        let global = core::LLVMAddGlobal(self.module, val.ty().0, c_name);
+        core::LLVMSetInitializer (global, val.0);
+        global
+      }
+    )
+  }
+  
+  /// Get the global with the name given, or `None` if no global with that name exists.
+  pub fn get_global(&self, name: &str) -> Option<GlobalValue> 
+  {
+    let c_name = chars::from_str(name);
+    unsafe {
+      let ptr = core::LLVMGetNamedGlobal(self.module, c_name);
+      ::util::ret_nullable_ptr(ptr)
+    }
+  }
+  
+  /// Get an iterator of global values
+  pub fn global_values(&self) -> ValueIter<GlobalValue>
+  {
+  	ValueIter::new(
+ 			unsafe { core::LLVMGetFirstGlobal(self.module) },
+ 			core::LLVMGetNextGlobal
+ 		) 
+  }    
 }
 
 impl Drop for JitCompiler {

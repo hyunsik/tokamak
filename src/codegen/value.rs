@@ -530,6 +530,7 @@ mod tests {
     assert_eq!("double 1.000000e+00", format!("{}", 1f64.to_value(jit.context())));
 	}
   
+  #[test]
   pub fn test_into() {
     let jit = JitCompiler::new("test").ok().unwrap();
         
@@ -542,6 +543,6 @@ mod tests {
     assert_eq!(v1.as_ref(), raw_ref1);
     assert_eq!(v1.as_ref(), raw_ref2);
     assert_eq!(raw_ref1, raw_ref2);    
-  }
+  }  
 }
 

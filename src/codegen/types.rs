@@ -9,9 +9,12 @@ use llvm_sys::prelude::{
 };
 use libc::c_uint;
 
+use super::LLVMRef;
 use util::HasContext;
 
+
 pub struct Ty(pub LLVMTypeRef);
+impl_from_ref!(LLVMTypeRef, Ty);
 impl_display!(Ty, LLVMPrintTypeToString);
 impl_has_context!(Ty, LLVMGetTypeContext);
 

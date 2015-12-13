@@ -4,6 +4,16 @@ pub trait HasContext {
   fn context(&self) -> LLVMContextRef;
 }
 
+#[inline]
+pub fn ret_nullable_ptr<P, T>(ptr: *mut P) -> Option<T> where T:From<*mut P> 
+{
+  if ptr.is_null() {
+    None
+  } else {
+    Some(ptr.into())
+  }
+}
+
 pub mod chars {
   use std::ffi::{CStr, CString};
   use libc::c_char;
