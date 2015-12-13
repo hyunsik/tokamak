@@ -289,6 +289,12 @@ impl JitCompiler {
     }
   }
   
+  /// Dump the module to stderr (for debugging).
+  pub fn dump(&self) 
+  {
+  	unsafe { core::LLVMDumpModule(self.module); }
+  }  
+  
   pub fn new_builder(&self) -> Builder 
   { 
     Builder(unsafe { core::LLVMCreateBuilderInContext(self.ctx) }) 
