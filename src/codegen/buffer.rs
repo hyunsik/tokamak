@@ -4,7 +4,7 @@ use llvm_sys::core;
 use llvm_sys::prelude::LLVMMemoryBufferRef;
 use libc::c_char;
 
-use util::{chars_to_str, str_to_chars};
+use util::chars;
 
 pub struct MemoryBuffer(LLVMMemoryBufferRef);
 
@@ -16,7 +16,7 @@ impl MemoryBuffer
   
   pub fn from_file(path: &str) -> Result<MemoryBuffer, String> 
   {
-    let c_path = str_to_chars(path);
+    let c_path = chars::from_str(path);
     
     unsafe {
       let mut out: LLVMMemoryBufferRef = mem::uninitialized();

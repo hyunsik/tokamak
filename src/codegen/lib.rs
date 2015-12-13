@@ -26,7 +26,8 @@ use llvm_sys::execution_engine::{
   LLVMLinkInMCJIT,
   LLVMMCJITCompilerOptions,
   LLVMCreateMCJITCompilerForModule
-};  
+};
+use llvm_sys::linker;  
 use llvm_sys::target::{
   LLVM_InitializeNativeTarget,
   LLVM_InitializeNativeAsmPrinter
@@ -37,14 +38,27 @@ use libc::{c_char, c_uint};
 
 use buffer::MemoryBuffer;
 use builder::Builder;
-use util::chars_to_str;
+use value::{GlobalValue, Value, ValueIter};
+use types::Ty;
+use util::chars;
 
 pub const JIT_OPT_LVEL: usize = 2;
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub enum AddressSpace 
+{
+  Generic = 0,
+  Global = 1,
+  Shared = 3,
+  Const = 4,
+  Local = 5,
+}
 
 
 fn new_module(ctx: LLVMContextRef, name: &str) -> LLVMModuleRef
 {
-  let c_name = util::str_to_chars(name);
+  let c_name = util::chars::from_str(name);
   unsafe { 
   	core::LLVMModuleCreateWithNameInContext(c_name, ctx) 
   }
@@ -137,6 +151,95 @@ impl JitCompiler {
   pub fn context(&self) -> LLVMContextRef { self.ctx }
   pub fn module(&self) -> LLVMModuleRef { self.module }
   pub fn engine(&self) -> LLVMExecutionEngineRef { self.ee }
+  
+  /// Add an external global to the module with the given type and name.
+  pub fn add_global(&self, name: &str, ty: &Ty) -> GlobalValue 
+  {    
+    let c_name = chars::from_str(name);        
+    GlobalValue(
+      unsafe {
+        core::LLVMAddGlobal(self.module, ty.0, c_name)
+      }
+    )
+  }
+  
+  /// Add a global in the given address space to the module with the given type and name.
+  pub fn add_global_in_addr_space(&self, 
+  	                              name: &str, 
+  	                              ty: &Ty, 
+  	                              sp: AddressSpace) -> GlobalValue 
+  {
+    let c_name = chars::from_str(name);        
+    GlobalValue(
+      unsafe {
+        core::LLVMAddGlobalInAddressSpace(self.module, ty.0, c_name, sp as c_uint)
+      }
+    )
+  }
+  
+  /// Add a constant global to the module with the given type, name and value.
+  pub fn add_global_constant(&self, name: &str, val: &Value) -> GlobalValue 
+  {
+    let c_name = chars::from_str(name);
+    GlobalValue(
+      unsafe {    
+        let global = core::LLVMAddGlobal(self.module, val.ty().0, c_name);
+        core::LLVMSetInitializer (global, val.0);
+        global
+      }
+    )
+  }
+  
+  /// Get the global with the name given, or `None` if no global with that name exists.
+  pub fn get_global(&self, name: &str) -> Option<GlobalValue> 
+  {
+    let c_name = chars::from_str(name);
+    unsafe {
+      let ptr = core::LLVMGetNamedGlobal(self.module, c_name);
+      if ptr.is_null() {
+        None
+      } else {
+        Some(GlobalValue(ptr))
+      }
+    }
+  }
+  
+  /// Get an iterator of global values
+  pub fn global_values(&self) -> ValueIter<GlobalValue>
+  {
+  	ValueIter::new(
+ 			unsafe { core::LLVMGetFirstGlobal(self.module) },
+ 			core::LLVMGetNextGlobal
+ 		) 
+  }    
+  
+  /// Link a module into this module, returning an error string if an error occurs.
+  ///
+  /// This *does not* destroy the source module.
+  pub fn link(&self, module: LLVMModuleRef) -> Result<(), String> 
+  {
+    unsafe {
+      let mut error = mem::uninitialized();      
+      let ret = linker::LLVMLinkModules(self.module, module, 
+      	                                linker::LLVMLinkerMode::LLVMLinkerPreserveSource, 
+      	                                &mut error);
+      llvm_ret!(ret, (), error)
+    }
+  }
+  
+  /// Link a module into this module, returning an error string if an error occurs.
+  ///
+  /// This *does* destroy the source module.
+  pub fn link_destroy(&self, module: LLVMModuleRef) -> Result<(), String> 
+  {
+    unsafe {
+      let mut error = mem::uninitialized();      
+      let ret = linker::LLVMLinkModules(self.module, module, 
+      	                                linker::LLVMLinkerMode::LLVMLinkerDestroySource, 
+      	                                &mut error);
+      llvm_ret!(ret, (), error)
+    }
+  }
   
   pub fn new_builder(&self) -> Builder 
   { 

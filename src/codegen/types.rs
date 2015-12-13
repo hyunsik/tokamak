@@ -9,6 +9,8 @@ use llvm_sys::prelude::{
 };
 use libc::c_uint;
 
+use util::HasContext;
+
 pub struct Ty(pub LLVMTypeRef);
 impl_display!(Ty, LLVMPrintTypeToString);
 
@@ -21,6 +23,7 @@ impl Ty {
 /// A function signature type.
 pub struct FunctionType(pub LLVMTypeRef);
 impl_display!(FunctionType, LLVMPrintTypeToString);
+impl_has_context!(FunctionType, LLVMGetTypeContext);
 
 impl FunctionType {
   

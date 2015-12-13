@@ -161,12 +161,12 @@ impl Builder {
   /// Basically type-safe pointer arithmetic.
   pub fn create_gep(&self, pointer: &Value, indices: &[&Value]) -> Value 
   {
-    let values = indices.iter().map(|v| v.0).collect::<Vec<LLVMValueRef>>();
+    let ref_array = to_llvmref_array!(indices, LLVMValueRef);
     
     Value(unsafe { 
     	core::LLVMBuildInBoundsGEP(self.0, 
     	                           pointer.0, 
-    	                           values.as_ptr() as *mut LLVMValueRef, 
+    	                           ref_array.as_ptr() as *mut LLVMValueRef, 
     	                           indices.len() as c_uint, 
     	                           NULL_NAME.as_ptr()) 
     })
@@ -177,7 +177,7 @@ impl Builder {
   pub fn create_phi(&self, ty: &Ty, name: &str) -> PhiNode 
   {
 	  PhiNode(unsafe { 
-	  	core::LLVMBuildPhi(self.0, ty.0, ::util::str_to_chars(name)) 
+	  	core::LLVMBuildPhi(self.0, ty.0, ::util::chars::from_str(name)) 
   	})
   } 
   

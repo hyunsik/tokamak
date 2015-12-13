@@ -1,19 +1,98 @@
 #![allow(dead_code)]
 use std::fmt;
 
-use libc::c_ulonglong;
+use libc::{c_char, c_int, c_uint, c_ulonglong};
 use llvm_sys::core;
 use llvm_sys::prelude::{
   LLVMValueRef,
   LLVMContextRef
 };
 
-use types::LLVMTy;
+use types::{FunctionType, LLVMTy, Ty};
 use block::BasicBlock;
+use util::HasContext;
 
 #[derive(Copy, Clone)]
 pub struct Value(pub LLVMValueRef);
+impl_from_ref!(LLVMValueRef, Value);
 impl_display!(Value, LLVMPrintValueToString);
+
+impl Value {
+  
+  /// Create a new constant struct from the values given.
+  pub fn new_struct(ctx: LLVMContextRef, 
+  	                vals: &[&Value], 
+                    packed: bool) -> Value 
+  {                      
+    let ref_array = to_llvmref_array!(vals, LLVMValueRef);
+    
+    Value(
+      unsafe { 
+    	  core::LLVMConstStructInContext(ctx, 
+    	                                 ref_array.as_ptr() as *mut LLVMValueRef, 
+    		                               vals.len() as c_uint, 
+       	                               packed as c_int)
+      }
+    )
+  }
+  
+  /// Create a new constant vector from the values given.
+  pub fn new_vector<'a>(vals: &[&'a Value]) -> Value 
+  {
+    let ref_array = to_llvmref_array!(vals, LLVMValueRef);
+    
+    Value(
+      unsafe { 
+    	  core::LLVMConstVector(ref_array.as_ptr() as *mut LLVMValueRef, 
+    	                        vals.len() as c_uint)
+      }
+    )
+  }
+  
+  /// Create a new constant C string from the text given.
+  pub fn new_string<'a>(ctx: LLVMContextRef, 
+  	                    text: &str, 
+  	                    rust_style: bool) -> Value 
+  {
+    Value(
+      unsafe {
+        let ptr = text.as_ptr() as *const c_char;
+        let len = text.len() as c_uint;
+        core::LLVMConstStringInContext(ctx, ptr, len, rust_style as c_int)
+      }
+    )
+  }
+  
+  /// Create a new constant undefined value of the given type.
+  pub fn new_undef<'a>(ty: &'a Ty) -> Value
+  {
+    Value(unsafe { core::LLVMGetUndef(ty.0) })
+  }
+  
+  /// Returns the name of this value, or `None` if it lacks a name
+  pub fn name(&self) -> Option<&str> 
+  {
+    unsafe {
+      let c_name = core::LLVMGetValueName(self.0);
+      ::util::chars::to_nullable_str(c_name)
+    }
+  }
+  
+  /// Sets the name of this value
+  pub fn set_name(&self, name: &str) 
+  {
+    let c_name = ::util::chars::from_str(name);
+    unsafe {
+      core::LLVMSetValueName(self.0, c_name);
+    }
+  }
+  
+  /// Returns the type of this value
+  pub fn ty(&self) -> Ty 
+  {
+    Ty(unsafe { core::LLVMTypeOf(self.0)})
+  }
+}
 
 pub trait ToValue {
 	/// Transform this value into a constant in the context given.
@@ -59,8 +138,61 @@ impl ToValue for f64 {
 }
 
 
+pub struct GlobalValue(pub LLVMValueRef);
+impl_from_ref!(LLVMValueRef, GlobalValue);
+impl_display!(GlobalValue, LLVMPrintValueToString);
+
+impl GlobalValue 
+{
+	/// Sets the initial value for this global.
+	pub fn set_initializer(&self, value: &Value) 
+	{
+	  unsafe { core::LLVMSetInitializer(self.0, value.0) }
+	}
+	
+	/// Gets the initial value for this global.
+	pub fn get_initializer(&self) -> Value 
+	{
+	  Value(unsafe { core::LLVMGetInitializer(self.0) })
+	}
+}
+
+
+/// A function that can be called and contains blocks.
+pub struct Function(pub LLVMValueRef);
+impl_from_ref!(LLVMValueRef, Function);
+impl_display!(Function, LLVMPrintValueToString);
+
+impl HasContext for Function 
+{
+  fn context(&self) -> LLVMContextRef 
+  {
+    self.ty().context()
+  }
+}
+
+
+impl Function {
+  /// Add a basic block with the name given to the function and return it.
+  pub fn append<'a>(&'a self, name: &str) -> BasicBlock 
+  {
+    let c_name = ::util::chars::from_str(name);
+    BasicBlock(unsafe {
+      core::LLVMAppendBasicBlockInContext(self.context(), self.0, c_name)
+    })
+  }
+  
+  /// Returns the type of this value
+  pub fn ty(&self) -> FunctionType 
+  {
+    FunctionType(unsafe { core::LLVMTypeOf(self.0)})
+  }
+}
+
+
 /// A PHI node represents a value which is selected based on the predecessor of the current block.
 pub struct PhiNode(pub LLVMValueRef);
+impl_from_ref!(LLVMValueRef, PhiNode);
 impl_display!(PhiNode, LLVMPrintValueToString);
 
 impl PhiNode {
@@ -84,6 +216,48 @@ impl PhiNode {
   /// Gets an incoming basic block from this PHI node from a specific index.
   pub fn get_incoming_block(&self, index: u32) -> BasicBlock {
     BasicBlock(unsafe { core::LLVMGetIncomingBlock(self.0, index)})
+  }
+}
+
+/// Value Iterator implementation.
+///
+/// T can be all descendent types of LLVMValueRef.  
+#[derive(Copy, Clone)]
+pub struct ValueIter<'a, T: From<LLVMValueRef>> {
+  cur    : LLVMValueRef,
+  step   : unsafe extern "C" fn(LLVMValueRef) -> LLVMValueRef,
+  marker1: ::std::marker::PhantomData<&'a ()>,
+  marker2: ::std::marker::PhantomData<T>,
+}
+
+impl<'a, T: From<LLVMValueRef>> ValueIter<'a, T>
+{
+	pub fn new(cur: LLVMValueRef, 
+		         step: unsafe extern "C" fn(LLVMValueRef) -> LLVMValueRef) -> Self
+	{
+		ValueIter {
+			cur: cur,
+			step: step,
+			marker1: ::std::marker::PhantomData,
+			marker2: ::std::marker::PhantomData
+		}
+	}
+}
+
+impl<'a, T: From<LLVMValueRef>> Iterator for ValueIter<'a, T> 
+{
+  type Item = T;
+
+  fn next(&mut self) -> Option<T> 
+  {
+    let old: LLVMValueRef = self.cur;
+    
+    if !old.is_null() {
+      self.cur = unsafe { (self.step)(old) };
+      Some(old.into())
+    } else {
+      None
+    }
   }
 }
 
@@ -112,3 +286,4 @@ mod tests {
     assert_eq!("double 1.000000e+00", format!("{}", 1f64.to_value(jit.context())));
 	}
 }
+
