@@ -27,7 +27,8 @@ use llvm_sys::execution_engine::{
   LLVMMCJITCompilerOptions,
   LLVMCreateMCJITCompilerForModule
 };
-use llvm_sys::linker;  
+use llvm_sys::linker;
+use llvm_sys::transforms::pass_manager_builder as pass;  
 use llvm_sys::target::{
   LLVM_InitializeNativeTarget,
   LLVM_InitializeNativeAsmPrinter
@@ -238,6 +239,21 @@ impl JitCompiler {
       	                                linker::LLVMLinkerMode::LLVMLinkerDestroySource, 
       	                                &mut error);
       llvm_ret!(ret, (), error)
+    }
+  }
+  
+  /// Optimize this module with the given optimization level and size level.
+  ///
+  /// This runs passes depending on the levels given.
+  pub fn optimize(&self, opt_level: usize, size_level: usize) {
+    unsafe {
+      let builder = pass::LLVMPassManagerBuilderCreate();
+      pass::LLVMPassManagerBuilderSetOptLevel(builder, opt_level as c_uint);
+      pass::LLVMPassManagerBuilderSetSizeLevel(builder, size_level as c_uint);
+      let pass_manager = core::LLVMCreatePassManager();
+      pass::LLVMPassManagerBuilderPopulateModulePassManager(builder, pass_manager);
+      pass::LLVMPassManagerBuilderDispose(builder);
+      core::LLVMRunPassManager(pass_manager, self.module);
     }
   }
   
