@@ -15,6 +15,7 @@ mod value;
 use std::mem;
 use std::ptr;
 
+use llvm_sys::analysis;
 use llvm_sys::core;
 use llvm_sys::prelude::{
   LLVMContextRef,
@@ -152,6 +153,24 @@ impl JitCompiler {
   pub fn context(&self) -> LLVMContextRef { self.ctx }
   pub fn module(&self) -> LLVMModuleRef { self.module }
   pub fn engine(&self) -> LLVMExecutionEngineRef { self.ee }
+  
+  /// Returns the target data of the base module represented as a string
+  pub fn get_target(&self) -> &str 
+  {
+    unsafe {
+      let target = core::LLVMGetTarget(self.module);
+      chars::to_str(target)
+    }
+  }
+  
+  /// Get the data layout of the base module
+  pub fn get_data_layout(&self) -> &str 
+  {
+  	unsafe {
+  		let layout = core::LLVMGetDataLayout(self.module);
+  		chars::to_str(layout as *mut c_char)
+  	}
+  }
   
   /// Add an external global to the module with the given type and name.
   pub fn add_global(&self, name: &str, ty: &Ty) -> GlobalValue 
