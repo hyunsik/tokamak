@@ -40,7 +40,7 @@ use libc::{c_char, c_uint};
 
 use buffer::MemoryBuffer;
 use builder::Builder;
-use value::{GlobalValue, Value, ValueIter, ValueRef};
+use value::{GlobalValue, Function, Value, ValueIter, ValueRef};
 use types::Ty;
 use util::chars;
 
@@ -310,6 +310,23 @@ impl JitCompiler {
  			unsafe { core::LLVMGetFirstGlobal(self.module) },
  			core::LLVMGetNextGlobal
  		) 
+  }
+  
+  /// Add a function to the module with the name given.
+  pub fn add_function(&self, name: &str, sig: &Ty) -> Function 
+  {
+    let c_name = chars::from_str(name);
+    Function(unsafe { core::LLVMAddFunction(self.module, c_name, sig.0) })
+  }
+  
+  /// Returns the function with the name given, or `None` if no function with that name exists.
+  pub fn get_function(&self, name: &str) -> Option<Function> 
+  {
+    let c_name = chars::from_str(name);
+    unsafe {
+      let ty = core::LLVMGetNamedFunction(self.module, c_name);
+      ::util::ret_nullable_ptr(ty)
+    }
   }    
 }
 
