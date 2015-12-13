@@ -177,6 +177,62 @@ impl GlobalValue
 }
 
 
+pub struct Arg(pub LLVMValueRef);
+impl_from_ref!(LLVMValueRef, Arg);
+impl_display!(Arg, LLVMPrintValueToString);
+
+impl Arg 
+{
+  /// Add the attribute given to this argument.
+  pub fn add_attribute(&self, attr: Attribute) 
+  {
+    unsafe { core::LLVMAddAttribute(self.0, attr.into()) }
+  }
+  
+  /// Add all the attributes given to this argument.
+  pub fn add_attributes(&self, attrs: &[Attribute]) 
+  {
+    let mut sum = LLVMAttribute::empty();
+    for attr in attrs {
+      let attr:LLVMAttribute = (*attr).into();
+      sum = sum | attr;
+    }
+    unsafe { core::LLVMAddAttribute(self.into(), sum.into()) }
+  }
+  
+  /// Returns true if this argument has the attribute given.
+  pub fn has_attribute(&self, attr: Attribute) -> bool 
+  {
+    unsafe {
+      let other = core::LLVMGetAttribute(self.into());
+      other.contains(attr.into())
+    }
+  }
+  
+  /// Returns true if this argument has all the attributes given.
+  pub fn has_attributes(&self, attrs: &[Attribute]) -> bool 
+  {
+    unsafe {
+      let other = core::LLVMGetAttribute(self.into());
+      for &attr in attrs {
+        if !other.contains(attr.into()) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+  
+  /// Remove an attribute from this argument.
+  pub fn remove_attribute(&self, attr: Attribute) 
+  {
+    unsafe { 
+    	core::LLVMRemoveAttribute(self.into(), attr.into())
+    }
+  }
+}
+
+
 /// A function that can be called and contains blocks.
 pub struct Function(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, Function);
@@ -218,10 +274,21 @@ impl Function {
   }
   
   /// Returns the number of function parameters
-  pub fn num_params(&self) -> usize
+  pub fn args_count(&self) -> usize
   {
     unsafe {
       core::LLVMCountParams(self.into()) as usize
+    }
+  }
+  
+  pub fn arg(&self, index: usize) -> Arg
+  {
+    unsafe {
+      if index < core::LLVMCountParams(self.into()) as usize {
+        Arg(core::LLVMGetParam(self.into(), index as c_uint))
+      } else {
+        panic!("Argument index out of range {} at {:?}", index, self.signature())
+      }
     }
   }
   
@@ -276,6 +343,19 @@ impl Function {
   }
 }
 
+impl IntoIterator for Function 
+{
+  type Item = Arg;
+  type IntoIter = ValueIter<Arg>;
+  
+  /// Iterate through the functions in the module
+  fn into_iter(self) -> ValueIter<Arg> 
+  {    
+ 		ValueIter::new(
+ 			unsafe { core::LLVMGetFirstParam(self.into()) },
+ 			core::LLVMGetNextParam)  	
+  }
+}
 
 /// A way of indicating to LLVM how you want arguments / functions to be handled.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -387,28 +467,26 @@ impl PhiNode {
 ///
 /// T can be all descendent types of LLVMValueRef.  
 #[derive(Copy, Clone)]
-pub struct ValueIter<'a, T: From<LLVMValueRef>> {
+pub struct ValueIter<T: From<LLVMValueRef>> {
   cur    : LLVMValueRef,
   step   : unsafe extern "C" fn(LLVMValueRef) -> LLVMValueRef,
-  marker1: ::std::marker::PhantomData<&'a ()>,
-  marker2: ::std::marker::PhantomData<T>,
+  marker : ::std::marker::PhantomData<T>,
 }
 
-impl<'a, T: From<LLVMValueRef>> ValueIter<'a, T>
+impl<T: From<LLVMValueRef>> ValueIter<T>
 {
 	pub fn new(cur: LLVMValueRef, 
 		         step: unsafe extern "C" fn(LLVMValueRef) -> LLVMValueRef) -> Self
 	{
 		ValueIter {
-			cur: cur,
-			step: step,
-			marker1: ::std::marker::PhantomData,
-			marker2: ::std::marker::PhantomData
+			cur   : cur,
+			step  : step,
+			marker: ::std::marker::PhantomData
 		}
 	}
 }
 
-impl<'a, T: From<LLVMValueRef>> Iterator for ValueIter<'a, T> 
+impl<T: From<LLVMValueRef>> Iterator for ValueIter<T> 
 {
   type Item = T;
 
