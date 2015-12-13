@@ -13,12 +13,12 @@ use util::HasContext;
 
 pub struct Ty(pub LLVMTypeRef);
 impl_display!(Ty, LLVMPrintTypeToString);
+impl_has_context!(Ty, LLVMGetTypeContext);
 
 impl Ty {
   #[inline(always)]
   pub fn as_ptr(&self) -> LLVMTypeRef { self.0 }
 }
-
 
 /// A function signature type.
 pub struct FunctionType(pub LLVMTypeRef);
