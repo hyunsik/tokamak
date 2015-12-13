@@ -17,10 +17,30 @@ macro_rules! expect_noerr(
 );
 
 macro_rules! impl_from_ref(
-  ($from:ty, $to:ident) => (
-    impl From<$from> for $to {
-      fn from(r: $from) -> Self {
-        $to(r)
+  ($llvm_ref:ty, $wrapper:ident) => (    
+    impl LLVMRef<$llvm_ref> for $wrapper {
+      #[inline]
+      fn as_ref(&self) -> $llvm_ref { self.0 }
+    }
+    
+    impl From<$llvm_ref> for $wrapper {
+      #[inline]
+      fn from(r: $llvm_ref) -> Self {
+        $wrapper(r)
+      }
+    }
+    
+    impl From<$wrapper> for $llvm_ref {
+      #[inline]
+      fn from(w: $wrapper) -> Self {
+        w.0
+      }
+    }
+    
+    impl<'a> From<&'a $wrapper> for $llvm_ref {
+      #[inline]
+      fn from(w: &'a $wrapper) -> $llvm_ref {
+        w.0
       }
     }
   );

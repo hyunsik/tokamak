@@ -40,11 +40,12 @@ use libc::{c_char, c_uint};
 
 use buffer::MemoryBuffer;
 use builder::Builder;
-use value::{GlobalValue, Value, ValueIter};
+use value::{GlobalValue, Value, ValueIter, ValueRef};
 use types::Ty;
 use util::chars;
 
 pub const JIT_OPT_LVEL: usize = 2;
+
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -55,6 +56,11 @@ pub enum AddressSpace
   Shared = 3,
   Const = 4,
   Local = 5,
+}
+
+
+pub trait LLVMRef<T> {
+  fn as_ref(&self) -> T;
 }
 
 

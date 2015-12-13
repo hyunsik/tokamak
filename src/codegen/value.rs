@@ -8,14 +8,54 @@ use llvm_sys::prelude::{
   LLVMContextRef
 };
 
+use super::LLVMRef;
 use types::{FunctionType, LLVMTy, Ty};
 use block::BasicBlock;
 use util::HasContext;
+
+/// Common functions for LLVMValueRef
+///
+/// Refer to http://llvm.org/docs/doxygen/html/group__LLVMCCoreValueGeneral.html
+pub trait ValueRef: LLVMRef<LLVMValueRef> {
+  /// Returns the name of this value, or `None` if it lacks a name
+  #[inline]
+  fn name<'a>(&self) -> Option<&'a str> 
+  {
+    unsafe {
+      let c_name = core::LLVMGetValueName(self.as_ref());
+      ::util::chars::to_nullable_str(c_name)
+    }
+  }
+  
+  /// Sets the name of this value
+  #[inline]
+  fn set_name(&self, name: &str) 
+  {
+    let c_name = ::util::chars::from_str(name);
+    unsafe {
+      core::LLVMSetValueName(self.as_ref(), c_name);
+    }
+  }
+  
+  /// Returns the type of this value
+  #[inline]
+  fn ty(&self) -> Ty 
+  {
+    Ty(unsafe { core::LLVMTypeOf(self.as_ref())})
+  }
+  
+  #[inline]
+  fn dump(&self) 
+  {
+  	unsafe { core::LLVMDumpValue(self.as_ref()); }
+  }
+}
 
 #[derive(Copy, Clone)]
 pub struct Value(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, Value);
 impl_display!(Value, LLVMPrintValueToString);
+impl ValueRef for Value {}
 
 impl Value {
   
@@ -68,30 +108,6 @@ impl Value {
   {
     Value(unsafe { core::LLVMGetUndef(ty.0) })
   }
-  
-  /// Returns the name of this value, or `None` if it lacks a name
-  pub fn name(&self) -> Option<&str> 
-  {
-    unsafe {
-      let c_name = core::LLVMGetValueName(self.0);
-      ::util::chars::to_nullable_str(c_name)
-    }
-  }
-  
-  /// Sets the name of this value
-  pub fn set_name(&self, name: &str) 
-  {
-    let c_name = ::util::chars::from_str(name);
-    unsafe {
-      core::LLVMSetValueName(self.0, c_name);
-    }
-  }
-  
-  /// Returns the type of this value
-  pub fn ty(&self) -> Ty 
-  {
-    Ty(unsafe { core::LLVMTypeOf(self.0)})
-  }
 }
 
 pub trait ToValue {
@@ -141,6 +157,7 @@ impl ToValue for f64 {
 pub struct GlobalValue(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, GlobalValue);
 impl_display!(GlobalValue, LLVMPrintValueToString);
+impl ValueRef for GlobalValue {}
 
 impl GlobalValue 
 {
@@ -162,6 +179,7 @@ impl GlobalValue
 pub struct Function(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, Function);
 impl_display!(Function, LLVMPrintValueToString);
+impl ValueRef for Function {}
 
 impl HasContext for Function 
 {
@@ -194,6 +212,7 @@ impl Function {
 pub struct PhiNode(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, PhiNode);
 impl_display!(PhiNode, LLVMPrintValueToString);
+impl ValueRef for PhiNode {}
 
 impl PhiNode {
   /// Adds an incoming value to the end of this PHI node.
@@ -265,7 +284,9 @@ impl<'a, T: From<LLVMValueRef>> Iterator for ValueIter<'a, T>
 mod tests {
 	use super::*;
   use super::super::*;
-	
+  
+  use llvm_sys::prelude::LLVMValueRef;
+  
 	#[test]
 	pub fn test_values() 
 	{
@@ -285,5 +306,19 @@ mod tests {
     assert_eq!("float 1.000000e+00", format!("{}", 1f32.to_value(jit.context())));
     assert_eq!("double 1.000000e+00", format!("{}", 1f64.to_value(jit.context())));
 	}
+  
+  pub fn test_into() {
+    let jit = JitCompiler::new("test").ok().unwrap();
+        
+    let v1 = 1i8.to_value(jit.context());    
+    let ref_v1 = &v1;
+    
+    let raw_ref1: LLVMValueRef = v1.into();
+    let raw_ref2: LLVMValueRef = ref_v1.into();    
+    
+    assert_eq!(v1.as_ref(), raw_ref1);
+    assert_eq!(v1.as_ref(), raw_ref2);
+    assert_eq!(raw_ref1, raw_ref2);    
+  }
 }
 
