@@ -1,3 +1,0 @@
-[submodule "src/llvm-rust"]
-	path = src/llvm-rust
-	url = git@github.com:hyunsik/llvm-rust.git
