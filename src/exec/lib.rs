@@ -29,6 +29,7 @@ extern crate alloc;
 extern crate libc;
 
 #[macro_use] extern crate common;
+extern crate jit;
 extern crate plan;
 extern crate storage;
 

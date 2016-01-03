@@ -29,11 +29,153 @@ use common::rows::{
 };
 use common::session::Session;
 use common::types::*;
+use jit::{JitCompiler};
 use plan::expr::*;
 use plan::expr::visitor::{accept_by_default, Visitor};
 
 use driver::DriverContext;
 use super::NamedSchema;
+
+
+
+pub struct MapProcessor<'a>
+{
+  jit  : JitCompiler, 
+  types: &'a Vec<Ty>,
+	names: &'a Vec<&'a str>,
+	stack: Vec<Box<Evaluator>>,
+	error: Option<Error>,
+  //stack: Stack<LLVMValueRef>,
+}
+
+impl<'a> MapProcessor<'a> {
+  fn new(jit: JitCompiler,
+         fn_registry: &FuncRegistry,
+		     session: &Session, 
+		     types: &'a Vec<Ty>, 
+		     names: &'a Vec<&'a str>) -> MapProcessor<'a> {
+		MapProcessor {
+      jit   : jit,
+			types : types,
+			names : names,
+			stack : Vec::new(),
+			error : None
+		}
+	}
+  
+  pub fn compile(
+            jit: JitCompiler,
+						fn_registry: &FuncRegistry,
+		        session    : &'a Session,     
+					  input_types: &'a Vec<Ty>,
+					  input_names: &'a Vec<&'a str>, 
+					  expression : &Expr) -> Result<()>
+	{
+    let map = MapProcessor::new(jit, fn_registry, session, input_types, input_names);        
+    Ok(())    
+  }
+  
+  pub fn Not(&self, c: &Expr) 
+	{
+	}
+	
+	pub fn IsNull(&self, c: &Expr) 
+	{
+	}
+	
+	pub fn IsNotNull(&self, c: &Expr) 
+	{
+	}
+	
+	pub fn PlusSign(&self, c: &Expr) 
+	{
+	}
+	
+	pub fn MinusSign(&self, c: &Expr) 
+	{
+	}
+	
+	pub fn Cast(&self, c: &Expr, f: &Ty, t: &Ty) 
+	{
+	}
+	
+	pub fn And(&self, lhs: &Expr, rhs: &Expr) 
+	{
+	}
+	
+	pub fn Or(&self, lhs: &Expr, rhs: &Expr) 
+	{
+	}
+	
+	pub fn Cmp(&self, op: &CmpOp, lhs: &Expr, rhs: &Expr) 
+	{
+	}
+	
+	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr) 
+	{		
+	}
+	
+	pub fn Func(&self, f: &FnDecl, args: &Vec<Box<Expr>>)
+	{
+	}
+  
+  pub fn Const(&self, l: &Literal) 
+  {
+    // match *l {
+    //   Literal::Bool(ref v) =>
+    // }
+  }
+	
+	pub fn Field(&mut self, ty: &Ty, name: &str)
+	{
+		let found: Option<(usize, &Ty, &&str)>;
+		
+		found = izip!(0 .. self.types.len(), self.types, self.names)
+						.find(|&(i, t, n)| *n == name);
+    
+    let eval = match found {
+    	Some(f) => FieldEvaluator {idx: f.0, ty: f.1.clone()},
+    	None    => panic!("no such field for {}", name)
+    };
+	}
+}
+
+impl<'a> visitor::Visitor for MapProcessor<'a> 
+{
+	fn accept(&mut self, e: &Expr) 
+	{
+	  match *e.kind() {
+	    ExprKind::Not      (ref c)               => self.Not(c),
+	    ExprKind::IsNull   (ref c)               => self.IsNull(c),
+	    ExprKind::IsNotNull(ref c)               => self.IsNotNull(c),
+	    ExprKind::PlusSign (ref c)               => self.PlusSign(c),
+	    ExprKind::MinusSign(ref c)               => self.MinusSign(c),
+	    ExprKind::Cast     (ref c, ref f, ref t) => self.Cast(c, f, t),
+	    
+	    ExprKind::And      (ref l, ref r)        => self.And(l, r),
+	    ExprKind::Or       (ref l, ref r)        => self.Or(l, r),
+	    ExprKind::Cmp      (ref o, ref l, ref r) => self.Cmp(o, l, r),
+	    ExprKind::Arithm   (ref o, ref l, ref r) => self.Arithm(e.ty(), o, l, r), 
+
+	      
+	    ExprKind::Fn     (ref f, ref args)  => self.Func(f, args),  
+			ExprKind::Field  (ref name)         => self.Field(e.ty(), name),			
+	    ExprKind::Const  (ref lit)          => self.Const(lit),
+	    /*
+	    ExprKind::Switch(ref cases, ref default) => {  
+	    	for c in cases.iter() {
+	    		v.accept(c);
+	   	  }
+	      	
+	    	v.accept(default);
+	    },
+	    
+	    ExprKind::Case   (ref l, ref r) => { v.accept(l); v.accept(r) },*/
+	    _ => panic!("")
+	  }
+	} 
+}
+
 
 pub trait Processor
 {

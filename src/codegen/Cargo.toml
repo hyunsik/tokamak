@@ -5,7 +5,7 @@ authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
 build = "build.rs"
 
 [lib]
-name = "codegen"
+name = "jit"
 path = "lib.rs"
 
 [dependencies]
