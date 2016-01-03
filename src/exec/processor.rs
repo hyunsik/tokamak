@@ -30,31 +30,42 @@ use common::rows::{
 use common::session::Session;
 use common::types::*;
 use jit::{JitCompiler};
+use jit::value::{Value, ToValue};
 use plan::expr::*;
 use plan::expr::visitor::{accept_by_default, Visitor};
 
 use driver::DriverContext;
 use super::NamedSchema;
 
+pub struct MapProcessor
+{
+  evals: Vec<Rc<fn(*const Page)>>
+}
 
+impl MapProcessor
+{
+  fn process(&self, input: &Page, builder: &mut OwnedPageBuilder) -> Void {
+    Ok(())
+  }
+}
+  
 
-pub struct MapProcessor<'a>
+pub struct MapCompiler<'a>
 {
   jit  : JitCompiler, 
   types: &'a Vec<Ty>,
 	names: &'a Vec<&'a str>,
-	stack: Vec<Box<Evaluator>>,
-	error: Option<Error>,
-  //stack: Stack<LLVMValueRef>,
+	stack: Vec<Value>,
+  error: Option<Error>  
 }
 
-impl<'a> MapProcessor<'a> {
+impl<'a> MapCompiler<'a> {
   fn new(jit: JitCompiler,
          fn_registry: &FuncRegistry,
 		     session: &Session, 
 		     types: &'a Vec<Ty>, 
-		     names: &'a Vec<&'a str>) -> MapProcessor<'a> {
-		MapProcessor {
+		     names: &'a Vec<&'a str>) -> MapCompiler<'a> {
+		MapCompiler {
       jit   : jit,
 			types : types,
 			names : names,
@@ -71,8 +82,15 @@ impl<'a> MapProcessor<'a> {
 					  input_names: &'a Vec<&'a str>, 
 					  expression : &Expr) -> Result<()>
 	{
-    let map = MapProcessor::new(jit, fn_registry, session, input_types, input_names);        
+    let map = MapCompiler::new(jit, fn_registry, session, input_types, input_names);        
     Ok(())    
+  }
+  
+  #[inline(always)]
+  fn push_value<T: ToValue>(&mut self, val: &T)
+  {
+    let v = val.to_value(self.jit.context());
+    self.stack.push(v);
   }
   
   pub fn Not(&self, c: &Expr) 
@@ -119,11 +137,18 @@ impl<'a> MapProcessor<'a> {
 	{
 	}
   
-  pub fn Const(&self, l: &Literal) 
+  pub fn Const(&mut self, l: &Literal) 
   {
-    // match *l {
-    //   Literal::Bool(ref v) =>
-    // }
+    match *l {
+      Literal::U8(ref v)  => self.push_value(v),
+      Literal::I8(ref v)  => self.push_value(v),
+      Literal::I16(ref v) => self.push_value(v),
+      Literal::I32(ref v) => self.push_value(v),
+      Literal::I64(ref v) => self.push_value(v),
+      Literal::F32(ref v) => self.push_value(v),
+      Literal::F64(ref v) => self.push_value(v),
+      _                    => unimplemented!()
+    }
   }
 	
 	pub fn Field(&mut self, ty: &Ty, name: &str)
@@ -140,7 +165,7 @@ impl<'a> MapProcessor<'a> {
 	}
 }
 
-impl<'a> visitor::Visitor for MapProcessor<'a> 
+impl<'a> visitor::Visitor for MapCompiler<'a> 
 {
 	fn accept(&mut self, e: &Expr) 
 	{

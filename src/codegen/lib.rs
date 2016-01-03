@@ -10,7 +10,7 @@ mod buffer;
 mod builder;
 mod util;
 mod types;
-mod value;
+pub mod value;
 
 use std::mem;
 use std::ptr;

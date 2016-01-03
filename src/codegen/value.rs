@@ -114,16 +114,16 @@ impl Value {
 
 pub trait ToValue {
 	/// Transform this value into a constant in the context given.
-  fn to_value(self, ctx: LLVMContextRef) -> Value;
+  fn to_value(&self, ctx: LLVMContextRef) -> Value;
 }
 
 
 macro_rules! int_to_value (
   ($ty:ty) => (    
     impl ToValue for $ty {
-      fn to_value(self, ctx: LLVMContextRef) -> Value 
+      fn to_value(&self, ctx: LLVMContextRef) -> Value 
       {
-        Value(unsafe { core::LLVMConstInt(Self::llvm_ty(ctx).as_ptr(), self as c_ulonglong, 0) })
+        Value(unsafe { core::LLVMConstInt(Self::llvm_ty(ctx).as_ptr(), *self as c_ulonglong, 0) })
       }    
     }
   );
@@ -142,16 +142,16 @@ int_to_value!{usize}
 int_to_value!{isize}
 
 impl ToValue for f32 {
-  fn to_value(self, ctx: LLVMContextRef) -> Value
+  fn to_value(&self, ctx: LLVMContextRef) -> Value
   {
-    Value(unsafe{core::LLVMConstReal(Self::llvm_ty(ctx).as_ptr(), self as f64)})
+    Value(unsafe{core::LLVMConstReal(Self::llvm_ty(ctx).as_ptr(), *self as f64)})
   }
 }
 
 impl ToValue for f64 {
-  fn to_value(self, ctx: LLVMContextRef) -> Value
+  fn to_value(&self, ctx: LLVMContextRef) -> Value
   {
-    Value(unsafe{core::LLVMConstReal(Self::llvm_ty(ctx).as_ptr(), self)})
+    Value(unsafe{core::LLVMConstReal(Self::llvm_ty(ctx).as_ptr(), *self)})
   }
 }
 
