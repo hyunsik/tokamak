@@ -11,7 +11,7 @@ use libc::{c_char, c_uint};
 
 use types::Ty;
 use block::BasicBlock;
-use value::{PhiNode, Value};
+use value::{Function, Value, PhiNode};
 
 static NULL_NAME:[c_char; 1] = [0];
 
@@ -109,6 +109,39 @@ impl Builder {
     })
   }
   
+  /// Build an instruction that calls the function `func` with the arguments `args`.
+  ///
+  /// This will return the return value of the function.  
+  fn create_call_internal(&self, func: &Function, args: &[&Value], tail_call: bool) -> Value 
+  {
+    let ref_array = to_llvmref_array!(args, LLVMValueRef);
+    
+    Value(unsafe {
+        let call = core::LLVMBuildCall(self.0, 
+        	                             func.0, 
+                                       ref_array.as_ptr() as *mut LLVMValueRef, 
+        	                             args.len() as c_uint, 
+        	                             NULL_NAME.as_ptr());
+        core::LLVMSetTailCall(call, if tail_call {1} else {0});
+        call.into()
+    })
+  }  
+  
+  /// Build an instruction that calls the function `func` with the arguments `args`.
+  ///
+  /// This will return the return value of the function.
+  pub fn create_call(&self, func: &Function, args: &[&Value]) -> Value 
+  {
+    self.create_call_internal(func, args, false)
+  }  
+  
+  /// Build an instruction that calls the function `func` with the arguments `args`.
+  ///
+  /// This will return the return value of the function.
+  pub fn create_tail_call(&self, func: &Function, args: &[&Value]) -> Value 
+  {
+    self.create_call_internal(func, args, true)
+  }
   
   /// Build an instruction that yields to `true_val` if `cond` is equal to `1`, and `false_val` 
   /// otherwise.
