@@ -19,7 +19,8 @@ use llvm_sys::analysis;
 use llvm_sys::core;
 use llvm_sys::prelude::{
   LLVMContextRef,
-  LLVMModuleRef
+  LLVMModuleRef,
+  LLVMTypeRef
 };
 use llvm_sys::bit_reader::LLVMParseBitcodeInContext;
 use llvm_sys::execution_engine::{
@@ -40,8 +41,8 @@ use libc::{c_char, c_uint};
 
 use buffer::MemoryBuffer;
 use builder::Builder;
-use value::{GlobalValue, Function, Value, ValueIter, ValueRef};
-use types::Ty;
+use value::{GlobalValue, Function, ToValue, Value, ValueIter, ValueRef};
+use types::{FunctionType, Ty};
 use util::chars;
 
 pub const JIT_OPT_LVEL: usize = 2;
@@ -247,13 +248,29 @@ impl JitCompiler {
   }
   
   /// Returns the type with the name given, or `None`` if no type with that name exists.
-  pub fn get_type<'a>(&'a self, name: &str) -> Option<Ty> 
+  pub fn get_type(&self, name: &str) -> Option<Ty> 
   {
     let c_name = chars::from_str(name);
     unsafe {
       let ty = core::LLVMGetTypeByName(self.module, c_name);
       ::util::ret_nullable_ptr(ty)
     }
+  }
+  
+  pub fn create_fn_prototype(&self, ret: Ty, args: &[&Ty]) -> FunctionType
+  {
+    let ref_array = to_llvmref_array!(args, LLVMTypeRef);
+    
+    FunctionType(unsafe { 
+    	core::LLVMFunctionType(ret.0, 
+    		                     ref_array.as_ptr() as *mut LLVMTypeRef, 
+     		                     args.len() as c_uint, 0) 
+   	})
+  }  
+  
+  pub fn get_const<T: ToValue>(&self, val: T) -> Value
+  {
+    val.to_value(self.ctx)
   }
   
   /// Add an external global to the module with the given type and name.
