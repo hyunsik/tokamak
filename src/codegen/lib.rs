@@ -42,7 +42,7 @@ use libc::{c_char, c_uint};
 use buffer::MemoryBuffer;
 use builder::Builder;
 use value::{GlobalValue, Function, ToValue, Value, ValueIter, ValueRef};
-use types::{FunctionType, Ty};
+use types::{FunctionTy, Ty};
 use util::chars;
 
 pub const JIT_OPT_LVEL: usize = 2;
@@ -256,11 +256,11 @@ impl JitCompiler {
     }
   }
   
-  pub fn create_fn_prototype(&self, ret: Ty, args: &[&Ty]) -> FunctionType
+  pub fn create_fn_prototype(&self, ret: Ty, args: &[Ty]) -> FunctionTy
   {
     let ref_array = to_llvmref_array!(args, LLVMTypeRef);
     
-    FunctionType(unsafe { 
+    FunctionTy(unsafe { 
     	core::LLVMFunctionType(ret.0, 
     		                     ref_array.as_ptr() as *mut LLVMTypeRef, 
      		                     args.len() as c_uint, 0) 
@@ -358,21 +358,11 @@ impl Drop for JitCompiler {
 
 #[cfg(test)] 
 mod tests {
-  use super::*;
-  use types::{LLVMTy};  
+  use super::*;  
   
   #[test]
-  fn test_fn_prototype() {
+  fn test_jit() {
     let jit = JitCompiler::new("target/test-ir/test-module.bc").ok().unwrap();
-    let ctx = jit.context();    
-    let prototype = 
-      jit.create_fn_prototype(f64::llvm_ty(ctx), &[&i8::llvm_ty(ctx), &i16::llvm_ty(ctx)]);
-    
-    assert_eq!(prototype.ret_type(), f64::llvm_ty(ctx));
-    
-    assert_eq!(prototype.num_params(), 2);
-    assert_eq!(prototype.params().len(), 2);
-    assert_eq!(prototype.params().get(0).unwrap(), &i8::llvm_ty(ctx));
-    assert_eq!(prototype.params().get(1).unwrap(), &i16::llvm_ty(ctx));
+    let ctx = jit.context();
   }
 }

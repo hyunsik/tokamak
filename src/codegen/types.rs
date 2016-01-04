@@ -24,11 +24,11 @@ impl Ty {
 }
 
 /// A function signature type.
-pub struct FunctionType(pub LLVMTypeRef);
-impl_display!(FunctionType, LLVMPrintTypeToString);
-impl_has_context!(FunctionType, LLVMGetTypeContext);
+pub struct FunctionTy(pub LLVMTypeRef);
+impl_display!(FunctionTy, LLVMPrintTypeToString);
+impl_has_context!(FunctionTy, LLVMGetTypeContext);
 
-impl FunctionType {
+impl FunctionTy {
   
   /// Returns the number of parameters this signature takes.
   pub fn num_params(&self) -> usize {
@@ -50,20 +50,6 @@ impl FunctionType {
     Ty(unsafe { core::LLVMGetReturnType(self.0)})
   }
 }
-
-/*
-impl From<FunctionType> for Ty {
-  fn from(ty: FunctionType) -> Ty {
-    Ty(ty.0)
-  }
-}
-
-impl From<Ty> for FunctionType {
-  fn from(ty: Ty) -> FunctionType {
-    FunctionType(ty.0)
-  }
-}
-*/
 
 pub trait LLVMTy {
   fn llvm_ty(ctx: LLVMContextRef) -> Ty;
@@ -126,11 +112,11 @@ mod tests {
 	}  
   
   #[test]
-  fn test_fn_prototype() {
+  fn test_function_ty() {
     let jit = JitCompiler::new("test2").ok().unwrap();
     let ctx = jit.context();    
     let prototype = 
-      jit.create_fn_prototype(f64::llvm_ty(ctx), &[&i8::llvm_ty(ctx), &i16::llvm_ty(ctx)]);
+      jit.create_fn_prototype(f64::llvm_ty(ctx), &[i8::llvm_ty(ctx), i16::llvm_ty(ctx)]);
     
     assert_eq!(prototype.ret_type(), f64::llvm_ty(ctx));
     

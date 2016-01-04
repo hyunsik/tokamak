@@ -11,7 +11,7 @@ use llvm_sys::prelude::{
 };
 
 use super::LLVMRef;
-use types::{FunctionType, LLVMTy, Ty};
+use types::{FunctionTy, LLVMTy, Ty};
 use block::BasicBlock;
 use util::HasContext;
 
@@ -268,9 +268,9 @@ impl Function {
   }
   
   /// Returns the type of this value
-  pub fn signature(&self) -> FunctionType 
+  pub fn signature(&self) -> FunctionTy 
   {
-    FunctionType(unsafe { core::LLVMTypeOf(self.0)})
+    FunctionTy(unsafe { core::LLVMTypeOf(self.0)})
   }
   
   /// Returns the number of function parameters
