@@ -47,7 +47,6 @@ use util::chars;
 
 pub const JIT_OPT_LVEL: usize = 2;
 
-
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub enum AddressSpace 
@@ -357,12 +356,23 @@ impl Drop for JitCompiler {
   }
 }
 
-#[cfg(test)]
+#[cfg(test)] 
 mod tests {
   use super::*;
+  use types::{LLVMTy};  
   
   #[test]
-  fn test_ctor() {
+  fn test_fn_prototype() {
     let jit = JitCompiler::new("target/test-ir/test-module.bc").ok().unwrap();
+    let ctx = jit.context();    
+    let prototype = 
+      jit.create_fn_prototype(f64::llvm_ty(ctx), &[&i8::llvm_ty(ctx), &i16::llvm_ty(ctx)]);
+    
+    assert_eq!(prototype.ret_type(), f64::llvm_ty(ctx));
+    
+    assert_eq!(prototype.num_params(), 2);
+    assert_eq!(prototype.params().len(), 2);
+    assert_eq!(prototype.params().get(0).unwrap(), &i8::llvm_ty(ctx));
+    assert_eq!(prototype.params().get(1).unwrap(), &i16::llvm_ty(ctx));
   }
 }

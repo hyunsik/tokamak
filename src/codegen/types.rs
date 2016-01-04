@@ -12,7 +12,7 @@ use libc::c_uint;
 use super::LLVMRef;
 use util::HasContext;
 
-
+#[derive(Clone, Eq, PartialEq)]
 pub struct Ty(pub LLVMTypeRef);
 impl_from_ref!(LLVMTypeRef, Ty);
 impl_display!(Ty, LLVMPrintTypeToString);
@@ -36,7 +36,7 @@ impl FunctionType {
   }
 
   /// Returns a vector of this signature's parameters' types.
-  pub fn get_params(&self) -> Vec<Ty> {
+  pub fn params(&self) -> Vec<Ty> {
   	unsafe {
     	let count = core::LLVMCountParamTypes(self.0);
       let mut types: Vec<LLVMTypeRef> = (0..count).map(|_| mem::uninitialized()).collect();
@@ -46,7 +46,7 @@ impl FunctionType {
   }
   
   /// Returns the type that this function returns.
-  pub fn get_return(&self) -> Ty {
+  pub fn ret_type(&self) -> Ty {
     Ty(unsafe { core::LLVMGetReturnType(self.0)})
   }
 }
@@ -113,7 +113,7 @@ mod tests {
 	#[test]
 	pub fn test_types() 
 	{
-		let jit = JitCompiler::new("test").ok().unwrap();
+		let jit = JitCompiler::new("test1").ok().unwrap();
     let ctx = jit.context();
 		assert_eq!("i8",     format!("{}", i8::llvm_ty(ctx)));
 		assert_eq!("i16",    format!("{}", i16::llvm_ty(ctx)));
@@ -123,5 +123,20 @@ mod tests {
 		assert_eq!("double", format!("{}", f64::llvm_ty(ctx)));
 		
 		//assert_eq!("[10 x double]",  format!("{}", Type::array_ty(&Type::f64_ty(&ctx), 10)));
-	}
+	}  
+  
+  #[test]
+  fn test_fn_prototype() {
+    let jit = JitCompiler::new("test2").ok().unwrap();
+    let ctx = jit.context();    
+    let prototype = 
+      jit.create_fn_prototype(f64::llvm_ty(ctx), &[&i8::llvm_ty(ctx), &i16::llvm_ty(ctx)]);
+    
+    assert_eq!(prototype.ret_type(), f64::llvm_ty(ctx));
+    
+    assert_eq!(prototype.num_params(), 2);
+    assert_eq!(prototype.params().len(), 2);
+    assert_eq!(prototype.params().get(0).unwrap(), &i8::llvm_ty(ctx));
+    assert_eq!(prototype.params().get(1).unwrap(), &i16::llvm_ty(ctx));
+  }
 }
