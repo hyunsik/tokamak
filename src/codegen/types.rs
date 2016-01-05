@@ -2,7 +2,7 @@
 use std::fmt;
 use std::mem;
 
-use llvm_sys::core;
+use llvm_sys::{core, LLVMTypeKind};
 use llvm_sys::prelude::{
   LLVMContextRef,
   LLVMTypeRef
@@ -26,6 +26,57 @@ impl Ty {
   pub fn void_ty<'a>(ctx: LLVMContextRef) -> Ty 
   {
   	Ty(unsafe { core::LLVMVoidTypeInContext(ctx) })
+  }
+  
+  /// Returns true if the size of the type is known at compile-time.
+  ///
+  /// This is equivalent to the type implementing `Sized` in Rust
+  #[inline(always)]
+  pub fn is_sized(&self) -> bool 
+  {
+    unsafe { core::LLVMTypeIsSized(self.into()) != 0 }
+  }
+  
+  /// Returns true if this type is a function.
+  #[inline(always)]
+  pub fn is_func_ty(&self) -> bool 
+  {
+    let kind = unsafe { core::LLVMGetTypeKind(self.into()) };
+    kind as c_uint == LLVMTypeKind::LLVMFunctionTypeKind as c_uint
+  }
+  
+  /// Returns true if this type is void.
+  #[inline(always)]
+  pub fn is_void(&self) -> bool 
+  {
+    let kind = unsafe { core::LLVMGetTypeKind(self.into()) };
+    kind as c_uint == LLVMTypeKind::LLVMVoidTypeKind as c_uint
+  }
+  
+  /// Returns true if this type is a pointer.
+  #[inline(always)]
+  pub fn is_pointer(&self) -> bool 
+  {
+    let kind = unsafe { core::LLVMGetTypeKind(self.into()) };
+    kind as c_uint == LLVMTypeKind::LLVMPointerTypeKind as c_uint
+  }
+  
+  /// Returns true if this type is an integer.
+  #[inline(always)]
+  pub fn is_integer(&self) -> bool 
+  {
+    let kind = unsafe { core::LLVMGetTypeKind(self.into()) };
+    kind as c_uint == LLVMTypeKind::LLVMIntegerTypeKind as c_uint
+  }
+  
+  /// Returns true if this type is any floating-point number.
+  #[inline(always)]
+  pub fn is_float(&self) -> bool 
+  {
+    let kind = unsafe { core::LLVMGetTypeKind(self.into()) } as c_uint;
+    kind == LLVMTypeKind::LLVMHalfTypeKind as c_uint ||
+    kind == LLVMTypeKind::LLVMFloatTypeKind as c_uint ||
+    kind == LLVMTypeKind::LLVMDoubleTypeKind as c_uint
   }
 }
 
