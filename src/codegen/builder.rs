@@ -233,3 +233,33 @@ impl Builder {
     })
   }
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+  use super::super::*;
+  use types::LLVMTy;    
+	
+	#[test]
+	pub fn test_cond_br() 
+	{
+		let jit = JitCompiler::new("test1").ok().unwrap();
+    let ctx = jit.context();    
+    
+    let func_ty = jit.create_func_ty(&f64::llvm_ty(ctx), &[&f64::llvm_ty(ctx)]);
+    let func = jit.add_func("fib", &func_ty);
+    let value = func.arg(0);
+    
+    let entry = func.append("entry");
+    let then_bb = func.append("then_block");
+    let else_bb = func.append("else_block");
+    let merge_bb = func.append("merge_block");
+    
+    let builder = jit.builder();    
+    builder.position_at_end(&entry);
+    
+    let local = builder.create_alloca(&u64::llvm_ty(&ctx));
+    
+    let cond = builder.create_cmp(&value, 5u64.to_value(&ctx), Predicate::LessThan);		
+	}  
+}
