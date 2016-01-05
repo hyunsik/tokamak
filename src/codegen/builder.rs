@@ -119,6 +119,25 @@ impl Builder {
     })
   }
   
+  /// Build an instruction that runs whichever block matches the value, or `default` if none of 
+  /// them matched it.
+  pub fn create_switch(&self, 
+  	                   value: &Value, 
+  	                   default: &BasicBlock, 
+  	                   cases: &[(&Value, &BasicBlock)]) -> Value {
+    Value(unsafe {
+      let switch = core::LLVMBuildSwitch(self.0, 
+      	                                 value.0, 
+      	                                 default.0, 
+        	                                 cases.len() as c_uint);
+      for case in cases {
+        core::LLVMAddCase(switch, (case.0).0, (case.1).0);
+      }
+      
+      switch
+    })
+  }
+  
   /// Build an instruction that calls the function `func` with the arguments `args`.
   ///
   /// This will return the return value of the function.  
@@ -283,25 +302,6 @@ impl Builder {
 	  PhiNode(unsafe { 
 	  	core::LLVMBuildPhi(self.0, ty.0, ::util::chars::from_str(name)) 
   	})
-  } 
-  
-  /// Build an instruction that runs whichever block matches the value, or `default` if none of 
-  /// them matched it.
-  pub fn create_switch(&self, 
-  	                   value: &Value, 
-  	                   default: &BasicBlock, 
-  	                   cases: &[(&Value, &BasicBlock)]) -> Value {
-    Value(unsafe {
-      let switch = core::LLVMBuildSwitch(self.0, 
-      	                                 value.0, 
-      	                                 default.0, 
-        	                                 cases.len() as c_uint);
-      for case in cases {
-        core::LLVMAddCase(switch, (case.0).0, (case.1).0);
-      }
-      
-      switch
-    })
   }
 }
 
