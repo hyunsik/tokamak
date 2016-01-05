@@ -21,6 +21,12 @@ impl_has_context!(Ty, LLVMGetTypeContext);
 impl Ty {
   #[inline(always)]
   pub fn as_ptr(&self) -> LLVMTypeRef { self.0 }
+  
+  #[inline(always)]
+  pub fn void_ty<'a>(ctx: LLVMContextRef) -> Ty 
+  {
+  	Ty(unsafe { core::LLVMVoidTypeInContext(ctx) })
+  }
 }
 
 /// A function signature type.
@@ -116,7 +122,7 @@ mod tests {
     let jit = JitCompiler::new("test2").ok().unwrap();
     let ctx = jit.context();    
     let prototype = 
-      jit.create_fn_prototype(f64::llvm_ty(ctx), &[i8::llvm_ty(ctx), i16::llvm_ty(ctx)]);
+      jit.create_func_ty(&f64::llvm_ty(ctx), &[&i8::llvm_ty(ctx), &i16::llvm_ty(ctx)]);
     
     assert_eq!(prototype.ret_type(), f64::llvm_ty(ctx));
     

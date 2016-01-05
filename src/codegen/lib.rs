@@ -124,7 +124,9 @@ pub struct JitCompiler
   ctx    : LLVMContextRef,
   module : LLVMModuleRef,
   ee     : LLVMExecutionEngineRef,
-  builder: Builder
+  builder: Builder,
+  
+  void_ty: Ty
 }
 
 impl JitCompiler {
@@ -149,10 +151,12 @@ impl JitCompiler {
     let builder = Builder(unsafe { core::LLVMCreateBuilderInContext(ctx) });
     
     Ok(JitCompiler {
-      ctx    : ctx,
+      ctx    : ctx.clone(),
       module : module,
       ee     : ee,
-      builder: builder
+      builder: builder,
+      
+      void_ty: Ty::void_ty(ctx)
     })
   }
   
@@ -247,7 +251,7 @@ impl JitCompiler {
   }
   
   /// Returns the type with the name given, or `None`` if no type with that name exists.
-  pub fn get_type(&self, name: &str) -> Option<Ty> 
+  pub fn get_ty(&self, name: &str) -> Option<Ty> 
   {
     let c_name = chars::from_str(name);
     unsafe {
@@ -256,7 +260,12 @@ impl JitCompiler {
     }
   }
   
-  pub fn create_fn_prototype(&self, ret: Ty, args: &[Ty]) -> FunctionTy
+  pub fn get_void_ty(&self) -> &Ty
+  {
+    &self.void_ty
+  }
+  
+  pub fn create_func_ty(&self, ret: &Ty, args: &[&Ty]) -> FunctionTy
   {
     let ref_array = to_llvmref_array!(args, LLVMTypeRef);
     
@@ -265,7 +274,7 @@ impl JitCompiler {
     		                     ref_array.as_ptr() as *mut LLVMTypeRef, 
      		                     args.len() as c_uint, 0) 
    	})
-  }  
+  }
   
   pub fn get_const<T: ToValue>(&self, val: T) -> Value
   {
@@ -330,14 +339,14 @@ impl JitCompiler {
   }
   
   /// Add a function to the module with the name given.
-  pub fn add_function(&self, name: &str, sig: &Ty) -> Function 
+  pub fn add_func(&self, name: &str, sig: &FunctionTy) -> Function 
   {
     let c_name = chars::from_str(name);
     Function(unsafe { core::LLVMAddFunction(self.module, c_name, sig.0) })
   }
   
   /// Returns the function with the name given, or `None` if no function with that name exists.
-  pub fn get_function(&self, name: &str) -> Option<Function> 
+  pub fn get_func(&self, name: &str) -> Option<Function> 
   {
     let c_name = chars::from_str(name);
     unsafe {
