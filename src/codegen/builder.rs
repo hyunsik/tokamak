@@ -18,6 +18,16 @@ static NULL_NAME:[c_char; 1] = [0];
 pub struct Builder(pub LLVMBuilderRef);
 impl_dispose!(Builder, core::LLVMDisposeBuilder);
 
+macro_rules! unary_op (
+  ($name:ident, $func:ident) => (
+    pub fn $name(&self, value: &Value) -> Value {
+      Value(unsafe { 
+        core::$func(self.0, value.into(), NULL_NAME.as_ptr() as *const c_char) 
+      })
+    }
+  );
+);
+
 impl Builder {
   
   pub fn get_insert_block(&self) -> BasicBlock 
@@ -99,13 +109,13 @@ impl Builder {
   /// Build an instruction that branches to `if_block` if `cond` evaluates to true, and 
   /// `else_block` otherwise.
   pub fn create_cond_br(&self, cond: &Value, 
-  	                    if_block: &BasicBlock, else_block: Option<&BasicBlock>) -> Value 
+  	                    if_block: &BasicBlock, else_block: &BasicBlock) -> Value 
   {
     Value(unsafe { 
     	core::LLVMBuildCondBr(self.0, 
     		                    cond.0, 
     		                    if_block.0, 
-    		                    mem::transmute(else_block)) 
+    		                    mem::transmute(else_block.0)) 
     })
   }
   
@@ -187,6 +197,8 @@ impl Builder {
     		                          NULL_NAME.as_ptr()) 
    	})
   }
+  
+  unary_op!{create_load, LLVMBuildLoad}
   
   /// Build an instruction to compare two values with the predicate given.
   pub fn create_cmp(&self, l: &Value, r: &Value, pred: Predicate) -> Value 
@@ -283,7 +295,7 @@ impl Builder {
       let switch = core::LLVMBuildSwitch(self.0, 
       	                                 value.0, 
       	                                 default.0, 
-      	                                 cases.len() as c_uint);
+        	                                 cases.len() as c_uint);
       for case in cases {
         core::LLVMAddCase(switch, (case.0).0, (case.1).0);
       }
@@ -304,9 +316,10 @@ mod tests {
 	pub fn test_cond_br() 
 	{
 		let jit = JitCompiler::new("test1").ok().unwrap();
-    let ctx = jit.context();    
+    let ctx = jit.context();
+    let module = jit.module();    
     
-    let func_ty = jit.create_func_ty(&f64::llvm_ty(ctx), &[&f64::llvm_ty(ctx)]);
+    let func_ty = jit.create_func_ty(&u64::llvm_ty(ctx), &[&u64::llvm_ty(ctx)]);
     let func = jit.add_func("fib", &func_ty);
     let value = func.arg(0);
     
@@ -316,10 +329,36 @@ mod tests {
     let merge_bb = func.append("merge_block");
     
     let builder = jit.builder();    
-    builder.position_at_end(&entry);
     
-    let local = builder.create_alloca(&u64::llvm_ty(ctx));
+    builder.position_at_end(&entry);    
+    let local = builder.create_alloca(&u64::llvm_ty(ctx));    
+    let cond = builder.create_cmp(&value.into(), &5u64.to_value(ctx), Predicate::Lth);
+    builder.create_cond_br(&cond, &then_bb, &else_bb);
     
-    let cond = builder.create_cmp(&value.into(), &5.0f64.to_value(ctx), Predicate::Lth);		
+    builder.position_at_end(&then_bb);
+    builder.create_store(&8u64.to_value(ctx), &local);
+    builder.create_br(&merge_bb);
+    
+    builder.position_at_end(&else_bb);
+    builder.create_store(&16u64.to_value(ctx), &local);
+    builder.create_br(&merge_bb);
+    
+    builder.position_at_end(&merge_bb);
+    let ret_val = builder.create_load(&local);
+    builder.create_ret(&ret_val);
+    
+    jit.verify().unwrap();
+    
+    /*
+    let ee = JitEngine::new(&module, JitOptions {opt_level: 0}).unwrap();
+    ee.with_function(func, |fib: extern fn(u64) -> u64| {
+      for i in 0..10 {
+        if i < 5 {
+          assert_eq!(8, fib(i));
+        } else {
+          assert_eq!(16, fib(i));
+        }
+      }
+    });*/
 	}  
 }
