@@ -2,7 +2,7 @@
 
 use std::mem;
 
-use llvm_sys::core;
+use llvm_sys::{core, LLVMIntPredicate, LLVMRealPredicate};
 use llvm_sys::prelude::{
   LLVMBuilderRef,
   LLVMValueRef  
@@ -11,7 +11,7 @@ use libc::{c_char, c_uint};
 
 use types::Ty;
 use block::BasicBlock;
-use value::{Function, Value, PhiNode};
+use value::{Function, Value, ValueRef, Predicate, PhiNode};
 
 static NULL_NAME:[c_char; 1] = [0];
 
@@ -188,6 +188,65 @@ impl Builder {
    	})
   }
   
+  /// Build an instruction to compare two values with the predicate given.
+  pub fn create_cmp(&self, l: &Value, r: &Value, pred: Predicate) -> Value 
+  {
+    self.create_cmp_internal(l, r, pred, true)
+  }
+  
+  /// Build an instruction to compare two values with the predicate given.
+  pub fn create_ucmp(&self, l: &Value, r: &Value, pred: Predicate) -> Value 
+  {
+    self.create_cmp_internal(l, r, pred, false)
+  }
+  
+  fn create_cmp_internal(&self, l: &Value, r: &Value, 
+  											 pred: Predicate, signed: bool) -> Value {
+  	let (lhs_ty, rhs_ty) = (l.ty(), r.ty());
+    assert_eq!(lhs_ty, rhs_ty);
+    
+    if lhs_ty.is_integer() {
+	    let p = match (pred, signed) {
+	    	(Predicate::Eq,    _)   => LLVMIntPredicate::LLVMIntEQ,
+	    	(Predicate::NotEq, _)   => LLVMIntPredicate::LLVMIntNE,
+	    	(Predicate::Lth, true)  => LLVMIntPredicate::LLVMIntSLT,
+	    	(Predicate::Lth, false) => LLVMIntPredicate::LLVMIntULT,
+	    	(Predicate::Leq, true)  => LLVMIntPredicate::LLVMIntSLE,
+	    	(Predicate::Leq, false) => LLVMIntPredicate::LLVMIntULE,
+	    	(Predicate::Gth, true)  => LLVMIntPredicate::LLVMIntSGT,
+	    	(Predicate::Gth, false) => LLVMIntPredicate::LLVMIntUGT,
+	    	(Predicate::Geq, true)  => LLVMIntPredicate::LLVMIntSGE,
+	    	(Predicate::Geq, false) => LLVMIntPredicate::LLVMIntUGE,
+	    };
+	    
+	    Value(unsafe {
+		    core::LLVMBuildICmp(self.0, 
+	    		                  p, 
+	     		                  l.0, r.0, 
+	     		                  NULL_NAME.as_ptr())
+	    })
+	     
+    } else if lhs_ty.is_float() {
+    	let p = match pred {
+        Predicate::Eq    => LLVMRealPredicate::LLVMRealOEQ,
+        Predicate::NotEq => LLVMRealPredicate::LLVMRealONE,
+        Predicate::Gth   => LLVMRealPredicate::LLVMRealOGT,
+        Predicate::Geq   => LLVMRealPredicate::LLVMRealOGE,
+        Predicate::Lth   => LLVMRealPredicate::LLVMRealOLT,
+        Predicate::Leq   => LLVMRealPredicate::LLVMRealOLE
+      };
+    	
+   	  Value(unsafe { 
+      	core::LLVMBuildFCmp(self.0, 
+      		                 p, l.0, r.0, 
+      		                 NULL_NAME.as_ptr()) 
+      })
+    	 
+    } else {
+      panic!("expected numbers, got {:?}", lhs_ty)
+    }
+  } 
+  
   /// Build an instruction that computes the address of a subelement of an aggregate data 
   /// structure.
   ///
@@ -238,7 +297,8 @@ impl Builder {
 mod tests {
 	use super::*;
   use super::super::*;
-  use types::LLVMTy;    
+  use types::LLVMTy;  
+  use value::{Predicate, ToValue};  
 	
 	#[test]
 	pub fn test_cond_br() 
@@ -258,8 +318,8 @@ mod tests {
     let builder = jit.builder();    
     builder.position_at_end(&entry);
     
-    let local = builder.create_alloca(&u64::llvm_ty(&ctx));
+    let local = builder.create_alloca(&u64::llvm_ty(ctx));
     
-    let cond = builder.create_cmp(&value, 5u64.to_value(&ctx), Predicate::LessThan);		
+    let cond = builder.create_cmp(&value.into(), &5.0f64.to_value(ctx), Predicate::Lth);		
 	}  
 }
