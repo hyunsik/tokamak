@@ -244,6 +244,12 @@ impl Arg
   }
 }
 
+impl From<Arg> for Value {
+  fn from(r: Arg) -> Self {
+    Value(r.0)
+  }
+}
+
 
 /// A function that can be called and contains blocks.
 pub struct Function(pub LLVMValueRef);
