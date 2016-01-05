@@ -15,6 +15,18 @@ use types::{FunctionTy, LLVMTy, Ty};
 use block::BasicBlock;
 use util::HasContext;
 
+/// Comparative operations on values.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum Predicate 
+{
+  Eq,
+  NotEq,
+  Gth,
+  Geq,
+  Lth,
+  Leq
+}
+
 /// Common functions for LLVMValueRef
 ///
 /// Refer to http://llvm.org/docs/doxygen/html/group__LLVMCCoreValueGeneral.html
