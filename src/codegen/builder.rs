@@ -349,7 +349,6 @@ impl Builder {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
   use super::super::*;
   use types::LLVMTy;  
   use value::{Predicate, ToValue};  
@@ -358,8 +357,7 @@ mod tests {
 	pub fn test_cond_br() 
 	{
 		let jit = JitCompiler::new("test1").ok().unwrap();
-    let ctx = jit.context();
-    let module = jit.module();    
+    let ctx = jit.context();    
     
     let func_ty = jit.create_func_ty(&u64::llvm_ty(ctx), &[&u64::llvm_ty(ctx)]);
     let func = jit.add_func("fib", &func_ty);

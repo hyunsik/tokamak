@@ -24,7 +24,9 @@ use llvm_sys::prelude::{
 };
 use llvm_sys::bit_reader::LLVMParseBitcodeInContext;
 use llvm_sys::execution_engine::{
+  LLVMAddModule,
   LLVMExecutionEngineRef,
+  LLVMRemoveModule,
   LLVMLinkInMCJIT,
   LLVMMCJITCompilerOptions,
   LLVMCreateMCJITCompilerForModule
@@ -211,6 +213,22 @@ impl JitCompiler {
     }
   }
   
+  /// Add a module to the list of modules to interpret or compile.
+  pub fn add_module(&self, module: &LLVMModuleRef) 
+  {
+    unsafe { LLVMAddModule(self.ee, *module) }
+  }
+  
+  /// Remove a module from the list of modules to interpret or compile.
+  pub fn remove_module(&self, module: &LLVMModuleRef) -> LLVMModuleRef 
+  {
+    unsafe {
+      let mut out = mem::uninitialized();
+      LLVMRemoveModule(self.ee, *module, &mut out, ptr::null_mut());
+      out
+    }
+  }
+  
   /// Optimize this module with the given optimization level and size level.
   ///
   /// This runs passes depending on the levels given.
@@ -371,7 +389,7 @@ mod tests {
   
   #[test]
   fn test_jit() {
-    let jit = JitCompiler::new("target/test-ir/test-module.bc").ok().unwrap();
-    let ctx = jit.context();
+    let jit = JitCompiler::new("test_jit").ok().unwrap();
+    jit.verify().unwrap();
   }
 }
