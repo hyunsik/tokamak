@@ -18,11 +18,39 @@ static NULL_NAME:[c_char; 1] = [0];
 pub struct Builder(pub LLVMBuilderRef);
 impl_dispose!(Builder, core::LLVMDisposeBuilder);
 
-macro_rules! unary_op (
+macro_rules! unary_instr (
   ($name:ident, $func:ident) => (
     pub fn $name(&self, value: &Value) -> Value {
       Value(unsafe { 
-        core::$func(self.0, value.into(), NULL_NAME.as_ptr() as *const c_char) 
+        core::$func(self.0, value.0, NULL_NAME.as_ptr() as *const c_char) 
+      })
+    }
+  );
+);
+
+macro_rules! bin_instr (
+  ($name:ident, $func:ident) => (
+    pub fn $name(&self, lhs: &Value, rhs: &Value) -> Value 
+    {
+      Value(unsafe { 
+        core::$func(self.0, lhs.0, rhs.0, NULL_NAME.as_ptr()) 
+      })
+    }
+  );
+  ($name:ident, $ifunc:ident, $ffunc:ident) => (
+    pub fn $name(&self, lhs: &Value, rhs: &Value) -> Value {
+      let lhs_ty = lhs.ty();
+      let rhs_ty = rhs.ty();
+      debug_assert_eq!(lhs_ty, rhs_ty);
+      
+      let instr_fn = if lhs_ty.is_integer() {
+        core::$ifunc
+      } else {
+        core::$ffunc
+      };
+        
+      Value(unsafe {
+        instr_fn(self.0, lhs.0, rhs.0, NULL_NAME.as_ptr())
       })
     }
   );
@@ -217,7 +245,21 @@ impl Builder {
    	})
   }
   
-  unary_op!{create_load, LLVMBuildLoad}
+  unary_instr!{create_load, LLVMBuildLoad}
+  unary_instr!{create_neg, LLVMBuildNeg}
+  unary_instr!{create_not, LLVMBuildNot}
+  
+  bin_instr!{create_add, LLVMBuildAdd, LLVMBuildFAdd}
+  bin_instr!{create_sub, LLVMBuildSub, LLVMBuildFSub}
+  bin_instr!{create_mul, LLVMBuildMul, LLVMBuildFMul}
+  bin_instr!{create_div, LLVMBuildSDiv, LLVMBuildFDiv}
+  bin_instr!{create_rem, LLVMBuildSRem, LLVMBuildFRem}
+  bin_instr!{create_shl, LLVMBuildShl}
+  bin_instr!{create_ashr, LLVMBuildAShr}
+  bin_instr!{create_and, LLVMBuildAnd}
+  bin_instr!{create_or, LLVMBuildOr}
+  bin_instr!{create_xor, LLVMBuildXor}
+  
   
   /// Build an instruction to compare two values with the predicate given.
   pub fn create_cmp(&self, l: &Value, r: &Value, pred: Predicate) -> Value 
