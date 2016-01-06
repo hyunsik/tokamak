@@ -9,7 +9,7 @@ mod block;
 mod buffer;
 mod builder;
 mod util;
-mod types;
+pub mod types;
 pub mod value;
 
 use std::mem;
@@ -20,16 +20,19 @@ use llvm_sys::core;
 use llvm_sys::prelude::{
   LLVMContextRef,
   LLVMModuleRef,
-  LLVMTypeRef
+  LLVMTypeRef,
+  LLVMValueRef,
 };
 use llvm_sys::bit_reader::LLVMParseBitcodeInContext;
 use llvm_sys::execution_engine::{
+  LLVMAddGlobalMapping,
   LLVMAddModule,
   LLVMExecutionEngineRef,
+  LLVMGetPointerToGlobal,
   LLVMRemoveModule,
   LLVMLinkInMCJIT,
   LLVMMCJITCompilerOptions,
-  LLVMCreateMCJITCompilerForModule
+  LLVMCreateMCJITCompilerForModule  
 };
 use llvm_sys::linker;
 use llvm_sys::transforms::pass_manager_builder as pass;  
@@ -356,6 +359,21 @@ impl JitCompiler {
  		) 
   }
   
+  /// Returns a pointer to the global value given.
+  ///
+  /// This is marked as unsafe because the type cannot be guranteed to be the same as the
+  /// type of the global value at this point.
+  pub unsafe fn get_ptr_to_global<T>(&self, global: &Value) -> *const T
+  {
+    mem::transmute(LLVMGetPointerToGlobal(self.ee, global.0))
+  }
+  
+  /// Maps a global to a specific memory location.
+  pub unsafe fn add_global_mapping<T>(&self, global: &Value, addr: *const T) 
+  {
+    LLVMAddGlobalMapping(self.ee, global.0, mem::transmute(addr));
+  }
+  
   /// Add a function to the module with the name given.
   pub fn add_func(&self, name: &str, sig: &FunctionTy) -> Function 
   {
@@ -371,7 +389,17 @@ impl JitCompiler {
       let ty = core::LLVMGetNamedFunction(self.module, c_name);
       ::util::ret_nullable_ptr(ty)
     }
-  }    
+  }
+  
+  /// Returns a pointer to the machine code for the raw function poionter.
+  ///
+  /// This is marked as unsafe because the defined function signature and 
+  /// return could be different from their internal representation.
+  pub unsafe fn get_func_ptr(&self, function: &Function) -> Option<*const ()> 
+  {
+    let ptr:*const u8 = self.get_ptr_to_global(&function.into());
+    Some(mem::transmute(ptr))
+  }
 }
 
 impl Drop for JitCompiler {
@@ -385,11 +413,40 @@ impl Drop for JitCompiler {
 
 #[cfg(test)] 
 mod tests {
-  use super::*;  
+  use super::*; 
+  use libc::c_void;
+  use types::LLVMTy;
+  
+  pub extern "C" fn test_extern_fn(x: u64) -> u64 {
+    x
+  } 
   
   #[test]
   fn test_jit() {
     let jit = JitCompiler::new("test_jit").ok().unwrap();
+    jit.verify().unwrap();
+  }
+  
+  #[test]
+  fn test_global_mapping() {
+    let jit = JitCompiler::new("test_jit").ok().unwrap();
+    let ctx = jit.context();
+    
+    let func_ty = jit.create_func_ty(&u64::llvm_ty(ctx), &[&u64::llvm_ty(ctx)]);
+    let func = jit.add_func("test", &func_ty);
+    let func_ref = &func;    
+    
+    let fn_ptr: *const c_void = unsafe { ::std::mem::transmute(test_extern_fn) };
+    unsafe { jit.add_global_mapping(&func_ref.into(), fn_ptr) };
+    
+    let same: fn(u64) -> u64 = unsafe {
+      ::std::mem::transmute(jit.get_func_ptr(func_ref).unwrap())
+    };
+    
+    for i in 0..10 {
+      assert_eq!(i, same(i));      
+    }
+    
     jit.verify().unwrap();
   }
 }
