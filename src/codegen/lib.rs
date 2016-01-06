@@ -369,9 +369,9 @@ impl JitCompiler {
   }
   
   /// Maps a global to a specific memory location.
-  pub unsafe fn add_global_mapping<T>(&self, global: &Value, addr: *const T) 
+  pub unsafe fn add_global_mapping<T, V: LLVMRef<LLVMValueRef>>(&self, global: &V, addr: *const T) 
   {
-    LLVMAddGlobalMapping(self.ee, global.0, mem::transmute(addr));
+    LLVMAddGlobalMapping(self.ee, global.as_ref(), mem::transmute(addr));
   }
   
   /// Add a function to the module with the name given.
@@ -434,13 +434,12 @@ mod tests {
     
     let func_ty = jit.create_func_ty(&u64::llvm_ty(ctx), &[&u64::llvm_ty(ctx)]);
     let func = jit.add_func("test", &func_ty);
-    let func_ref = &func;    
     
     let fn_ptr: *const c_void = unsafe { ::std::mem::transmute(test_extern_fn) };
-    unsafe { jit.add_global_mapping(&func_ref.into(), fn_ptr) };
+    unsafe { jit.add_global_mapping(&func, fn_ptr) };
     
     let same: fn(u64) -> u64 = unsafe {
-      ::std::mem::transmute(jit.get_func_ptr(func_ref).unwrap())
+      ::std::mem::transmute(jit.get_func_ptr(&func).unwrap())
     };
     
     for i in 0..10 {

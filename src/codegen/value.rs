@@ -170,6 +170,7 @@ impl ToValue for f64 {
 
 pub struct GlobalValue(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, GlobalValue);
+impl_from_into!(GlobalValue, Value);
 impl_display!(GlobalValue, LLVMPrintValueToString);
 impl ValueRef for GlobalValue {}
 
@@ -191,6 +192,7 @@ impl GlobalValue
 
 pub struct Arg(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, Arg);
+impl_from_into!(Arg, Value);
 impl_display!(Arg, LLVMPrintValueToString);
 
 impl Arg 
@@ -244,16 +246,10 @@ impl Arg
   }
 }
 
-impl From<Arg> for Value {
-  fn from(r: Arg) -> Self {
-    Value(r.0)
-  }
-}
-
-
 /// A function that can be called and contains blocks.
 pub struct Function(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, Function);
+impl_from_into!(Function, Value);
 impl_display!(Function, LLVMPrintValueToString);
 impl ValueRef for Function {}
 
@@ -454,6 +450,7 @@ impl From<Attribute> for LLVMAttribute
 /// A PHI node represents a value which is selected based on the predecessor of the current block.
 pub struct PhiNode(pub LLVMValueRef);
 impl_from_ref!(LLVMValueRef, PhiNode);
+impl_from_into!(PhiNode, Value);
 impl_display!(PhiNode, LLVMPrintValueToString);
 impl ValueRef for PhiNode {}
 
@@ -561,6 +558,6 @@ mod tests {
     assert_eq!(v1.as_ref(), raw_ref1);
     assert_eq!(v1.as_ref(), raw_ref2);
     assert_eq!(raw_ref1, raw_ref2);    
-  }  
+  }
 }
 

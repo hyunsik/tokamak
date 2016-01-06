@@ -46,6 +46,24 @@ macro_rules! impl_from_ref(
   );
 );
 
+macro_rules! impl_from_into(
+  ($from:ty, $to:ident) => {
+    impl From<$from> for $to {
+      #[inline]
+      fn from(t: $from) -> Self {
+        $to(t.0)
+      }
+    }
+    
+    impl<'a> From<&'a $from> for $to {
+      #[inline]
+      fn from(t: &'a $from) -> Self {
+        $to(t.0)
+      }
+    }
+  }
+);
+
 macro_rules! impl_has_context(
   ($ty:ty, $func:ident) => (
     impl HasContext for $ty {
