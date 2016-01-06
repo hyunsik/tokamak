@@ -1,6 +1,4 @@
-#![feature(process, path, env)]
 use std::process::Command;
-use std::env::current_dir;
 
 fn main() {
 	
