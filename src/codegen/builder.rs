@@ -389,16 +389,16 @@ mod tests {
     
     jit.verify().unwrap();
     
-    /*
-    let ee = JitEngine::new(&module, JitOptions {opt_level: 0}).unwrap();
-    ee.with_function(func, |fib: extern fn(u64) -> u64| {
-      for i in 0..10 {
-        if i < 5 {
-          assert_eq!(8, fib(i));
-        } else {
-          assert_eq!(16, fib(i));
-        }
+    let fib: fn(u64) -> u64 = unsafe {
+      ::std::mem::transmute(jit.get_func_ptr(&func).unwrap())
+    };
+    
+    for i in 0..10 {     
+      if i < 5 {
+        assert_eq!(8, fib(i));
+      } else {
+        assert_eq!(16, fib(i));
       }
-    });*/
+    }
 	}  
 }
