@@ -52,7 +52,7 @@ impl MapProcessor
 
 pub struct MapCompiler<'a>
 {
-  jit  : JitCompiler, 
+  jit  : &'a JitCompiler, 
   types: &'a Vec<Ty>,
 	names: &'a Vec<&'a str>,
 	stack: Vec<Value>,
@@ -60,29 +60,57 @@ pub struct MapCompiler<'a>
 }
 
 impl<'a> MapCompiler<'a> {
-  fn new(jit: JitCompiler,
+  fn new(jit: &'a JitCompiler,
          fn_registry: &FuncRegistry,
 		     session: &Session, 
-		     types: &'a Vec<Ty>, 
-		     names: &'a Vec<&'a str>) -> MapCompiler<'a> {
+		     schema : &'a NamedSchema,) -> MapCompiler<'a> {
 		MapCompiler {
       jit   : jit,
-			types : types,
-			names : names,
+			types : &schema.types,
+			names : &schema.names,
 			stack : Vec::new(),
 			error : None
 		}
 	}
   
   pub fn compile(
-            jit: JitCompiler,
+            jit: &'a JitCompiler,
 						fn_registry: &FuncRegistry,
 		        session    : &'a Session,     
-					  input_types: &'a Vec<Ty>,
-					  input_names: &'a Vec<&'a str>, 
-					  expression : &Expr) -> Result<()>
+					  schema     : &'a NamedSchema, 
+					  expr       : &Expr) -> Result<()>
 	{
-    let map = MapCompiler::new(jit, fn_registry, session, input_types, input_names);        
+    let mut map = MapCompiler::new(jit, fn_registry, session, schema);
+    map.accept(expr);
+    
+    let void_ty = jit.get_void_ty();
+    let input_page_ty = jit.get_ty("struct.Page").unwrap();
+    let output_page_ty = jit.get_ty("struct.Page").unwrap();
+    let func_ty = jit.create_func_ty(void_ty, &[&input_page_ty, &output_page_ty]);
+    let func = jit.add_func("processor", &func_ty);
+    let entry_blk = func.append("entry");
+    
+    let builder = jit.builder();    
+    builder.position_at_end(&entry_blk);
+    
+    /*
+    match *expr.kind() {
+      
+      ExprKind::Const(_) => {
+        assert!(map.stack.len() == 1usize, "Stack size must be 1.");
+        let const_value = map.stack.pop().unwrap();
+        
+        let call = match jit.get_func("write_i32") {
+          Some(f) => jit.builder().create_call(&f, &[&jit.get_const(0u32), &const_value]),
+          _       => panic!("No function")
+        };        
+      },
+      
+      _                  => {
+        unimplemented!()
+      }
+    }*/
+              
     Ok(())    
   }
   
@@ -91,6 +119,10 @@ impl<'a> MapCompiler<'a> {
   {
     let v = val.to_value(self.jit.context());
     self.stack.push(v);
+  }
+  
+  pub fn store_const(&self, v: &Value) {
+    
   }
   
   pub fn Not(&self, c: &Expr) 
@@ -469,6 +501,8 @@ mod tests {
 	use common::session::Session;
 	use common::storage::{RandomTable, MemTable};
 	use common::types::*;
+  
+  use jit::JitCompiler;
 	
 	use plan::expr::*;
 	use driver::DriverContext;
@@ -477,6 +511,47 @@ mod tests {
 	
 	use super::*;
 	
+  #[test]
+  pub fn codegen() {
+    let plugin_mgr = PluginManager::new();    
+    let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+    assert!(jit.get_ty("struct.MiniPage").is_some());
+    assert!(jit.get_ty("struct.Page").is_some());
+    
+    let types: Vec<Ty> = schema!(
+	    I64, // l_orderkey      bigint
+	    I64, // l_partkey       bigint
+	    I64, // l_suppkey       bigint
+	    I32, // l_linenumber    int
+	    F64, // l_quantity      double,
+	    F64, // l_extendedprice double,
+	    F64, // l_discount      double,
+	    F64  // l_tax           double,
+	    // string types are not implmeneted yet.	    
+    );
+	  
+	  let names: Vec<&str> = vec![
+	  	"l_orderkey",
+	  	"l_partkey",
+	  	"l_suppkey",
+	  	"l_linenumber",
+	  	"l_quantity",
+	  	"l_extendedprice",
+	  	"l_discount",
+	  	"l_tax"
+	  ];
+    
+    let expr = Const(1i16);    
+    let schema  = NamedSchema::new(&names, &types);
+  	let session = Session;
+    
+    let map = MapCompiler::compile(&jit, 
+                                   plugin_mgr.fn_registry(), 
+																	 &session, 
+																	 &schema, 
+																	 &expr).ok().unwrap();
+  } 
+  
 	#[test]
 	pub fn tpch_q1() {
 		let plugin_mgr = PluginManager::new();	

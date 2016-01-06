@@ -2,6 +2,7 @@
 name = "common"
 version = "0.0.1"
 authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+build = "build.rs"
 
 [lib]
 name = "common"

@@ -6,13 +6,13 @@ authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
 [lib]
 name = "exec"
 path = "lib.rs"
+crate-type = ["dylib"]
 
 [dependencies]
 itertools = "0.4.3"
 
 [dependencies.common]
 path = "../common"
-
 
 [dependencies.jit]
 path = "../codegen"
