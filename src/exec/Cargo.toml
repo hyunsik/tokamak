@@ -14,11 +14,11 @@ itertools = "0.4.3"
 [dependencies.common]
 path = "../common"
 
-[dependencies.jit]
-path = "../codegen"
-
 [dependencies.plan]
 path = "../plan"
 
 [dependencies.storage]
 path = "../storage"
+
+[dependencies.llvm-rs]
+git = "https://github.com/hyunsik/llvm-rs.git"

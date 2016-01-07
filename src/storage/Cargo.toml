@@ -9,7 +9,7 @@ path = "lib.rs"
 
 [dependencies]
 itertools = "0.4.3"
-rand = "0.3.11"
+rand = "0.3.12"
 
 [dependencies.common]
 path = "../common"

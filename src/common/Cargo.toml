@@ -11,7 +11,7 @@ path = "lib.rs"
 [dependencies]
 itertools = "0.4.3"
 uuid = "0.1.17"
-rand = "*"
+rand = "0.3.12"
 rustc-serialize = "*"
 
 [dependencies.util]
