@@ -21,4 +21,4 @@ path = "../plan"
 path = "../storage"
 
 [dependencies.llvm-rs]
-git = "https://github.com/hyunsik/llvm-rs.git"
+path = "../llvm"
