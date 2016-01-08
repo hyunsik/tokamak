@@ -1,0 +1,7 @@
+[submodule "llvm-rs"]
+	url = https://github.com/hyunsik/llvm-rs.git
+  path = src/llvm
+	branch = master
+[submodule "src/llvm"]
+	path = src/llvm
+	url = https://github.com/hyunsik/llvm-rs.git
