@@ -11,7 +11,7 @@
 ///  * Maximize CPU efficiency
 ///    * less branch misprediction
 ///    * less function call overhead
-///    * more CPU pipelining   
+///    * more CPU pipelining
 ///  * Maximize memory bandwidth (less memory copy)
 ///
 /// # Execution Model
@@ -22,14 +22,15 @@
 ///  * Input source - no input / output page required / reuse read buffer itself if possible.
 ///  * Filter       - Just bypass the page and only sets the selected rows IDs to the page.
 ///  * Others       - Both input and output pages are required.
-/// 
+///
 
 extern crate alloc;
 #[macro_use] extern crate itertools;
 extern crate libc;
+#[macro_use] extern crate log;
 
 #[macro_use] extern crate common;
-extern crate jit;
+extern crate llvm_rs as jit;
 extern crate plan;
 extern crate storage;
 
@@ -49,7 +50,7 @@ use common::types::Ty;
 
 use driver::DriverContext;
 
-pub trait Executor 
+pub trait Executor
 {
   fn init      (&mut self) -> Void;
   fn need_input(&self) -> bool;
@@ -58,14 +59,14 @@ pub trait Executor
   fn close     (&mut self) -> Void;
 }
 
-pub trait ExecutorFactory 
+pub trait ExecutorFactory
 {
   fn create(&self, ctx: &DriverContext) -> Option<Box<Executor>>;
-  
+
   fn types(&self) -> &Vec<Ty>;
 }
 
-pub struct NamedSchema<'a> 
+pub struct NamedSchema<'a>
 {
 	pub names: &'a Vec<&'a str>,
 	pub types: &'a Vec<Ty>
@@ -76,15 +77,15 @@ impl<'a> NamedSchema<'a>
 	pub fn new(names: &'a Vec<&'a str>, types: &'a Vec<Ty>) -> NamedSchema<'a>
 	{
 		debug_assert_eq!(names.len(), types.len());
-		
+
 		NamedSchema {
 			names: names,
 			types: types
 		}
 	}
-	
+
 	pub fn find_ids(&self, names: &Vec<&str>) -> Vec<usize>
-	{	
+	{
 		(0..self.names.len()).zip(self.names)
 			.filter(|&(id, name)| names.contains(name))
 			.map(|(id, name)| id)

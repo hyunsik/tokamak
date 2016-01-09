@@ -34,7 +34,10 @@ pub enum Error {
   DuplicatedTypeId,
   
   /// End of input stream
-  EndOfStream
+  EndOfStream,
+  
+  // Compilation
+  FunctionCorrupted
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;

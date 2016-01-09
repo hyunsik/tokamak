@@ -5,7 +5,7 @@
 //! * Processor - A list of evaluators
 //!
 //! ## Phases for Generation
-//! 
+//!
 
 use std::rc::Rc;
 
@@ -17,7 +17,7 @@ use common::func::{
 	TrinityFn
 };
 use common::plugin::{
-	FuncRegistry, 
+	FuncRegistry,
 	TypeRegistry
 };
 use common::rows::{
@@ -30,39 +30,36 @@ use common::rows::{
 use common::session::Session;
 use common::types::*;
 use jit::{JitCompiler};
-use jit::value::{Value, ToValue};
+use jit::types::LLVMTy;
+use jit::value::{Function, Value, ValueRef, ToValue};
 use plan::expr::*;
 use plan::expr::visitor::{accept_by_default, Visitor};
 
 use driver::DriverContext;
 use super::NamedSchema;
 
-pub struct MapProcessor
-{
-  evals: Vec<Rc<fn(*const Page)>>
+#[repr(C)]
+pub struct MiniPage2 {
+  ptr: *const u8,
+  size: usize
 }
 
-impl MapProcessor
-{
-  fn process(&self, input: &Page, builder: &mut OwnedPageBuilder) -> Void {
-    Ok(())
-  }
-}
-  
+pub type MapFunc = extern "C" fn(&mut MiniPage2) -> i32;
+
 
 pub struct MapCompiler<'a>
 {
-  jit  : &'a JitCompiler, 
+  jit  : &'a JitCompiler,
   types: &'a Vec<Ty>,
 	names: &'a Vec<&'a str>,
 	stack: Vec<Value>,
-  error: Option<Error>  
+  error: Option<Error>
 }
 
 impl<'a> MapCompiler<'a> {
   fn new(jit: &'a JitCompiler,
          fn_registry: &FuncRegistry,
-		     session: &Session, 
+		     session: &Session,
 		     schema : &'a NamedSchema,) -> MapCompiler<'a> {
 		MapCompiler {
       jit   : jit,
@@ -72,104 +69,121 @@ impl<'a> MapCompiler<'a> {
 			error : None
 		}
 	}
-  
+
   pub fn compile(
             jit: &'a JitCompiler,
 						fn_registry: &FuncRegistry,
-		        session    : &'a Session,     
-					  schema     : &'a NamedSchema, 
-					  expr       : &Expr) -> Result<()>
+		        session    : &'a Session,
+					  schema     : &'a NamedSchema,
+					  expr       : &Expr) -> Result<Rc<MapFunc>>
 	{
     let mut map = MapCompiler::new(jit, fn_registry, session, schema);
     map.accept(expr);
-    
+
     let void_ty = jit.get_void_ty();
-    let input_page_ty = jit.get_ty("struct.Page").unwrap();
-    let output_page_ty = jit.get_ty("struct.Page").unwrap();
-    let func_ty = jit.create_func_ty(void_ty, &[&input_page_ty, &output_page_ty]);
+    //let input_page_ty = jit.get_ty("struct.Page").unwrap();
+    let minipage_ty = jit.get_ty("struct.MiniPage").unwrap();
+    //let func_ty = jit.create_func_ty(void_ty, &[&input_page_ty, &output_page_ty]);
+    let minipage_ptr_ty = jit.get_pointer_ty(&minipage_ty);
+    let func_ty = jit.create_func_ty(&i32::llvm_ty(jit.context()), &[&minipage_ptr_ty]);
     let func = jit.add_func("processor", &func_ty);
-    let entry_blk = func.append("entry");
-    
-    let builder = jit.builder();    
-    builder.position_at_end(&entry_blk);
-    
-    /*
-    match *expr.kind() {
-      
-      ExprKind::Const(_) => {
-        assert!(map.stack.len() == 1usize, "Stack size must be 1.");
-        let const_value = map.stack.pop().unwrap();
-        
-        let call = match jit.get_func("write_i32") {
-          Some(f) => jit.builder().create_call(&f, &[&jit.get_const(0u32), &const_value]),
-          _       => panic!("No function")
-        };        
-      },
-      
-      _                  => {
-        unimplemented!()
-      }
-    }*/
-              
-    Ok(())    
+
+    MapCompiler::generate_const(&mut map, jit, &func);
+    MapCompiler::finalize(jit, &func)
   }
-  
+
+  fn generate_const(map: &mut MapCompiler, jit: &JitCompiler, func: &Function) {
+    let entry_blk = func.append("entry");
+    let const_value = map.stack.pop().unwrap();
+
+    let builder = jit.builder();
+    builder.position_at_end(&entry_blk);
+
+    let minipage: Value = func.arg(0).into();
+
+    let call = match jit.get_func("test") {
+      Some(f) => {
+        jit.builder().create_call(&f, &[&minipage, &const_value])
+      },
+      _       => panic!("No such a function")
+    };
+    builder.create_ret(&call);
+  }
+
+  fn finalize(jit: &JitCompiler, func: &Function) -> Result<Rc<MapFunc>>
+  {
+    // dump code
+    jit.dump();
+
+    match jit.verify() {
+      Ok(_) => {
+        let func_ptr = unsafe { jit.get_func_ptr(&func).unwrap() };
+        let func: MapFunc = unsafe {::std::mem::transmute(func_ptr)};
+        Ok(Rc::new(func))
+      }
+      Err(msg) => {
+        error!("{}", msg);
+        Err(Error::FunctionCorrupted)
+      }
+    }
+  }
+
   #[inline(always)]
   fn push_value<T: ToValue>(&mut self, val: &T)
   {
     let v = val.to_value(self.jit.context());
     self.stack.push(v);
   }
-  
+
   pub fn store_const(&self, v: &Value) {
-    
+
   }
-  
-  pub fn Not(&self, c: &Expr) 
+
+  pub fn Not(&self, c: &Expr)
 	{
 	}
-	
-	pub fn IsNull(&self, c: &Expr) 
+
+	pub fn IsNull(&self, c: &Expr)
 	{
 	}
-	
-	pub fn IsNotNull(&self, c: &Expr) 
+
+	pub fn IsNotNull(&self, c: &Expr)
 	{
 	}
-	
-	pub fn PlusSign(&self, c: &Expr) 
+
+	pub fn PlusSign(&self, c: &Expr)
 	{
 	}
-	
-	pub fn MinusSign(&self, c: &Expr) 
+
+	pub fn MinusSign(&self, c: &Expr)
 	{
 	}
-	
-	pub fn Cast(&self, c: &Expr, f: &Ty, t: &Ty) 
+
+	pub fn Cast(&self, c: &Expr, f: &Ty, t: &Ty)
 	{
 	}
-	
-	pub fn And(&self, lhs: &Expr, rhs: &Expr) 
+
+	pub fn And(&self, lhs: &Expr, rhs: &Expr)
 	{
 	}
-	
-	pub fn Or(&self, lhs: &Expr, rhs: &Expr) 
+
+	pub fn Or(&self, lhs: &Expr, rhs: &Expr)
 	{
 	}
-	
-	pub fn Cmp(&self, op: &CmpOp, lhs: &Expr, rhs: &Expr) 
+
+	pub fn Cmp(&self, op: &CmpOp, lhs: &Expr, rhs: &Expr)
 	{
 	}
-	
-	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr) 
-	{		
+
+	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr)
+	{
 	}
-	
+
 	pub fn Func(&self, f: &FnDecl, args: &Vec<Box<Expr>>)
 	{
 	}
-  
-  pub fn Const(&mut self, l: &Literal) 
+
+  pub fn Const(&mut self, l: &Literal)
   {
     match *l {
       Literal::U8(ref v)  => self.push_value(v),
@@ -182,14 +196,14 @@ impl<'a> MapCompiler<'a> {
       _                    => unimplemented!()
     }
   }
-	
+
 	pub fn Field(&mut self, ty: &Ty, name: &str)
 	{
 		let found: Option<(usize, &Ty, &&str)>;
-		
+
 		found = izip!(0 .. self.types.len(), self.types, self.names)
 						.find(|&(i, t, n)| *n == name);
-    
+
     let eval = match found {
     	Some(f) => FieldEvaluator {idx: f.0, ty: f.1.clone()},
     	None    => panic!("no such field for {}", name)
@@ -197,9 +211,9 @@ impl<'a> MapCompiler<'a> {
 	}
 }
 
-impl<'a> visitor::Visitor for MapCompiler<'a> 
+impl<'a> visitor::Visitor for MapCompiler<'a>
 {
-	fn accept(&mut self, e: &Expr) 
+	fn accept(&mut self, e: &Expr)
 	{
 	  match *e.kind() {
 	    ExprKind::Not      (ref c)               => self.Not(c),
@@ -208,44 +222,44 @@ impl<'a> visitor::Visitor for MapCompiler<'a>
 	    ExprKind::PlusSign (ref c)               => self.PlusSign(c),
 	    ExprKind::MinusSign(ref c)               => self.MinusSign(c),
 	    ExprKind::Cast     (ref c, ref f, ref t) => self.Cast(c, f, t),
-	    
+
 	    ExprKind::And      (ref l, ref r)        => self.And(l, r),
 	    ExprKind::Or       (ref l, ref r)        => self.Or(l, r),
 	    ExprKind::Cmp      (ref o, ref l, ref r) => self.Cmp(o, l, r),
-	    ExprKind::Arithm   (ref o, ref l, ref r) => self.Arithm(e.ty(), o, l, r), 
+	    ExprKind::Arithm   (ref o, ref l, ref r) => self.Arithm(e.ty(), o, l, r),
 
-	      
-	    ExprKind::Fn     (ref f, ref args)  => self.Func(f, args),  
-			ExprKind::Field  (ref name)         => self.Field(e.ty(), name),			
+
+	    ExprKind::Fn     (ref f, ref args)  => self.Func(f, args),
+			ExprKind::Field  (ref name)         => self.Field(e.ty(), name),
 	    ExprKind::Const  (ref lit)          => self.Const(lit),
 	    /*
-	    ExprKind::Switch(ref cases, ref default) => {  
+	    ExprKind::Switch(ref cases, ref default) => {
 	    	for c in cases.iter() {
 	    		v.accept(c);
 	   	  }
-	      	
+
 	    	v.accept(default);
 	    },
-	    
+
 	    ExprKind::Case   (ref l, ref r) => { v.accept(l); v.accept(r) },*/
 	    _ => panic!("")
 	  }
-	} 
+	}
 }
 
 
 pub trait Processor
 {
   fn process(
-    &self, 
-    input: &Page, 
+    &self,
+    input: &Page,
     builder: &mut OwnedPageBuilder) -> Void;
 }
 
 pub trait Evaluator
 {
 	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage>;
-	
+
 	fn ty(&self) -> &Ty;
 }
 
@@ -272,22 +286,22 @@ pub struct BinEvaluator<'a>
 
 impl<'a> Evaluator for BinEvaluator<'a>
 {
-	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage> 
+	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage>
 	{
 		let lhs_res = try!(self.lhs.evaluate(input));
 		let rhs_res = try!(self.rhs.evaluate(input));
-		
+
 		unimplemented!();
 	}
-	
-	fn ty(&self) -> &Ty 
+
+	fn ty(&self) -> &Ty
 	{
 		&self.ty
 	}
 }
 
 #[derive(Clone)]
-pub struct FieldEvaluator 
+pub struct FieldEvaluator
 {
 	idx: usize,
 	ty:  Ty
@@ -295,12 +309,12 @@ pub struct FieldEvaluator
 
 impl Evaluator for FieldEvaluator
 {
-	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage> 
+	fn evaluate<'p>(&self, input: &'p Page) -> Result<&'p MiniPage>
 	{
 		Ok(input.minipage(self.idx))
 	}
-	
-	fn ty(&self) -> &Ty 
+
+	fn ty(&self) -> &Ty
 	{
 		&self.ty
 	}
@@ -317,8 +331,8 @@ pub struct Interpreter<'a>
 impl<'a> Interpreter<'a>
 {
 	fn new(fn_registry: &FuncRegistry,
-		     session: &Session, 
-		     types: &'a Vec<Ty>, 
+		     session: &Session,
+		     types: &'a Vec<Ty>,
 		     names: &'a Vec<&'a str>) -> Interpreter<'a> {
 		Interpreter {
 			types : types,
@@ -327,98 +341,98 @@ impl<'a> Interpreter<'a>
 			error : None
 		}
 	}
-		     
+
 	pub fn build(
 						fn_registry: &FuncRegistry,
-		        session    : &'a Session,     
+		        session    : &'a Session,
 					  input_types: &'a Vec<Ty>,
-					  input_names: &'a Vec<&'a str>, 
+					  input_names: &'a Vec<&'a str>,
 					  expression : &Expr) -> Result<Box<Evaluator>>
 	{
 		let mut interpreter = Interpreter::new(fn_registry, session, input_types, input_names);
 		interpreter.accept(expression);
-		
+
 		match interpreter.stack.len() {
 			len if len == 1 => Ok(interpreter.stack.pop().unwrap()),
 			len if len > 1  => panic!("more than one stack item still remains in interpreter"),
 			_               => panic!("no more stack item in interpreter")
 		}
   }
-	
-	pub fn Not(&self, c: &Expr) 
+
+	pub fn Not(&self, c: &Expr)
 	{
 	}
-	
-	pub fn IsNull(&self, c: &Expr) 
+
+	pub fn IsNull(&self, c: &Expr)
 	{
 	}
-	
-	pub fn IsNotNull(&self, c: &Expr) 
+
+	pub fn IsNotNull(&self, c: &Expr)
 	{
 	}
-	
-	pub fn PlusSign(&self, c: &Expr) 
+
+	pub fn PlusSign(&self, c: &Expr)
 	{
 	}
-	
-	pub fn MinusSign(&self, c: &Expr) 
+
+	pub fn MinusSign(&self, c: &Expr)
 	{
 	}
-	
-	pub fn Cast(&self, c: &Expr, f: &Ty, t: &Ty) 
+
+	pub fn Cast(&self, c: &Expr, f: &Ty, t: &Ty)
 	{
 	}
-	
-	pub fn And(&self, lhs: &Expr, rhs: &Expr) 
+
+	pub fn And(&self, lhs: &Expr, rhs: &Expr)
 	{
 	}
-	
-	pub fn Or(&self, lhs: &Expr, rhs: &Expr) 
+
+	pub fn Or(&self, lhs: &Expr, rhs: &Expr)
 	{
 	}
-	
-	pub fn Cmp(&self, op: &CmpOp, lhs: &Expr, rhs: &Expr) 
+
+	pub fn Cmp(&self, op: &CmpOp, lhs: &Expr, rhs: &Expr)
 	{
 	}
-	
-	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr) 
+
+	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr)
 	{
 		self.accept(lhs);
 		self.accept(rhs);
-		
+
 		let eval = Box::new(BinEvaluator {
 			ty     : ty.clone(),
 			rhs    : self.stack.pop().unwrap(),
 			lhs    : self.stack.pop().unwrap(),
 			result : FMiniPage::new(ty.size_of())
 		});
-		
+
 		self.stack.push(eval);
 	}
-	
+
 	pub fn Func(&self, f: &FnDecl, args: &Vec<Box<Expr>>)
 	{
 	}
-	
+
 	pub fn Field(&mut self, ty: &Ty, name: &str)
 	{
 		let found: Option<(usize, &Ty, &&str)>;
-		
+
 		found = izip!(0 .. self.types.len(), self.types, self.names)
 						.find(|&(i, t, n)| *n == name);
-    
+
     let eval = match found {
     	Some(f) => FieldEvaluator {idx: f.0, ty: f.1.clone()},
     	None    => panic!("no such field for {}", name)
     };
-    						
+
 		self.stack.push(Box::new(eval));
 	}
 }
 
-impl<'a> visitor::Visitor for Interpreter<'a> 
+impl<'a> visitor::Visitor for Interpreter<'a>
 {
-	fn accept(&mut self, e: &Expr) 
+	fn accept(&mut self, e: &Expr)
 	{
 	  match *e.kind() {
 	    ExprKind::Not      (ref c)               => self.Not(c),
@@ -427,30 +441,30 @@ impl<'a> visitor::Visitor for Interpreter<'a>
 	    ExprKind::PlusSign (ref c)               => self.PlusSign(c),
 	    ExprKind::MinusSign(ref c)               => self.MinusSign(c),
 	    ExprKind::Cast     (ref c, ref f, ref t) => self.Cast(c, f, t),
-	    
+
 	    ExprKind::And      (ref l, ref r)        => self.And(l, r),
 	    ExprKind::Or       (ref l, ref r)        => self.Or(l, r),
 	    ExprKind::Cmp      (ref o, ref l, ref r) => self.Cmp(o, l, r),
-	    ExprKind::Arithm   (ref o, ref l, ref r) => self.Arithm(e.ty(), o, l, r), 
+	    ExprKind::Arithm   (ref o, ref l, ref r) => self.Arithm(e.ty(), o, l, r),
 
-	      
-	    ExprKind::Fn     (ref f, ref args)  => self.Func(f, args),  
+
+	    ExprKind::Fn     (ref f, ref args)  => self.Func(f, args),
 			ExprKind::Field  (ref name)         => self.Field(e.ty(), name),
 			/*
 	    ExprKind::Const  (_)            => {}
-	    
-	    ExprKind::Switch(ref cases, ref default) => {  
+
+	    ExprKind::Switch(ref cases, ref default) => {
 	    	for c in cases.iter() {
 	    		v.accept(c);
 	   	  }
-	      	
+
 	    	v.accept(default);
 	    },
-	    
+
 	    ExprKind::Case   (ref l, ref r) => { v.accept(l); v.accept(r) },*/
 	    _ => panic!("")
 	  }
-	} 
+	}
 }
 
 pub struct InterpreterProcessor
@@ -461,8 +475,8 @@ pub struct InterpreterProcessor
 impl InterpreterProcessor
 {
 	pub fn new(fn_registry: &FuncRegistry,
-		         session    : &Session, 
-		         schema     : &NamedSchema, 
+		         session    : &Session,
+		         schema     : &NamedSchema,
 		         exprs      : &Vec<Box<Expr>>) -> Result<InterpreterProcessor>
 	{
 		let evals = try!(
@@ -470,22 +484,22 @@ impl InterpreterProcessor
 		       .map(|e| Interpreter::build(fn_registry, session, schema.types, schema.names, e))
 		       .collect::<Result<Vec<Box<Evaluator>>>>()
     );
-		
-		Ok(InterpreterProcessor { evals: evals })			
+
+		Ok(InterpreterProcessor { evals: evals })
 	}
-} 
+}
 
 impl Processor for InterpreterProcessor
 {
 	fn process(
-    &self, 
-    input: &Page, 
-    builder: &mut OwnedPageBuilder) -> Void 
+    &self,
+    input: &Page,
+    builder: &mut OwnedPageBuilder) -> Void
 	{
   	for (w, e) in izip!(builder.iter_mut(), self.evals.iter()) {
   		try!(e.evaluate(input));
   	}
-  	
+
   	void_ok
   }
 }
@@ -501,23 +515,23 @@ mod tests {
 	use common::session::Session;
 	use common::storage::{RandomTable, MemTable};
 	use common::types::*;
-  
+
   use jit::JitCompiler;
-	
+
 	use plan::expr::*;
 	use driver::DriverContext;
-	
+
 	use super::super::NamedSchema;
-	
+
 	use super::*;
-	
+
   #[test]
   pub fn codegen() {
-    let plugin_mgr = PluginManager::new();    
+    let plugin_mgr = PluginManager::new();
     let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
     assert!(jit.get_ty("struct.MiniPage").is_some());
     assert!(jit.get_ty("struct.Page").is_some());
-    
+
     let types: Vec<Ty> = schema!(
 	    I64, // l_orderkey      bigint
 	    I64, // l_partkey       bigint
@@ -527,9 +541,9 @@ mod tests {
 	    F64, // l_extendedprice double,
 	    F64, // l_discount      double,
 	    F64  // l_tax           double,
-	    // string types are not implmeneted yet.	    
+	    // string types are not implmeneted yet.
     );
-	  
+
 	  let names: Vec<&str> = vec![
 	  	"l_orderkey",
 	  	"l_partkey",
@@ -540,22 +554,28 @@ mod tests {
 	  	"l_discount",
 	  	"l_tax"
 	  ];
-    
-    let expr = Const(1i16);    
+
+    let expr = Const(19800401i32);
     let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
-    
-    let map = MapCompiler::compile(&jit, 
-                                   plugin_mgr.fn_registry(), 
-																	 &session, 
-																	 &schema, 
+
+    let map = MapCompiler::compile(&jit,
+                                   plugin_mgr.fn_registry(),
+																	 &session,
+																	 &schema,
 																	 &expr).ok().unwrap();
-  } 
-  
+
+    let mut minipage = MiniPage2 {
+      ptr: ::std::ptr::null(),
+      size: 0
+    };
+    assert_eq!(map(&mut minipage), 19800401i32);
+  }
+
 	#[test]
 	pub fn tpch_q1() {
-		let plugin_mgr = PluginManager::new();	
-		
+		let plugin_mgr = PluginManager::new();
+
 		/*
 			l_orderkey long,
 			l_partkey long,
@@ -583,9 +603,9 @@ mod tests {
 	    F64, // l_extendedprice double,
 	    F64, // l_discount      double,
 	    F64  // l_tax           double,
-	    // string types are not implmeneted yet.	    
+	    // string types are not implmeneted yet.
     );
-	  
+
 	  let names: Vec<&str> = vec![
 	  	"l_orderkey",
 	  	"l_partkey",
@@ -598,50 +618,50 @@ mod tests {
 	  ];
 
 
-	  let sum_disc_price = 
-	  	Mul(F64, Field(F64, "l_extendedprice"), 
+	  let sum_disc_price =
+	  	Mul(F64, Field(F64, "l_extendedprice"),
 	  		Subtract(F64, Const(1), Field(F64, "l_discount")));
-	  	
-  	let sum_charge = 
+
+  	let sum_charge =
 	  	Mul(F64, sum_disc_price.clone(), Plus(F64, Const(1), Field(F64, "l_tax")));
-	  
+
 	  let exprs = vec![
-	  	Box::new(sum_disc_price), 
+	  	Box::new(sum_disc_price),
 	  	Box::new(sum_charge)
   	];
-  	
+
   	let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
-  	
-		let processor = InterpreterProcessor::new(plugin_mgr.fn_registry(), 
-																						  &session, 
-																						  &schema, 
+
+		let processor = InterpreterProcessor::new(plugin_mgr.fn_registry(),
+																						  &session,
+																						  &schema,
 																						  &exprs).ok().unwrap();
 		let mut input  = RandomTable::new(&session, &types, 1024);
-		
+
 		let output_tys = exprs.iter()
 											.map(|e| e.ty().clone())
 											.collect::<Vec<Ty>>();
 		let mut output = MemTable::new(&session, &output_tys, &vec!["x"]);
-		
+
 		let mut builder = OwnedPageBuilder::new(&output_tys);
-		
-		
-		loop { 
+
+
+		loop {
 		  let mut read_page = input.next().unwrap();
-		  
+
 		  if read_page.value_count() == 0 {
 		  	break;
 		  }
-		  
+
 		  processor.process(read_page, &mut builder);
 		  output.write(builder.build(read_page.value_count()));
 		  builder.reset();
 		}
-		
+
 		assert_eq!(1, output.col_num());
 		assert_eq!(1024, output.row_num());
-		
+
 		for x in output.reader() {
 			let r: (f64) = x.ok().unwrap();
 			println!("{}", r);
