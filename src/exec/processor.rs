@@ -80,21 +80,24 @@ impl<'a> MapCompiler<'a> {
     let mut map = MapCompiler::new(jit, fn_registry, session, schema);
     map.accept(expr);
 
-    let void_ty = jit.get_void_ty();
-    //let input_page_ty = jit.get_ty("struct.Page").unwrap();
-    let minipage_ty = jit.get_ty("struct.MiniPage").unwrap();
-    //let func_ty = jit.create_func_ty(void_ty, &[&input_page_ty, &output_page_ty]);
-    let minipage_ptr_ty = jit.get_pointer_ty(&minipage_ty);
-    let func_ty = jit.create_func_ty(&i32::llvm_ty(jit.context()), &[&minipage_ptr_ty]);
-    let func = jit.add_func("processor", &func_ty);
-
-    MapCompiler::generate_const(&mut map, jit, &func);
+    let func = MapCompiler::generate_fn_prototype(jit);
+    MapCompiler::generate_scalar_func(&mut map, jit, &func);
     MapCompiler::finalize(jit, &func)
   }
 
-  fn generate_const(map: &mut MapCompiler, jit: &JitCompiler, func: &Function) {
+  fn generate_fn_prototype(jit: &JitCompiler) -> Function {
+    let minipage_ty = jit.get_ty("struct.MiniPage").unwrap();
+    let minipage_ptr_ty = jit.get_pointer_ty(&minipage_ty);
+    jit.create_func_prototype(
+      "processor",
+      &i32::llvm_ty(jit.context()),
+      &[&minipage_ptr_ty],
+      None)
+  }
+
+  fn generate_scalar_func(map: &mut MapCompiler, jit: &JitCompiler, func: &Function) {
     let entry_blk = func.append("entry");
-    let const_value = map.stack.pop().unwrap();
+    let codegen = map.stack.pop().unwrap();
 
     let builder = jit.builder();
     builder.position_at_end(&entry_blk);
@@ -103,7 +106,7 @@ impl<'a> MapCompiler<'a> {
 
     let call = match jit.get_func("test") {
       Some(f) => {
-        jit.builder().create_call(&f, &[&minipage, &const_value])
+        jit.builder().create_call(&f, &[&minipage, &codegen])
       },
       _       => panic!("No such a function")
     };
