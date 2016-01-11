@@ -47,6 +47,17 @@ pub struct MiniPage2 {
 
 pub type MapFunc = extern "C" fn(&mut MiniPage2) -> i32;
 
+macro_rules! bin_codegen (
+  ($name:ident, $func:ident) => (
+    pub fn $name(&mut self, lhs: &Expr, rhs: &Expr)
+    {
+      let lhs_val = self.visit(lhs);
+      let rhs_val = self.visit(rhs);
+      let builder = &self.builder;
+      self.stack.push(builder.$func(&lhs_val, &rhs_val));
+    }
+  );
+);
 
 pub struct MapCompiler<'a>
 {
@@ -77,6 +88,9 @@ impl<'a> MapCompiler<'a> {
       builder: builder
 		}
 	}
+
+  #[inline(always)]
+  fn builder(&self) -> &Builder { &self.builder }
 
   pub fn compile(
             jit: &'a JitCompiler,
@@ -136,6 +150,15 @@ impl<'a> MapCompiler<'a> {
   }
 
   #[inline(always)]
+  fn visit(&mut self, expr: &Expr) -> Value
+  {
+    self.accept(expr);
+    // Stack must contain at least one Value item.
+    // Otherwise, it is definitely a bug.
+    self.stack.pop().unwrap()
+  }
+
+  #[inline(always)]
   fn push_value<T: ToValue>(&mut self, val: &T)
   {
     let v = val.to_value(self.jit.context());
@@ -146,7 +169,7 @@ impl<'a> MapCompiler<'a> {
 
   }
 
-  pub fn Not(&self, c: &Expr)
+  pub fn Not(&mut self, c: &Expr)
 	{
 	}
 
@@ -170,25 +193,13 @@ impl<'a> MapCompiler<'a> {
 	{
 	}
 
-	pub fn And(&self, lhs: &Expr, rhs: &Expr)
-	{
-	}
-
-	pub fn Or(&self, lhs: &Expr, rhs: &Expr)
-	{
-	}
+  bin_codegen!(And, create_and);
+  bin_codegen!(Or,  create_or);
+  bin_codegen!(Xor, create_xor);
 
 	pub fn Cmp(&self, op: &CmpOp, lhs: &Expr, rhs: &Expr)
 	{
 	}
-
-  fn visit(&mut self, expr: &Expr) -> Value
-  {
-    self.accept(expr);
-    // Stack must contain at least one Value item.
-    // Otherwise, it is definitely a bug.
-    self.stack.pop().unwrap()
-  }
 
 	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr)
 	{
@@ -582,7 +593,8 @@ mod tests {
 	  	"l_tax"
 	  ];
 
-    let expr = Plus(I32, Const(19800401i32), Const(1i32));
+    //let expr = Plus(I32, Const(19800401i32), Const(1i32));
+    let expr = Or(Const(4i32), Const(2i32));
     let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
 
