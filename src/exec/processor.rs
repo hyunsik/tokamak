@@ -30,6 +30,7 @@ use common::rows::{
 use common::session::Session;
 use common::types::*;
 use jit::{JitCompiler};
+use jit::builder::Builder;
 use jit::types::LLVMTy;
 use jit::value::{Function, Value, ValueRef, ToValue};
 use plan::expr::*;
@@ -54,7 +55,8 @@ pub struct MapCompiler<'a>
 	names: &'a Vec<&'a str>,
 	stack: Vec<Value>,
   error: Option<Error>,
-  func: Function
+  func: Function,
+  builder: Builder
 }
 
 impl<'a> MapCompiler<'a> {
@@ -62,7 +64,8 @@ impl<'a> MapCompiler<'a> {
          fn_registry: &FuncRegistry,
 		     session: &Session,
 		     schema : &'a NamedSchema,) -> MapCompiler<'a> {
-    let func = MapCompiler::generate_fn_prototype(jit);
+    let builder = jit.new_builder();
+    let func = MapCompiler::generate_fn_prototype(jit, &builder);
 
 		MapCompiler {
       jit   : jit,
@@ -70,7 +73,8 @@ impl<'a> MapCompiler<'a> {
 			names : &schema.names,
 			stack : Vec::new(),
 			error : None,
-      func: func
+      func: func,
+      builder: builder
 		}
 	}
 
@@ -83,41 +87,37 @@ impl<'a> MapCompiler<'a> {
 	{
     let mut map = MapCompiler::new(jit, fn_registry, session, schema);
     map.accept(expr);
-
     MapCompiler::generate_scalar_func(&mut map, jit);
-    map.finalize(jit)
+    map.ret_func(jit)
   }
 
-  fn generate_fn_prototype(jit: &JitCompiler) -> Function {
+  fn generate_fn_prototype(jit: &JitCompiler, bld: &Builder) -> Function {
     let minipage_ty = jit.get_ty("struct.MiniPage").unwrap();
     let minipage_ptr_ty = jit.get_pointer_ty(&minipage_ty);
     jit.create_func_prototype(
       "processor",
       &i32::llvm_ty(jit.context()),
       &[&minipage_ptr_ty],
-      None)
+      Some(bld))
   }
 
   fn generate_scalar_func(map: &mut MapCompiler, jit: &JitCompiler) {
     let func = &map.func;
-    let entry_blk = func.append("entry");
+    let builder = &map.builder;
+
     let codegen = map.stack.pop().unwrap();
-
-    let builder = jit.builder();
-    builder.position_at_end(&entry_blk);
-
     let minipage: Value = func.arg(0).into();
 
     let call = match jit.get_func("test") {
       Some(f) => {
-        jit.builder().create_call(&f, &[&minipage, &codegen])
+        builder.create_call(&f, &[&minipage, &codegen])
       },
       _       => panic!("No such a function")
     };
     builder.create_ret(&call);
   }
 
-  fn finalize(&self, jit: &JitCompiler) -> Result<Rc<MapFunc>>
+  fn ret_func(&self, jit: &JitCompiler) -> Result<Rc<MapFunc>>
   {
     // dump code
     jit.dump();
@@ -182,8 +182,28 @@ impl<'a> MapCompiler<'a> {
 	{
 	}
 
+  fn visit(&mut self, expr: &Expr) -> Value
+  {
+    self.accept(expr);
+    // Stack must contain at least one Value item.
+    // Otherwise, it is definitely a bug.
+    self.stack.pop().unwrap()
+  }
+
 	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr)
 	{
+    let lhs_val = self.visit(lhs);
+    let rhs_val = self.visit(rhs);
+
+    let builder = &self.builder;
+
+    self.stack.push(match *op {
+      ArithmOp::Plus => {builder.create_add(&lhs_val, &rhs_val)}
+      ArithmOp::Sub  => {builder.create_sub(&lhs_val, &rhs_val)}
+      ArithmOp::Mul  => {builder.create_mul(&lhs_val, &rhs_val)}
+      ArithmOp::Div  => {builder.create_div(&lhs_val, &rhs_val)}
+      ArithmOp::Rem  => {builder.create_rem(&lhs_val, &rhs_val)}
+    });
 	}
 
 	pub fn Func(&self, f: &FnDecl, args: &Vec<Box<Expr>>)
@@ -562,7 +582,7 @@ mod tests {
 	  	"l_tax"
 	  ];
 
-    let expr = Const(19800401i32);
+    let expr = Plus(I32, Const(19800401i32), Const(1i32));
     let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
 
