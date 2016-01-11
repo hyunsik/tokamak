@@ -32,7 +32,7 @@ use common::types::*;
 use jit::{JitCompiler};
 use jit::builder::Builder;
 use jit::types::LLVMTy;
-use jit::value::{Function, Value, ValueRef, ToValue};
+use jit::value::{Function, Predicate, Value, ValueRef, ToValue};
 use plan::expr::*;
 use plan::expr::visitor::{accept_by_default, Visitor};
 
@@ -53,7 +53,9 @@ macro_rules! bin_codegen (
     {
       let lhs_val = self.visit(lhs);
       let rhs_val = self.visit(rhs);
+
       let builder = &self.builder;
+      
       self.stack.push(builder.$func(&lhs_val, &rhs_val));
     }
   );
@@ -88,9 +90,6 @@ impl<'a> MapCompiler<'a> {
       builder: builder
 		}
 	}
-
-  #[inline(always)]
-  fn builder(&self) -> &Builder { &self.builder }
 
   pub fn compile(
             jit: &'a JitCompiler,
@@ -197,8 +196,23 @@ impl<'a> MapCompiler<'a> {
   bin_codegen!(Or,  create_or);
   bin_codegen!(Xor, create_xor);
 
-	pub fn Cmp(&self, op: &CmpOp, lhs: &Expr, rhs: &Expr)
+	pub fn Cmp(&mut self, op: &CmpOp, lhs: &Expr, rhs: &Expr)
 	{
+    let lhs_val = self.visit(lhs);
+    let rhs_val = self.visit(rhs);
+
+    let builder = &self.builder;
+
+    let pred = match *op {
+      CmpOp::Eq => Predicate::Eq,
+      CmpOp::Ne => Predicate::Ne,
+      CmpOp::Lt => Predicate::Lt,
+      CmpOp::Le => Predicate::Le,
+      CmpOp::Gt => Predicate::Gt,
+      CmpOp::Ge => Predicate::Ge
+    };
+
+    self.stack.push(builder.create_cmp(&lhs_val, &rhs_val, pred));
 	}
 
 	pub fn Arithm(&mut self, ty: &Ty, op: &ArithmOp, lhs: &Expr, rhs: &Expr)
