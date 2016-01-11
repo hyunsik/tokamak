@@ -53,7 +53,8 @@ pub struct MapCompiler<'a>
   types: &'a Vec<Ty>,
 	names: &'a Vec<&'a str>,
 	stack: Vec<Value>,
-  error: Option<Error>
+  error: Option<Error>,
+  func: Function
 }
 
 impl<'a> MapCompiler<'a> {
@@ -61,12 +62,15 @@ impl<'a> MapCompiler<'a> {
          fn_registry: &FuncRegistry,
 		     session: &Session,
 		     schema : &'a NamedSchema,) -> MapCompiler<'a> {
+    let func = MapCompiler::generate_fn_prototype(jit);
+
 		MapCompiler {
       jit   : jit,
 			types : &schema.types,
 			names : &schema.names,
 			stack : Vec::new(),
-			error : None
+			error : None,
+      func: func
 		}
 	}
 
@@ -80,9 +84,8 @@ impl<'a> MapCompiler<'a> {
     let mut map = MapCompiler::new(jit, fn_registry, session, schema);
     map.accept(expr);
 
-    let func = MapCompiler::generate_fn_prototype(jit);
-    MapCompiler::generate_scalar_func(&mut map, jit, &func);
-    MapCompiler::finalize(jit, &func)
+    MapCompiler::generate_scalar_func(&mut map, jit);
+    map.finalize(jit)
   }
 
   fn generate_fn_prototype(jit: &JitCompiler) -> Function {
@@ -95,7 +98,8 @@ impl<'a> MapCompiler<'a> {
       None)
   }
 
-  fn generate_scalar_func(map: &mut MapCompiler, jit: &JitCompiler, func: &Function) {
+  fn generate_scalar_func(map: &mut MapCompiler, jit: &JitCompiler) {
+    let func = &map.func;
     let entry_blk = func.append("entry");
     let codegen = map.stack.pop().unwrap();
 
@@ -113,14 +117,14 @@ impl<'a> MapCompiler<'a> {
     builder.create_ret(&call);
   }
 
-  fn finalize(jit: &JitCompiler, func: &Function) -> Result<Rc<MapFunc>>
+  fn finalize(&self, jit: &JitCompiler) -> Result<Rc<MapFunc>>
   {
     // dump code
     jit.dump();
 
     match jit.verify() {
       Ok(_) => {
-        let func_ptr = unsafe { jit.get_func_ptr(&func).unwrap() };
+        let func_ptr = unsafe { jit.get_func_ptr(&self.func).unwrap() };
         let func: MapFunc = unsafe {::std::mem::transmute(func_ptr)};
         Ok(Rc::new(func))
       }
