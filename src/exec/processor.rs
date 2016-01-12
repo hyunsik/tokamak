@@ -32,7 +32,7 @@ use common::session::Session;
 use common::types::{Ty, name};
 
 use jit::{JitCompiler};
-use jit::builder::{Builder, CastOps};
+use jit::builder::{Builder, CastOp};
 use jit::types::{self, LLVMTy};
 use jit::value::{Function, Predicate, Value, ValueRef, ToValue};
 use plan::expr::*;
@@ -220,23 +220,23 @@ impl<'a> MapCompiler<'a> {
 
     let cast_op = if from.is_sint() && to.is_sint() {
       if from.size_of() < to.size_of() {
-        CastOps::SExt
+        CastOp::SExt
       } else {
-        CastOps::Trunc
+        CastOp::Trunc
       }
     } else if from.is_sint() && to.is_float() {
-      CastOps::SIToFP
+      CastOp::SIToFP
     } else if from.is_uint() && to.is_float() {
-      CastOps::UIToFP
+      CastOp::UIToFP
     } else if from.is_float() && to.is_sint() {
-      CastOps::FPToSI
+      CastOp::FPToSI
     } else if from.is_float() && to.is_uint() {
-      CastOps::FPToUI
+      CastOp::FPToUI
     } else if from.is_float() && to.is_float() {
       if from.size_of() < to.size_of() {
-        CastOps::FPExt
+        CastOp::FPExt
       } else {
-        CastOps::FPTrunc
+        CastOp::FPTrunc
       }
     } else {
       panic!("not supported cast from {} to {}", from.base(), to.base());
