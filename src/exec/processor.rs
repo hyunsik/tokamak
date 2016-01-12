@@ -90,7 +90,7 @@ fn to_llvm_ty<'a>(jit: &'a JitCompiler, ty: &Ty) -> &'a types::Ty
   }
 }
 
-pub struct MapCompiler<'a>
+pub struct ExprCompiler<'a>
 {
   jit  : &'a JitCompiler,
   types: &'a Vec<Ty>,
@@ -101,15 +101,15 @@ pub struct MapCompiler<'a>
   builder: Builder
 }
 
-impl<'a> MapCompiler<'a> {
+impl<'a> ExprCompiler<'a> {
   fn new(jit: &'a JitCompiler,
          fn_registry: &FuncRegistry,
 		     session: &Session,
-		     schema : &'a NamedSchema,) -> MapCompiler<'a> {
+		     schema : &'a NamedSchema,) -> ExprCompiler<'a> {
     let builder = jit.new_builder();
-    let func = MapCompiler::generate_fn_prototype(jit, &builder);
+    let func = ExprCompiler::generate_fn_prototype(jit, &builder);
 
-		MapCompiler {
+		ExprCompiler {
       jit   : jit,
 			types : &schema.types,
 			names : &schema.names,
@@ -127,11 +127,11 @@ impl<'a> MapCompiler<'a> {
 					  schema     : &'a NamedSchema,
 					  expr       : &Expr) -> Result<Rc<MapFunc>>
 	{
-    let mut map = MapCompiler::new(jit, fn_registry, session, schema);
+    let mut map = ExprCompiler::new(jit, fn_registry, session, schema);
     println!("before accept");
     map.accept(expr);
     println!("after accept");
-    MapCompiler::generate_scalar_func(&mut map, jit);
+    ExprCompiler::generate_scalar_func(&mut map, jit);
     println!("after generate_scalar_func");
     map.ret_func(jit)
   }
@@ -146,7 +146,7 @@ impl<'a> MapCompiler<'a> {
       Some(bld))
   }
 
-  fn generate_scalar_func(map: &mut MapCompiler, jit: &JitCompiler) {
+  fn generate_scalar_func(map: &mut ExprCompiler, jit: &JitCompiler) {
     let func = &map.func;
     let builder = &map.builder;
 
@@ -320,7 +320,7 @@ impl<'a> MapCompiler<'a> {
 	}
 }
 
-impl<'a> visitor::Visitor for MapCompiler<'a>
+impl<'a> visitor::Visitor for ExprCompiler<'a>
 {
 	fn accept(&mut self, e: &Expr)
 	{
@@ -423,7 +423,7 @@ mod tests {
     let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
 
-    let map = MapCompiler::compile(&jit,
+    let map = ExprCompiler::compile(&jit,
                                    plugin_mgr.fn_registry(),
 																	 &session,
 																	 &schema,
