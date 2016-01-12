@@ -5,23 +5,23 @@ use util::collection::vec;
 pub struct Expr (pub Ty, pub ExprKind);
 
 #[inline(always)]
-pub fn expr(ty: &Ty, kind: ExprKind) -> Expr 
+pub fn expr(ty: &Ty, kind: ExprKind) -> Expr
 {
   Expr (ty.clone(), kind)
 }
 
-impl Expr 
+impl Expr
 {
-  
+
 	#[inline]
 	pub fn ty(&self) -> &Ty
 	{
 		&self.0
 	}
-	
+
 	#[inline]
 	pub fn kind(&self) -> &ExprKind
-	{ 
+	{
 		&self.1
 	}
 }
@@ -32,7 +32,7 @@ pub enum ExprKind {
   // Unary Expressions
   Not      (Box<Expr>),
   IsNull   (Box<Expr>),
-  IsNotNull(Box<Expr>), 
+  IsNotNull(Box<Expr>),
   PlusSign (Box<Expr>),
   MinusSign(Box<Expr>),
   Cast     (Box<Expr>, Ty, Ty),
@@ -81,7 +81,7 @@ pub struct FnDecl {
   ret_ty: Ty
 }
 
-impl FnDecl 
+impl FnDecl
 {
 	pub fn ty(&self) -> &Ty
 	{
@@ -91,7 +91,7 @@ impl FnDecl
 
 /// Representation for a single value
 #[derive(Clone)]
-pub enum Literal 
+pub enum Literal
 {
   Bool(bool),
   U8(u8),
@@ -125,7 +125,7 @@ impl Literal
 macro_rules! into_literal(
 	($ty:ty, $literal_kind:ident) => (
     impl Into<Literal> for $ty {
-	    fn into(self) -> Literal 
+	    fn into(self) -> Literal
 	    {
 	    	Literal::$literal_kind(self)
 	    }
@@ -142,19 +142,19 @@ into_literal!(f32,  F32);
 into_literal!(f64,  F64);
 
 #[allow(non_snake_case)]
-pub fn Not(c: Expr) -> Expr 
+pub fn Not(c: Expr) -> Expr
 {
 	Expr(c.ty().clone(), ExprKind::Not(Box::new(c)))
 }
 
 #[allow(non_snake_case)]
-pub fn IsNull(c: Expr) -> Expr 
+pub fn IsNull(c: Expr) -> Expr
 {
 	expr(BOOL, ExprKind::IsNull(Box::new(c)))
 }
 
 #[allow(non_snake_case)]
-pub fn IsNotNull(c: Expr) -> Expr 
+pub fn IsNotNull(c: Expr) -> Expr
 {
 	expr(BOOL, ExprKind::IsNull(Box::new(c)))
 }
@@ -219,7 +219,7 @@ pub fn Mul(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 #[allow(non_snake_case)]
 pub fn Func(decl: FnDecl, args: Vec<Expr>) -> Expr
 {
-	Expr(decl.ty().clone(), ExprKind::Fn(decl, vec::to_boxed(args))) 
+	Expr(decl.ty().clone(), ExprKind::Fn(decl, vec::to_boxed(args)))
 }
 
 #[allow(non_snake_case)]
@@ -257,21 +257,21 @@ pub mod optimizer
 	pub use expr_optimizer::*;
 }
 
-pub mod visitor 
+pub mod visitor
 {
 	//! Visitor for Expr
 	use super::*;
-	
+
 	/// Simple visitor to walk all Expr node in a single accept function.
 	/// It provides an easier way to rewrite a Expr tree.
-	pub trait Visitor: Sized 
+	pub trait Visitor: Sized
 	{
-	  fn accept(&mut self, e: &Expr) 
+	  fn accept(&mut self, e: &Expr)
 	  {
 	    accept_by_default(self, e);
-	  } 
+	  }
 	}
-	
+
 	pub fn accept_by_default<T>(v: &mut T, e: &Expr) where T: Visitor + Sized {
 	  match *e.kind() {
 	    ExprKind::Not      (ref c)       => v.accept(c),
@@ -280,39 +280,39 @@ pub mod visitor
 	    ExprKind::PlusSign (ref c)       => v.accept(c),
 	    ExprKind::MinusSign(ref c)       => v.accept(c),
 	    ExprKind::Cast     (ref c, _, _) => v.accept(c),
-	    
+
 	    ExprKind::And      (ref l, ref r)    => { v.accept(l); v.accept(r) },
 	    ExprKind::Or       (ref l, ref r)    => { v.accept(l); v.accept(r) },
 	    ExprKind::Cmp      (_, ref l, ref r) => { v.accept(l); v.accept(r) },
-	    ExprKind::Arithm   (_, ref l, ref r) => { v.accept(l); v.accept(r) }, 
-	      
-	    ExprKind::Fn     (_, ref args)  => { for e in args.iter() { v.accept(e) } },  
+	    ExprKind::Arithm   (_, ref l, ref r) => { v.accept(l); v.accept(r) },
+
+	    ExprKind::Fn     (_, ref args)  => { for e in args.iter() { v.accept(e) } },
 			ExprKind::Field  (_) 	          => {},
 	    ExprKind::Const  (_)            => {}
-	    
-	    ExprKind::Switch(ref cases, ref default) => {  
+
+	    ExprKind::Switch(ref cases, ref default) => {
 	    	for c in cases.iter() {
 	    		v.accept(c);
 	   	  }
-	      	
+
 	    	v.accept(default);
 	    },
-	    
+
 	    ExprKind::Case   (ref l, ref r) => { v.accept(l); v.accept(r) },
 	  }
 	}
-	
+
 	/// Simple visitor to walk all Expr node in a single accept function.
 	/// It provides an easier way to rewrite a Expr tree.
 	pub trait TransformVisitor: Sized
   {
-	  fn transform(&self, e: &Expr) -> Expr 
+	  fn transform(&self, e: &Expr) -> Expr
 	  {
 	    transform_by_default(self, e)
-	  } 
+	  }
 	}
-	
-	pub fn transform_by_default<T>(v: &T, e: &Expr) -> Expr 
+
+	pub fn transform_by_default<T>(v: &T, e: &Expr) -> Expr
 			where T: TransformVisitor + Sized
 	{
 		match *e.kind() {
@@ -326,19 +326,19 @@ pub mod visitor
 	    ExprKind::And      (ref l, ref r)        => And(v.transform(l), v.transform(r)),
 	    ExprKind::Or       (ref l, ref r)        => Or (v.transform(l), v.transform(r)),
 	    ExprKind::Cmp      (ref o, ref l, ref r) => Cmp(*o, v.transform(l), v.transform(r)),
-	    ExprKind::Arithm   (ref o, ref l, ref r) => Arithm(o, e.ty(), v.transform(l), v.transform(r)), 
-	      
-	    ExprKind::Fn       (ref f, ref args)     => { 
+	    ExprKind::Arithm   (ref o, ref l, ref r) => Arithm(o, e.ty(), v.transform(l), v.transform(r)),
+
+	    ExprKind::Fn       (ref f, ref args)     => {
 	    	let rargs = args.iter().map(|arg| v.transform(arg)).collect::<Vec<Expr>>();
-	    	Func(f.clone(), rargs)  
+	    	Func(f.clone(), rargs)
     	},
 			ExprKind::Field     (_) 	                => e.clone(),
 	    ExprKind::Const     (_)                   => e.clone(),
 
-	    ExprKind::Switch   (ref cases, ref default)  => {  
+	    ExprKind::Switch   (ref cases, ref default)  => {
 	    	let rcases = cases.iter().map(|case| v.transform(case)).collect::<Vec<Expr>>();
-	    	
-	    	Switch(rcases, v.transform(default)) 
+
+	    	Switch(rcases, v.transform(default))
    	  }
 	    ExprKind::Case      (ref l, ref r)        => Case(v.transform(l), v.transform(r)),
 	  }

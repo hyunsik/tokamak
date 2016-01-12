@@ -47,6 +47,18 @@ pub struct MiniPage2 {
 
 pub type MapFunc = extern "C" fn(&mut MiniPage2) -> i32;
 
+macro_rules! unary_codegen (
+  ($name:ident, $func:ident) => (
+    pub fn $name(&mut self, expr: &Expr)
+    {
+      let val = self.visit(expr);
+      let builder = &self.builder;
+
+      self.stack.push(builder.$func(&val));
+    }
+  );
+);
+
 macro_rules! bin_codegen (
   ($name:ident, $func:ident) => (
     pub fn $name(&mut self, lhs: &Expr, rhs: &Expr)
@@ -151,7 +163,7 @@ impl<'a> MapCompiler<'a> {
   #[inline(always)]
   fn visit(&mut self, expr: &Expr) -> Value
   {
-    self.accept(expr);
+
     // Stack must contain at least one Value item.
     // Otherwise, it is definitely a bug.
     self.stack.pop().unwrap()
@@ -164,13 +176,7 @@ impl<'a> MapCompiler<'a> {
     self.stack.push(v);
   }
 
-  pub fn store_const(&self, v: &Value) {
-
-  }
-
-  pub fn Not(&mut self, c: &Expr)
-	{
-	}
+  unary_codegen!(Not, create_not);
 
 	pub fn IsNull(&self, c: &Expr)
 	{
@@ -182,14 +188,16 @@ impl<'a> MapCompiler<'a> {
 
 	pub fn PlusSign(&self, c: &Expr)
 	{
+    self.accept(expr);
 	}
 
-	pub fn MinusSign(&self, c: &Expr)
-	{
-	}
+  unary_codegen!(MinusSign, create_neg);
 
-	pub fn Cast(&self, c: &Expr, f: &Ty, t: &Ty)
+	pub fn Cast(&self, c: &Expr, from: &Ty, to: &Ty)
 	{
+    match (*from, *to) {
+      _ => {}
+    }
 	}
 
   bin_codegen!(And, create_and);
@@ -361,7 +369,9 @@ mod tests {
 	  ];
 
     //let expr = Plus(I32, Const(19800401i32), Const(1i32));
-    let expr = Or(Const(4i32), Const(2i32));
+    //let expr = Or(Const(4i32), Const(2i32));
+    //let expr = Not(Const(0i32));
+    let expr = MinusSign(Const(7i32));
     let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
 
