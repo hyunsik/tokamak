@@ -1,4 +1,4 @@
-//! Type represents a data type. Its implementation is pluggable. 
+//! Type represents a data type. Its implementation is pluggable.
 //! So, Types are loaded from the packages.
 //!
 
@@ -36,12 +36,12 @@ impl Ty {
 			handler   : handler
 		}
 	}
-	
-	pub fn base(&self) -> &str 
+
+	pub fn base(&self) -> &str
 	{
 		&self.base
 	}
-	
+
 	pub fn handler(&self) -> &TypeHandler
 	{
 		&self.handler
@@ -51,7 +51,7 @@ impl Ty {
 /// For ignoring
 impl Eq for TypeHandler {}
 
-/// For ignoring 
+/// For ignoring
 impl PartialEq for TypeHandler {
   fn eq(&self, other: &TypeHandler) -> bool {
     true
@@ -76,19 +76,19 @@ impl Ord for TypeHandler {
 //  pub fn kind(&self) -> &TyKind {
 //    &self.kind
 //  }
-//  
+//
 //  pub fn handler(&self) -> Rc<TypeHandler> {
 //    match self.kind {
 //      TyKind::I32 => {
 //        let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<f32>()))};
 //        Rc::new(TypeHandler {create_minipage: Rc::new(f)})
 //      },
-//      
+//
 //      TyKind::F32 => {
 //        let f = || -> Box<MiniPage> {Box::new(FMiniPage::new(mem::size_of::<i32>()))};
 //        Rc::new(TypeHandler {create_minipage: Rc::new(f)})
 //      },
-//      
+//
 //      _  => { panic!("Unknown supported type") }
 //    }
 //  }
@@ -141,7 +141,7 @@ macro_rules! schema {
 /// * Vector: an ordered list of same elements
 /// * Tuple: an ordered list of arbtrary type values
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
-pub enum Ty 
+pub enum Ty
 {
   Bool,
   U8,
@@ -150,8 +150,8 @@ pub enum Ty
   I32,
   I64,
   F32,
-  F64,  
-  Vector(Box<Ty>), 
+  F64,
+  Vector(Box<Ty>),
   Tuple (Vec<Ty>),
 }
 
@@ -172,13 +172,47 @@ impl Ty
       Ty::Vector(_) => panic!("unsupported type: vector"),
       Ty::Tuple (_) => panic!("unsupported type: tuple"),
     }
-  }  
-  
-  pub fn size_of(&self) -> usize 
+  }
+
+  #[inline(always)]
+  pub fn is_int(&self) -> bool
+  {
+    self.is_sint() || self.is_uint()
+  }
+
+  pub fn is_sint(&self) -> bool
+  {
+    match *self {
+      Ty::Bool |
+      Ty::I8 |
+      Ty::I16 |
+      Ty::I32 |
+      Ty::I64 => true,
+      _       => false
+    }
+  }
+
+  pub fn is_uint(&self) -> bool
+  {
+    match *self {
+      Ty::U8 => true,
+      _      => false
+    }
+  }
+
+  pub fn is_float(&self) -> bool
+  {
+    match *self {
+      Ty::F32 | Ty::F64 => true,
+      _                 => false
+    }
+  }
+
+  pub fn size_of(&self) -> usize
   {
     match *self {
       Ty::Bool                  => 1,
-      Ty::U8 | Ty::I8           => 1,      
+      Ty::U8 | Ty::I8           => 1,
       Ty::I16                   => 2,
       Ty::I32 | Ty::F32         => 4,
       Ty::I64 | Ty::F64         => 8,
@@ -186,7 +220,7 @@ impl Ty
       Ty::Tuple (_) => panic!("unsupported type: tuple"),
     }
   }
-  
+
   pub fn is_variable(&self) -> bool
   {
     false
@@ -222,7 +256,7 @@ pub fn f(size: u32) -> &'static Ty
 }
 
 /*
-impl Ty 
+impl Ty
 {
   #[allow(unused_variables)]
   pub fn size_of(&self) -> u32 {
@@ -250,7 +284,7 @@ impl Ty
       Ty::Map(ref kt, ref vt)   => panic!("map is not supported yet"),
     }
   }
-  
+
   #[allow(unused_variables)]
   pub fn is_variable(&self) -> bool {
     match *self {
@@ -273,7 +307,7 @@ impl fmt::Display for Ty {
       Ty::Numeric(ref p,ref s)    => {
         match *s {
           Some(ref scale) => write!(f, "numeric ({}, {})", p, scale),
-          None            => write!(f, "numeric ({})", p) 
+          None            => write!(f, "numeric ({})", p)
         }
       }
       Ty::Date                    => write!(f, "date"),
@@ -289,7 +323,7 @@ impl fmt::Display for Ty {
       Ty::Array(ref ty)           => write!(f, "array<{}>", ty),
       Ty::Struct(ref tys)         => {
         write!(f, "struct({})", tys.iter().map(|f| format!("{}", f)).join(", "))
-      },        
+      },
       Ty::Map (ref kty, ref vty)  => write!(f, "map<{},{}>", kty, vty)
     }
   }
@@ -387,7 +421,7 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
         _ => panic!("Undefined Operator")
       }
     },
-    
+
     Ty::Numeric(ref p, ref s) => {
       panic!("Undefined operator")
     },
@@ -395,11 +429,11 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
     Ty::Date => {
       panic!("Undefined Operator")
     },
-    
+
     Ty::Time => {
       panic!("Undefined Operator")
     },
-    
+
     Ty::Timez => {
       panic!("Undefined Operator")
     },
@@ -407,7 +441,7 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
     Ty::Timestamp => {
       panic!("Undefined Operator")
     },
-    
+
     Ty::Timestampz => {
       panic!("Undefined Operator")
     },
@@ -419,7 +453,7 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
     Ty::Char(ref len) => {
       panic!("Undefined Operator")
     },
-    
+
     Ty::Binary(ref len) => {
       panic!("Undefined Operator")
     },
@@ -430,22 +464,22 @@ pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
         _ => panic!("Undefined Operator")
       }
     },
-    
+
     Ty::Blob => {
       match *rhs_ty {
         Ty::Blob => rhs_ty.clone(),
         _ => panic!("Undefined Operator")
       }
     },
-    
+
     Ty::Array(ref ty) => {
       panic!("Undefined Operator")
     }
-    
+
     Ty::Struct(ref tys) => {
       panic!("Undefined Operator")
     },
-    
+
     Ty::Map(ref kty, ref vty) => {
       panic!("Undefined Operator")
     }
@@ -460,8 +494,8 @@ pub fn bool_ty() -> Ty {
 			Box::new(FMiniPage::new(mem::size_of::<bool>()))
 		})
   };
-	
-	Ty::new(BOOL_STR, true, true, handler) 
+
+	Ty::new(BOOL_STR, true, true, handler)
 }
 
 pub fn i8_ty() -> Ty {
@@ -469,8 +503,8 @@ pub fn i8_ty() -> Ty {
 	 	create_minipage: Rc::new(|| -> Box<MiniPage> {
 			Box::new(FMiniPage::new(mem::size_of::<i8>()))
 		})
-  }; 
-	
+  };
+
 	Ty::new(I8_STR, true, true, handler)
 }
 
@@ -480,8 +514,8 @@ pub fn i16_ty() -> Ty {
 			Box::new(FMiniPage::new(mem::size_of::<i16>()))
 		})
   };
-	
-	Ty::new(I32_STR, true, true, handler) 
+
+	Ty::new(I32_STR, true, true, handler)
 }
 
 pub fn i32_ty() -> Ty {
@@ -490,8 +524,8 @@ pub fn i32_ty() -> Ty {
 			Box::new(FMiniPage::new(mem::size_of::<i32>()))
 		})
   };
-	
-	Ty::new(I32_STR, true, true, handler) 
+
+	Ty::new(I32_STR, true, true, handler)
 }
 
 pub fn i64_ty() -> Ty {
@@ -499,8 +533,8 @@ pub fn i64_ty() -> Ty {
 	 	create_minipage: Rc::new(|| -> Box<MiniPage> {
 			Box::new(FMiniPage::new(mem::size_of::<i64>()))
 		})
-  }; 
-	
+  };
+
 	Ty::new(I64_STR, true, true, handler)
 }
 
@@ -510,8 +544,8 @@ pub fn f32_ty() -> Ty {
 			Box::new(FMiniPage::new(mem::size_of::<f32>()))
 		})
   };
-	
-	Ty::new(F32_STR, true, true, handler) 
+
+	Ty::new(F32_STR, true, true, handler)
 }
 
 pub fn f64_ty() -> Ty {
@@ -520,7 +554,7 @@ pub fn f64_ty() -> Ty {
 			Box::new(FMiniPage::new(mem::size_of::<f64>()))
 		})
   };
-	
-	Ty::new(F64_STR, true, true, handler) 
+
+	Ty::new(F64_STR, true, true, handler)
 }
 */
