@@ -7,6 +7,7 @@
 //! ## Phases for Generation
 //!
 
+use std::convert::From;
 use std::rc::Rc;
 
 use common::err::{Error, Result, Void, void_ok};
@@ -28,10 +29,11 @@ use common::rows::{
 	PageId
 };
 use common::session::Session;
-use common::types::*;
+use common::types::{Ty, name};
+
 use jit::{JitCompiler};
-use jit::builder::Builder;
-use jit::types::LLVMTy;
+use jit::builder::{Builder, CastOps};
+use jit::types::{self, LLVMTy};
 use jit::value::{Function, Predicate, Value, ValueRef, ToValue};
 use plan::expr::*;
 use plan::expr::visitor::{accept_by_default, Visitor};
@@ -63,15 +65,30 @@ macro_rules! bin_codegen (
   ($name:ident, $func:ident) => (
     pub fn $name(&mut self, lhs: &Expr, rhs: &Expr)
     {
+      println!("before lhs");
       let lhs_val = self.visit(lhs);
+      println!("before rhs");
       let rhs_val = self.visit(rhs);
-
       let builder = &self.builder;
 
       self.stack.push(builder.$func(&lhs_val, &rhs_val));
     }
   );
 );
+
+fn to_llvm_ty<'a>(jit: &'a JitCompiler, ty: &Ty) -> &'a types::Ty
+{
+  match *ty {
+    Ty::Bool => jit.get_void_ty(),
+    Ty::I8   => jit.get_void_ty(),
+    Ty::I16  => jit.get_void_ty(),
+    Ty::I32  => jit.get_void_ty(),
+    Ty::I64  => jit.get_void_ty(),
+    Ty::F32  => jit.get_void_ty(),
+    Ty::F64  => jit.get_void_ty(),
+    _        => panic!("not supported type: {}", ty.base())
+  }
+}
 
 pub struct MapCompiler<'a>
 {
@@ -111,8 +128,11 @@ impl<'a> MapCompiler<'a> {
 					  expr       : &Expr) -> Result<Rc<MapFunc>>
 	{
     let mut map = MapCompiler::new(jit, fn_registry, session, schema);
+    println!("before accept");
     map.accept(expr);
+    println!("after accept");
     MapCompiler::generate_scalar_func(&mut map, jit);
+    println!("after generate_scalar_func");
     map.ret_func(jit)
   }
 
@@ -163,7 +183,7 @@ impl<'a> MapCompiler<'a> {
   #[inline(always)]
   fn visit(&mut self, expr: &Expr) -> Value
   {
-
+    self.accept(expr);
     // Stack must contain at least one Value item.
     // Otherwise, it is definitely a bug.
     self.stack.pop().unwrap()
@@ -182,22 +202,50 @@ impl<'a> MapCompiler<'a> {
 	{
 	}
 
-	pub fn IsNotNull(&self, c: &Expr)
+	pub fn IsNotNull(&self, e: &Expr)
 	{
 	}
 
-	pub fn PlusSign(&self, c: &Expr)
+	pub fn PlusSign(&mut self, e: &Expr)
 	{
-    self.accept(expr);
+    self.accept(e);
 	}
 
   unary_codegen!(MinusSign, create_neg);
 
-	pub fn Cast(&self, c: &Expr, from: &Ty, to: &Ty)
+	pub fn Cast(&mut self, e: &Expr, from: &Ty, to: &Ty)
 	{
-    match (*from, *to) {
-      _ => {}
-    }
+    // if the both types are equivalent, just return.
+    if from == to { return; }
+
+    let cast_op = if from.is_sint() && to.is_sint() {
+      if from.size_of() < to.size_of() {
+        CastOps::SExt
+      } else {
+        CastOps::Trunc
+      }
+    } else if from.is_sint() && to.is_float() {
+      CastOps::SIToFP
+    } else if from.is_uint() && to.is_float() {
+      CastOps::UIToFP
+    } else if from.is_float() && to.is_sint() {
+      CastOps::FPToSI
+    } else if from.is_float() && to.is_uint() {
+      CastOps::FPToUI
+    } else if from.is_float() && to.is_float() {
+      if from.size_of() < to.size_of() {
+        CastOps::FPExt
+      } else {
+        CastOps::FPTrunc
+      }
+    } else {
+      panic!("not supported cast from {} to {}", from.base(), to.base());
+    };
+
+    let val = self.visit(e);
+    let builder = &self.builder;
+
+    self.stack.push(builder.create_cast(cast_op, &val, to_llvm_ty(self.jit, to)));
 	}
 
   bin_codegen!(And, create_and);
@@ -368,10 +416,10 @@ mod tests {
 	  	"l_tax"
 	  ];
 
-    //let expr = Plus(I32, Const(19800401i32), Const(1i32));
+    let expr = Plus(I32, Const(19800401i32), Const(1i32));
     //let expr = Or(Const(4i32), Const(2i32));
     //let expr = Not(Const(0i32));
-    let expr = MinusSign(Const(7i32));
+    //let expr = MinusSign(Const(7i32));
     let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
 
