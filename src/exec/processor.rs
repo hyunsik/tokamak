@@ -79,13 +79,13 @@ macro_rules! bin_codegen (
 fn to_llvm_ty<'a>(jit: &'a JitCompiler, ty: &Ty) -> &'a types::Ty
 {
   match *ty {
-    Ty::Bool => jit.get_void_ty(),
-    Ty::I8   => jit.get_void_ty(),
-    Ty::I16  => jit.get_void_ty(),
-    Ty::I32  => jit.get_void_ty(),
-    Ty::I64  => jit.get_void_ty(),
-    Ty::F32  => jit.get_void_ty(),
-    Ty::F64  => jit.get_void_ty(),
+    Ty::Bool => jit.get_bool_ty(),
+    Ty::I8   => jit.get_i8_ty(),
+    Ty::I16  => jit.get_i16_ty(),
+    Ty::I32  => jit.get_i32_ty(),
+    Ty::I64  => jit.get_i64_ty(),
+    Ty::F32  => jit.get_f32_ty(),
+    Ty::F64  => jit.get_f64_ty(),
     _        => panic!("not supported type: {}", ty.base())
   }
 }
