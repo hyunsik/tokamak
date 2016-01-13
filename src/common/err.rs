@@ -8,7 +8,7 @@ pub enum Error {
   NotImplemented,
   UnsupportedFeature,
   InvalidRpcCall,
-  
+
   UndefinedTablespace,
   UndefinedDatabase,
   UndefinedTable,
@@ -28,16 +28,16 @@ pub enum Error {
   /// Invoked function is not implemented yet
   Unimplemented,
   InvalidExpression,
-  
+
   /// Duplicated Type Id
   DuplicatedFuncSign,
   DuplicatedTypeId,
-  
+
   /// End of input stream
   EndOfStream,
-  
+
   // Compilation
-  FunctionCorrupted
+  CorruptedFunction(String)
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;

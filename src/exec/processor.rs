@@ -120,6 +120,15 @@ impl<'a> ExprCompiler<'a> {
 		}
 	}
 
+  pub fn compile2(&mut self, expr: &Expr) -> Result<Value>
+  {
+    self.accept(expr);
+    match self.stack.pop() {
+      Some(v) => Ok(v),
+      None    => Err(Error::CorruptedFunction("empty value stack".to_string()))
+    }
+  }
+
   pub fn compile(
             jit: &'a JitCompiler,
 						fn_registry: &FuncRegistry,
@@ -175,7 +184,7 @@ impl<'a> ExprCompiler<'a> {
       }
       Err(msg) => {
         error!("{}", msg);
-        Err(Error::FunctionCorrupted)
+        Err(Error::CorruptedFunction(msg.to_owned()))
       }
     }
   }
