@@ -93,7 +93,11 @@ fn to_llvm_ty<'a>(jit: &'a JitCompiler, ty: &Ty) -> &'a types::Ty
 pub struct MapCompiler;
 
 impl MapCompiler {
-  pub fn compile(jit: &JitCompiler, fn_reg: &FuncRegistry, sess: &Session, schema: &NamedSchema, expr: &Expr) -> Result<Rc<MapFunc>> {
+  pub fn compile(jit: &JitCompiler,
+                 fn_reg: &FuncRegistry,
+                 sess: &Session,
+                 schema: &NamedSchema,
+                 expr: &Expr) -> Result<Rc<MapFunc>> {
     let builder = jit.new_builder();
     let func = MapCompiler::create_fn_prototype(jit, &builder);
 
