@@ -90,39 +90,46 @@ fn to_llvm_ty<'a>(jit: &'a JitCompiler, ty: &Ty) -> &'a types::Ty
   }
 }
 
-pub fn compile_map(jit: &JitCompiler, fn_reg: &FuncRegistry, sess: &Session, schema: &NamedSchema, expr: &Expr) -> Result<Rc<MapFunc>> {
-  let builder = jit.new_builder();
-  let func = create_map_prototype(jit, &builder);
+pub struct MapCompiler;
 
-  let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
-  let codegen = try!(exprc.compile2(expr));
-  builder.create_ret(&codegen);
-  // dump code
-  jit.dump();
-  ret_map_func(jit, &func)
-}
+impl MapCompiler {
+  pub fn compile(jit: &JitCompiler, fn_reg: &FuncRegistry, sess: &Session, schema: &NamedSchema, expr: &Expr) -> Result<Rc<MapFunc>> {
+    let builder = jit.new_builder();
+    let func = MapCompiler::create_fn_prototype(jit, &builder);
 
-fn create_map_prototype(jit: &JitCompiler, bld: &Builder) -> Function {
-  let minipage_ty = jit.get_ty("struct.MiniPage").unwrap();
-  let minipage_ptr_ty = jit.get_pointer_ty(&minipage_ty);
-  jit.create_func_prototype(
-    "processor",
-    &i32::llvm_ty(jit.context()),
-    &[&minipage_ptr_ty],
-    Some(bld))
-}
+    let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
+    let codegen = try!(exprc.compile(expr));
+    builder.create_ret(&codegen);
+    // dump code
+    jit.dump();
+    try!(MapCompiler::verify(jit));
+    Ok(MapCompiler::ret_func(jit, &func))
+  }
 
-fn ret_map_func(jit: &JitCompiler, func: &Function) -> Result<Rc<MapFunc>> {
-  match jit.verify() {
-    Ok(_) => {
-      let func_ptr = unsafe { jit.get_func_ptr(func).unwrap() };
-      let func = unsafe {::std::mem::transmute(func_ptr)};
-      Ok(Rc::new(func))
+  fn create_fn_prototype(jit: &JitCompiler, bld: &Builder) -> Function {
+    let minipage_ty = jit.get_ty("struct.MiniPage").unwrap();
+    let minipage_ptr_ty = jit.get_pointer_ty(&minipage_ty);
+    jit.create_func_prototype(
+      "processor",
+      &i32::llvm_ty(jit.context()),
+      &[&minipage_ptr_ty],
+      Some(bld))
+  }
+
+  fn verify(jit: &JitCompiler) -> Result<()> {
+    match jit.verify() {
+      Ok(_) => Ok(()),
+      Err(msg) => {
+        error!("{}", msg);
+        Err(Error::CorruptedFunction(msg.to_owned()))
+      }
     }
-    Err(msg) => {
-      error!("{}", msg);
-      Err(Error::CorruptedFunction(msg.to_owned()))
-    }
+  }
+
+ fn ret_func(jit: &JitCompiler, func: &Function) -> Rc<MapFunc> {
+    let func_ptr = unsafe { jit.get_func_ptr(func).unwrap() };
+    let func = unsafe {::std::mem::transmute(func_ptr)};
+    Rc::new(func)
   }
 }
 
@@ -141,9 +148,6 @@ impl<'a> ExprCompiler<'a> {
          fn_registry: &FuncRegistry,
 		     session: &Session,
 		     schema : &'a NamedSchema, builder: &'a Builder) -> ExprCompiler<'a> {
-    //let builder = jit.new_builder();
-    //let func = ExprCompiler::generate_fn_prototype(jit, &builder);
-
 		ExprCompiler {
       jit   : jit,
 			types : &schema.types,
@@ -154,7 +158,7 @@ impl<'a> ExprCompiler<'a> {
 		}
 	}
 
-  pub fn compile2(&mut self, expr: &Expr) -> Result<Value>
+  pub fn compile(&mut self, expr: &Expr) -> Result<Value>
   {
     self.accept(expr);
     match self.stack.pop() {
@@ -428,7 +432,7 @@ mod tests {
 		// 															 &session,
 		// 															 &schema,
 		// 															 &expr).ok().unwrap();
-    let map = compile_map(&jit,
+    let map = MapCompiler::compile(&jit,
                           plugin_mgr.fn_registry(),
                           &session,
                           &schema,
