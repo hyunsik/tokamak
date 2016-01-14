@@ -12,67 +12,67 @@ use std::rc::Rc;
 use err::{Error, Result, Void, void_ok};
 use func::Function;
 use types::{Ty, TypeFactory};
-use input::InputSource;
+//use input::InputSource;
 
 pub trait Plugin
 {
   fn name(&self) -> &str;
-  
+
   fn load(&self, &mut PluginManager) -> Void;
 }
 
 #[derive(Clone)]
-pub struct PluginManager<'a> 
+pub struct PluginManager<'a>
 {
   pkgs         : HashMap<String, Rc<Box<Plugin>>>,
   type_registry: TypeRegistry,
   func_registry: FuncRegistry,
-  src_reg      : InputSourceRegistry,
-  marker       : PhantomData<&'a()>  
+//  src_reg      : InputSourceRegistry,
+  marker       : PhantomData<&'a()>
 }
 
-impl<'a> PluginManager<'a> 
+impl<'a> PluginManager<'a>
 {
-  pub fn new() -> PluginManager<'a> 
+  pub fn new() -> PluginManager<'a>
   {
     PluginManager {
       pkgs: HashMap::new(),
       type_registry: TypeRegistry::new(),
       func_registry: FuncRegistry::new(),
-      src_reg : InputSourceRegistry::new(),
+      //src_reg : InputSourceRegistry::new(),
       marker  : PhantomData
     }
   }
-  
+
   #[inline]
   pub fn register_ty(&mut self, ty: (&str, TypeFactory)) -> Void
   {
   	self.type_registry.add(ty)
   }
-  
+
   #[inline]
   pub fn register_func(&mut self, func: (&str, Function)) -> Void
   {
   	self.func_registry.add(func)
-  } 
-  
+  }
+
   #[inline]
-  pub fn ty_registry(&self) -> &TypeRegistry 
+  pub fn ty_registry(&self) -> &TypeRegistry
   {
     &self.type_registry
   }
-  
+
   #[inline]
-  pub fn fn_registry(&self) -> &FuncRegistry 
+  pub fn fn_registry(&self) -> &FuncRegistry
   {
     &self.func_registry
   }
-  
+
   #[inline]
   pub fn get_type(&self, type_sign: &str) -> Result<Ty> {
    	self.type_registry.get(type_sign)
   }
-  
+
   #[inline]
   pub fn find_func(&self, name: &str, types: &Vec<Ty>) -> Option<Function>
   {
@@ -87,27 +87,27 @@ pub struct FuncRegistry
   funcs: BTreeMap<String, Function>
 }
 
-impl FuncRegistry 
+impl FuncRegistry
 {
-  pub fn new() -> FuncRegistry 
+  pub fn new() -> FuncRegistry
   {
     FuncRegistry {
       funcs: BTreeMap::new()
-    }    
+    }
   }
-  
+
   #[inline]
-  fn add(&mut self, func: (&str, Function)) -> Void 
+  fn add(&mut self, func: (&str, Function)) -> Void
 	{
 		match self.funcs.entry(func.0.to_string()) {
-      Vacant(e)   => { 
+      Vacant(e)   => {
         e.insert(func.1);
-        void_ok 
+        void_ok
       },
       Occupied(_) => { return Err(Error::DuplicatedFuncSign) }
-    }   
+    }
 	}
-	
+
 	#[inline]
 	fn find(&self, fn_sign: &str) -> Option<&Function>
 	{
@@ -122,27 +122,27 @@ pub struct TypeRegistry
   types: BTreeMap<String, TypeFactory>
 }
 
-impl TypeRegistry 
+impl TypeRegistry
 {
-  pub fn new() -> TypeRegistry 
+  pub fn new() -> TypeRegistry
   {
     TypeRegistry {
       types: BTreeMap::new()
     }
   }
-  
+
   #[inline]
-  pub fn add(&mut self, ty: (&str, TypeFactory)) -> Void 
+  pub fn add(&mut self, ty: (&str, TypeFactory)) -> Void
  	{
 		match self.types.entry(ty.0.to_string()) {
-      Vacant(e)   => { 
+      Vacant(e)   => {
         e.insert(ty.1);
-        void_ok 
+        void_ok
       },
       Occupied(_) => { return Err(Error::DuplicatedTypeId) }
-    }   
+    }
 	}
-  
+
   #[inline]
   pub fn get(&self, type_sign: &str) -> Result<Ty> {
     match self.types.get(type_sign) {
@@ -150,79 +150,80 @@ impl TypeRegistry
       None          => Err(Error::UndefinedDataType(type_sign.to_string()))
     }
   }
-  
+
   #[inline]
   pub fn all(&self) -> Vec<&str> {
     self.types.keys().map(|v| &**v).collect::<Vec<&str>>()
   }
 }
 
-
+/*
 pub type InputSourceFactory = Rc<Fn(Vec<&Ty>) -> Box<InputSource>>;
 
 #[derive(Clone)]
-pub struct InputSourceRegistry 
+pub struct InputSourceRegistry
 {
   registry: HashMap<String, InputSourceFactory>
 }
 
-impl InputSourceRegistry 
+impl InputSourceRegistry
 {
   pub fn new() -> InputSourceRegistry
   {
     InputSourceRegistry {
-      registry: HashMap::new()      
+      registry: HashMap::new()
     }
   }
 }
+*/
 
 pub mod util {
 	use err::{Void, Result};
 	use func::{Function, FnKind, InvokeMethod, NoArgFn};
 	use types::Ty;
 	use super::PluginManager;
-	
-	/// Register a scalar function taking no argument  
+
+	/// Register a scalar function taking no argument
 	#[inline]
 	pub fn register_scalar_fn(
 	  plugin_mgr   : &mut PluginManager,
-	  name         : &str, 
+	  name         : &str,
     raw_ret_type : &str,
-	  raw_arg_types: Vec<&str>,	  
-	  method       : InvokeMethod) -> Void 
+	  raw_arg_types: Vec<&str>,
+	  method       : InvokeMethod) -> Void
 	{
 	  let arg_types = try!(raw_arg_types
 	                    .iter()
 	                    .map(|t| plugin_mgr.get_type(t))
 	                    .collect::<Result<Vec<Ty>>>());
-	   
+
 	  let ret_type = try!(plugin_mgr.get_type(raw_ret_type));
 	  let fn_body  = Function::new(ret_type, arg_types, FnKind::Scalar, method);
 	  let fn_tuple = (name, fn_body);
-	  
+
 	  plugin_mgr.register_func(fn_tuple)
 	}
-	
+
 	#[macro_export]
 	macro_rules! register_noarg_fn {
-	  ( $mgr:expr, $name:expr, $ret_type:expr, $fn_impl:expr ) => { 	
-     try!(register_scalar_fn($mgr, $name, $ret_type, vec![], 
+	  ( $mgr:expr, $name:expr, $ret_type:expr, $fn_impl:expr ) => {
+     try!(register_scalar_fn($mgr, $name, $ret_type, vec![],
      		::common::func::InvokeMethod::NoArgOp(Rc::new($fn_impl))))
     };
   }
-	
+
 	#[macro_export]
 	macro_rules! register_unary_fn {
-	  ( $mgr:expr, $name:expr, $ret_type:expr, $arg_types:expr, $fn_impl:expr ) => { 	
-     try!(register_scalar_fn($mgr, $name, $ret_type, $arg_types, 
+	  ( $mgr:expr, $name:expr, $ret_type:expr, $arg_types:expr, $fn_impl:expr ) => {
+     try!(register_scalar_fn($mgr, $name, $ret_type, $arg_types,
      		::common::func::InvokeMethod::UnaryOp(Rc::new($fn_impl))))
     };
   }
-	
+
 	#[macro_export]
 	macro_rules! register_bin_fn {
-	  ( $mgr:expr, $name:expr, $ret_type:expr, $arg_types:expr, $fn_impl:expr ) => { 	
-     try!(register_scalar_fn($mgr, $name, $ret_type, $arg_types, 
+	  ( $mgr:expr, $name:expr, $ret_type:expr, $arg_types:expr, $fn_impl:expr ) => {
+     try!(register_scalar_fn($mgr, $name, $ret_type, $arg_types,
      		::common::func::InvokeMethod::BinOp(Rc::new($fn_impl))))
     };
   }

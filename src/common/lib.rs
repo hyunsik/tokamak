@@ -12,10 +12,10 @@ extern crate uuid;
 
 extern crate util;
 
-pub mod dataset;
+//pub mod dataset;
 pub mod err;
 pub mod func;
-pub mod input;
+//pub mod input;
 pub mod mm;
 pub mod rows;
 pub mod rows_ir;
@@ -25,10 +25,10 @@ pub mod str;
 pub mod types;
 pub mod platform;
 
-mod memtable;
-mod random_table;
-
+//mod memtable;
+//mod random_table;
+/*
 pub mod storage {
 	pub use memtable::*;
 	pub use random_table::*;
-}
+}*/
