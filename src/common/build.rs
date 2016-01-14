@@ -1,8 +1,7 @@
 use std::process::Command;
-use std::env::current_dir;
 
 fn main() {
-	
+    
   assert!(
     Command::new("mkdir")
       .args(&["-p", "target/ir"])
