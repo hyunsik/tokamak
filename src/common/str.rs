@@ -29,7 +29,6 @@ use std::str;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
-#[allow(raw_pointer_derive)]
 pub struct StrSlice {
   ptr: *const u8,
   len: i32,

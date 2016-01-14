@@ -1,20 +1,20 @@
-/// This row implementation is basically based on Pax, 
+/// This row implementation is basically based on Pax,
 /// but it has a variation in terms of variable-length blocks.
 ///
 /// ## Deign Consideration
 ///
 /// The API is being designed with the following design consideration:
-/// 
+///
 /// * Reuseable allocated memory
 /// * Vectorized processing
-/// * Various encodings (light/heavy weight compression and no 
+/// * Various encodings (light/heavy weight compression and no
 ///   deserialization from storage pages)
 /// * Late materialization (Refer to [3])
 ///
 /// ## References
-/// * [1] Daniel Abadi et al., The Design and Implementation of Modern Column-Oriented Database 
+/// * [1] Daniel Abadi et al., The Design and Implementation of Modern Column-Oriented Database
 ///       Systems
-/// * [2] 
+/// * [2]
 /// * [3] Daniel J. Abadi ea al., Materialization Strategies in a Column-Oriented DBMS, ICDE 2007
 
 use alloc::heap;
@@ -27,9 +27,13 @@ use types::Ty;
 
 /// Each executor and operator process a batch of rows at a time for better throughput.
 /// The experiment of MonetDB presented that 1024 is the best number of a row batch.
-/// It's reason why I currently use 1024 as the number of row batch. 
-pub static ROWBATCH_SIZE: usize = 1024; 
+/// It's reason why I currently use 1024 as the number of row batch.
+pub static ROWBATCH_SIZE: usize = 1024;
 
+pub struct MiniPage;
+pub struct RawMiniPageWriter;
+
+/*
 /// Type for column index
 pub type PageId = usize;
 /// Type for row position
@@ -38,128 +42,128 @@ pub type PosId = usize;
 pub trait Page
 {
 	fn minipage_num(&self) -> usize;
-	
+
 	fn set_value_count(&mut self, value_count: usize);
-	
+
 	fn value_count(&self) -> usize;
-	
+
 	fn minipage(&self, id: PageId) -> &MiniPage;
-	
+
 	fn bytesize(&self) -> u32;
-	
+
 	fn to_owned(&self) -> OwnedPage;
-	
+
 	fn project<'a>(&'a self, ids: &[PageId]) -> BorrowedPage<'a>
   {
   	let projected = ids.iter()
   		.map(|i| self.minipage(*i))
   		.collect::<Vec<&MiniPage>>();
-  		
-    println!("projected: {}, vc: {}", projected.len(), self.value_count());  			
-  		
-  	BorrowedPage::new(projected, self.value_count())	
+
+    println!("projected: {}, vc: {}", projected.len(), self.value_count());
+
+  	BorrowedPage::new(projected, self.value_count())
   }
 }
 
-pub struct OwnedPage 
+pub struct OwnedPage
 {
   mini_pages: Vec<Box<MiniPage>>,
-  
+
   value_count: usize
 }
 
-impl Page for OwnedPage 
+impl Page for OwnedPage
 {
   #[inline]
   fn minipage_num(&self) -> usize { self.mini_pages.len() }
-  
+
   fn set_value_count(&mut self, value_count: usize) { self.value_count = value_count }
-  
+
   #[inline]
   fn value_count(&self) -> usize { self.value_count }
-  
+
   #[inline]
-  fn minipage(&self, id: PageId) -> &MiniPage 
+  fn minipage(&self, id: PageId) -> &MiniPage
   {
     debug_assert!(id < self.minipage_num());
-     
-    &*self.mini_pages[id] 
+
+    &*self.mini_pages[id]
   }
-  
+
   /// Total byte size of this page
   #[inline]
-  fn bytesize(&self) -> u32 
+  fn bytesize(&self) -> u32
   {
     self.mini_pages.iter()
       .map(|m| m.bytesize())
       .fold(0, |acc, size| acc + size)
   }
-  
+
   fn to_owned(&self) -> OwnedPage
   {
   	let copied_mpages = self.mini_pages
   		.iter()
   		.map(|mp| mp.copy())
   		.collect::<Vec<Box<MiniPage>>>();
-  	
+
   	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
   }
 }
 
-pub trait MiniPage 
+pub trait MiniPage
 {
   fn bytesize(&self) -> u32;
-  
+
   fn read_i8(&self, pos: PosId) -> i8;
-  
+
   fn read_i16(&self, pos: PosId) -> i16;
-  
+
   fn read_i32(&self, pos: PosId) -> i32;
-  
+
   fn read_i64(&self, pos: PosId) -> i64;
-  
+
   fn read_f32(&self, pos: PosId) -> f32;
-  
+
   fn read_f64(&self, pos: PosId) -> f64;
-  
+
   fn as_i8_slice(&self) -> &[i8];
-  
+
   fn as_i16_slice(&self) -> &[i16];
-  
+
   fn as_i32_slice(&self) -> &[i32];
-  
+
   fn as_i64_slice(&self) -> &[i64];
-  
+
   fn as_f32_slice(&self) -> &[f32];
-  
+
   fn as_f64_slice(&self) -> &[f64];
-  
+
   fn writer(&mut self) -> &mut MiniPageWriter;
-  
+
   fn copy(&self) -> Box<MiniPage>;
 }
 
 /// Writer for Vector. The writer internally must have a cursor to write a value.
-/// For each write, the cursor must move forward the cursor.   
-/// You must call finalize() before reading any value from the Vector.  
-pub trait MiniPageWriter 
+/// For each write, the cursor must move forward the cursor.
+/// You must call finalize() before reading any value from the Vector.
+pub trait MiniPageWriter
 {
   fn write_i8(&mut self, v: i8);
-  
+
   fn write_i16(&mut self, v: i16);
-  
+
   fn write_i32(&mut self, v: i32);
-  
+
   fn write_i64(&mut self, v: i64);
-  
+
   fn write_f32(&mut self, v: f32);
-  
+
   fn write_f64(&mut self, v: f64);
-  
+
   fn write_bytes(&mut self, v: &[u8]);
-  
+
   fn reset(&mut self);
-  
+
   fn finalize(&mut self);
 }
 
@@ -183,26 +187,26 @@ impl<'a> BorrowedPage<'a>
 
 impl<'a> Page for BorrowedPage<'a>
 {
-	fn minipage_num(&self) -> usize 
+	fn minipage_num(&self) -> usize
 	{
-		self.borrowed.len()		
+		self.borrowed.len()
 	}
-	
+
 	fn set_value_count(&mut self, value_count: usize)
 	{
 		self.value_count = value_count;
 	}
-	
+
 	fn value_count(&self) -> usize
 	{
 		self.value_count
 	}
-	
+
 	fn minipage(&self, id: PageId) -> &MiniPage
 	{
 		self.borrowed[id]
 	}
-	
+
 	fn bytesize(&self) -> u32
 	{
 		self.borrowed
@@ -210,79 +214,79 @@ impl<'a> Page for BorrowedPage<'a>
 			.map(|m| m.bytesize())
 			.fold(0, |acc, size| acc + size)
 	}
-	
+
 	fn to_owned(&self) -> OwnedPage
 	{
 		let copied_mpages = self.borrowed
   		.iter()
   		.map(|mp| mp.copy())
   		.collect::<Vec<Box<MiniPage>>>();
-  	
+
   	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
 	}
 }
 
-pub struct OwnedPageBuilder 
+pub struct OwnedPageBuilder
 {
   page: OwnedPage
 }
 
-impl OwnedPageBuilder 
+impl OwnedPageBuilder
 {
-  pub fn new(types: &Vec<Ty>) -> Self 
+  pub fn new(types: &Vec<Ty>) -> Self
   {
     let mini_pages = types
       .iter()
       .map(|ty| Box::new(FMiniPage::new(ty.size_of())) as Box<MiniPage>)
       .collect::<Vec<Box<MiniPage>>>();
-    
+
     OwnedPageBuilder {page: OwnedPage {mini_pages: mini_pages, value_count: 0}}
   }
-  
+
   #[inline]
-  pub fn writer(&mut self, id: PageId) -> &mut MiniPageWriter 
+  pub fn writer(&mut self, id: PageId) -> &mut MiniPageWriter
   {
     self.page.mini_pages[id].writer()
   }
-  
+
   #[inline]
   pub fn iter_mut<'a>(&'a mut self) -> Box<Iterator<Item=&'a mut MiniPageWriter> + 'a> {
     Box::new(self.page.mini_pages.iter_mut().map(|m| m.writer()))
   }
-  
+
   #[inline]
   pub fn reset(&mut self) {
     for v in self.page.mini_pages.iter_mut() {
       v.writer().reset();
     }
   }
-  
+
   #[inline]
-  pub fn build(&mut self, rownum: usize) -> &Page 
+  pub fn build(&mut self, rownum: usize) -> &Page
   {
-  	let mut value_count: usize = 0; 
+  	let mut value_count: usize = 0;
     for v in self.page.mini_pages.iter_mut() {
       v.writer().finalize()
     }
-    
+
     self.page.set_value_count(rownum);
     &self.page
   }
 }
 
 /// Fixed Length Mini Page
-pub struct FMiniPage<'a> 
+pub struct FMiniPage<'a>
 {
   ptr      : *mut u8,
   pub bytesize : u32,     // allocated memory size
   writer: FMiniPageWriter,
-  
-  _marker: marker::PhantomData<&'a ()>,  
+
+  _marker: marker::PhantomData<&'a ()>,
 }
 
-impl<'a> FMiniPage<'a> 
+impl<'a> FMiniPage<'a>
 {
-  pub fn new(fixed_len: usize) -> FMiniPage<'a> 
+  pub fn new(fixed_len: usize) -> FMiniPage<'a>
   {
     let required_size = get_aligned_size(fixed_len * ROWBATCH_SIZE);
     let ptr = unsafe { heap::allocate(required_size, 16) };
@@ -294,12 +298,12 @@ impl<'a> FMiniPage<'a>
       _marker: marker::PhantomData,
     }
   }
-  
+
   #[inline]
   pub fn as_ptr(&self) -> *const u8 {
     self.ptr
   }
-  
+
   #[inline]
   pub fn as_mut_ptr(&mut self) -> *mut u8 {
     self.ptr
@@ -348,31 +352,31 @@ impl<'a> MiniPage for FMiniPage<'a> {
   fn bytesize(&self) -> u32 {
     self.bytesize
   }
-  
+
   read_field_for_fminipage!(read_i8,  i8);
   read_field_for_fminipage!(read_i16, i16);
   read_field_for_fminipage!(read_i32, i32);
   read_field_for_fminipage!(read_i64, i64);
   read_field_for_fminipage!(read_f32, f32);
   read_field_for_fminipage!(read_f64, f64);
-  
+
   as_slice_for_fminipage!(as_i8_slice,  i8);
   as_slice_for_fminipage!(as_i16_slice, i16);
   as_slice_for_fminipage!(as_i32_slice, i32);
   as_slice_for_fminipage!(as_i64_slice, i64);
   as_slice_for_fminipage!(as_f32_slice, f32);
   as_slice_for_fminipage!(as_f64_slice, f64);
-  
-  fn writer(&mut self) -> &mut MiniPageWriter 
+
+  fn writer(&mut self) -> &mut MiniPageWriter
   {
     &mut self.writer
   }
-  
+
   fn copy(&self) -> Box<MiniPage> {
-  	
+
   	let mut ptr = unsafe { heap::allocate(self.bytesize as usize, 16) };
-    unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.bytesize as usize); } 
-  	
+    unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.bytesize as usize); }
+
   	Box::new(FMiniPage {
       ptr: ptr,
       bytesize: self.bytesize as u32,
@@ -385,8 +389,8 @@ impl<'a> MiniPage for FMiniPage<'a> {
 
 pub struct FMiniPageWriter {
   ptr: *mut u8,
-  len: usize, 
-  pos: PosId   
+  len: usize,
+  pos: PosId
 }
 
 #[inline]
@@ -408,36 +412,36 @@ macro_rules! write_value(
   );
 );
 
-impl MiniPageWriter for FMiniPageWriter 
+impl MiniPageWriter for FMiniPageWriter
 {
 	write_value!(write_i8, i8);
 	write_value!(write_i16, i16);
 	write_value!(write_i32, i32);
 	write_value!(write_i64, i64);
 	write_value!(write_f32, f32);
-	write_value!(write_f64, f64);  
-  
+	write_value!(write_f64, f64);
+
   #[inline]
   fn write_bytes(&mut self, v: &[u8]) {
   }
-  
+
   #[inline]
   fn reset(&mut self) {
     self.pos = 0;
   }
-  
+
   #[inline]
-  fn finalize(&mut self) {    
+  fn finalize(&mut self) {
   }
 }
 
 /// Borrowed Mini Page
 ///
-/// It does not allocate its own memory. 
+/// It does not allocate its own memory.
 /// Instead, just share the contents of other minipage.
-pub struct BorrowedMiniPage<'a> 
+pub struct BorrowedMiniPage<'a>
 {
-  mini_page: &'a MiniPage  
+  mini_page: &'a MiniPage
 }
 
 macro_rules! read_field_for_bminipage(
@@ -463,27 +467,28 @@ impl<'a> MiniPage for BorrowedMiniPage<'a> {
   fn bytesize(&self) -> u32 {
     self.mini_page.bytesize()
   }
-  
+
   read_field_for_bminipage!(read_i8, i8);
   read_field_for_bminipage!(read_i16, i16);
   read_field_for_bminipage!(read_i32, i32);
   read_field_for_bminipage!(read_i64, i64);
   read_field_for_bminipage!(read_f32, f32);
   read_field_for_bminipage!(read_f64, f64);
-  
+
   as_slice_for_bminipage!(as_i8_slice, i8);
   as_slice_for_bminipage!(as_i16_slice, i16);
   as_slice_for_bminipage!(as_i32_slice, i32);
   as_slice_for_bminipage!(as_i64_slice, i64);
   as_slice_for_bminipage!(as_f32_slice, f32);
   as_slice_for_bminipage!(as_f64_slice, f64);
-  
-  fn writer(&mut self) -> &mut MiniPageWriter 
+
+  fn writer(&mut self) -> &mut MiniPageWriter
   {
     unreachable!("BorrowedMiniPage::writer() are not intended to be used");
   }
-  
+
   fn copy(&self) -> Box<MiniPage> {
   	self.mini_page.copy()
   }
 }
+*/

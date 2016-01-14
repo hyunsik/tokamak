@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 use std::rc::Rc;
 
 use err::Result;
-use rows::{MiniPage, FMiniPage};
+use rows::MiniPage;
 
 pub type TypeFactory = Rc<Fn(&str) -> Result<Ty>>;
 
