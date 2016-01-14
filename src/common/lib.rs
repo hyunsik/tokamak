@@ -17,7 +17,6 @@ pub mod err;
 pub mod func;
 pub mod input;
 pub mod mm;
-pub mod operator;
 pub mod rows;
 pub mod rows_ir;
 pub mod plugin;
