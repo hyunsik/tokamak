@@ -1,5 +1,3 @@
-#![crate_type = "dylib"]
-
 #[repr(i8)]
 pub enum MiniPageType {
   RAW = 0,
