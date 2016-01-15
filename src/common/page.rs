@@ -53,6 +53,16 @@ impl MiniPage {
       size: required_size,
     }
   }
+
+  pub fn copy(&self) -> MiniPage {
+  	let mut ptr = unsafe { heap::allocate(self.size, ALIGNED_SIZE) };
+    unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.size); }
+
+  	MiniPage {
+      ptr: ptr,
+      size: self.size
+    }
+  }
 }
 
 pub struct RawMiniPageWriter<'a> {
@@ -121,7 +131,18 @@ impl Page {
     ms
   }
 
-  pub fn minipage(&self, page_id: usize) -> *const MiniPage {
+  pub fn project<'a>(&'a self, ids: &[usize]) -> Vec<&'a MiniPage> {
+  	ids.iter()
+  		.map(|i| self.minipage_ref(*i))
+  		.collect::<Vec<&MiniPage>>()
+  }
+
+  pub fn minipage<'a>(&'a self, page_id: usize) -> *const MiniPage {
+    let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+    &ms[page_id]
+  }
+
+  pub fn minipage_ref<'a>(&'a self, page_id: usize) -> &'a MiniPage {
     let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
     &ms[page_id]
   }
