@@ -109,6 +109,12 @@ impl Page {
     new_page
   }
 
+  fn minipages<'a>(&'a self) -> &'a [MiniPage] {
+    let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+
+    ms
+  }
+
   fn minipage(&self, page_id: usize) -> *const MiniPage {
     let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
     &ms[page_id]
@@ -163,8 +169,12 @@ mod tests {
     unsafe {
       assert_eq!(p.minipage(0), get_minipage(&p, 0));
       assert_eq!(p.minipage(1), get_minipage(&p, 1));
+
+      assert_eq!(&p.minipages()[0] as *const MiniPage, get_minipage(&p, 0));
+      assert_eq!(&p.minipages()[1] as *const MiniPage, get_minipage(&p, 1));
     }
 
+    assert_eq!(p.bytesize(), p.minipages().iter().map(|m| m.size).fold(0, |acc, s| acc + s));
     assert_eq!((4 + 8) * 1024, p.bytesize());
   }
 
