@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #include "page_ir_macro.h"
 
@@ -29,6 +28,10 @@ struct Page {
   // Does this page own the minipages?
   bool      owned;
 };
+
+extern "C" MiniPage* get_minipage(Page* page, size_t idx) {
+  return &page->mpages[idx];
+}
 
 WRITE_RAW_VAL(i8, int8_t);
 WRITE_RAW_VAL(i16, int16_t);

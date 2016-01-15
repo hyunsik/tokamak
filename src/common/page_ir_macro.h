@@ -8,7 +8,7 @@
 
 #define READ_RAW_VAL(suffix, type) \
   extern "C" type read_raw_##suffix(MiniPage* page, size_t idx) { \
-    reinterpret_cast<type *>(page->ptr)[idx]; \
+    return reinterpret_cast<type *>(page->ptr)[idx]; \
   } \
 
 #endif // PAGE_IR_MACRO_H_

@@ -1,3 +1,5 @@
+extern crate gcc;
+
 use std::process::Command;
 
 fn main() {
@@ -44,4 +46,8 @@ fn main() {
     	.success()
  	);
 
+   gcc::Config::new()
+        .cpp(true)
+        .file("page_ir.cc")
+        .compile("libpage.a");
 }

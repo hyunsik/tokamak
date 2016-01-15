@@ -29,6 +29,7 @@ use types::Ty;
 /// The experiment of MonetDB presented that 1024 is the best number of a row batch.
 /// It's reason why I currently use 1024 as the number of row batch.
 pub static ROWBATCH_SIZE: usize = 1024;
+pub static ALIGNED_SIZE: usize = 16;
 
 #[repr(C)]
 pub enum MiniPageType {
@@ -45,7 +46,7 @@ pub struct MiniPage {
 impl MiniPage {
   pub fn new(elem_size: usize) -> MiniPage {
     let required_size = get_aligned_size(elem_size * ROWBATCH_SIZE);
-    let ptr = unsafe { heap::allocate(required_size, 16) };
+    let ptr = unsafe { heap::allocate(required_size, ALIGNED_SIZE) };
 
     MiniPage {
       ptr : ptr,
@@ -71,19 +72,41 @@ pub struct Page {
   pub owned      : bool
 }
 
+impl Drop for Page {
+  fn drop(&mut self) {
+
+    let vec:Vec<MiniPage> = unsafe {
+      Vec::from_raw_parts(self.mpages as *mut MiniPage, self.mpage_num, self.mpage_num)
+    };
+
+    // only if owned page will deallocate minipages
+    if self.owned {
+      for m in vec.iter() {
+        unsafe { heap::deallocate(m.ptr as *mut u8, m.size, ALIGNED_SIZE) };
+      }
+    }
+  }
+}
+
+
 impl Page {
-  pub fn new(types: &[Ty]) -> Page {
-    let mini_pages = types
+  pub fn new(types: &[&Ty]) -> Page {
+    let mut minipages = types
       .iter()
       .map(|ty| MiniPage::new(ty.size_of()))
       .collect::<Vec<MiniPage>>();
+    minipages.shrink_to_fit();
 
-    Page {
-      mpages   : ::std::ptr::null(),
+    let new_page = Page {
+      mpages   : minipages.as_ptr(),
       mpage_num: types.len(),
       value_cnt: 0usize,
       owned    : true
-    }
+    };
+
+    ::std::mem::forget(minipages);
+
+    new_page
   }
 
   fn minipage(&self, page_id: usize) -> *const MiniPage {
@@ -99,14 +122,17 @@ impl Page {
 
   fn bytesize(&self) -> usize {
     let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
-    ms.iter().map(|m| m.size).sum()
+    ms.iter().map(|m| m.size).fold(0, |acc, size| acc + size)
   }
 }
 
 pub mod c_api {
-  use super::MiniPage;
+  use super::{MiniPage, Page};
+  use libc::c_int;
 
   extern "C" {
+    pub fn get_minipage(p: *const Page, idx: usize) -> *const MiniPage;
+
     pub fn write_raw_i8 (p: *const MiniPage, idx: usize, val: i8);
     pub fn write_raw_i16(p: *const MiniPage, idx: usize, val: i16);
     pub fn write_raw_i32(p: *const MiniPage, idx: usize, val: i32);
@@ -125,10 +151,32 @@ pub mod c_api {
 
 #[cfg(test)]
 mod tests {
+  use types::{I32, F64};
+
   use page::*;
   use page::c_api::*;
 
-  fn test_rows() {
+  #[test]
+  fn test_page() {
+    let p = Page::new(&[I32, F64]);
+    assert_eq!(2, p.minipage_num());
+
+    unsafe {
+      assert_eq!(p.minipage(0), get_minipage(&p, 0));
+      assert_eq!(p.minipage(1), get_minipage(&p, 1));
+    }
+
+    assert_eq!((4 + 8) * 1024, p.bytesize());
+  }
+
+  #[test]
+  fn test_minipage() {
+    let m = MiniPage::new(4);
+    assert_eq!(4096, m.size);
+  }
+
+  #[test]
+  fn test_rw() {
     let m = MiniPage::new(4);
     unsafe { write_raw_i32(&m, 0, 32) };
     assert_eq!(32, unsafe { read_raw_i32(&m, 0) });
