@@ -58,48 +58,54 @@ impl InputSource for RandomTable
     let remain = self.row_num - self.cur_pos;
     let min = ::std::cmp::min(remain, ROWBATCH_SIZE);
 
-    for (gen_fn, minipage) in Zip::new((self.write_fns.iter(), self.builder.iter_mut())) {
-      (gen_fn)(writer, min)
+
+    for (gen_fn, minipage) in Zip::new((self.write_fns.iter(), self.page.minipages_mut())) {
+      (gen_fn)(minipage, min)
     }
 
     // move forward the position
     self.cur_pos += min;
 
-    Ok(self.builder.build(min))
+    self.page.set_value_count(min);
+    Ok(&self.page)
   }
 
   fn close(&mut self) -> Void { void_ok }
 }
 
-#[allow(unused_variables)]
-fn write_rand_for_i32(mp: &MiniPage, rownum: usize)
+fn write_rand_for_i32(mp: &mut MiniPage, rownum: usize)
 {
-  for pos in 0 .. rownum {
-    c_api::write_raw_i32(mp, pos, rand::random::<i32>());
+  unsafe {
+    for pos in 0 .. rownum {
+      c_api::write_raw_i32(mp, pos, rand::random::<i32>());
+    }
   }
 }
 
-#[allow(unused_variables)]
 fn write_rand_for_i64(mp: &mut MiniPage, rownum: usize)
 {
-  for pos in 0 .. rownum {
-    c_api::write_raw_i64(mp, pos, rand::random::<i64>());
+  unsafe {
+    for pos in 0 .. rownum {
+      c_api::write_raw_i64(mp, pos, rand::random::<i64>());
+    }
   }
 }
 
-#[allow(unused_variables)]
 fn write_rand_for_f32(mp: &mut MiniPage, rownum: usize)
 {
-  for pos in 0 .. rownum {
-    c_api::write_raw_f32(mp, pos, rand::random::<f32>());
+  unsafe {
+    for pos in 0 .. rownum {
+      c_api::write_raw_f32(mp, pos, rand::random::<f32>());
+    }
   }
 }
 
-#[allow(unused_variables)]
 fn write_rand_for_f64(mp: &mut MiniPage, rownum: usize)
 {
-  for pos in 0 .. rownum {
-    c_api::write_raw_f64(mp, pos, rand::random::<f64>());
+  unsafe {
+    for pos in 0 .. rownum {
+      c_api::write_raw_f64(mp, pos, rand::random::<f64>());
+    }
   }
 }
 

@@ -109,24 +109,30 @@ impl Page {
     new_page
   }
 
-  fn minipages<'a>(&'a self) -> &'a [MiniPage] {
+  pub fn minipages<'a>(&'a self) -> &'a [MiniPage] {
     let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
 
     ms
   }
 
-  fn minipage(&self, page_id: usize) -> *const MiniPage {
+  pub fn minipages_mut<'a>(&'a self) -> &'a mut [MiniPage] {
+    let ms: &mut [MiniPage] = unsafe { ::std::slice::from_raw_parts_mut(self.mpages as *mut MiniPage, self.mpage_num) };
+
+    ms
+  }
+
+  pub fn minipage(&self, page_id: usize) -> *const MiniPage {
     let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
     &ms[page_id]
   }
 
-  fn minipage_num(&self) -> usize { self.mpage_num }
+  pub fn minipage_num(&self) -> usize { self.mpage_num }
 
-  fn set_value_count(&mut self, cnt: usize) { self.value_cnt = cnt }
+  pub fn set_value_count(&mut self, cnt: usize) { self.value_cnt = cnt }
 
-  fn value_count(&self) -> usize { self.value_cnt}
+  pub fn value_count(&self) -> usize { self.value_cnt}
 
-  fn bytesize(&self) -> usize {
+  pub fn bytesize(&self) -> usize {
     let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
     ms.iter().map(|m| m.size).fold(0, |acc, size| acc + size)
   }
