@@ -128,7 +128,6 @@ impl Page {
 
 pub mod c_api {
   use super::{MiniPage, Page};
-  use libc::c_int;
 
   extern "C" {
     pub fn get_minipage(p: *const Page, idx: usize) -> *const MiniPage;

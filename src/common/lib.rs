@@ -15,7 +15,7 @@ extern crate util;
 //pub mod dataset;
 pub mod err;
 pub mod func;
-//pub mod input;
+pub mod input;
 pub mod mm;
 pub mod page;
 pub mod plugin;
