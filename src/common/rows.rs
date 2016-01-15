@@ -30,8 +30,110 @@ use types::Ty;
 /// It's reason why I currently use 1024 as the number of row batch.
 pub static ROWBATCH_SIZE: usize = 1024;
 
-pub struct MiniPage;
-pub struct RawMiniPageWriter;
+#[repr(C)]
+pub enum MiniPageType {
+  RAW = 0,
+  RLE = 1
+}
+
+#[repr(C)]
+pub struct MiniPage {
+  pub ptr : *const u8,
+  pub size: usize
+}
+
+impl MiniPage {
+  pub fn new(elem_size: usize) -> MiniPage {
+    let required_size = get_aligned_size(elem_size * ROWBATCH_SIZE);
+    let ptr = unsafe { heap::allocate(required_size, 16) };
+
+    MiniPage {
+      ptr : ptr,
+      size: required_size,
+    }
+  }
+}
+
+pub struct RawMiniPageWriter<'a> {
+  mpage: &'a MiniPage,
+  cur_idx: usize
+}
+
+#[repr(C)]
+pub struct Page {
+  pub mpages     : *const MiniPage,
+  /// the number of minipages
+  pub mpage_num  : usize,
+  // the number of values stored in each minipage.
+  // All minipages share the same val_cnt.
+  pub value_cnt  : usize,
+  // Does this page own the minipages?
+  pub owned      : bool
+}
+
+impl Page {
+  pub fn new(types: &[Ty]) -> Page {
+    let mini_pages = types
+      .iter()
+      .map(|ty| MiniPage::new(ty.size_of()))
+      .collect::<Vec<MiniPage>>();
+
+    Page {
+      mpages   : ::std::ptr::null(),
+      mpage_num: types.len(),
+      value_cnt: 0usize,
+      owned    : true
+    }
+  }
+
+  fn minipage(&self, page_id: usize) -> *const MiniPage {
+    let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+    &ms[page_id]
+  }
+
+  fn minipage_num(&self) -> usize { self.mpage_num }
+
+  fn set_value_count(&mut self, cnt: usize) { self.value_cnt = cnt }
+
+  fn value_count(&self) -> usize { self.value_cnt}
+
+  fn bytesize(&self) -> usize {
+    let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+    ms.iter().map(|m| m.size).sum()
+  }
+}
+
+pub mod c_api {
+  use super::MiniPage;
+
+  extern "C" {
+    pub fn write_raw_i8 (p: *const MiniPage, idx: usize, val: i8);
+    pub fn write_raw_i16(p: *const MiniPage, idx: usize, val: i16);
+    pub fn write_raw_i32(p: *const MiniPage, idx: usize, val: i32);
+    pub fn write_raw_i64(p: *const MiniPage, idx: usize, val: i64);
+    pub fn write_raw_f32(p: *const MiniPage, idx: usize, val: f32);
+    pub fn write_raw_f64(p: *const MiniPage, idx: usize, val: f64);
+
+    pub fn read_raw_i8 (p: *const MiniPage, idx: usize) -> i8;
+    pub fn read_raw_i16(p: *const MiniPage, idx: usize) -> i16;
+    pub fn read_raw_i32(p: *const MiniPage, idx: usize) -> i32;
+    pub fn read_raw_i64(p: *const MiniPage, idx: usize) -> i64;
+    pub fn read_raw_f32(p: *const MiniPage, idx: usize) -> f32;
+    pub fn read_raw_f64(p: *const MiniPage, idx: usize) -> f64;
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use rows::c_api::*;
+
+  fn test_rows() {
+    let m = MiniPage::new(4);
+    unsafe { write_raw_i32(&m, 0, 32) };
+    assert_eq!(32, unsafe { read_raw_i32(&m, 0) });
+  }
+}
 
 /*
 /// Type for column index

@@ -3,6 +3,7 @@
 #![feature(heap_api)]
 #![feature(libc)]
 #![feature(raw)]
+#![feature(iter_arith)]
 extern crate alloc;
 extern crate itertools;
 extern crate libc;

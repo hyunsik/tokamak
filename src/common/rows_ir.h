@@ -1,6 +1,11 @@
+#ifndef ROWS_IR_H_
+#define ROWS_IR_H_
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
+
+#include "rows_ir_macro.h"
 
 enum MiniPageType {
   RAW = 0,
@@ -25,28 +30,20 @@ struct Page {
   bool      owned;
 };
 
-extern "C" void write_i8_raw(MiniPage* page, uint32_t idx, int8_t val) {
-  reinterpret_cast<int8_t*>(page->ptr)[idx] = val;
-}
+WRITE_RAW_VAL(i8, int8_t);
+WRITE_RAW_VAL(i16, int16_t);
+WRITE_RAW_VAL(i32, int32_t);
+WRITE_RAW_VAL(i64, int64_t);
+WRITE_RAW_VAL(f32, float);
+WRITE_RAW_VAL(f64, double);
 
-extern "C" void write_i16_raw(MiniPage* page, uint32_t idx, int16_t val) {
-  reinterpret_cast<int16_t*>(page->ptr)[idx] = val;
-}
-
-extern "C" void write_i32_raw(MiniPage* page, uint32_t idx, int32_t val) {
-  reinterpret_cast<int32_t*>(page->ptr)[idx] = val;
-}
-
-extern "C" void write_i64_raw(MiniPage* page, uint32_t idx, int64_t val) {
-  reinterpret_cast<int64_t*>(page->ptr)[idx] = val;
-}
-
-extern "C" void write_f32_raw(MiniPage* page, uint32_t idx, float val) {
-  reinterpret_cast<float*>(page->ptr)[idx] = val;
-}
-
-extern "C" void write_f64_raw(MiniPage* page, uint32_t idx, double val) {
-  reinterpret_cast<double*>(page->ptr)[idx] = val;
-}
+READ_RAW_VAL(i8, int8_t);
+READ_RAW_VAL(i16, int16_t);
+READ_RAW_VAL(i32, int32_t);
+READ_RAW_VAL(i64, int64_t);
+READ_RAW_VAL(f32, float);
+READ_RAW_VAL(f64, double);
 
 void dummy(Page* v1, MiniPage* v2) {}
+
+#endif
