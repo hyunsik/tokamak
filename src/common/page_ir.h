@@ -1,11 +1,11 @@
-#ifndef ROWS_IR_H_
-#define ROWS_IR_H_
+#ifndef PAGE_IR_H_
+#define PAGE_IR_H_
 
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
 
-#include "rows_ir_macro.h"
+#include "page_ir_macro.h"
 
 enum MiniPageType {
   RAW = 0,
@@ -46,4 +46,4 @@ READ_RAW_VAL(f64, double);
 
 void dummy(Page* v1, MiniPage* v2) {}
 
-#endif
+#endif // PAGE_IR_H_

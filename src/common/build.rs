@@ -1,7 +1,7 @@
 use std::process::Command;
 
 fn main() {
-    
+
   assert!(
     Command::new("mkdir")
       .args(&["-p", "target/ir"])
@@ -9,7 +9,9 @@ fn main() {
       .unwrap()
       .success()
   );
-   
+
+  // Emitting LLVM IR via Rustc
+  //
   // assert!(
   // 	Command::new("rustc")
   // 		.args(&["rows_ir.rs", "--crate-type", "dylib", "--emit", "llvm-ir", "-O", "-o", "target/ir/rows_ir.ll"])
@@ -17,26 +19,26 @@ fn main() {
   //   	.unwrap()
   //   	.success()
  	// );
-  
+
   assert!(
   	Command::new("clang++")
-  		.args(&["rows_ir.cc", "-std=c++11", "-S", "-emit-llvm", "-O2", "-o", "target/ir/rows_ir.ll"])
+  		.args(&["page_ir.cc", "-std=c++11", "-S", "-emit-llvm", "-O2", "-o", "target/ir/page_ir.ll"])
     	.status()
     	.unwrap()
     	.success()
  	);
-  
+
   assert!(
   	Command::new("llvm-as")
-  		.args(&["target/ir/rows_ir.ll", "-o=target/ir/rows_ir.bc"])
+  		.args(&["target/ir/page_ir.ll", "-o=target/ir/page_ir.bc"])
     	.status()
     	.unwrap()
     	.success()
- 	); 
-   
+ 	);
+
   assert!(
   	Command::new("llvm-link")
-  		.args(&["target/ir/rows_ir.bc", "-o=target/ir/common.bc"])
+  		.args(&["target/ir/page_ir.bc", "-o=target/ir/common.bc"])
     	.status()
     	.unwrap()
     	.success()

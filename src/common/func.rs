@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use err::{Result, Void, void_ok};
 use plugin::{PluginManager, TypeRegistry};
-use rows::{MiniPage,RawMiniPageWriter};
+use page::{MiniPage,RawMiniPageWriter};
 use types::Ty;
 
 pub type NoArgFn   = Rc<Fn(&mut RawMiniPageWriter, usize) -> Void>;

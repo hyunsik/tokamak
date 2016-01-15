@@ -125,8 +125,8 @@ pub mod c_api {
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use rows::c_api::*;
+  use page::*;
+  use page::c_api::*;
 
   fn test_rows() {
     let m = MiniPage::new(4);
