@@ -40,6 +40,16 @@ either row-oriented or column-oriented approaches can be implemented with a
 single data structure. A page is a container for a list of minipages. So,
 a page represents multiple rows in row stores as well as column stores.
 
+## Page
+
+### Page Life Cycle
+ * Each is created at each operator and the life cycle will be the same to the operator.
+ * Operators can be categorized into two types
+   * One type will write new values into Page
+     * e.g., Project, Groupby, Join, Window, Sort
+   * Another type will just bypass the page
+     * Filter, Union
+
 ## MiniPage details
 
 ### Fixed-length (direct) MiniPage
@@ -54,6 +64,22 @@ For a variable length field or huge-sized values like BLOB, MiniPage provides
 an indirect way to access its data, i.e., just pointers to data are stored in
 minipages and each pointer indicates an actual field value. Another application
 of indirect minipage is dictionary encoding.
+
+## How To Write Data into MiniPage
+We need to use a writer or builder to write some data. It is necessary 
+because we should support various column encoding. 
+Jit can make it efficient by using inline functions.
+
+### Write Builder vs. Write Function
+Page and MiniPage are opaque pointers from the developer point of 
+views. Page and MiniPage include raw pointers. We need to use some approach to avoid
+handling raw pointers to suppress error prone routines.
+
+There may be two approaches: Writer or Write Function. 
+
+#### The Pros and Cons
+ Writer: Easy to keep state, but not good for inlining
+ Write function : Easy for inlining, but State must be kept outside, probably making Jit complexity higher.  
 
 # JIT Compilation
 In Tokamak, JitManager generates some JIT code fragments in runtime for
