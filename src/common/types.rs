@@ -7,13 +7,13 @@ use std::cmp::Ordering;
 use std::rc::Rc;
 
 use err::Result;
-use page::MiniPage;
+use page::Chunk;
 
 pub type TypeFactory = Rc<Fn(&str) -> Result<Ty>>;
 
 #[derive(Clone)]
 pub struct TypeHandler {
-  pub create_minipage: Rc<Fn() -> Box<MiniPage>>
+  pub create_minipage: Rc<Fn() -> Box<Chunk>>
 }
 
 /*

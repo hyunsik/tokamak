@@ -31,65 +31,74 @@ use types::Ty;
 pub static ROWBATCH_SIZE: usize = 1024;
 pub static ALIGNED_SIZE: usize = 16;
 
+/// Encoding Type for Chunk
+///
+/// * RAW - No encoding and raw byte representation
+/// * RLE - Run length encoding
 #[repr(C)]
-pub enum MiniPageType {
+pub enum EncType {
   RAW = 0,
   RLE = 1
 }
 
-#[repr(C)]
-pub struct MiniPage {
+/// Memory Chunk
+///
+/// It is usually a slice to point the memory area.
+#[repr(C)] #[derive(Clone)]
+pub struct Chunk {
   pub ptr : *const u8,
-  pub size: usize
+  pub size: usize,
+  //pub owned: false
 }
 
-impl MiniPage {
-  pub fn new(elem_size: usize) -> MiniPage {
+impl Chunk {
+  pub fn new(elem_size: usize) -> Chunk {
     let required_size = get_aligned_size(elem_size * ROWBATCH_SIZE);
     let ptr = unsafe { heap::allocate(required_size, ALIGNED_SIZE) };
 
-    MiniPage {
+    Chunk {
       ptr : ptr,
       size: required_size,
     }
   }
 
-  pub fn copy(&self) -> MiniPage {
+  /*
+  pub fn to_owned(&self) -> Chunk {
   	let mut ptr = unsafe { heap::allocate(self.size, ALIGNED_SIZE) };
     unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.size); }
 
-  	MiniPage {
+  	Chunk {
       ptr: ptr,
       size: self.size
     }
-  }
+  }*/
 }
 
-pub struct RawMiniPageWriter<'a> {
-  mpage: &'a MiniPage,
+pub struct RawChunkWriter<'a> {
+  mpage: &'a Chunk,
   cur_idx: usize
 }
 
 #[repr(C)]
 pub struct Page {
-  pub mpages     : *const MiniPage,
-  /// the number of minipages
+  pub mpages     : *const Chunk,
+  /// the number of Chunks
   pub mpage_num  : usize,
-  // the number of values stored in each minipage.
-  // All minipages share the same val_cnt.
+  // the number of values stored in each Chunk.
+  // All Chunks share the same val_cnt.
   pub value_cnt  : usize,
-  // Does this page own the minipages?
+  // Does this page own the Chunks?
   pub owned      : bool
 }
 
 impl Drop for Page {
   fn drop(&mut self) {
 
-    let vec:Vec<MiniPage> = unsafe {
-      Vec::from_raw_parts(self.mpages as *mut MiniPage, self.mpage_num, self.mpage_num)
+    let vec:Vec<Chunk> = unsafe {
+      Vec::from_raw_parts(self.mpages as *mut Chunk, self.mpage_num, self.mpage_num)
     };
 
-    // only if owned page will deallocate minipages
+    // only if owned page will deallocate Chunks
     if self.owned {
       for m in vec.iter() {
         unsafe { heap::deallocate(m.ptr as *mut u8, m.size, ALIGNED_SIZE) };
@@ -101,83 +110,83 @@ impl Drop for Page {
 
 impl Page {
   pub fn new(types: &[&Ty]) -> Page {
-    let mut minipages = types
+    let mut Chunks = types
       .iter()
-      .map(|ty| MiniPage::new(ty.size_of()))
-      .collect::<Vec<MiniPage>>();
-    minipages.shrink_to_fit();
+      .map(|ty| Chunk::new(ty.size_of()))
+      .collect::<Vec<Chunk>>();
+    Chunks.shrink_to_fit();
 
     let new_page = Page {
-      mpages   : minipages.as_ptr(),
+      mpages   : Chunks.as_ptr(),
       mpage_num: types.len(),
       value_cnt: 0usize,
       owned    : true
     };
 
-    ::std::mem::forget(minipages);
+    ::std::mem::forget(Chunks);
 
     new_page
   }
 
-  pub fn minipages<'a>(&'a self) -> &'a [MiniPage] {
-    let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+  pub fn chunks<'a>(&'a self) -> &'a [Chunk] {
+    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
 
     ms
   }
 
-  pub fn minipages_mut<'a>(&'a self) -> &'a mut [MiniPage] {
-    let ms: &mut [MiniPage] = unsafe { ::std::slice::from_raw_parts_mut(self.mpages as *mut MiniPage, self.mpage_num) };
+  pub fn chunks_mut<'a>(&'a self) -> &'a mut [Chunk] {
+    let ms: &mut [Chunk] = unsafe { ::std::slice::from_raw_parts_mut(self.mpages as *mut Chunk, self.mpage_num) };
 
     ms
   }
 
-  pub fn project<'a>(&'a self, ids: &[usize]) -> Vec<&'a MiniPage> {
+  pub fn project<'a>(&'a self, ids: &[usize]) -> Vec<&'a Chunk> {
   	ids.iter()
-  		.map(|i| self.minipage_ref(*i))
-  		.collect::<Vec<&MiniPage>>()
+  		.map(|i| self.chunk_ref(*i))
+  		.collect::<Vec<&Chunk>>()
   }
 
-  pub fn minipage<'a>(&'a self, page_id: usize) -> *const MiniPage {
-    let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+  pub fn chunk<'a>(&'a self, page_id: usize) -> *const Chunk {
+    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
     &ms[page_id]
   }
 
-  pub fn minipage_ref<'a>(&'a self, page_id: usize) -> &'a MiniPage {
-    let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+  pub fn chunk_ref<'a>(&'a self, page_id: usize) -> &'a Chunk {
+    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
     &ms[page_id]
   }
 
-  pub fn minipage_num(&self) -> usize { self.mpage_num }
+  pub fn chunk_num(&self) -> usize { self.mpage_num }
 
   pub fn set_value_count(&mut self, cnt: usize) { self.value_cnt = cnt }
 
   pub fn value_count(&self) -> usize { self.value_cnt}
 
   pub fn bytesize(&self) -> usize {
-    let ms: &[MiniPage] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
     ms.iter().map(|m| m.size).fold(0, |acc, size| acc + size)
   }
 }
 
 pub mod c_api {
-  use super::{MiniPage, Page};
+  use super::{Chunk, Page};
 
   extern "C" {
-    pub fn get_minipage(p: *const Page, idx: usize) -> *const MiniPage;
+    pub fn get_chunk(p: *const Page, idx: usize) -> *const Chunk;
 
-    pub fn write_raw_i8 (p: *const MiniPage, idx: usize, val: i8);
-    pub fn write_raw_i16(p: *const MiniPage, idx: usize, val: i16);
-    pub fn write_raw_i32(p: *const MiniPage, idx: usize, val: i32);
-    pub fn write_raw_i64(p: *const MiniPage, idx: usize, val: i64);
-    pub fn write_raw_f32(p: *const MiniPage, idx: usize, val: f32);
-    pub fn write_raw_f64(p: *const MiniPage, idx: usize, val: f64);
+    pub fn write_raw_i8 (p: *const Chunk, idx: usize, val: i8);
+    pub fn write_raw_i16(p: *const Chunk, idx: usize, val: i16);
+    pub fn write_raw_i32(p: *const Chunk, idx: usize, val: i32);
+    pub fn write_raw_i64(p: *const Chunk, idx: usize, val: i64);
+    pub fn write_raw_f32(p: *const Chunk, idx: usize, val: f32);
+    pub fn write_raw_f64(p: *const Chunk, idx: usize, val: f64);
 
-    pub fn read_raw_i8 (p: *const MiniPage, idx: usize) -> i8;
-    pub fn read_raw_i16(p: *const MiniPage, idx: usize) -> i16;
-    pub fn read_raw_i32(p: *const MiniPage, idx: usize) -> i32;
-    pub fn read_raw_i64(p: *const MiniPage, idx: usize) -> i64;
-    pub fn read_raw_f32(p: *const MiniPage, idx: usize) -> f32;
-    pub fn read_raw_f64(p: *const MiniPage, idx: usize) -> f64;
+    pub fn read_raw_i8 (p: *const Chunk, idx: usize) -> i8;
+    pub fn read_raw_i16(p: *const Chunk, idx: usize) -> i16;
+    pub fn read_raw_i32(p: *const Chunk, idx: usize) -> i32;
+    pub fn read_raw_i64(p: *const Chunk, idx: usize) -> i64;
+    pub fn read_raw_f32(p: *const Chunk, idx: usize) -> f32;
+    pub fn read_raw_f64(p: *const Chunk, idx: usize) -> f64;
   }
 }
 
@@ -191,29 +200,29 @@ mod tests {
   #[test]
   fn test_page() {
     let p = Page::new(&[I32, F64]);
-    assert_eq!(2, p.minipage_num());
+    assert_eq!(2, p.chunk_num());
 
     unsafe {
-      assert_eq!(p.minipage(0), get_minipage(&p, 0));
-      assert_eq!(p.minipage(1), get_minipage(&p, 1));
+      assert_eq!(p.chunk(0), get_chunk(&p, 0));
+      assert_eq!(p.chunk(1), get_chunk(&p, 1));
 
-      assert_eq!(&p.minipages()[0] as *const MiniPage, get_minipage(&p, 0));
-      assert_eq!(&p.minipages()[1] as *const MiniPage, get_minipage(&p, 1));
+      assert_eq!(&p.chunks()[0] as *const Chunk, get_chunk(&p, 0));
+      assert_eq!(&p.chunks()[1] as *const Chunk, get_chunk(&p, 1));
     }
 
-    assert_eq!(p.bytesize(), p.minipages().iter().map(|m| m.size).fold(0, |acc, s| acc + s));
+    assert_eq!(p.bytesize(), p.chunks().iter().map(|m| m.size).fold(0, |acc, s| acc + s));
     assert_eq!((4 + 8) * 1024, p.bytesize());
   }
 
   #[test]
-  fn test_minipage() {
-    let m = MiniPage::new(4);
+  fn test_chunk() {
+    let m = Chunk::new(4);
     assert_eq!(4096, m.size);
   }
 
   #[test]
   fn test_rw() {
-    let m = MiniPage::new(4);
+    let m = Chunk::new(4);
     unsafe { write_raw_i32(&m, 0, 32) };
     assert_eq!(32, unsafe { read_raw_i32(&m, 0) });
   }
@@ -227,13 +236,13 @@ pub type PosId = usize;
 
 pub trait Page
 {
-	fn minipage_num(&self) -> usize;
+	fn Chunk_num(&self) -> usize;
 
 	fn set_value_count(&mut self, value_count: usize);
 
 	fn value_count(&self) -> usize;
 
-	fn minipage(&self, id: PageId) -> &MiniPage;
+	fn Chunk(&self, id: PageId) -> &Chunk;
 
 	fn bytesize(&self) -> u32;
 
@@ -242,8 +251,8 @@ pub trait Page
 	fn project<'a>(&'a self, ids: &[PageId]) -> BorrowedPage<'a>
   {
   	let projected = ids.iter()
-  		.map(|i| self.minipage(*i))
-  		.collect::<Vec<&MiniPage>>();
+  		.map(|i| self.Chunk(*i))
+  		.collect::<Vec<&Chunk>>();
 
     println!("projected: {}, vc: {}", projected.len(), self.value_count());
 
@@ -253,7 +262,7 @@ pub trait Page
 
 pub struct OwnedPage
 {
-  mini_pages: Vec<Box<MiniPage>>,
+  mini_pages: Vec<Box<Chunk>>,
 
   value_count: usize
 }
@@ -261,7 +270,7 @@ pub struct OwnedPage
 impl Page for OwnedPage
 {
   #[inline]
-  fn minipage_num(&self) -> usize { self.mini_pages.len() }
+  fn Chunk_num(&self) -> usize { self.mini_pages.len() }
 
   fn set_value_count(&mut self, value_count: usize) { self.value_count = value_count }
 
@@ -269,9 +278,9 @@ impl Page for OwnedPage
   fn value_count(&self) -> usize { self.value_count }
 
   #[inline]
-  fn minipage(&self, id: PageId) -> &MiniPage
+  fn Chunk(&self, id: PageId) -> &Chunk
   {
-    debug_assert!(id < self.minipage_num());
+    debug_assert!(id < self.Chunk_num());
 
     &*self.mini_pages[id]
   }
@@ -290,13 +299,13 @@ impl Page for OwnedPage
   	let copied_mpages = self.mini_pages
   		.iter()
   		.map(|mp| mp.copy())
-  		.collect::<Vec<Box<MiniPage>>>();
+  		.collect::<Vec<Box<Chunk>>>();
 
   	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
   }
 }
 
-pub trait MiniPage
+pub trait Chunk
 {
   fn bytesize(&self) -> u32;
 
@@ -324,15 +333,15 @@ pub trait MiniPage
 
   fn as_f64_slice(&self) -> &[f64];
 
-  fn writer(&mut self) -> &mut MiniPageWriter;
+  fn writer(&mut self) -> &mut ChunkWriter;
 
-  fn copy(&self) -> Box<MiniPage>;
+  fn copy(&self) -> Box<Chunk>;
 }
 
 /// Writer for Vector. The writer internally must have a cursor to write a value.
 /// For each write, the cursor must move forward the cursor.
 /// You must call finalize() before reading any value from the Vector.
-pub trait MiniPageWriter
+pub trait ChunkWriter
 {
   fn write_i8(&mut self, v: i8);
 
@@ -355,14 +364,14 @@ pub trait MiniPageWriter
 
 pub struct BorrowedPage<'a>
 {
-	borrowed: Vec<&'a MiniPage>,
+	borrowed: Vec<&'a Chunk>,
 	value_count: usize
 }
 
 impl<'a> BorrowedPage<'a>
 {
 	#[inline]
-	pub fn new(borrowed: Vec<&'a MiniPage>, value_count: usize) -> BorrowedPage<'a>
+	pub fn new(borrowed: Vec<&'a Chunk>, value_count: usize) -> BorrowedPage<'a>
 	{
 		BorrowedPage {
 			borrowed   : borrowed,
@@ -373,7 +382,7 @@ impl<'a> BorrowedPage<'a>
 
 impl<'a> Page for BorrowedPage<'a>
 {
-	fn minipage_num(&self) -> usize
+	fn Chunk_num(&self) -> usize
 	{
 		self.borrowed.len()
 	}
@@ -388,7 +397,7 @@ impl<'a> Page for BorrowedPage<'a>
 		self.value_count
 	}
 
-	fn minipage(&self, id: PageId) -> &MiniPage
+	fn Chunk(&self, id: PageId) -> &Chunk
 	{
 		self.borrowed[id]
 	}
@@ -406,7 +415,7 @@ impl<'a> Page for BorrowedPage<'a>
 		let copied_mpages = self.borrowed
   		.iter()
   		.map(|mp| mp.copy())
-  		.collect::<Vec<Box<MiniPage>>>();
+  		.collect::<Vec<Box<Chunk>>>();
 
   	OwnedPage {mini_pages: copied_mpages, value_count: self.value_count}
 	}
@@ -423,20 +432,20 @@ impl OwnedPageBuilder
   {
     let mini_pages = types
       .iter()
-      .map(|ty| Box::new(FMiniPage::new(ty.size_of())) as Box<MiniPage>)
-      .collect::<Vec<Box<MiniPage>>>();
+      .map(|ty| Box::new(FChunk::new(ty.size_of())) as Box<Chunk>)
+      .collect::<Vec<Box<Chunk>>>();
 
     OwnedPageBuilder {page: OwnedPage {mini_pages: mini_pages, value_count: 0}}
   }
 
   #[inline]
-  pub fn writer(&mut self, id: PageId) -> &mut MiniPageWriter
+  pub fn writer(&mut self, id: PageId) -> &mut ChunkWriter
   {
     self.page.mini_pages[id].writer()
   }
 
   #[inline]
-  pub fn iter_mut<'a>(&'a mut self) -> Box<Iterator<Item=&'a mut MiniPageWriter> + 'a> {
+  pub fn iter_mut<'a>(&'a mut self) -> Box<Iterator<Item=&'a mut ChunkWriter> + 'a> {
     Box::new(self.page.mini_pages.iter_mut().map(|m| m.writer()))
   }
 
@@ -461,26 +470,26 @@ impl OwnedPageBuilder
 }
 
 /// Fixed Length Mini Page
-pub struct FMiniPage<'a>
+pub struct FChunk<'a>
 {
   ptr      : *mut u8,
   pub bytesize : u32,     // allocated memory size
-  writer: FMiniPageWriter,
+  writer: FChunkWriter,
 
   _marker: marker::PhantomData<&'a ()>,
 }
 
-impl<'a> FMiniPage<'a>
+impl<'a> FChunk<'a>
 {
-  pub fn new(fixed_len: usize) -> FMiniPage<'a>
+  pub fn new(fixed_len: usize) -> FChunk<'a>
   {
     let required_size = get_aligned_size(fixed_len * ROWBATCH_SIZE);
     let ptr = unsafe { heap::allocate(required_size, 16) };
 
-    FMiniPage {
+    FChunk {
       ptr: ptr,
       bytesize: required_size as u32,
-      writer: FMiniPageWriter {ptr: ptr, len: required_size, pos: 0},
+      writer: FChunkWriter {ptr: ptr, len: required_size, pos: 0},
       _marker: marker::PhantomData,
     }
   }
@@ -496,7 +505,7 @@ impl<'a> FMiniPage<'a>
   }
 }
 
-impl<'a> Drop for FMiniPage<'a> {
+impl<'a> Drop for FChunk<'a> {
   fn drop(&mut self) {
     unsafe {
       heap::deallocate(self.ptr as *mut u8, self.bytesize as usize, 16);
@@ -513,7 +522,7 @@ fn read_fixed_len_value<T>(ptr: *const u8, pos: PosId) -> T where T: Copy {
   }
 }
 
-macro_rules! read_field_for_fminipage(
+macro_rules! read_field_for_fChunk(
 	($name:ident, $ty:ty) => (
     #[inline]
 	  fn $name(&self, pos: PosId) -> $ty {
@@ -522,7 +531,7 @@ macro_rules! read_field_for_fminipage(
   );
 );
 
-macro_rules! as_slice_for_fminipage(
+macro_rules! as_slice_for_fChunk(
 	($name:ident, $ty:ty) => (
     #[inline]
 	  fn $name(&self) -> &[$ty] {
@@ -533,47 +542,47 @@ macro_rules! as_slice_for_fminipage(
   );
 );
 
-impl<'a> MiniPage for FMiniPage<'a> {
+impl<'a> Chunk for FChunk<'a> {
   #[inline]
   fn bytesize(&self) -> u32 {
     self.bytesize
   }
 
-  read_field_for_fminipage!(read_i8,  i8);
-  read_field_for_fminipage!(read_i16, i16);
-  read_field_for_fminipage!(read_i32, i32);
-  read_field_for_fminipage!(read_i64, i64);
-  read_field_for_fminipage!(read_f32, f32);
-  read_field_for_fminipage!(read_f64, f64);
+  read_field_for_fChunk!(read_i8,  i8);
+  read_field_for_fChunk!(read_i16, i16);
+  read_field_for_fChunk!(read_i32, i32);
+  read_field_for_fChunk!(read_i64, i64);
+  read_field_for_fChunk!(read_f32, f32);
+  read_field_for_fChunk!(read_f64, f64);
 
-  as_slice_for_fminipage!(as_i8_slice,  i8);
-  as_slice_for_fminipage!(as_i16_slice, i16);
-  as_slice_for_fminipage!(as_i32_slice, i32);
-  as_slice_for_fminipage!(as_i64_slice, i64);
-  as_slice_for_fminipage!(as_f32_slice, f32);
-  as_slice_for_fminipage!(as_f64_slice, f64);
+  as_slice_for_fChunk!(as_i8_slice,  i8);
+  as_slice_for_fChunk!(as_i16_slice, i16);
+  as_slice_for_fChunk!(as_i32_slice, i32);
+  as_slice_for_fChunk!(as_i64_slice, i64);
+  as_slice_for_fChunk!(as_f32_slice, f32);
+  as_slice_for_fChunk!(as_f64_slice, f64);
 
-  fn writer(&mut self) -> &mut MiniPageWriter
+  fn writer(&mut self) -> &mut ChunkWriter
   {
     &mut self.writer
   }
 
-  fn copy(&self) -> Box<MiniPage> {
+  fn copy(&self) -> Box<Chunk> {
 
   	let mut ptr = unsafe { heap::allocate(self.bytesize as usize, 16) };
     unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.bytesize as usize); }
 
-  	Box::new(FMiniPage {
+  	Box::new(FChunk {
       ptr: ptr,
       bytesize: self.bytesize as u32,
-      writer: FMiniPageWriter {ptr: ptr, len: self.bytesize as usize, pos: 0},
+      writer: FChunkWriter {ptr: ptr, len: self.bytesize as usize, pos: 0},
       _marker: marker::PhantomData,
     })
   }
 }
 
 
-pub struct FMiniPageWriter {
+pub struct FChunkWriter {
   ptr: *mut u8,
   len: usize,
   pos: PosId
@@ -598,7 +607,7 @@ macro_rules! write_value(
   );
 );
 
-impl MiniPageWriter for FMiniPageWriter
+impl ChunkWriter for FChunkWriter
 {
 	write_value!(write_i8, i8);
 	write_value!(write_i16, i16);
@@ -624,13 +633,13 @@ impl MiniPageWriter for FMiniPageWriter
 /// Borrowed Mini Page
 ///
 /// It does not allocate its own memory.
-/// Instead, just share the contents of other minipage.
-pub struct BorrowedMiniPage<'a>
+/// Instead, just share the contents of other Chunk.
+pub struct BorrowedChunk<'a>
 {
-  mini_page: &'a MiniPage
+  mini_page: &'a Chunk
 }
 
-macro_rules! read_field_for_bminipage(
+macro_rules! read_field_for_bChunk(
 	($name:ident, $ty:ty) => (
     #[inline]
 	  fn $name(&self, pos: PosId) -> $ty {
@@ -639,7 +648,7 @@ macro_rules! read_field_for_bminipage(
   );
 );
 
-macro_rules! as_slice_for_bminipage(
+macro_rules! as_slice_for_bChunk(
 	($name:ident, $ty:ty) => (
     #[inline]
 	  fn $name(&self) -> &[$ty] {
@@ -648,32 +657,32 @@ macro_rules! as_slice_for_bminipage(
   );
 );
 
-impl<'a> MiniPage for BorrowedMiniPage<'a> {
+impl<'a> Chunk for BorrowedChunk<'a> {
   #[inline]
   fn bytesize(&self) -> u32 {
     self.mini_page.bytesize()
   }
 
-  read_field_for_bminipage!(read_i8, i8);
-  read_field_for_bminipage!(read_i16, i16);
-  read_field_for_bminipage!(read_i32, i32);
-  read_field_for_bminipage!(read_i64, i64);
-  read_field_for_bminipage!(read_f32, f32);
-  read_field_for_bminipage!(read_f64, f64);
+  read_field_for_bChunk!(read_i8, i8);
+  read_field_for_bChunk!(read_i16, i16);
+  read_field_for_bChunk!(read_i32, i32);
+  read_field_for_bChunk!(read_i64, i64);
+  read_field_for_bChunk!(read_f32, f32);
+  read_field_for_bChunk!(read_f64, f64);
 
-  as_slice_for_bminipage!(as_i8_slice, i8);
-  as_slice_for_bminipage!(as_i16_slice, i16);
-  as_slice_for_bminipage!(as_i32_slice, i32);
-  as_slice_for_bminipage!(as_i64_slice, i64);
-  as_slice_for_bminipage!(as_f32_slice, f32);
-  as_slice_for_bminipage!(as_f64_slice, f64);
+  as_slice_for_bChunk!(as_i8_slice, i8);
+  as_slice_for_bChunk!(as_i16_slice, i16);
+  as_slice_for_bChunk!(as_i32_slice, i32);
+  as_slice_for_bChunk!(as_i64_slice, i64);
+  as_slice_for_bChunk!(as_f32_slice, f32);
+  as_slice_for_bChunk!(as_f64_slice, f64);
 
-  fn writer(&mut self) -> &mut MiniPageWriter
+  fn writer(&mut self) -> &mut ChunkWriter
   {
-    unreachable!("BorrowedMiniPage::writer() are not intended to be used");
+    unreachable!("BorrowedChunk::writer() are not intended to be used");
   }
 
-  fn copy(&self) -> Box<MiniPage> {
+  fn copy(&self) -> Box<Chunk> {
   	self.mini_page.copy()
   }
 }

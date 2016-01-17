@@ -2,7 +2,7 @@
 
 use common::session::Session;
 use common::types::{F32, I32, Ty};
-use common::page::{c_api, MiniPage, ROWBATCH_SIZE};
+use common::page::{c_api, Chunk, ROWBATCH_SIZE};
 use common::input::InputSource;
 use common::storage::RandomTable;
 
@@ -57,7 +57,7 @@ pub fn test_next_value()
 
   unsafe {
     for x in 0..page.value_count() {
-      println!("{} - {},{}", x, c_api::read_raw_i32(page.minipage(0), x), c_api::read_raw_f32(page.minipage(1), x));
+      println!("{} - {},{}", x, c_api::read_raw_i32(page.chunk(0), x), c_api::read_raw_f32(page.chunk(1), x));
     }
   }
 }

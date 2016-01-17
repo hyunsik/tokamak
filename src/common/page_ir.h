@@ -6,12 +6,12 @@
 
 #include "page_ir_macro.h"
 
-enum MiniPageType {
+enum EncType {
   RAW = 0,
   RLE = 1
 };
 
-struct MiniPage {
+struct Chunk {
   // MiniPageType type; - can be used for debugging
   void   *ptr;
   // byte size
@@ -19,18 +19,18 @@ struct MiniPage {
 };
 
 struct Page {
-  MiniPage* mpages;
+  Chunk* chunks;
   // the number of minipages
-  size_t    mpage_num;
+  size_t chunk_num;
   // the number of values stored in each minipage.
   // All minipages share the same val_cnt.
-  size_t    value_cnt;
+  size_t value_cnt;
   // Does this page own the minipages?
-  bool      owned;
+  bool   owned;
 };
 
-extern "C" MiniPage* get_minipage(Page* page, size_t idx) {
-  return &page->mpages[idx];
+extern "C" Chunk* get_chunk(Page* page, size_t idx) {
+  return &page->chunks[idx];
 }
 
 WRITE_RAW_VAL(i8, int8_t);
@@ -47,6 +47,6 @@ READ_RAW_VAL(i64, int64_t);
 READ_RAW_VAL(f32, float);
 READ_RAW_VAL(f64, double);
 
-void dummy(Page* v1, MiniPage* v2) {}
+void dummy(Page* v1, Chunk* v2) {}
 
 #endif // PAGE_IR_H_

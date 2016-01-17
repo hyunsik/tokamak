@@ -9,13 +9,13 @@ use std::rc::Rc;
 
 use err::{Result, Void, void_ok};
 use plugin::{PluginManager, TypeRegistry};
-use page::{MiniPage,RawMiniPageWriter};
+use page::{Chunk,RawChunkWriter};
 use types::Ty;
 
-pub type NoArgFn   = Rc<Fn(&mut RawMiniPageWriter, usize) -> Void>;
-pub type UnaryFn   = Rc<Fn(&mut RawMiniPageWriter, &MiniPage, Option<u32>, usize) -> Void>;
-pub type BinaryFn  = Rc<Fn(&MiniPage, &MiniPage, &mut RawMiniPageWriter, usize) -> Void>;
-pub type TrinityFn = Rc<Fn(&MiniPage, &MiniPage, &MiniPage, &mut RawMiniPageWriter, usize) -> Void>;
+pub type NoArgFn   = Rc<Fn(&mut RawChunkWriter, usize) -> Void>;
+pub type UnaryFn   = Rc<Fn(&mut RawChunkWriter, &Chunk, Option<u32>, usize) -> Void>;
+pub type BinaryFn  = Rc<Fn(&Chunk, &Chunk, &mut RawChunkWriter, usize) -> Void>;
+pub type TrinityFn = Rc<Fn(&Chunk, &Chunk, &Chunk, &mut RawChunkWriter, usize) -> Void>;
 
 #[derive(Clone)]
 pub struct Function
