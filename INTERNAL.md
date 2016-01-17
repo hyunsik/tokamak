@@ -50,6 +50,24 @@ a page represents multiple rows in row stores as well as column stores.
    * Another type will just bypass the page
      * Filter, Union
 
+#### Per operator
+*Notation*
+ * O - Owner
+ * N - Not Owner
+ * D - Direct pass of some chunks without rearrange rows
+
+*Operators*
+ * Scan (O)
+ * Filter, Having (N)
+ * Project - (N, D)
+ * Aggregate, Dist Aggregation - Page Owner (O)
+ * Partition - Page Owner (Hash Partitioned)
+ * HashJoin, Merge Join - Page Owner
+ * Insert - Owner
+ * Sort - Owner (Sort Buffer)
+ * Union - Not Owner
+
+
 ## MiniPage details
 
 ### Fixed-length (direct) MiniPage
