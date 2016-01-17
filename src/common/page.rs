@@ -81,9 +81,9 @@ pub struct RawChunkWriter<'a> {
 
 #[repr(C)]
 pub struct Page {
-  pub mpages     : *const Chunk,
+  pub chunks     : *const Chunk,
   /// the number of Chunks
-  pub mpage_num  : usize,
+  pub chunk_num  : usize,
   // the number of values stored in each Chunk.
   // All Chunks share the same val_cnt.
   pub value_cnt  : usize,
@@ -95,7 +95,7 @@ impl Drop for Page {
   fn drop(&mut self) {
 
     let vec:Vec<Chunk> = unsafe {
-      Vec::from_raw_parts(self.mpages as *mut Chunk, self.mpage_num, self.mpage_num)
+      Vec::from_raw_parts(self.chunks as *mut Chunk, self.chunk_num, self.chunk_num)
     };
 
     // only if owned page will deallocate Chunks
@@ -117,8 +117,8 @@ impl Page {
     Chunks.shrink_to_fit();
 
     let new_page = Page {
-      mpages   : Chunks.as_ptr(),
-      mpage_num: types.len(),
+      chunks   : Chunks.as_ptr(),
+      chunk_num: types.len(),
       value_cnt: 0usize,
       owned    : true
     };
@@ -129,13 +129,13 @@ impl Page {
   }
 
   pub fn chunks<'a>(&'a self) -> &'a [Chunk] {
-    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) };
 
     ms
   }
 
   pub fn chunks_mut<'a>(&'a self) -> &'a mut [Chunk] {
-    let ms: &mut [Chunk] = unsafe { ::std::slice::from_raw_parts_mut(self.mpages as *mut Chunk, self.mpage_num) };
+    let ms: &mut [Chunk] = unsafe { ::std::slice::from_raw_parts_mut(self.chunks as *mut Chunk, self.chunk_num) };
 
     ms
   }
@@ -147,23 +147,23 @@ impl Page {
   }
 
   pub fn chunk<'a>(&'a self, page_id: usize) -> *const Chunk {
-    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) };
     &ms[page_id]
   }
 
   pub fn chunk_ref<'a>(&'a self, page_id: usize) -> &'a Chunk {
-    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) };
     &ms[page_id]
   }
 
-  pub fn chunk_num(&self) -> usize { self.mpage_num }
+  pub fn chunk_num(&self) -> usize { self.chunk_num }
 
   pub fn set_value_count(&mut self, cnt: usize) { self.value_cnt = cnt }
 
   pub fn value_count(&self) -> usize { self.value_cnt}
 
   pub fn bytesize(&self) -> usize {
-    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.mpages, self.mpage_num) };
+    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) };
     ms.iter().map(|m| m.size).fold(0, |acc, size| acc + size)
   }
 }
