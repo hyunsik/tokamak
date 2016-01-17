@@ -35,7 +35,7 @@ pub static ALIGNED_SIZE: usize = 16;
 ///
 /// * RAW - No encoding and raw byte representation
 /// * RLE - Run length encoding
-#[repr(C)]
+#[repr(C)] #[derive(Clone)]
 pub enum EncType {
   RAW = 0,
   RLE = 1
@@ -107,9 +107,38 @@ impl Drop for Page {
   }
 }
 
+/// Get a chunk size according to both type and encoding type. 
+fn compute_chunk_size(ty: &Ty, enc: &EncType) -> usize { 
+  get_aligned_size(ty.size_of())
+}
 
 impl Page {
-  pub fn new(types: &[&Ty]) -> Page {
+    
+  pub fn new(types: &[&Ty], encs: Option<&[EncType]>) -> Page {
+    match encs {
+      Some(e) => Page::new_with_enc(types, e),
+      None    => {
+        let raw_encs = ::std::iter::repeat(EncType::RAW)
+          .take(types.len())
+          .collect::<Vec<EncType>>();
+        Page::new_with_enc(types, &raw_encs[..])
+      } 
+    }
+  }
+  
+  fn new_with_enc(types: &[&Ty], encs: &[EncType]) -> Page {    
+    // Precondition    
+    debug_assert!(types.len() == encs.len(), 
+      "num of types and encodings must be equal.");
+    
+    // extract fixed columns
+    // allocate memory for fixed columns
+    // assign pointers to chunks
+    
+    let total_sz = izip!(types, encs)
+      .map(|(t,e)| compute_chunk_size(t, e))
+      .fold(0, |acc, sz| acc + sz);              
+    
     let mut Chunks = types
       .iter()
       .map(|ty| Chunk::new(ty.size_of()))
@@ -199,7 +228,7 @@ mod tests {
 
   #[test]
   fn test_page() {
-    let p = Page::new(&[I32, F64]);
+    let p = Page::new(&[I32, F64], None);
     assert_eq!(2, p.chunk_num());
 
     unsafe {

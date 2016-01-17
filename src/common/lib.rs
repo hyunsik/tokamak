@@ -4,7 +4,7 @@
 #![feature(libc)]
 #![feature(raw)]
 extern crate alloc;
-extern crate itertools;
+#[macro_use] extern crate itertools;
 extern crate libc;
 extern crate rand;
 extern crate rustc_serialize;

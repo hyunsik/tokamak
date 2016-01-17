@@ -31,7 +31,7 @@ impl RandomTable
   pub fn new(session: &Session, types: &[&Ty], row_num: usize) -> Box<InputSource> {
 
     Box::new(RandomTable {
-      page: Page::new(types),
+      page: Page::new(types, None),
       write_fns: types.iter()
         .map(|ty| choose_random_fn(ty)) // choose random functions for types
         .collect::<Vec<Box<Fn(&mut Chunk, usize)>>>(),
