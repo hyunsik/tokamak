@@ -12,7 +12,7 @@ use session::Session;
 use types::Ty;
 use page::{
   c_api,
-  MiniPage,
+  Chunk,
   Page,
   ROWBATCH_SIZE
 };
@@ -21,7 +21,7 @@ use input::InputSource;
 pub struct RandomTable
 {
   page     : Page,
-  write_fns: Vec<Box<Fn(&mut MiniPage, usize)>>,
+  write_fns: Vec<Box<Fn(&mut Chunk, usize)>>,
   row_num  : usize, // number of rows to generate
   cur_pos  : usize  // how many rows are generated so far?
 }
@@ -34,7 +34,7 @@ impl RandomTable
       page: Page::new(types),
       write_fns: types.iter()
         .map(|ty| choose_random_fn(ty)) // choose random functions for types
-        .collect::<Vec<Box<Fn(&mut MiniPage, usize)>>>(),
+        .collect::<Vec<Box<Fn(&mut Chunk, usize)>>>(),
       row_num: row_num,
       cur_pos: 0
     })
@@ -59,8 +59,8 @@ impl InputSource for RandomTable
     let min = ::std::cmp::min(remain, ROWBATCH_SIZE);
 
 
-    for (gen_fn, minipage) in Zip::new((self.write_fns.iter(), self.page.minipages_mut())) {
-      (gen_fn)(minipage, min)
+    for (gen_fn, chunk) in Zip::new((self.write_fns.iter(), self.page.chunks_mut())) {
+      (gen_fn)(chunk, min)
     }
 
     // move forward the position
@@ -73,7 +73,7 @@ impl InputSource for RandomTable
   fn close(&mut self) -> Void { void_ok }
 }
 
-fn write_rand_for_i32(mp: &mut MiniPage, rownum: usize)
+fn write_rand_for_i32(mp: &mut Chunk, rownum: usize)
 {
   unsafe {
     for pos in 0 .. rownum {
@@ -82,7 +82,7 @@ fn write_rand_for_i32(mp: &mut MiniPage, rownum: usize)
   }
 }
 
-fn write_rand_for_i64(mp: &mut MiniPage, rownum: usize)
+fn write_rand_for_i64(mp: &mut Chunk, rownum: usize)
 {
   unsafe {
     for pos in 0 .. rownum {
@@ -91,7 +91,7 @@ fn write_rand_for_i64(mp: &mut MiniPage, rownum: usize)
   }
 }
 
-fn write_rand_for_f32(mp: &mut MiniPage, rownum: usize)
+fn write_rand_for_f32(mp: &mut Chunk, rownum: usize)
 {
   unsafe {
     for pos in 0 .. rownum {
@@ -100,7 +100,7 @@ fn write_rand_for_f32(mp: &mut MiniPage, rownum: usize)
   }
 }
 
-fn write_rand_for_f64(mp: &mut MiniPage, rownum: usize)
+fn write_rand_for_f64(mp: &mut Chunk, rownum: usize)
 {
   unsafe {
     for pos in 0 .. rownum {
@@ -109,7 +109,7 @@ fn write_rand_for_f64(mp: &mut MiniPage, rownum: usize)
   }
 }
 
-fn choose_random_fn(ty: &Ty) -> Box<Fn(&mut MiniPage, usize)>
+fn choose_random_fn(ty: &Ty) -> Box<Fn(&mut Chunk, usize)>
 {
   match ty.base() {
     "i32" => Box::new(write_rand_for_i32),
