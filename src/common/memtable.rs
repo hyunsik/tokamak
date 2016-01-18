@@ -7,36 +7,31 @@ use rustc_serialize::{Decoder, Decodable};
 use session::Session;
 use err;
 use err::{Void, void_ok};
-use rows::{OwnedPage, Page};
+use page::{c_api, Page};
 use types::Ty;
 
 use util::collection::vec;
 
 pub struct MemTable
 {
-	types      : Vec<Ty>,
-	field_names: Vec<String>,
+	types   : Vec<Ty>,
+	fields  : Vec<String>,
 	
-	pages      : Vec<OwnedPage>,
-	row_num    : usize
-}
-
-pub fn to_owned_vec<T: Clone>(v: &Vec<&T>) -> Vec<T>
-{
-  v.iter().map(|e| (*e).clone()).collect::<Vec<T>>()
+	pages   : Vec<Page>,
+	row_num : usize
 }
 
 impl MemTable
 {
-	pub fn new(session: &Session, types: &Vec<Ty>, field_names: &Vec<&str>) -> MemTable
+	pub fn new(session: &Session, types: &[&Ty], fields: &[&str]) -> MemTable
 	{
-		debug_assert!(types.len() == field_names.len());
+		debug_assert!(types.len() == fields.len());
 		
 		MemTable {
-			types      : types.clone(),
-			field_names: ::util::str::to_owned_vec(field_names),
-			pages      : Vec::new(),
-			row_num    : 0
+			types   : types.iter().map(|e| (*e).clone()).collect::<Vec<Ty>>(),
+			fields  : fields.iter().map(|f| f.to_string()).collect::<Vec<String>>(),
+			pages   : Vec::new(),
+			row_num : 0
 		}
 	} 
 }
@@ -58,15 +53,13 @@ impl MemTable
 		&self.types
 	}
 	
-	pub fn field_names(&self) -> &Vec<String>
+	pub fn fields(&self) -> &Vec<String>
 	{
-		&self.field_names
+		&self.fields
 	}
 	
 	pub fn reader<'a, D: Decodable>(&'a self) -> DecodedRecords<'a, D> 
 	{
-		println!(">> Num of pages: {}", self.pages.len());
-		
 		DecodedRecords {
 			pages_it: self.pages.iter(),
 			cur_page: None,
@@ -80,7 +73,7 @@ impl MemTable
 	pub fn write(&mut self, page: &Page) -> Void
 	{
 		self.row_num += page.value_count() as usize;
-		self.pages.push(page.to_owned());
+		self.pages.push(page.copy());
 		
 		void_ok
 	}
@@ -97,8 +90,8 @@ use std::slice::Iter;
 
 pub struct DecodedRecords<'a, D>
 {
-	pages_it: Iter<'a, OwnedPage>,
-	cur_page: Option<&'a OwnedPage>,
+	pages_it: Iter<'a, Page>,
+	cur_page: Option<&'a Page>,
 	types   : &'a Vec<Ty>,
 	row_pos : usize,
 	col_pos : usize,
@@ -208,8 +201,8 @@ impl<'a, D> Decoder for DecodedRecords<'a, D> {
     	let row_pos  = self.row_pos;
     	let col_pos  = self.col_pos;
     	
-    	let mini_page = self.cur_page.unwrap().minipage(col_pos);
-    	Ok(mini_page.read_i64(row_pos))
+    	let chunk = self.cur_page.unwrap().chunk(col_pos);
+    	Ok(unsafe{c_api::read_raw_i64(chunk, row_pos)})
     }
     
     fn read_i32(&mut self) -> Result<i32, Self::Error>
@@ -219,8 +212,8 @@ impl<'a, D> Decoder for DecodedRecords<'a, D> {
     	let row_pos  = self.row_pos;
     	let col_pos  = self.col_pos;
     	
-    	let mini_page = self.cur_page.unwrap().minipage(col_pos);
-    	Ok(mini_page.read_i32(row_pos))
+    	let chunk = self.cur_page.unwrap().chunk(col_pos);
+    	Ok(unsafe{c_api::read_raw_i32(chunk, row_pos)})
     }
     
     fn read_i16(&mut self) -> Result<i16, Self::Error>
@@ -261,8 +254,8 @@ impl<'a, D> Decoder for DecodedRecords<'a, D> {
     	let row_pos  = self.row_pos;
     	let col_pos  = self.col_pos;
     	
-    	let mini_page = self.cur_page.unwrap().minipage(col_pos);
-    	Ok(mini_page.read_f64(row_pos))
+    	let chunk = self.cur_page.unwrap().chunk(col_pos);
+    	Ok(unsafe {c_api::read_raw_f64(chunk, row_pos)})
     }
     
     fn read_f32(&mut self) -> Result<f32, Self::Error>
@@ -272,8 +265,8 @@ impl<'a, D> Decoder for DecodedRecords<'a, D> {
     	let row_pos  = self.row_pos;
     	let col_pos  = self.col_pos;
     	
-    	let mini_page = self.cur_page.unwrap().minipage(col_pos);
-    	Ok(mini_page.read_f32(row_pos))
+    	let chunk = self.cur_page.unwrap().chunk(col_pos);
+    	Ok(unsafe {c_api::read_raw_f32(chunk, row_pos)})
     }
     
     fn read_char(&mut self) -> Result<char, Self::Error>

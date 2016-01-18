@@ -24,10 +24,10 @@ pub mod str;
 pub mod types;
 pub mod platform;
 
-//mod memtable;
+mod memtable;
 mod random_table;
 
 pub mod storage {
-	//pub use memtable::*;
+  pub use memtable::*;
 	pub use random_table::*;
 }

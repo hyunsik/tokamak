@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate common;
-/*
+
 use common::session::Session;
 use common::types::{I32, F32, Ty};
 use common::page::{Page, ROWBATCH_SIZE};
@@ -22,11 +22,11 @@ macro_rules! assert_write_rows {
 #[test]
 pub fn test_next_once()
 {
-  let schema = schema!(I32, F32);
+  let schema = &[I32, F32];
 
   let session = Session;
-  let mut gen = RandomTable::new(&session, &schema, 5);
-  let mut mem = MemTable::new(&session, &schema, &vec!["x","y"]);
+  let mut gen = RandomTable::new(&session, schema, 5);
+  let mut mem = MemTable::new(&session, schema, &["x","y"]);
 
   assert_write_rows!(gen, mem, 5, 5);
   assert_write_rows!(gen, mem, 0, 5);
@@ -35,11 +35,11 @@ pub fn test_next_once()
 #[test]
 pub fn test_next_once2()
 {
-  let schema = schema!(I32, F32);
+  let schema = &[I32, F32];
 
   let session = Session;
-  let mut gen = RandomTable::new(&session, &schema, ROWBATCH_SIZE);
-  let mut mem = MemTable::new(&session, &schema, &vec!["x","y"]);
+  let mut gen = RandomTable::new(&session, schema, ROWBATCH_SIZE);
+  let mut mem = MemTable::new(&session, schema, &["x","y"]);
 
   assert_write_rows!(gen, mem, ROWBATCH_SIZE, ROWBATCH_SIZE);
   assert_write_rows!(gen, mem, 0,             ROWBATCH_SIZE);
@@ -49,11 +49,11 @@ pub fn test_next_once2()
 #[test]
 pub fn test_next_multiple()
 {
-  let schema = schema!(I32, F32);
+  let schema = &[I32, F32];
 
   let session = Session;
-  let mut gen = RandomTable::new(&session, &schema, (ROWBATCH_SIZE * 2) + 100);
-  let mut mem = MemTable::new(&session, &schema, &vec!["x","y"]);
+  let mut gen = RandomTable::new(&session, schema, (ROWBATCH_SIZE * 2) + 100);
+  let mut mem = MemTable::new(&session, schema, &["x","y"]);
 
   assert_write_rows!(gen, mem, ROWBATCH_SIZE, ROWBATCH_SIZE);
   assert_write_rows!(gen, mem, ROWBATCH_SIZE, ROWBATCH_SIZE * 2);
@@ -64,11 +64,11 @@ pub fn test_next_multiple()
 #[test]
 pub fn test_read()
 {
-  let schema = schema!(I32, F32);
+  let schema = &[I32, F32];
 
   let session = Session;
-  let mut gen = RandomTable::new(&session, &schema, 5);
-  let mut mem = MemTable::new(&session, &schema, &vec!["x","y"]);
+  let mut gen = RandomTable::new(&session, schema, 5);
+  let mut mem = MemTable::new(&session, schema, &["x","y"]);
 
   assert_write_rows!(gen, mem, 5, 5);
   assert_write_rows!(gen, mem, 0, 5);
@@ -79,6 +79,7 @@ pub fn test_read()
   }
 }
 
+/*
 #[test]
 pub fn test_write_projected()
 {
@@ -109,4 +110,5 @@ pub fn test_write_projected()
 
   	row_id += 1;
   }
-}*/
+}
+*/
