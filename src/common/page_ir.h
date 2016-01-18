@@ -19,6 +19,9 @@ struct Chunk {
 };
 
 struct Page {
+  void* ptr;
+  size_t size;
+
   Chunk* chunks;
   // the number of minipages
   size_t chunk_num;

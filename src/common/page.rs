@@ -74,16 +74,13 @@ impl Chunk {
   }*/
 }
 
-pub struct RawChunkWriter<'a> {
-  mpage: &'a Chunk,
-  cur_idx: usize
-}
+pub struct RawChunkWriter;
 
 #[repr(C)]
 pub struct Page {
   pub ptr        : *const u8,
   pub size       : usize,
-  
+
   pub chunks     : *const Chunk,
   /// the number of Chunks
   pub chunk_num  : usize,
@@ -96,27 +93,25 @@ pub struct Page {
 
 impl Drop for Page {
   fn drop(&mut self) {
-
+    // to deallocate vector
     let vec:Vec<Chunk> = unsafe {
       Vec::from_raw_parts(self.chunks as *mut Chunk, self.chunk_num, self.chunk_num)
     };
 
-    // only if owned page will deallocate Chunks
+    // only if owned page will be deallocated
     if self.owned {
-      for m in vec.iter() {
-        unsafe { heap::deallocate(m.ptr as *mut u8, m.size, ALIGNED_SIZE) };
-      }
+      unsafe { heap::deallocate(self.ptr as *mut u8, self.size, ALIGNED_SIZE) };
     }
   }
 }
 
-/// Get a chunk size according to both type and encoding type. 
-fn compute_chunk_size(ty: &Ty, enc: &EncType) -> usize { 
+/// Get a chunk size according to both type and encoding type.
+fn compute_chunk_size(ty: &Ty, enc: &EncType) -> usize {
   get_aligned_size(ty.size_of())
 }
 
 impl Page {
-    
+
   pub fn new(types: &[&Ty], encs: Option<&[EncType]>) -> Page {
     match encs {
       Some(e) => Page::new_with_enc(types, e),
@@ -125,54 +120,54 @@ impl Page {
           .take(types.len())
           .collect::<Vec<EncType>>();
         Page::new_with_enc(types, &raw_encs[..])
-      } 
+      }
     }
   }
-  
-  fn new_with_enc(types: &[&Ty], encs: &[EncType]) -> Page {    
-    // Precondition    
-    debug_assert!(types.len() == encs.len(), 
+
+  fn new_with_enc(types: &[&Ty], encs: &[EncType]) -> Page {
+    // Precondition
+    debug_assert!(types.len() == encs.len(),
       "num of types and encodings must be equal.");
-    
+
     // extract fixed columns
     // allocate memory for fixed columns
     // assign pointers to chunks
-    
+
     let total_sz = izip!(types, encs)
       .map(|(t,e)| compute_chunk_size(t, e))
       .fold(0, |acc, sz| acc + sz);
-     
-    let mut ptr = unsafe { heap::allocate(total_sz, ALIGNED_SIZE) }; 
-      
+
+    let mut ptr = unsafe { heap::allocate(total_sz, ALIGNED_SIZE) };
+
     // ptr, len
     let mut acc: usize = 0;
     let mut chunks: Vec<Chunk> = Vec::new();
-    
+
     for (t,e) in izip!(types, encs) {
       let sz = compute_chunk_size(t, e);
       acc += sz;
-      
-      let cur_chunk = Chunk { 
+
+      let cur_chunk = Chunk {
         ptr: unsafe { ptr.offset(acc as isize) },
         size: sz
       };
-      
+
       chunks.push(cur_chunk);
     }
-         	
+
     chunks.shrink_to_fit();
 
     let new_page = Page {
       ptr      : ptr,
       size     : total_sz,
-       
-      chunks   : Chunks.as_ptr(),
+
+      chunks   : chunks.as_ptr(),
       chunk_num: types.len(),
       value_cnt: 0usize,
       owned    : true
     };
 
-    ::std::mem::forget(Chunks);
+    ::std::mem::forget(chunks);
 
     new_page
   }
