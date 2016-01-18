@@ -277,45 +277,6 @@ pub mod c_api {
   }
 }
 
-#[cfg(test)]
-mod tests {
-  use types::{I32, F32, F64};
-
-  use page::*;
-  use page::c_api::*;
-
-    
-
-  #[test]
-  fn test_rw() {
-    let p = Page::new(&[I32, F32, F64], None);
-
-    let m = p.chunk_ptr(0);
-    for x in 0..ROWBATCH_SIZE {
-      unsafe { write_raw_i32(m, x, x as i32) };
-    }
-    for x in 0..ROWBATCH_SIZE {
-      assert_eq!(x as i32, unsafe { read_raw_i32(m, x) });
-    }
-
-    let m = p.chunk_ptr(1);
-    for x in 0..ROWBATCH_SIZE {
-      unsafe { write_raw_f32(m, x, x as f32) };
-    }
-    for x in 0..ROWBATCH_SIZE {
-      assert_eq!(x as f32, unsafe { read_raw_f32(m, x) });
-    }
-
-    let m = p.chunk_ptr(2);
-    for x in 0..ROWBATCH_SIZE {
-      unsafe { write_raw_f64(m, x, x as f64) };
-    }
-    for x in 0..ROWBATCH_SIZE {
-      assert_eq!(x as f64, unsafe { read_raw_f64(m, x) });
-    }
-  }
-}
-
 /*
 /// Type for column index
 pub type PageId = usize;
