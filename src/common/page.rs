@@ -81,6 +81,9 @@ pub struct RawChunkWriter<'a> {
 
 #[repr(C)]
 pub struct Page {
+  pub ptr        : *const u8,
+  pub size       : usize,
+  
   pub chunks     : *const Chunk,
   /// the number of Chunks
   pub chunk_num  : usize,
@@ -137,15 +140,32 @@ impl Page {
     
     let total_sz = izip!(types, encs)
       .map(|(t,e)| compute_chunk_size(t, e))
-      .fold(0, |acc, sz| acc + sz);              
+      .fold(0, |acc, sz| acc + sz);
+     
+    let mut ptr = unsafe { heap::allocate(total_sz, ALIGNED_SIZE) }; 
+      
+    // ptr, len
+    let mut acc: usize = 0;
+    let mut chunks: Vec<Chunk> = Vec::new();
     
-    let mut Chunks = types
-      .iter()
-      .map(|ty| Chunk::new(ty.size_of()))
-      .collect::<Vec<Chunk>>();
-    Chunks.shrink_to_fit();
+    for (t,e) in izip!(types, encs) {
+      let sz = compute_chunk_size(t, e);
+      acc += sz;
+      
+      let cur_chunk = Chunk { 
+        ptr: unsafe { ptr.offset(acc as isize) },
+        size: sz
+      };
+      
+      chunks.push(cur_chunk);
+    }
+         	
+    chunks.shrink_to_fit();
 
     let new_page = Page {
+      ptr      : ptr,
+      size     : total_sz,
+       
       chunks   : Chunks.as_ptr(),
       chunk_num: types.len(),
       value_cnt: 0usize,
