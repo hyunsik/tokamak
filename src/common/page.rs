@@ -45,7 +45,7 @@ pub enum EncType {
 /// Memory Chunk
 ///
 /// It is usually a slice to point the memory area.
-#[repr(C)] #[derive(Clone)]
+#[repr(C)] #[derive(Copy, Clone)]
 pub struct Chunk {
   pub ptr : *const u8,
   pub size: usize,
@@ -103,6 +103,41 @@ fn compute_chunk_size(ty: &Ty, enc: &EncType) -> usize {
 }
 
 impl Page {
+
+  pub fn empty_page(num: usize) -> Page {
+    let mut empty_chunks: Vec<Chunk> =
+      ::std::iter::repeat(unsafe {::std::mem::uninitialized()})
+      .take(num)
+      .collect::<Vec<Chunk>>();
+    empty_chunks.shrink_to_fit();
+
+    let page = Page {
+      ptr: ::std::ptr::null(),
+      size: 0,
+
+      chunks: empty_chunks.as_ptr(),
+      value_cnt: 0,
+      chunk_num: num,
+      owned: false,
+    };
+    ::std::mem::forget(empty_chunks);
+
+    page
+  }
+
+  pub fn set_chunk(&mut self, idx: usize, chunk: &Chunk) {
+    assert!(self.owned == false, "Owned page does not support Page::set().");
+    self.chunks_mut()[idx] = *chunk;
+  }
+
+  pub fn set_chunks(&mut self, chunks: &[&Chunk]) {
+    assert!(self.owned == false, "Owned page does not support Page::set().");
+    debug_assert!(chunks.len() == self.chunk_num, "The number of chunks must be the same to that of the page.");
+
+    for (idx, each_chunk) in izip!(0..chunks.len(), chunks) {
+      self.chunks_mut()[idx] = **each_chunk;
+    }
+  }
 
   pub fn new(types: &[&Ty], encs: Option<&[EncType]>) -> Page {
     match encs {
