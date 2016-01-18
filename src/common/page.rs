@@ -224,6 +224,39 @@ impl Page {
 
   pub fn value_count(&self) -> usize { self.value_cnt }
 
+  pub fn copy(&self) -> Page {
+    let mut ptr = unsafe { heap::allocate(self.size, ALIGNED_SIZE) };
+    unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.size); }
+
+    let mut chunks = Vec::new();
+    let mut acc = 0;
+    for c in self.chunks() {
+      acc += c.size;
+      
+      let cur_chunk = Chunk {
+        ptr: unsafe { ptr.offset(acc as isize) },
+        size: c.size
+      };
+
+      chunks.push(cur_chunk);
+    }
+
+    let page = Page {
+      ptr      : ptr,
+      size     : self.size,
+
+      chunks   : chunks.as_ptr(),
+      chunk_num: self.chunk_num,
+      value_cnt: self.value_cnt,
+      owned    : true
+    };
+    // forget Vec to keep raw pointer in Page.
+    // It is necessary in order to make Page compatible with LLVM IR.
+    ::std::mem::forget(chunks);
+
+    page
+  }
+
   pub fn project<'a>(&'a self, ids: &[usize]) -> Vec<&'a Chunk> {
   	ids.iter()
   		.map(|i| self.chunk(*i))
@@ -275,14 +308,7 @@ mod tests {
 
     assert_eq!(p.chunks().iter().map(|m| m.size).fold(0, |acc, s| acc + s), p.size());
     assert_eq!((4 + 8) * 1024, p.size());
-  }
-
-  /*
-  #[test]
-  fn test_chunk() {
-    let p = Page::new(&[I32, F64], None);
-  }
-  */
+  } 
 
   #[test]
   fn test_rw() {
