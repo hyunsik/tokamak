@@ -18,6 +18,7 @@
 /// * [3] Daniel J. Abadi ea al., Materialization Strategies in a Column-Oriented DBMS, ICDE 2007
 
 use alloc::heap;
+use std::fmt;
 use std::marker;
 use std::ptr;
 use std::slice;
@@ -49,6 +50,13 @@ pub struct Chunk {
   pub ptr : *const u8,
   pub size: usize,
   //pub owned: false
+}
+
+
+impl fmt::Display for Chunk {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "Chunk {{ptr:{}, size:{}}}", self.ptr as usize, self.size)
+  }
 }
 
 /*
@@ -90,6 +98,13 @@ pub struct Page {
   pub value_cnt  : usize,
   // Does this page own the Chunks?
   pub owned      : bool
+}
+
+impl fmt::Display for Page {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "Page {{ptr:{}, size:{}, chunk_num:{}, value_cnt:{}, owned:{}}}", 
+      self.ptr as usize, self.size, self.chunk_num, self.value_cnt, self.owned)
+  }
 }
 
 impl Drop for Page {
@@ -137,8 +152,6 @@ impl Page {
     let total_sz = izip!(types, encs)
       .map(|(t,e)| compute_chunk_size(t, e))
       .fold(0, |acc, sz| acc + sz);
-
-    println!("total_sz: {}", total_sz);
 
     let mut ptr = unsafe { heap::allocate(total_sz, ALIGNED_SIZE) };
     let chunks = Page::create_chunks(ptr, types, encs);

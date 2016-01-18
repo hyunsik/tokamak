@@ -3,7 +3,7 @@ extern crate common;
 /*
 use common::session::Session;
 use common::types::{I32, F32, Ty};
-use common::rows::{Page, ROWBATCH_SIZE};
+use common::page::{Page, ROWBATCH_SIZE};
 use common::input::InputSource;
 use common::storage::{MemTable, RandomTable};
 
@@ -17,6 +17,7 @@ macro_rules! assert_write_rows {
   	}
 	}
 }
+
 
 #[test]
 pub fn test_next_once()
@@ -108,5 +109,4 @@ pub fn test_write_projected()
 
   	row_id += 1;
   }
-}
-*/
+}*/

@@ -45,10 +45,8 @@ pub fn test_project()
 
   unsafe {
     for x in 0 .. 5 {
-      c_api::read_raw_f32(page.chunk_ptr(0), x);
-
-      //assert_eq!(c_api::read_raw_f32(page.chunk(1), x), c_api::read_raw_f32(projected[0], x));
-      //assert_eq!(c_api::read_raw_i32(page.chunk(2), x), c_api::read_raw_i32(projected[1], x));
+      assert_eq!(c_api::read_raw_f32(page.chunk(1), x), c_api::read_raw_f32(projected[0], x));
+      assert_eq!(c_api::read_raw_i32(page.chunk(2), x), c_api::read_raw_i32(projected[1], x));
     }
   }
 }
