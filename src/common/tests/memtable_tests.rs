@@ -99,11 +99,14 @@ pub fn test_write_projected()
   empty_page.set_chunks(&projected[..]);
   empty_page.set_value_count(page.value_count());
 
+  let omitted_chunk_sz = page.chunk(0).size;
+
   assert_eq!(2, empty_page.chunk_num());
+  assert_eq!(page.size() - omitted_chunk_sz , empty_page.size());
   assert_eq!(page.value_count(), empty_page.value_count());
 
-  //mem.write(&empty_page).ok().unwrap();
-  //assert_eq!(5, mem.row_num());
+  mem.write(&empty_page).ok().unwrap();
+  assert_eq!(5, mem.row_num());
   /*
   let reader = mem.reader();
   let mut row_id = 0usize;

@@ -61,7 +61,7 @@ impl fmt::Display for Chunk {
 
 pub struct RawChunkWriter;
 
-#[repr(C)]
+#[repr(C)] #[derive(Clone)]
 pub struct Page {
   pub ptr        : *const u8,
   pub size       : usize,
@@ -125,18 +125,16 @@ impl Page {
     page
   }
 
-  pub fn set_chunk(&mut self, idx: usize, chunk: &Chunk) {
-    assert!(self.owned == false, "Owned page does not support Page::set().");
-    self.chunks_mut()[idx] = *chunk;
-  }
-
   pub fn set_chunks(&mut self, chunks: &[&Chunk]) {
     assert!(self.owned == false, "Owned page does not support Page::set().");
     debug_assert!(chunks.len() == self.chunk_num, "The number of chunks must be the same to that of the page.");
 
+    let mut total_sz = 0;
     for (idx, each_chunk) in izip!(0..chunks.len(), chunks) {
+      total_sz += each_chunk.size;
       self.chunks_mut()[idx] = **each_chunk;
     }
+    self.size = total_sz;
   }
 
   pub fn new(types: &[&Ty], encs: Option<&[EncType]>) -> Page {
@@ -233,6 +231,14 @@ impl Page {
   pub fn value_count(&self) -> usize { self.value_cnt }
 
   pub fn copy(&self) -> Page {
+    if self.owned {
+      self.copy_owned()
+    } else {
+      self.copy_not_owned()
+    }
+  }
+
+  fn copy_owned(&self) -> Page {
     let mut ptr = unsafe { heap::allocate(self.size, ALIGNED_SIZE) };
     unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.size); }
 
@@ -252,6 +258,40 @@ impl Page {
       value_cnt: self.value_cnt,
       owned    : true
     };
+    // forget Vec to keep raw pointer in Page.
+    // It is necessary in order to make Page compatible with LLVM IR.
+    ::std::mem::forget(chunks);
+
+    page
+  }
+
+  fn copy_not_owned(&self) -> Page {
+    // if still empty, just return its copy.
+    if self.size == 0 { return self.clone(); }
+
+    let mut ptr = unsafe { heap::allocate(self.size, ALIGNED_SIZE) };
+
+    let mut chunks = Vec::new();
+    let mut acc = 0;
+
+    for src_chunk in self.chunks() {
+      let chunk_ptr = unsafe { ptr.offset(acc as isize) };
+      unsafe { ptr::copy_nonoverlapping(src_chunk.ptr, chunk_ptr, src_chunk.size); }
+      chunks.push(Chunk { ptr: chunk_ptr, size: src_chunk.size });
+
+      acc += src_chunk.size;
+    }
+
+    let page = Page {
+      ptr      : ptr,
+      size     : self.size,
+
+      chunks   : chunks.as_ptr(),
+      chunk_num: self.chunk_num,
+      value_cnt: self.value_cnt,
+      owned    : true
+    };
+
     // forget Vec to keep raw pointer in Page.
     // It is necessary in order to make Page compatible with LLVM IR.
     ::std::mem::forget(chunks);
