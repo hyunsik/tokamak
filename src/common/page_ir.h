@@ -1,6 +1,7 @@
 #ifndef PAGE_IR_H_
 #define PAGE_IR_H_
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
 

@@ -123,7 +123,7 @@ impl Drop for Page {
 
 /// Get a chunk size according to both type and encoding type.
 fn compute_chunk_size(ty: &Ty, enc: &EncType) -> usize {
-  get_aligned_size(ty.size_of() * ROWBATCH_SIZE)
+  get_aligned_size(ty.size_of() * ROWBATCH_SIZE * 4)
 }
 
 impl Page {
@@ -149,16 +149,17 @@ impl Page {
     // allocate memory for fixed columns
     // assign pointers to chunks
 
-    let total_sz = izip!(types, encs)
+    let mem_sz = get_aligned_size(
+      izip!(types, encs)
       .map(|(t,e)| compute_chunk_size(t, e))
-      .fold(0, |acc, sz| acc + sz);
+      .fold(0, |acc, sz| acc + sz));
 
-    let mut ptr = unsafe { heap::allocate(total_sz, ALIGNED_SIZE) };
-    let chunks = Page::create_chunks(ptr, types, encs);
+    let mut ptr = unsafe { heap::allocate(mem_sz, ALIGNED_SIZE) };
+    let chunks = Page::create_chunks(ptr, mem_sz, types, encs);
 
     let page = Page {
       ptr      : ptr,
-      size     : total_sz,
+      size     : mem_sz,
 
       chunks   : chunks.as_ptr(),
       chunk_num: types.len(),
@@ -173,25 +174,21 @@ impl Page {
   }
 
   /// Create chunks for data types and encoding types
-  fn create_chunks(ptr: *const u8, types: &[&Ty], encs: &[EncType]) -> Vec<Chunk> {
+  fn create_chunks(ptr: *const u8, area_sz: usize, types: &[&Ty], encs: &[EncType]) -> Vec<Chunk> {
 
     let mut acc: usize = 0;
     let mut chunks: Vec<Chunk> = Vec::with_capacity(types.len());
 
-    for (t,e) in izip!(types, encs) {
-      let sz = compute_chunk_size(t, e);
+    for (t,e) in izip!(types, encs) {      
+      let sz = compute_chunk_size(t, e);      
+      chunks.push( Chunk {ptr: unsafe { ptr.offset(acc as isize) }, size: sz});      
       acc += sz;
-
-      let cur_chunk = Chunk {
-        ptr: unsafe { ptr.offset(acc as isize) },
-        size: sz
-      };
-
-      chunks.push(cur_chunk);
     }
 
+    // validation
+    debug_assert!(acc == area_sz);
     debug_assert!(types.len() == chunks.len());
-    debug_assert!(chunks.len() == chunks.capacity());
+    debug_assert!(chunks.len() == chunks.capacity());    
 
     chunks
   }
@@ -231,14 +228,8 @@ impl Page {
     let mut chunks = Vec::new();
     let mut acc = 0;
     for c in self.chunks() {
+      chunks.push( Chunk { ptr: unsafe { ptr.offset(acc as isize) }, size: c.size });      
       acc += c.size;
-      
-      let cur_chunk = Chunk {
-        ptr: unsafe { ptr.offset(acc as isize) },
-        size: c.size
-      };
-
-      chunks.push(cur_chunk);
     }
 
     let page = Page {
@@ -293,22 +284,7 @@ mod tests {
   use page::*;
   use page::c_api::*;
 
-  #[test]
-  fn test_page() {
-    let p = Page::new(&[I32, F64], None);
-    assert_eq!(2, p.chunk_num());
-
-    unsafe {
-      assert_eq!(p.chunk_ptr(0), get_chunk(&p, 0));
-      assert_eq!(p.chunk_ptr(1), get_chunk(&p, 1));
-
-      assert_eq!(&p.chunks()[0] as *const Chunk, get_chunk(&p, 0));
-      assert_eq!(&p.chunks()[1] as *const Chunk, get_chunk(&p, 1));
-    }
-
-    assert_eq!(p.chunks().iter().map(|m| m.size).fold(0, |acc, s| acc + s), p.size());
-    assert_eq!((4 + 8) * 1024, p.size());
-  } 
+    
 
   #[test]
   fn test_rw() {
