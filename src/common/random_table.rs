@@ -49,6 +49,7 @@ impl InputSource for RandomTable
 
   fn next(&mut self) -> Result<&Page>
   {
+    println!("enter next");
     if self.cur_pos >= self.row_num {
       self.page.set_value_count(0);
     	return Ok(&self.page)

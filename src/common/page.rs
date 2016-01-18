@@ -51,6 +51,7 @@ pub struct Chunk {
   //pub owned: false
 }
 
+/*
 impl Chunk {
   pub fn new(elem_size: usize) -> Chunk {
     let required_size = get_aligned_size(elem_size * ROWBATCH_SIZE);
@@ -62,7 +63,6 @@ impl Chunk {
     }
   }
 
-  /*
   pub fn to_owned(&self) -> Chunk {
   	let mut ptr = unsafe { heap::allocate(self.size, ALIGNED_SIZE) };
     unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.size); }
@@ -71,8 +71,9 @@ impl Chunk {
       ptr: ptr,
       size: self.size
     }
-  }*/
+  }
 }
+*/
 
 pub struct RawChunkWriter;
 
@@ -107,7 +108,7 @@ impl Drop for Page {
 
 /// Get a chunk size according to both type and encoding type.
 fn compute_chunk_size(ty: &Ty, enc: &EncType) -> usize {
-  get_aligned_size(ty.size_of())
+  get_aligned_size(ty.size_of() * ROWBATCH_SIZE)
 }
 
 impl Page {
@@ -137,11 +138,32 @@ impl Page {
       .map(|(t,e)| compute_chunk_size(t, e))
       .fold(0, |acc, sz| acc + sz);
 
-    let mut ptr = unsafe { heap::allocate(total_sz, ALIGNED_SIZE) };
+    println!("total_sz: {}", total_sz);
 
-    // ptr, len
+    let mut ptr = unsafe { heap::allocate(total_sz, ALIGNED_SIZE) };
+    let chunks = Page::create_chunks(ptr, types, encs);
+
+    let page = Page {
+      ptr      : ptr,
+      size     : total_sz,
+
+      chunks   : chunks.as_ptr(),
+      chunk_num: types.len(),
+      value_cnt: 0usize,
+      owned    : true
+    };
+    // forget Vec to keep raw pointer in Page.
+    // It is necessary in order to make Page compatible with LLVM IR.
+    ::std::mem::forget(chunks);
+
+    page
+  }
+
+  /// Create chunks for data types and encoding types
+  fn create_chunks(ptr: *const u8, types: &[&Ty], encs: &[EncType]) -> Vec<Chunk> {
+
     let mut acc: usize = 0;
-    let mut chunks: Vec<Chunk> = Vec::new();
+    let mut chunks: Vec<Chunk> = Vec::with_capacity(types.len());
 
     for (t,e) in izip!(types, encs) {
       let sz = compute_chunk_size(t, e);
@@ -155,47 +177,30 @@ impl Page {
       chunks.push(cur_chunk);
     }
 
-    chunks.shrink_to_fit();
+    debug_assert!(types.len() == chunks.len());
+    debug_assert!(chunks.len() == chunks.capacity());
 
-    let new_page = Page {
-      ptr      : ptr,
-      size     : total_sz,
+    chunks
+  }
 
-      chunks   : chunks.as_ptr(),
-      chunk_num: types.len(),
-      value_cnt: 0usize,
-      owned    : true
-    };
-
-    ::std::mem::forget(chunks);
-
-    new_page
+  pub fn size(&self) -> usize {
+    self.size
   }
 
   pub fn chunks<'a>(&'a self) -> &'a [Chunk] {
-    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) };
-
-    ms
+    unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) }
   }
 
   pub fn chunks_mut<'a>(&'a self) -> &'a mut [Chunk] {
-    let ms: &mut [Chunk] = unsafe { ::std::slice::from_raw_parts_mut(self.chunks as *mut Chunk, self.chunk_num) };
-
-    ms
+    unsafe { ::std::slice::from_raw_parts_mut(self.chunks as *mut Chunk, self.chunk_num) }
   }
 
-  pub fn project<'a>(&'a self, ids: &[usize]) -> Vec<&'a Chunk> {
-  	ids.iter()
-  		.map(|i| self.chunk_ref(*i))
-  		.collect::<Vec<&Chunk>>()
-  }
-
-  pub fn chunk<'a>(&'a self, page_id: usize) -> *const Chunk {
+  pub fn chunk<'a>(&'a self, page_id: usize) -> &'a Chunk {
     let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) };
     &ms[page_id]
   }
 
-  pub fn chunk_ref<'a>(&'a self, page_id: usize) -> &'a Chunk {
+  pub fn chunk_ptr(&self, page_id: usize) -> *const Chunk {
     let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) };
     &ms[page_id]
   }
@@ -204,11 +209,12 @@ impl Page {
 
   pub fn set_value_count(&mut self, cnt: usize) { self.value_cnt = cnt }
 
-  pub fn value_count(&self) -> usize { self.value_cnt}
+  pub fn value_count(&self) -> usize { self.value_cnt }
 
-  pub fn bytesize(&self) -> usize {
-    let ms: &[Chunk] = unsafe { ::std::slice::from_raw_parts(self.chunks, self.chunk_num) };
-    ms.iter().map(|m| m.size).fold(0, |acc, size| acc + size)
+  pub fn project<'a>(&'a self, ids: &[usize]) -> Vec<&'a Chunk> {
+  	ids.iter()
+  		.map(|i| self.chunk(*i))
+  		.collect::<Vec<&Chunk>>()
   }
 }
 
@@ -236,7 +242,7 @@ pub mod c_api {
 
 #[cfg(test)]
 mod tests {
-  use types::{I32, F64};
+  use types::{I32, F32, F64};
 
   use page::*;
   use page::c_api::*;
@@ -247,28 +253,51 @@ mod tests {
     assert_eq!(2, p.chunk_num());
 
     unsafe {
-      assert_eq!(p.chunk(0), get_chunk(&p, 0));
-      assert_eq!(p.chunk(1), get_chunk(&p, 1));
+      assert_eq!(p.chunk_ptr(0), get_chunk(&p, 0));
+      assert_eq!(p.chunk_ptr(1), get_chunk(&p, 1));
 
       assert_eq!(&p.chunks()[0] as *const Chunk, get_chunk(&p, 0));
       assert_eq!(&p.chunks()[1] as *const Chunk, get_chunk(&p, 1));
     }
 
-    assert_eq!(p.bytesize(), p.chunks().iter().map(|m| m.size).fold(0, |acc, s| acc + s));
-    assert_eq!((4 + 8) * 1024, p.bytesize());
+    assert_eq!(p.chunks().iter().map(|m| m.size).fold(0, |acc, s| acc + s), p.size());
+    assert_eq!((4 + 8) * 1024, p.size());
   }
 
+  /*
   #[test]
   fn test_chunk() {
-    let m = Chunk::new(4);
-    assert_eq!(4096, m.size);
+    let p = Page::new(&[I32, F64], None);
   }
+  */
 
   #[test]
   fn test_rw() {
-    let m = Chunk::new(4);
-    unsafe { write_raw_i32(&m, 0, 32) };
-    assert_eq!(32, unsafe { read_raw_i32(&m, 0) });
+    let p = Page::new(&[I32, F32, F64], None);
+
+    let m = p.chunk_ptr(0);
+    for x in 0..ROWBATCH_SIZE {
+      unsafe { write_raw_i32(m, x, x as i32) };
+    }
+    for x in 0..ROWBATCH_SIZE {
+      assert_eq!(x as i32, unsafe { read_raw_i32(m, x) });
+    }
+
+    let m = p.chunk_ptr(1);
+    for x in 0..ROWBATCH_SIZE {
+      unsafe { write_raw_f32(m, x, x as f32) };
+    }
+    for x in 0..ROWBATCH_SIZE {
+      assert_eq!(x as f32, unsafe { read_raw_f32(m, x) });
+    }
+
+    let m = p.chunk_ptr(2);
+    for x in 0..ROWBATCH_SIZE {
+      unsafe { write_raw_f64(m, x, x as f64) };
+    }
+    for x in 0..ROWBATCH_SIZE {
+      assert_eq!(x as f64, unsafe { read_raw_f64(m, x) });
+    }
   }
 }
 

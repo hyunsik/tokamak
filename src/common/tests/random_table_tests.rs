@@ -15,6 +15,7 @@ macro_rules! assert_next_rows {
 	}
 }
 
+/*
 #[test]
 pub fn test_next_once()
 {
@@ -60,4 +61,4 @@ pub fn test_next_value()
       println!("{} - {},{}", x, c_api::read_raw_i32(page.chunk(0), x), c_api::read_raw_f32(page.chunk(1), x));
     }
   }
-}
+}*/
