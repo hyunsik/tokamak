@@ -37,6 +37,16 @@ extern "C" Chunk* get_chunk(Page* page, size_t idx) {
   return &page->chunks[idx];
 }
 
+struct RawChunkWriter {
+  Chunk* chunk;
+  size_t idx;
+};
+
+struct RawChunkReader {
+  Chunk* chunk;
+  size_t idx;
+};
+
 WRITE_RAW_VAL(i8, int8_t);
 WRITE_RAW_VAL(i16, int16_t);
 WRITE_RAW_VAL(i32, int32_t);
@@ -50,6 +60,8 @@ READ_RAW_VAL(i32, int32_t);
 READ_RAW_VAL(i64, int64_t);
 READ_RAW_VAL(f32, float);
 READ_RAW_VAL(f64, double);
+
+
 
 void dummy(Page* v1, Chunk* v2) {}
 
