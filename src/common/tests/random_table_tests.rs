@@ -58,7 +58,7 @@ pub fn test_next_value()
 
   unsafe {
     for x in 0..page.value_count() {
-      println!("{} - {},{}", x, c_api::read_raw_i32(page.chunk(0), x), c_api::read_raw_f32(page.chunk(1), x));
+      println!("{} - {},{}", x, c_api::read_i32_raw(page.chunk(0), x), c_api::read_f32_raw(page.chunk(1), x));
     }
   }
 }

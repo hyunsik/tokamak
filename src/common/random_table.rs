@@ -78,7 +78,7 @@ fn write_rand_for_i32(mp: &mut Chunk, rownum: usize)
 {
   unsafe {
     for pos in 0 .. rownum {
-      c_api::write_raw_i32(mp, pos, rand::random::<i32>());
+      c_api::write_i32_raw(mp, pos, rand::random::<i32>());
     }
   }
 }
@@ -87,7 +87,7 @@ fn write_rand_for_i64(mp: &mut Chunk, rownum: usize)
 {
   unsafe {
     for pos in 0 .. rownum {
-      c_api::write_raw_i64(mp, pos, rand::random::<i64>());
+      c_api::write_i64_raw(mp, pos, rand::random::<i64>());
     }
   }
 }
@@ -96,7 +96,7 @@ fn write_rand_for_f32(mp: &mut Chunk, rownum: usize)
 {
   unsafe {
     for pos in 0 .. rownum {
-      c_api::write_raw_f32(mp, pos, rand::random::<f32>());
+      c_api::write_f32_raw(mp, pos, rand::random::<f32>());
     }
   }
 }
@@ -105,7 +105,7 @@ fn write_rand_for_f64(mp: &mut Chunk, rownum: usize)
 {
   unsafe {
     for pos in 0 .. rownum {
-      c_api::write_raw_f64(mp, pos, rand::random::<f64>());
+      c_api::write_f64_raw(mp, pos, rand::random::<f64>());
     }
   }
 }

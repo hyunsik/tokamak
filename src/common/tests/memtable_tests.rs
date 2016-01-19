@@ -114,8 +114,8 @@ pub fn test_write_projected()
   unsafe {
     for x in reader {
       let r: (f32, i32) = x.ok().unwrap();
-      assert_eq!(c_api::read_raw_f32(page.chunk(1), row_id), r.0);
-      assert_eq!(c_api::read_raw_i32(page.chunk(2), row_id), r.1);
+      assert_eq!(c_api::read_f32_raw(page.chunk(1), row_id), r.0);
+      assert_eq!(c_api::read_i32_raw(page.chunk(2), row_id), r.1);
 
       row_id += 1;
     }

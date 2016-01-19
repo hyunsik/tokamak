@@ -312,18 +312,18 @@ pub mod c_api {
   extern "C" {
     pub fn get_chunk(p: *const Page, idx: usize) -> *const Chunk;
 
-    pub fn write_raw_i8 (p: *const Chunk, idx: usize, val: i8);
-    pub fn write_raw_i16(p: *const Chunk, idx: usize, val: i16);
-    pub fn write_raw_i32(p: *const Chunk, idx: usize, val: i32);
-    pub fn write_raw_i64(p: *const Chunk, idx: usize, val: i64);
-    pub fn write_raw_f32(p: *const Chunk, idx: usize, val: f32);
-    pub fn write_raw_f64(p: *const Chunk, idx: usize, val: f64);
+    pub fn write_i8_raw (p: *const Chunk, idx: usize, val: i8);
+    pub fn write_i16_raw(p: *const Chunk, idx: usize, val: i16);
+    pub fn write_i32_raw(p: *const Chunk, idx: usize, val: i32);
+    pub fn write_i64_raw(p: *const Chunk, idx: usize, val: i64);
+    pub fn write_f32_raw(p: *const Chunk, idx: usize, val: f32);
+    pub fn write_f64_raw(p: *const Chunk, idx: usize, val: f64);
 
-    pub fn read_raw_i8 (p: *const Chunk, idx: usize) -> i8;
-    pub fn read_raw_i16(p: *const Chunk, idx: usize) -> i16;
-    pub fn read_raw_i32(p: *const Chunk, idx: usize) -> i32;
-    pub fn read_raw_i64(p: *const Chunk, idx: usize) -> i64;
-    pub fn read_raw_f32(p: *const Chunk, idx: usize) -> f32;
-    pub fn read_raw_f64(p: *const Chunk, idx: usize) -> f64;
+    pub fn read_i8_raw (p: *const Chunk, idx: usize) -> i8;
+    pub fn read_i16_raw(p: *const Chunk, idx: usize) -> i16;
+    pub fn read_i32_raw(p: *const Chunk, idx: usize) -> i32;
+    pub fn read_i64_raw(p: *const Chunk, idx: usize) -> i64;
+    pub fn read_f32_raw(p: *const Chunk, idx: usize) -> f32;
+    pub fn read_f64_raw(p: *const Chunk, idx: usize) -> f64;
   }
 }
