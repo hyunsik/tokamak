@@ -38,25 +38,13 @@ impl MemTable
 
 impl MemTable
 {
-	pub fn row_num(&self) -> usize
-	{
-		self.row_num
-	}
+	pub fn row_num(&self) -> usize { self.row_num }
 
-	pub fn col_num(&self) -> usize
-	{
-		self.types.len()
-	}
+	pub fn col_num(&self) -> usize { self.types.len() }
 
-	pub fn types(&self) -> &Vec<Ty>
-	{
-		&self.types
-	}
+	pub fn types(&self) -> &Vec<Ty> {	&self.types }
 
-	pub fn fields(&self) -> &Vec<String>
-	{
-		&self.fields
-	}
+	pub fn fields(&self) -> &Vec<String> { &self.fields }
 
 	pub fn reader<'a, D: Decodable>(&'a self) -> DecodedRecords<'a, D>
 	{
@@ -81,7 +69,6 @@ impl MemTable
 	pub fn close(&mut self) -> Void
 	{
 		self.pages.clear();
-
 		void_ok
 	}
 }
@@ -101,7 +88,6 @@ pub struct DecodedRecords<'a, D>
 impl<'a, D> DecodedRecords<'a, D>
 {
 	fn next_page(&mut self) {
-		println!(">>> DecodedRecords::next_page() invoked.");
 		loop {
   		self.cur_page = self.pages_it.next();
 
