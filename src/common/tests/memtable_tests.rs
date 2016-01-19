@@ -3,7 +3,7 @@ extern crate common;
 
 use common::session::Session;
 use common::types::{I32, F32, Ty};
-use common::page::{Page, ROWBATCH_SIZE};
+use common::page::{c_api, Page, ROWBATCH_SIZE};
 use common::input::InputSource;
 use common::storage::{MemTable, RandomTable};
 
@@ -107,14 +107,17 @@ pub fn test_write_projected()
 
   mem.write(&empty_page).ok().unwrap();
   assert_eq!(5, mem.row_num());
-  /*
+
   let reader = mem.reader();
   let mut row_id = 0usize;
-  for x in reader {
-  	let r: (f32, i32) = x.ok().unwrap();
-  	assert_eq!(page.minipage(1).read_f32(row_id), r.0);
-  	assert_eq!(page.minipage(2).read_i32(row_id), r.1);
 
-  	row_id += 1;
-  }*/
+  unsafe {
+    for x in reader {
+      let r: (f32, i32) = x.ok().unwrap();
+      assert_eq!(c_api::read_raw_f32(page.chunk(1), row_id), r.0);
+      assert_eq!(c_api::read_raw_i32(page.chunk(2), row_id), r.1);
+
+      row_id += 1;
+    }
+  }
 }
