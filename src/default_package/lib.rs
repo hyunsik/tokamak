@@ -6,8 +6,8 @@ extern crate common;
 use common::err::{Void, void_ok};
 use common::plugin::{Plugin, PluginManager}; 
 
-mod arithm_funcs;
-mod math_funcs;
+//mod arithm_funcs;
+//mod math_funcs;
 
 const PACKAGE_NAME: &'static str = "default";
 
@@ -19,8 +19,8 @@ impl Plugin for DefaultPackage
   
   fn load(&self, mgr: &mut PluginManager) -> Void 
   {  	
-  	try!(arithm_funcs::register_funcs(mgr));
-  	try!(math_funcs::register_funcs(mgr)); 
+  	//try!(arithm_funcs::register_funcs(mgr));
+  	//try!(math_funcs::register_funcs(mgr)); 
   	
 		void_ok  	
   }
