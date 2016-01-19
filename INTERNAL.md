@@ -84,20 +84,33 @@ minipages and each pointer indicates an actual field value. Another application
 of indirect minipage is dictionary encoding.
 
 ## How To Write Data into MiniPage
-We need to use a writer or builder to write some data. It is necessary 
-because we should support various column encoding. 
+We need to use a writer or builder to write some data. It is necessary
+because we should support various column encoding.
 Jit can make it efficient by using inline functions.
 
 ### Write Builder vs. Write Function
-Page and MiniPage are opaque pointers from the developer point of 
+Page and MiniPage are opaque pointers from the developer point of
 views. Page and MiniPage include raw pointers. We need to use some approach to avoid
 handling raw pointers to suppress error prone routines.
 
-There may be two approaches: Writer or Write Function. 
+There may be two approaches: Writer or Write Function.
 
 #### The Pros and Cons
  Writer: Easy to keep state, but not good for inlining
- Write function : Easy for inlining, but State must be kept outside, probably making Jit complexity higher.  
+ Write function : Easy for inlining, but State must be kept outside, probably making Jit complexity higher.
+
+# Scanner
+The design considerations for the scanner are as follows:
+ * Extensibility
+   * Various storage and data formats
+ * Avoid memory copy and deserialization as many as possible
+ * Late materialization support
+
+## Details
+ * Instead of implementing the abstract scanner, it will be a separate executor for specializing.
+ * Instead, Scanners should have only simple features as follows:
+   * Scanning specified fields
+   * Scanning specified fields with row ID list. (for late materialization)
 
 # JIT Compilation
 In Tokamak, JitManager generates some JIT code fragments in runtime for
