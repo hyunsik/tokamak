@@ -2,7 +2,7 @@ use std::marker;
 
 use common::err::Result;
 use common::plugin::{FuncRegistry, TypeRegistry};
-use common::rows::Page;
+use common::page::Page;
 
 use task::TaskSource;
 
@@ -17,12 +17,12 @@ pub struct Driver<'a>
 impl<'a> Driver<'a>
 {
   pub fn update_source(&self, source: TaskSource) {}
-  
-  pub fn process(&mut self) -> Result<&Page> 
+
+  pub fn process(&mut self) -> Result<&Page>
   {
   	self.root_exec.next()
   }
-  
+
   pub fn close(&mut self)
   {
   	self.root_exec.close();
@@ -32,7 +32,7 @@ impl<'a> Driver<'a>
 pub struct DriverFactory<'a>
 {
   pub is_input : bool,
-  pub is_output: bool, 
+  pub is_output: bool,
   source_ids   : Vec<String>,
   factory      : Box<ExecutorFactory>,
   marker       : marker::PhantomData<&'a ()>
@@ -40,9 +40,9 @@ pub struct DriverFactory<'a>
 
 impl<'a> DriverFactory<'a> {
 	pub fn new(
-		is_input : bool, 
-		is_output: bool, 
-		factory  : Box<ExecutorFactory>) -> DriverFactory<'a> 
+		is_input : bool,
+		is_output: bool,
+		factory  : Box<ExecutorFactory>) -> DriverFactory<'a>
 	{
 		DriverFactory {
 			is_input   : is_input,
@@ -52,11 +52,11 @@ impl<'a> DriverFactory<'a> {
 			marker     : marker::PhantomData
 		}
 	}
-	
+
 	pub fn create_driver(&self, ctx: &'a DriverContext) -> Driver<'a>
   {
   	let root_exec = self.factory.create(ctx).unwrap();
-  	
+
     Driver {
     	ctx: ctx,
     	root_exec: root_exec
@@ -68,17 +68,17 @@ impl<'a> DriverFactory<'a> {
 pub struct DriverContext<'a>
 {
 	ty_registry: &'a TypeRegistry,
-	fn_registry: &'a FuncRegistry 
+	fn_registry: &'a FuncRegistry
 }
 
 impl<'a> DriverContext<'a>
 {
-	pub fn new(ty_registry: &'a TypeRegistry, 
+	pub fn new(ty_registry: &'a TypeRegistry,
 						 fn_registry: &'a FuncRegistry) -> DriverContext<'a>
 	{
 		DriverContext {
 			ty_registry: ty_registry,
-			fn_registry: fn_registry 
+			fn_registry: fn_registry
 		}
 	}
 }

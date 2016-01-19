@@ -7,3 +7,9 @@ pub trait InputSource {
   fn next    (&mut self) -> Result<&Page>;
   fn close   (&mut self) -> Void;
 }
+
+pub struct InputSourceFactory;
+
+pub fn get_factory(name: &str) -> InputSourceFactory {
+  InputSourceFactory
+}

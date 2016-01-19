@@ -11,12 +11,6 @@ use std::convert::From;
 use std::rc::Rc;
 
 use common::err::{Error, Result, Void, void_ok};
-use common::func::{
-	NoArgFn,
-	UnaryFn,
-	BinaryFn,
-	TrinityFn
-};
 use common::plugin::{
 	FuncRegistry,
 	TypeRegistry
@@ -367,15 +361,14 @@ pub trait Processor
   fn process(
     &self,
     input: &Page,
-    builder: &mut OwnedPageBuilder) -> Void;
+    output: &mut Page) -> Void;
 }
 
 #[cfg(test)]
 mod tests {
-	use common::rows::{
+	use common::page::{
 		Page,
-		OwnedPageBuilder,
-		PageId
+		Chunk
 	};
 	use common::plugin::*;
 	use common::session::Session;
