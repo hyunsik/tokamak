@@ -45,7 +45,7 @@ pub mod hash_join;
 pub mod scan;
 
 use common::err::{Void, Result};
-use common::rows::Page;
+use common::page::Page;
 use common::types::Ty;
 
 use driver::DriverContext;

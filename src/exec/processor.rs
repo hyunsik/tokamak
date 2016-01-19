@@ -21,12 +21,9 @@ use common::plugin::{
 	FuncRegistry,
 	TypeRegistry
 };
-use common::rows::{
-	MiniPage,
-  FMiniPage,
-	Page,
-	OwnedPageBuilder,
-	PageId
+use common::page::{
+	Chunk,
+	Page
 };
 use common::session::Session;
 use common::types::{Ty, name};
