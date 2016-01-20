@@ -85,7 +85,7 @@ impl MapCompiler {
                  fn_reg: &FuncRegistry,
                  sess: &Session,
                  schema: &NamedSchema,
-                 expr: &Expr) -> Result<Rc<MapFunc>> {
+                 exprs: &[&Expr]) -> Result<Rc<MapFunc>> {
     let builder = jit.new_builder();
     let func = MapCompiler::create_fn_prototype(jit, &builder);
     
@@ -94,11 +94,11 @@ impl MapCompiler {
     let sel_list = func.arg(2);
     let row_num  = func.arg(3); 
     
-    let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
-    let codegen = try!(exprc.compile(expr));    
-    //builder.create_ret(&codegen);
-    
-    MapCompiler::write_value(jit, &builder, &out_page, expr.ty(), 0, &codegen);    
+    for (out_idx, e) in izip!(0..exprs.len(), exprs) {
+      let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
+      let codegen = try!(exprc.compile(e));    
+      MapCompiler::write_value(jit, &builder, &out_page, e.ty(), out_idx, &codegen);    
+    }
 
     builder.create_ret_void();
 
@@ -134,7 +134,7 @@ impl MapCompiler {
     
     
     let call = match jit.get_func(fn_name) {
-      Some(f) => builder.create_call(&f, &[&get_chunk, &output_idx_val, output_val]),
+      Some(f) => builder.create_call(&f, &[&get_chunk, &0.to_value(jit.context()), output_val]),
       _       => panic!("No such a function")
     };
   }
@@ -458,10 +458,10 @@ mod tests {
 	  	"l_tax"
 	  ];
 
-    let expr = Plus(I32, Const(19800401i32), Const(1i32));
+    let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
+    let expr2 = MinusSign(Const(7i32));
     //let expr = Or(Const(4i32), Const(2i32));
-    //let expr = Not(Const(0i32));
-    //let expr = MinusSign(Const(7i32));
+    //let expr = Not(Const(0i32));    
     let schema  = NamedSchema::new(&names, &types);
   	let session = Session;
 
@@ -474,17 +474,17 @@ mod tests {
                           plugin_mgr.fn_registry(),
                           &session,
                           &schema,
-                          &expr).ok().unwrap();
+                          &[&expr1, &expr2]).ok().unwrap();
 
-    let in_page = Page::new(&[I32], None);
-    let mut out_page =  Page::new(&[I32], None);
+    let in_page = Page::new(&[I32, I32], None);
+    let mut out_page =  Page::new(&[I32, I32], None);
     let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
     
     // map is the jit compiled function.
     map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
-    let chunk = out_page.chunk(0);
     unsafe {
-      assert_eq!(19800402, c_api::read_i32_raw(chunk, 0));
+      assert_eq!(19800402, c_api::read_i32_raw(out_page.chunk(0), 0));
+      assert_eq!(-7, c_api::read_i32_raw(out_page.chunk(1), 0));
     }    
   }
 }
