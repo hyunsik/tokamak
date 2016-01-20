@@ -32,13 +32,12 @@ use plan::expr::visitor::{accept_by_default, Visitor};
 use driver::DriverContext;
 use super::NamedSchema;
 
-#[repr(C)]
-pub struct MiniPage2 {
-  ptr: *const u8,
-  size: usize
-}
-
-pub type MapFunc = extern "C" fn(&mut MiniPage2) -> i32;
+/// selected rows IDs
+pub type SelectedList = *const usize;
+/// (input rows, output rows, selected rows IDs, selected count)
+pub type MapFunc = extern "C" fn(&Page, &mut Page, SelectedList, usize);
+/// (input rows, input selected rows IDs, input selected count, output selected rows IDs) -> output selected count
+pub type SelFunc = extern "C" fn(&Page, SelectedList, usize, SelectedList) -> usize;
 
 macro_rules! unary_codegen (
   ($name:ident, $func:ident) => (
@@ -56,9 +55,7 @@ macro_rules! bin_codegen (
   ($name:ident, $func:ident) => (
     pub fn $name(&mut self, lhs: &Expr, rhs: &Expr)
     {
-      println!("before lhs");
       let lhs_val = self.visit(lhs);
-      println!("before rhs");
       let rhs_val = self.visit(rhs);
       let builder = &self.builder;
 
@@ -92,22 +89,31 @@ impl MapCompiler {
     let builder = jit.new_builder();
     let func = MapCompiler::create_fn_prototype(jit, &builder);
 
+    /*
     let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
     let codegen = try!(exprc.compile(expr));
     builder.create_ret(&codegen);
+    */
+
+    builder.create_ret_void();
+
     // dump code
     jit.dump();
-    try!(MapCompiler::verify(jit));
+    //try!(MapCompiler::verify(jit));
     Ok(MapCompiler::ret_func(jit, &func))
   }
 
   fn create_fn_prototype(jit: &JitCompiler, bld: &Builder) -> Function {
-    let minipage_ty = jit.get_ty("struct.MiniPage").unwrap();
-    let minipage_ptr_ty = jit.get_pointer_ty(&minipage_ty);
+    // Prototype: (&Page, &mut Page, SelectedList, usize) == (*Page, *Page, *const usize, usize)
+
+    let page_ty = jit.get_ty("struct.Page").unwrap().pointer_ty(); // *const Page (== &Page)
+    let sellist_ty = jit.get_i64_ty().pointer_ty(); // *const usize
+    let usize_ty = jit.get_i64_ty(); // usize
+
     jit.create_func_prototype(
       "processor",
       &i32::llvm_ty(jit.context()),
-      &[&minipage_ptr_ty],
+      &[&page_ty, &page_ty, &sellist_ty, &usize_ty],
       Some(bld))
   }
 
@@ -367,6 +373,7 @@ pub trait Processor
 #[cfg(test)]
 mod tests {
 	use common::page::{
+    ROWBATCH_SIZE,
 		Page,
 		Chunk
 	};
@@ -388,7 +395,7 @@ mod tests {
   pub fn codegen() {
     let plugin_mgr = PluginManager::new();
     let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
-    assert!(jit.get_ty("struct.MiniPage").is_some());
+    assert!(jit.get_ty("struct.Chunk").is_some());
     assert!(jit.get_ty("struct.Page").is_some());
 
     let types: Vec<Ty> = schema!(
@@ -432,10 +439,14 @@ mod tests {
                           &schema,
                           &expr).ok().unwrap();
 
-    let mut minipage = MiniPage2 {
+    let mut chunk = Chunk {
       ptr: ::std::ptr::null(),
       size: 0
     };
-    assert_eq!(map(&mut minipage), 19800401i32);
+
+    let in_page = Page::empty_page(1);
+    let mut out_page =  Page::empty_page(1);
+    let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
+    map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
   }
 }

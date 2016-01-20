@@ -29,8 +29,8 @@ use types::Ty;
 /// Each executor and operator process a batch of rows at a time for better throughput.
 /// The experiment of MonetDB presented that 1024 is the best number of a row batch.
 /// It's reason why I currently use 1024 as the number of row batch.
-pub static ROWBATCH_SIZE: usize = 1024;
-pub static ALIGNED_SIZE: usize = 16;
+pub const ROWBATCH_SIZE: usize = 1024;
+pub const ALIGNED_SIZE : usize = 16;
 
 /// Encoding Type for Chunk
 ///
