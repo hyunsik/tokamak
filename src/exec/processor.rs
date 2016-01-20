@@ -25,7 +25,7 @@ use common::types::{Ty, name};
 use jit::{JitCompiler};
 use jit::builder::{Builder, CastOp};
 use jit::types::{self, LLVMTy};
-use jit::value::{Function, Predicate, Value, ValueRef, ToValue};
+use jit::value::{Arg, Function, Predicate, Value, ValueRef, ToValue};
 use plan::expr::*;
 use plan::expr::visitor::{accept_by_default, Visitor};
 
@@ -34,7 +34,7 @@ use super::NamedSchema;
 
 /// selected rows IDs
 pub type SelectedList = *const usize;
-/// (input rows, output rows, selected rows IDs, selected count)
+/// (input rows, output rows, selected rows IDs, row num)
 pub type MapFunc = extern "C" fn(&Page, &mut Page, SelectedList, usize);
 /// (input rows, input selected rows IDs, input selected count, output selected rows IDs) -> output selected count
 pub type SelFunc = extern "C" fn(&Page, SelectedList, usize, SelectedList) -> usize;
@@ -88,12 +88,17 @@ impl MapCompiler {
                  expr: &Expr) -> Result<Rc<MapFunc>> {
     let builder = jit.new_builder();
     let func = MapCompiler::create_fn_prototype(jit, &builder);
-
-    /*
+    
+    let in_page  = func.arg(0);
+    let out_page = func.arg(1);
+    let sel_list = func.arg(2);
+    let row_num  = func.arg(3); 
+    
     let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
-    let codegen = try!(exprc.compile(expr));
-    builder.create_ret(&codegen);
-    */
+    let codegen = try!(exprc.compile(expr));    
+    //builder.create_ret(&codegen);
+    
+    MapCompiler::write_value(jit, &builder, &out_page, expr.ty(), 0, &codegen);    
 
     builder.create_ret_void();
 
@@ -101,6 +106,37 @@ impl MapCompiler {
     jit.dump();
     //try!(MapCompiler::verify(jit));
     Ok(MapCompiler::ret_func(jit, &func))
+  }
+  
+  fn write_value(jit: &JitCompiler,
+                 builder: &Builder, 
+                 out_page: &Arg,
+                 output_ty: &Ty, 
+                 output_idx: usize, 
+                 output_val: &Value) {
+    let fn_name = match *output_ty {
+      Ty::Bool => "write_i8_raw",
+      Ty::I8   => "write_i8_raw",
+      Ty::I16  => "write_i16_raw", 
+      Ty::I32  => "write_i32_raw",
+      Ty::I64  => "write_i64_raw", 
+      Ty::F32  => "write_f32_raw",
+      Ty::F64  => "write_f64_raw",
+      _        => panic!("not supported type")
+    };
+    
+    let output_idx_val = output_idx.to_value(jit.context());
+    
+    let get_chunk = match jit.get_func("get_chunk") {
+      Some(f) => builder.create_call(&f, &[&out_page.into(), &output_idx_val]),
+      _       => panic!("No such a function: get_chunk")
+    };
+    
+    
+    let call = match jit.get_func(fn_name) {
+      Some(f) => builder.create_call(&f, &[&get_chunk, &output_idx_val, output_val]),
+      _       => panic!("No such a function")
+    };
   }
 
   fn create_fn_prototype(jit: &JitCompiler, bld: &Builder) -> Function {
@@ -373,6 +409,7 @@ pub trait Processor
 #[cfg(test)]
 mod tests {
 	use common::page::{
+    c_api,
     ROWBATCH_SIZE,
 		Page,
 		Chunk
@@ -439,14 +476,15 @@ mod tests {
                           &schema,
                           &expr).ok().unwrap();
 
-    let mut chunk = Chunk {
-      ptr: ::std::ptr::null(),
-      size: 0
-    };
-
-    let in_page = Page::empty_page(1);
-    let mut out_page =  Page::empty_page(1);
+    let in_page = Page::new(&[I32], None);
+    let mut out_page =  Page::new(&[I32], None);
     let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
+    
+    // map is the jit compiled function.
     map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
+    let chunk = out_page.chunk(0);
+    unsafe {
+      assert_eq!(19800402, c_api::read_i32_raw(chunk, 0));
+    }    
   }
 }
