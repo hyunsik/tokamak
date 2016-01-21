@@ -92,12 +92,19 @@ impl MapCompiler {
     let in_page  = func.arg(0);
     let out_page = func.arg(1);
     let sel_list = func.arg(2);
-    let row_num  = func.arg(3); 
+    let row_num  = func.arg(3);    
+    
+    for e in exprs {
+      match *e.kind() {
+        
+      }
+    }
     
     for (out_idx, e) in izip!(0..exprs.len(), exprs) {
       let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
-      let codegen = try!(exprc.compile(e));    
-      MapCompiler::write_value(jit, &builder, &out_page, e.ty(), out_idx, &codegen);    
+      let codegen = try!(exprc.compile(e));
+      let out_idx_val = out_idx.to_value(jit.context());    
+      MapCompiler::write_value(jit, &builder, &out_page, e.ty(), &out_idx_val, &codegen, &0.to_value(jit.context()));    
     }
 
     builder.create_ret_void();
@@ -112,8 +119,9 @@ impl MapCompiler {
                  builder: &Builder, 
                  out_page: &Arg,
                  output_ty: &Ty, 
-                 output_idx: usize, 
-                 output_val: &Value) {
+                 output_idx: &Value, 
+                 output_val: &Value,
+                 row_idx: &Value) {
     let fn_name = match *output_ty {
       Ty::Bool => "write_i8_raw",
       Ty::I8   => "write_i8_raw",
@@ -125,16 +133,13 @@ impl MapCompiler {
       _        => panic!("not supported type")
     };
     
-    let output_idx_val = output_idx.to_value(jit.context());
-    
-    let get_chunk = match jit.get_func("get_chunk") {
-      Some(f) => builder.create_call(&f, &[&out_page.into(), &output_idx_val]),
+    let chunk = match jit.get_func("get_chunk") {
+      Some(f) => builder.create_call(&f, &[&out_page.into(), &output_idx]),
       _       => panic!("No such a function: get_chunk")
-    };
-    
+    };    
     
     let call = match jit.get_func(fn_name) {
-      Some(f) => builder.create_call(&f, &[&get_chunk, &0.to_value(jit.context()), output_val]),
+      Some(f) => builder.create_call(&f, &[&chunk, row_idx, output_val]),
       _       => panic!("No such a function")
     };
   }
