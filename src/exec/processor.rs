@@ -94,18 +94,30 @@ impl MapCompiler {
     let sel_list = func.arg(2);
     let row_num  = func.arg(3);    
     
-    for e in exprs {
-      match *e.kind() {
-        
-      }
-    }
+    let has_field = exprs.iter().find(|x| match *x.kind() {ExprKind::Field(_) => true, _ => false});
+    
+    
     
     for (out_idx, e) in izip!(0..exprs.len(), exprs) {
-      let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
-      let codegen = try!(exprc.compile(e));
-      let out_idx_val = out_idx.to_value(jit.context());    
-      MapCompiler::write_value(jit, &builder, &out_page, e.ty(), &out_idx_val, &codegen, &0.to_value(jit.context()));    
-    }
+      let out_idx_val = out_idx.to_value(jit.context());
+      
+      match *e.kind() {
+        ExprKind::Const(_) => {
+          let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
+          let codegen = try!(exprc.compile(e));          
+          MapCompiler::write_value(jit, &builder, &out_page, e.ty(), &out_idx_val, &codegen, &0.to_value(jit.context()));
+        }
+        _        => {
+          panic!("const is supported only")
+        }
+      }      
+    } 
+    
+    //   let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
+    //   let codegen = try!(exprc.compile(e));
+    //   let out_idx_val = out_idx.to_value(jit.context());    
+    //   MapCompiler::write_value(jit, &builder, &out_page, e.ty(), &out_idx_val, &codegen, &0.to_value(jit.context()));    
+    // }
 
     builder.create_ret_void();
 
@@ -463,8 +475,10 @@ mod tests {
 	  	"l_tax"
 	  ];
 
-    let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
-    let expr2 = MinusSign(Const(7i32));
+    let expr1 = Const(19800401i32);
+    let expr2 = Const(19840115i32);
+    //let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
+    //let expr2 = MinusSign(Const(7i32));
     //let expr = Or(Const(4i32), Const(2i32));
     //let expr = Not(Const(0i32));    
     let schema  = NamedSchema::new(&names, &types);
@@ -488,8 +502,8 @@ mod tests {
     // map is the jit compiled function.
     map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
     unsafe {
-      assert_eq!(19800402, c_api::read_i32_raw(out_page.chunk(0), 0));
-      assert_eq!(-7, c_api::read_i32_raw(out_page.chunk(1), 0));
+      assert_eq!(19800401, c_api::read_i32_raw(out_page.chunk(0), 0));
+      assert_eq!(19840115, c_api::read_i32_raw(out_page.chunk(1), 0));
     }    
   }
 }
