@@ -125,32 +125,38 @@ impl MapCompiler {
       );
     }
     
-    let loop_init  = func.append("loop_init");
-    let loop_begin = func.append("loop_begin");
-    let loop_cont  = func.append("loop_cont");
-    let loop_exit  = func.append("loop_exit"); 
+    let loop_init_bb = func.append("loop_init");
+    let loop_cond_bb = func.append("loop_cond");
+    let loop_body_bb = func.append("loop_body");
+    let loop_exit_bb = func.append("loop_exit"); 
     
-    builder.create_br(&loop_init);    
-    builder.position_at_end(&loop_init);
+    builder.create_br(&loop_init_bb);    
+    builder.position_at_end(&loop_init_bb);
     let row_idx_ptr = builder.create_alloca(&u64::llvm_ty(ctx));
-    //builder.create_store(&row_idx_ptr, &0i64.to_value(ctx));    
-    /* 
-    builder.position_at_end(&loop_begin);
+    builder.create_store(&0i64.to_value(ctx), &row_idx_ptr);    
+    builder.create_br(&loop_cond_bb);
+    
+    
+    builder.position_at_end(&loop_cond_bb);
+        
+    for (idx, e) in nonconst_exprs {
+      let out_idx = idx.to_value(jit.context());            
+      let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
+      let codegen = try!(exprc.compile(e));          
+      MapCompiler::write_value(jit, &builder, &out_page, e.ty(), &out_idx, &codegen, row_idx));
+    }
+    
     let row_idx = builder.create_load(&row_idx_ptr);
     let loop_cond = builder.create_ucmp(&row_idx, &ROWBATCH_SIZE.to_value(ctx), Predicate::Lt);
-    builder.create_cond_br(&loop_cond, &loop_cont, &loop_exit);
+    builder.create_cond_br(&loop_cond, &loop_body_bb, &loop_exit_bb);   
     
-    /*for (out_idx, e) in nonconst_exprs {
-      let out_idx_val = out_idx.to_value(ctx);
-      panic!("const is supported only");            
-    }*/
     
-    builder.position_at_end(&loop_cont);
-    let add_row_idx = builder.create_add(&row_idx, &1usize.to_value(ctx));
-    builder.create_store(&row_idx_ptr, &add_row_idx);
-    builder.create_br(&loop_begin);
+    builder.position_at_end(&loop_body_bb);
+    let add_row_idx = builder.create_add(&row_idx, &1usize.to_value(ctx));    
+    builder.create_store(&add_row_idx, &row_idx_ptr);
+    builder.create_br(&loop_cond_bb);    
     
-    builder.position_at_end(&loop_exit);*/
+    builder.position_at_end(&loop_exit_bb);
     builder.create_ret_void();
     //   let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
     //   let codegen = try!(exprc.compile(e));
