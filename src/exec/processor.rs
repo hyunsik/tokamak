@@ -96,15 +96,17 @@ impl MapCompiler {
     let sel_list: &Value = &func.arg(2).into();
     let row_num : &Value = &func.arg(3).into();    
     
-    let const_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => true, _ => false});
-    let nonconst_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});
-    
+    let zero = 0usize.to_value(ctx);
     let get_chunk_fn = jit.get_func("get_chunk").unwrap();
+    
+    let const_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => true, _ => false});
+    let nonconst_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});    
+    
     
     // generate write_<ty>_raw(chunk) for all const values
     for (out_idx, e) in const_exprs {
       let out_idx_val = out_idx.to_value(ctx);
-      let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
+      let mut exprc = ExprCompiler::new(jit, &builder, fn_reg, sess, schema, None, Some(&zero));
       let codegen = try!(exprc.compile(e));          
       MapCompiler::write_value(
         jit,         
@@ -113,7 +115,7 @@ impl MapCompiler {
         e.ty(), 
         out_page,
         &out_idx.to_value(ctx), 
-        &0.to_value(ctx),
+        &zero,
         &codegen);
     }    
     
@@ -138,15 +140,33 @@ impl MapCompiler {
     
     
     builder.position_at_end(&loop_cond_bb);
-        
-    for (idx, e) in nonconst_exprs {
-      let out_idx = idx.to_value(jit.context());            
-      let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
-      let codegen = try!(exprc.compile(e));          
-      MapCompiler::write_value(jit, &builder, &out_page, e.ty(), &out_idx, &codegen, row_idx));
-    }
-    
     let row_idx = builder.create_load(&row_idx_ptr);
+       
+    for (idx, e) in nonconst_exprs {
+      let out_col_idx = idx.to_value(jit.context());
+                  
+      let mut exprc = ExprCompiler::new(
+        jit, 
+        &builder, 
+        fn_reg, 
+        sess, 
+        schema, 
+        Some(&column_chunks), 
+        Some(&row_idx));
+        
+      let codegen = try!(exprc.compile(e));          
+      
+      MapCompiler::write_value(
+        jit, 
+        &builder, 
+        &get_chunk_fn, 
+        e.ty(),
+        &out_page,         
+        &out_col_idx, 
+        &row_idx, 
+        &codegen);
+    }    
+    
     let loop_cond = builder.create_ucmp(&row_idx, &ROWBATCH_SIZE.to_value(ctx), Predicate::Lt);
     builder.create_cond_br(&loop_cond, &loop_body_bb, &loop_exit_bb);   
     
@@ -158,11 +178,6 @@ impl MapCompiler {
     
     builder.position_at_end(&loop_exit_bb);
     builder.create_ret_void();
-    //   let mut exprc = ExprCompiler::new(jit, fn_reg, sess, schema, &builder);
-    //   let codegen = try!(exprc.compile(e));
-    //   let out_idx_val = out_idx.to_value(jit.context());    
-    //   MapCompiler::write_value(jit, &builder, &out_page, e.ty(), &out_idx_val, &codegen, &0.to_value(jit.context()));    
-    // }    
 
     // dump code
     jit.dump();
@@ -193,7 +208,7 @@ impl MapCompiler {
     
     let out_chunk = builder.create_call(get_chunk_fn, &[out_page, output_idx]);
     let call = match jit.get_func(fn_name) {
-      Some(f) => builder.create_call(&get_chunk_fn, &[&out_chunk, row_idx, output_val]),
+      Some(write_fn) => builder.create_call(&write_fn, &[&out_chunk, row_idx, output_val]),
       _       => panic!("No such a function")
     };
   }
@@ -229,28 +244,38 @@ impl MapCompiler {
   }
 }
 
+/// Compiler for Columnar Evaluator of Expression  
 pub struct ExprCompiler<'a>
 {
-  jit  : &'a JitCompiler,
-  types: &'a Vec<Ty>,
-	names: &'a Vec<&'a str>,
-	stack: Vec<Value>,
-  error: Option<Error>,
-  builder: &'a Builder
+  jit    : &'a JitCompiler,
+  builder: &'a Builder,            // LLVM IRBuilder
+  types  : &'a Vec<Ty>,            // Input Column Types
+	names  : &'a Vec<&'a str>,       // Input Column Names
+	stack  : Vec<Value>,             // LLVM values stack temporarily used for code generation
+  error  : Option<Error>,          // Code generation error  
+    
+  input_vecs: Option<&'a Vec<Value>>, // LLVM values to represent vector pointers
+  row_idx   : Option<&'a Value>,      // LLVM values to represent row index
 }
 
 impl<'a> ExprCompiler<'a> {
-  fn new(jit: &'a JitCompiler,
-         fn_registry: &FuncRegistry,
-		     session: &Session,
-		     schema : &'a NamedSchema, builder: &'a Builder) -> ExprCompiler<'a> {
+  fn new(jit         : &'a JitCompiler,
+         builder     : &'a Builder,
+         fn_registry : &FuncRegistry,
+		     session     : &Session,
+		     schema      : &'a NamedSchema, 
+         
+         input_vecs  : Option<&'a Vec<Value>>,
+         row_idx     : Option<&'a Value>) -> ExprCompiler<'a> {
 		ExprCompiler {
-      jit   : jit,
-			types : &schema.types,
-			names : &schema.names,
-			stack : Vec::new(),
-			error : None,
-      builder: builder
+      jit       : jit,
+			types     : &schema.types,
+			names     : &schema.names,
+			stack     : Vec::new(),
+			error     : None,
+      builder   : builder,
+      input_vecs: input_vecs,
+      row_idx   : row_idx
 		}
 	}
 
