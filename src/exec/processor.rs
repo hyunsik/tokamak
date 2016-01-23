@@ -24,6 +24,7 @@ use common::session::Session;
 use common::types::{Ty, name};
 
 use jit::{JitCompiler};
+use jit::block::BasicBlock;
 use jit::builder::{Builder, CastOp};
 use jit::types::{self, LLVMTy};
 use jit::value::{Arg, Function, Predicate, Value, ValueRef, ToValue};
@@ -127,56 +128,42 @@ impl MapCompiler {
       );
     }
 
-    let loop_init_bb = func.append("loop_init");
-    let loop_cond_bb = func.append("loop_cond");
-    let loop_body_bb = func.append("loop_body");
-    let loop_exit_bb = func.append("loop_exit");
-
-    builder.create_br(&loop_init_bb);
-    builder.position_at_end(&loop_init_bb);
-    let row_idx_ptr = builder.create_alloca(&u64::llvm_ty(ctx));
-    builder.create_store(&0i64.to_value(ctx), &row_idx_ptr);
-    builder.create_br(&loop_cond_bb);
-
-
-    builder.position_at_end(&loop_cond_bb);
-    let row_idx = builder.create_load(&row_idx_ptr);
+    let mut eval_entry = func.append("eval_entry");
+    let mut vectorized_exprs: Vec<(BasicBlock, BasicBlock)> = Vec::new();
 
     for (idx, e) in nonconst_exprs {
-      let out_col_idx = idx.to_value(jit.context());
+      let loop_cond_bb = func.append("loop_cond");
+      let loop_body_bb = func.append("loop_body");
+      let next_eval_entry = func.append("eval_entry");
 
-      let mut exprc = ExprCompiler::new(
-        jit,
-        &builder,
-        fn_reg,
-        sess,
-        schema,
-        Some(&column_chunks),
-        Some(&row_idx));
+      let loop_builder = jit.new_builder();
+      loop_builder.position_at_end(&eval_entry);
+      let row_idx_ptr = loop_builder.create_alloca(&u64::llvm_ty(ctx));
+      loop_builder.create_store(&0i64.to_value(ctx), &row_idx_ptr);
+      loop_builder.create_br(&loop_cond_bb);
 
-      let codegen = try!(exprc.compile(e));
+      loop_builder.position_at_end(&loop_cond_bb);
+      let row_idx = loop_builder.create_load(&row_idx_ptr);
+      let loop_cond = loop_builder.create_ucmp(&row_idx, &ROWBATCH_SIZE.to_value(ctx), Predicate::Lt);
+      builder.create_cond_br(&loop_cond, &loop_body_bb, &next_eval_entry);
 
-      MapCompiler::write_value(
-        jit,
-        &builder,
-        &get_chunk_fn,
-        e.ty(),
-        &out_page,
-        &out_col_idx,
-        &row_idx,
-        &codegen);
+      loop_builder.position_at_end(&loop_body_bb);
+      let add_row_idx = loop_builder.create_add(&row_idx, &1usize.to_value(ctx));
+      loop_builder.create_store(&add_row_idx, &row_idx_ptr);
+      loop_builder.create_br(&loop_cond_bb);
+
+      vectorized_exprs.push((eval_entry, loop_cond_bb));
+
+      eval_entry = next_eval_entry;
     }
 
-    let loop_cond = builder.create_ucmp(&row_idx, &ROWBATCH_SIZE.to_value(ctx), Predicate::Lt);
-    builder.create_cond_br(&loop_cond, &loop_body_bb, &loop_exit_bb);
+    if !vectorized_exprs.is_empty() {
+      builder.create_br(&vectorized_exprs[0].0);
+    } else {
+      builder.create_br(&eval_entry);
+    }
 
-
-    builder.position_at_end(&loop_body_bb);
-    let add_row_idx = builder.create_add(&row_idx, &1usize.to_value(ctx));
-    builder.create_store(&add_row_idx, &row_idx_ptr);
-    builder.create_br(&loop_cond_bb);
-
-    builder.position_at_end(&loop_exit_bb);
+    builder.position_at_end(&eval_entry);
     builder.create_ret_void();
 
     // dump code
