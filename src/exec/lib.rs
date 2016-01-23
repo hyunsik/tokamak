@@ -68,13 +68,13 @@ pub trait ExecutorFactory
 
 pub struct NamedSchema<'a>
 {
-	pub names: &'a Vec<&'a str>,
-	pub types: &'a Vec<Ty>
+	pub names: &'a [&'a str],
+	pub types: &'a [&'a Ty]
 }
 
 impl<'a> NamedSchema<'a>
 {
-	pub fn new(names: &'a Vec<&'a str>, types: &'a Vec<Ty>) -> NamedSchema<'a>
+	pub fn new(names: &'a [&'a str], types: &'a [&Ty]) -> NamedSchema<'a>
 	{
 		debug_assert_eq!(names.len(), types.len());
 
@@ -84,7 +84,7 @@ impl<'a> NamedSchema<'a>
 		}
 	}
 
-	pub fn find_ids(&self, names: &Vec<&str>) -> Vec<usize>
+	pub fn find_ids(&self, names: &[&str]) -> Vec<usize>
 	{
 		(0..self.names.len()).zip(self.names)
 			.filter(|&(id, name)| names.contains(name))

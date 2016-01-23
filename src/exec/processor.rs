@@ -89,93 +89,93 @@ impl MapCompiler {
                  exprs: &[&Expr]) -> Result<Rc<MapFunc>> {
     let ctx = jit.context();
     let builder = jit.new_builder();
-    let func = MapCompiler::create_fn_prototype(jit, &builder);    
-        
+    let func = MapCompiler::create_fn_prototype(jit, &builder);
+
     let in_page : &Value = &func.arg(0).into();
     let out_page: &Value = &func.arg(1).into();
     let sel_list: &Value = &func.arg(2).into();
-    let row_num : &Value = &func.arg(3).into();    
-    
+    let row_num : &Value = &func.arg(3).into();
+
     let zero = 0usize.to_value(ctx);
     let get_chunk_fn = jit.get_func("get_chunk").unwrap();
-    
+
     let const_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => true, _ => false});
-    let nonconst_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});    
-    
-    
+    let nonconst_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});
+
+
     // generate write_<ty>_raw(chunk) for all const values
     for (out_idx, e) in const_exprs {
       let out_idx_val = out_idx.to_value(ctx);
       let mut exprc = ExprCompiler::new(jit, &builder, fn_reg, sess, schema, None, Some(&zero));
-      let codegen = try!(exprc.compile(e));          
+      let codegen = try!(exprc.compile(e));
       MapCompiler::write_value(
-        jit,         
+        jit,
         &builder,
-        &get_chunk_fn,         
-        e.ty(), 
+        &get_chunk_fn,
+        e.ty(),
         out_page,
-        &out_idx.to_value(ctx), 
+        &out_idx.to_value(ctx),
         &zero,
         &codegen);
-    }    
-    
-    // generate access variables for all chunks of input page   
-    let mut column_chunks: Vec<Value> = Vec::new();    
-    for input_idx in 0..schema.types.len() {      
+    }
+
+    // generate access variables for all chunks of input page
+    let mut column_chunks: Vec<Value> = Vec::new();
+    for input_idx in 0..schema.types.len() {
       column_chunks.push(
         builder.create_call(&get_chunk_fn, &[&in_page, &input_idx.to_value(ctx)])
       );
     }
-    
+
     let loop_init_bb = func.append("loop_init");
     let loop_cond_bb = func.append("loop_cond");
     let loop_body_bb = func.append("loop_body");
-    let loop_exit_bb = func.append("loop_exit"); 
-    
-    builder.create_br(&loop_init_bb);    
+    let loop_exit_bb = func.append("loop_exit");
+
+    builder.create_br(&loop_init_bb);
     builder.position_at_end(&loop_init_bb);
     let row_idx_ptr = builder.create_alloca(&u64::llvm_ty(ctx));
-    builder.create_store(&0i64.to_value(ctx), &row_idx_ptr);    
+    builder.create_store(&0i64.to_value(ctx), &row_idx_ptr);
     builder.create_br(&loop_cond_bb);
-    
-    
+
+
     builder.position_at_end(&loop_cond_bb);
     let row_idx = builder.create_load(&row_idx_ptr);
-       
+
     for (idx, e) in nonconst_exprs {
       let out_col_idx = idx.to_value(jit.context());
-                  
+
       let mut exprc = ExprCompiler::new(
-        jit, 
-        &builder, 
-        fn_reg, 
-        sess, 
-        schema, 
-        Some(&column_chunks), 
+        jit,
+        &builder,
+        fn_reg,
+        sess,
+        schema,
+        Some(&column_chunks),
         Some(&row_idx));
-        
-      let codegen = try!(exprc.compile(e));          
-      
+
+      let codegen = try!(exprc.compile(e));
+
       MapCompiler::write_value(
-        jit, 
-        &builder, 
-        &get_chunk_fn, 
+        jit,
+        &builder,
+        &get_chunk_fn,
         e.ty(),
-        &out_page,         
-        &out_col_idx, 
-        &row_idx, 
+        &out_page,
+        &out_col_idx,
+        &row_idx,
         &codegen);
-    }    
-    
+    }
+
     let loop_cond = builder.create_ucmp(&row_idx, &ROWBATCH_SIZE.to_value(ctx), Predicate::Lt);
-    builder.create_cond_br(&loop_cond, &loop_body_bb, &loop_exit_bb);   
-    
-    
+    builder.create_cond_br(&loop_cond, &loop_body_bb, &loop_exit_bb);
+
+
     builder.position_at_end(&loop_body_bb);
-    let add_row_idx = builder.create_add(&row_idx, &1usize.to_value(ctx));    
+    let add_row_idx = builder.create_add(&row_idx, &1usize.to_value(ctx));
     builder.create_store(&add_row_idx, &row_idx_ptr);
-    builder.create_br(&loop_cond_bb);    
-    
+    builder.create_br(&loop_cond_bb);
+
     builder.position_at_end(&loop_exit_bb);
     builder.create_ret_void();
 
@@ -184,28 +184,28 @@ impl MapCompiler {
     //try!(MapCompiler::verify(jit));
     Ok(MapCompiler::ret_func(jit, &func))
   }
-  
+
   //fn write_const()
-  
+
   fn write_value(jit: &JitCompiler,
                  builder: &Builder,
-                 get_chunk_fn: &Function,                 
-                 output_ty: &Ty, 
+                 get_chunk_fn: &Function,
+                 output_ty: &Ty,
                  out_page: &Value,
-                 output_idx: &Value, 
+                 output_idx: &Value,
                  row_idx: &Value,
                  output_val: &Value) {
     let fn_name = match *output_ty {
       Ty::Bool => "write_i8_raw",
       Ty::I8   => "write_i8_raw",
-      Ty::I16  => "write_i16_raw", 
+      Ty::I16  => "write_i16_raw",
       Ty::I32  => "write_i32_raw",
-      Ty::I64  => "write_i64_raw", 
+      Ty::I64  => "write_i64_raw",
       Ty::F32  => "write_f32_raw",
       Ty::F64  => "write_f64_raw",
       _        => panic!("not supported type")
     };
-    
+
     let out_chunk = builder.create_call(get_chunk_fn, &[out_page, output_idx]);
     let call = match jit.get_func(fn_name) {
       Some(write_fn) => builder.create_call(&write_fn, &[&out_chunk, row_idx, output_val]),
@@ -244,16 +244,16 @@ impl MapCompiler {
   }
 }
 
-/// Compiler for Columnar Evaluator of Expression  
+/// Compiler for Columnar Evaluator of Expression
 pub struct ExprCompiler<'a>
 {
   jit    : &'a JitCompiler,
   builder: &'a Builder,            // LLVM IRBuilder
-  types  : &'a Vec<Ty>,            // Input Column Types
-	names  : &'a Vec<&'a str>,       // Input Column Names
+  types  : &'a [&'a Ty],            // Input Column Types
+	names  : &'a [&'a str],       // Input Column Names
 	stack  : Vec<Value>,             // LLVM values stack temporarily used for code generation
-  error  : Option<Error>,          // Code generation error  
-    
+  error  : Option<Error>,          // Code generation error
+
   input_vecs: Option<&'a Vec<Value>>, // LLVM values to represent vector pointers
   row_idx   : Option<&'a Value>,      // LLVM values to represent row index
 }
@@ -263,14 +263,14 @@ impl<'a> ExprCompiler<'a> {
          builder     : &'a Builder,
          fn_registry : &FuncRegistry,
 		     session     : &Session,
-		     schema      : &'a NamedSchema, 
-         
+		     schema      : &'a NamedSchema,
+
          input_vecs  : Option<&'a Vec<Value>>,
          row_idx     : Option<&'a Value>) -> ExprCompiler<'a> {
 		ExprCompiler {
       jit       : jit,
-			types     : &schema.types,
-			names     : &schema.names,
+			types     : schema.types,
+			names     : schema.names,
 			stack     : Vec::new(),
 			error     : None,
       builder   : builder,
@@ -519,7 +519,7 @@ mod tests {
     assert!(jit.get_ty("struct.Chunk").is_some());
     assert!(jit.get_ty("struct.Page").is_some());
 
-    let types: Vec<Ty> = schema!(
+    let types = &[
 	    I64, // l_orderkey      bigint
 	    I64, // l_partkey       bigint
 	    I64, // l_suppkey       bigint
@@ -529,9 +529,9 @@ mod tests {
 	    F64, // l_discount      double,
 	    F64  // l_tax           double,
 	    // string types are not implmeneted yet.
-    );
+    ];
 
-	  let names: Vec<&str> = vec![
+	  let names = &[
 	  	"l_orderkey",
 	  	"l_partkey",
 	  	"l_suppkey",
@@ -540,15 +540,15 @@ mod tests {
 	  	"l_extendedprice",
 	  	"l_discount",
 	  	"l_tax"
-	  ];
+    ];
 
     let expr1 = Const(19800401i32);
     let expr2 = Const(19840115i32);
     //let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
     //let expr2 = MinusSign(Const(7i32));
     //let expr = Or(Const(4i32), Const(2i32));
-    //let expr = Not(Const(0i32));    
-    let schema  = NamedSchema::new(&names, &types);
+    //let expr = Not(Const(0i32));
+    let schema  = NamedSchema::new(names, types);
   	let session = Session;
 
     // let map = ExprCompiler::compile(&jit,
@@ -565,12 +565,12 @@ mod tests {
     let in_page = Page::new(&[I32, I32], None);
     let mut out_page =  Page::new(&[I32, I32], None);
     let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
-    
+
     // map is the jit compiled function.
     map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
     unsafe {
       assert_eq!(19800401, c_api::read_i32_raw(out_page.chunk(0), 0));
       assert_eq!(19840115, c_api::read_i32_raw(out_page.chunk(1), 0));
-    }    
+    }
   }
 }
