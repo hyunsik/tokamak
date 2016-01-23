@@ -391,7 +391,7 @@ impl<'a> ExprCompiler<'a> {
     let builder = &self.builder;
 
     self.stack.push(match *op {
-      ArithmOp::Plus => {builder.create_add(&lhs_val, &rhs_val)}
+      ArithmOp::Add => {builder.create_add(&lhs_val, &rhs_val)}
       ArithmOp::Sub  => {builder.create_sub(&lhs_val, &rhs_val)}
       ArithmOp::Mul  => {builder.create_mul(&lhs_val, &rhs_val)}
       ArithmOp::Div  => {builder.create_div(&lhs_val, &rhs_val)}

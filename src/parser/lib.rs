@@ -8,35 +8,9 @@ extern crate plan;
 pub mod parser;
 pub mod lexer;
 
-use lexer::Token::{
-  Delimiter,
-  LeftParen,
-  RightParen,
-  Comma,
-  Plus,
-  Minus,
-  Multiply,
-  Divide,
-  Modulus,
-  Not,
-  IsNull,
-  IsNotNull,
-  And,
-  Or,
-  Eq,
-  Ne,
-  Lt,
-  Le,
-  Gt,
-  Ge,
-  Ident,  // function call, field name,
-  Float,
-  Integer,
-  LiteralStr,
-};
-
 #[test]
 fn test_tokenize() {
+  use lexer::Token::*;
   let tokens = lexer::tokenize("1+-1.");
   assert_eq!(vec![Integer(1), Plus, Minus, Float(1.)], tokens);
 
@@ -48,7 +22,7 @@ fn test_tokenize() {
 }
 
 #[test]
-fn test_parse() {
+fn test_parse_simple_expr() {
   use lexer::Token;
   use plan::expr;
   use plan::expr::*;
@@ -60,7 +34,15 @@ fn test_parse() {
   let mut ast = Vec::new();
   let parsed = parser::parse(tokens.as_slice(), ast.as_slice());
   assert_eq!(Ok((vec![expr::Add(&Ty::I64, expr::Const(1i64), expr::Const(-1i64))], vec![])), parsed);
+}
 
+#[test]
+fn test_parse_complex_expr() {
+  use lexer::Token;
+  use plan::expr;
+  use plan::expr::*;
+  use common::types::*;
+  
   let tokens = lexer::tokenize("(1+1) * (10-100) / 4.5 - 3");
   assert_eq!(vec![Token::LeftParen, Token::Integer(1), Token::Plus, Token::Integer(1), Token::RightParen,
     Token::Multiply,
