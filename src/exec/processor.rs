@@ -7,6 +7,7 @@
 //! ## Phases for Generation
 //!
 
+use std::collections::HashMap;
 use std::convert::From;
 use std::rc::Rc;
 
@@ -102,12 +103,13 @@ impl MapCompiler {
 
     let const_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => true, _ => false});
     let nonconst_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});
-
+    
+    let schema_map = schema.to_map();    
 
     // generate write_<ty>_raw(chunk) for all const values
     for (out_idx, e) in const_exprs {
       let out_idx_val = out_idx.to_value(ctx);
-      let mut exprc = ExprCompiler::new(jit, &builder, fn_reg, sess, schema, None, Some(&zero));
+      let mut exprc = ExprCompiler::new(jit, &builder, fn_reg, sess, &schema_map, None, Some(&zero));
       let codegen = try!(exprc.compile(e));
       MapCompiler::write_value(
         jit,
@@ -115,7 +117,7 @@ impl MapCompiler {
         &get_chunk_fn,
         e.ty(),
         out_page,
-        &out_idx.to_value(ctx),
+        &out_idx_val,
         &zero,
         &codegen);
     }
@@ -129,9 +131,11 @@ impl MapCompiler {
     }
 
     let mut eval_entry = func.append("eval_entry");
-    let mut vectorized_exprs: Vec<(BasicBlock, BasicBlock)> = Vec::new();
+    let mut vectorized_blocks: Vec<(BasicBlock, BasicBlock)> = Vec::new();
 
-    for (idx, e) in nonconst_exprs {
+    for (out_idx, e) in nonconst_exprs {
+      let out_idx_val = out_idx.to_value(ctx);
+      
       let loop_cond_bb = func.append("loop_cond");
       let loop_body_bb = func.append("loop_body");
       let next_eval_entry = func.append("eval_entry");
@@ -145,20 +149,33 @@ impl MapCompiler {
       loop_builder.position_at_end(&loop_cond_bb);
       let row_idx = loop_builder.create_load(&row_idx_ptr);
       let loop_cond = loop_builder.create_ucmp(&row_idx, &ROWBATCH_SIZE.to_value(ctx), Predicate::Lt);
-      builder.create_cond_br(&loop_cond, &loop_body_bb, &next_eval_entry);
+      loop_builder.create_cond_br(&loop_cond, &loop_body_bb, &next_eval_entry);
 
       loop_builder.position_at_end(&loop_body_bb);
+            
+      let mut exprc = ExprCompiler::new(jit, &loop_builder, fn_reg, sess, &schema_map, Some(&column_chunks), Some(&row_idx));
+      let codegen = try!(exprc.compile(e));
+      MapCompiler::write_value(
+        jit,
+        &loop_builder,
+        &get_chunk_fn,
+        e.ty(),
+        out_page,
+        &out_idx_val,
+        &row_idx,
+        &codegen);
+      
       let add_row_idx = loop_builder.create_add(&row_idx, &1usize.to_value(ctx));
       loop_builder.create_store(&add_row_idx, &row_idx_ptr);
       loop_builder.create_br(&loop_cond_bb);
 
-      vectorized_exprs.push((eval_entry, loop_cond_bb));
+      vectorized_blocks.push((eval_entry, loop_cond_bb));
 
       eval_entry = next_eval_entry;
     }
 
-    if !vectorized_exprs.is_empty() {
-      builder.create_br(&vectorized_exprs[0].0);
+    if !vectorized_blocks.is_empty() {
+      builder.create_br(&vectorized_blocks[0].0);
     } else {
       builder.create_br(&eval_entry);
     }
@@ -235,14 +252,13 @@ impl MapCompiler {
 pub struct ExprCompiler<'a>
 {
   jit    : &'a JitCompiler,
-  builder: &'a Builder,            // LLVM IRBuilder
-  types  : &'a [&'a Ty],            // Input Column Types
-	names  : &'a [&'a str],       // Input Column Names
-	stack  : Vec<Value>,             // LLVM values stack temporarily used for code generation
-  error  : Option<Error>,          // Code generation error
+  builder: &'a Builder,                  // LLVM IRBuilder
+  schema : &'a HashMap<&'a str, (usize, &'a Ty)>, // Input Schema Map
+	stack  : Vec<Value>,                   // LLVM values stack temporarily used for code generation
+  error  : Option<Error>,                // Code generation error
 
-  input_vecs: Option<&'a Vec<Value>>, // LLVM values to represent vector pointers
-  row_idx   : Option<&'a Value>,      // LLVM values to represent row index
+  input_vecs: Option<&'a Vec<Value>>,    // LLVM values to represent vector pointers
+  row_idx   : Option<&'a Value>,         // LLVM values to represent row index
 }
 
 impl<'a> ExprCompiler<'a> {
@@ -250,14 +266,13 @@ impl<'a> ExprCompiler<'a> {
          builder     : &'a Builder,
          fn_registry : &FuncRegistry,
 		     session     : &Session,
-		     schema      : &'a NamedSchema,
+		     schema      : &'a HashMap<&'a str, (usize, &'a Ty)>,
 
          input_vecs  : Option<&'a Vec<Value>>,
          row_idx     : Option<&'a Value>) -> ExprCompiler<'a> {
 		ExprCompiler {
       jit       : jit,
-			types     : schema.types,
-			names     : schema.names,
+			schema    : schema,
 			stack     : Vec::new(),
 			error     : None,
       builder   : builder,
@@ -419,16 +434,32 @@ impl<'a> ExprCompiler<'a> {
 
 	pub fn Field(&mut self, ty: &Ty, name: &str)
 	{
-		/*
-    let found: Option<(usize, &Ty, &&str)>;
-
-		found = izip!(0 .. self.types.len(), self.types, self.names)
-						.find(|&(i, t, n)| *n == name);
-
-    let eval = match found {
-    	Some(f) => FieldEvaluator {idx: f.0, ty: f.1.clone()},
-    	None    => panic!("no such field for {}", name)
-    };*/
+    println!("called Field");
+    let found :&(usize, &Ty) = self.schema.get(name)
+      .expect(&format!("Field '{}' does not exist", name));      
+    debug_assert_eq!(ty, found.1);
+    
+		let read_fn_name = match *ty {
+      Ty::Bool => "read_i8_raw",
+      Ty::I8   => "read_i8_raw",
+      Ty::I16  => "read_i16_raw",
+      Ty::I32  => "read_i32_raw",
+      Ty::I64  => "read_i64_raw",
+      Ty::F32  => "read_f32_raw",
+      Ty::F64  => "read_f64_raw",
+      _        => panic!("not supported type")
+    };
+    
+    let call = match self.jit.get_func(read_fn_name) {
+      Some(read_fn) => {
+        self.builder.create_call(
+          &read_fn, 
+          &[&self.input_vecs.unwrap()[found.0], &self.row_idx.unwrap()])
+      }
+      _       => panic!("No such a function")
+    };
+    
+    self.stack.push(call);
 	}
 }
 
@@ -499,8 +530,66 @@ mod tests {
 
 	use super::*;
 
+  pub fn fill_page(p: &Page) {
+    unsafe {
+      for idx in 0..ROWBATCH_SIZE {
+        c_api::write_i64_raw(p.chunk(0), idx, idx as i64);
+        c_api::write_i64_raw(p.chunk(1), idx, idx as i64);
+      }
+    }
+  }
+
   #[test]
   pub fn codegen() {
+    let plugin_mgr = PluginManager::new();
+    let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+    assert!(jit.get_ty("struct.Chunk").is_some());
+    assert!(jit.get_ty("struct.Page").is_some());
+
+    let types = &[
+	    I64, // l_orderkey      bigint
+	    I64, // l_partkey       bigint	    
+    ];
+
+	  let names = &[
+	  	"l_orderkey",
+	  	"l_partkey",
+    ];
+
+    let expr1 = Field(I64, "l_orderkey");
+    let expr2 = Field(I64, "l_partkey");
+    let expr3 = Plus(I64, expr1.clone(), expr2.clone());
+    
+    let schema  = NamedSchema::new(names, types);
+  	let session = Session;
+
+    let map = MapCompiler::compile(&jit,
+                          plugin_mgr.fn_registry(),
+                          &session,
+                          &schema,
+                          &[&expr1, &expr2, &expr3]).ok().unwrap();
+
+    let in_page = Page::new(schema.types, None);
+    fill_page(&in_page);
+    
+    let mut out_page =  Page::new(&[I64, I64, I64], None);
+    let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
+
+    // map is the jit compiled function.
+    map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
+    
+    unsafe {
+      for idx in 0..ROWBATCH_SIZE {
+        let lhs_val = c_api::read_i64_raw(in_page.chunk(0), idx);
+        let rhs_val = c_api::read_i64_raw(in_page.chunk(1), idx);      
+        assert_eq!(lhs_val, c_api::read_i64_raw(out_page.chunk(0), idx));
+        assert_eq!(rhs_val, c_api::read_i64_raw(out_page.chunk(1), idx));
+        assert_eq!((lhs_val + rhs_val) as i64, c_api::read_i64_raw(out_page.chunk(2), idx));
+      }
+    }
+  }
+  
+  pub fn tpch1() {
     let plugin_mgr = PluginManager::new();
     let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
     assert!(jit.get_ty("struct.Chunk").is_some());
@@ -529,7 +618,8 @@ mod tests {
 	  	"l_tax"
     ];
 
-    let expr1 = Const(19800401i32);
+    let expr1 = Field(I64, "l_orderkey");
+    //let expr1 = Const(19800401i32);
     let expr2 = Const(19840115i32);
     //let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
     //let expr2 = MinusSign(Const(7i32));
