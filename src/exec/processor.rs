@@ -530,8 +530,66 @@ mod tests {
 
 	use super::*;
 
+  pub fn fill_page(p: &Page) {
+    unsafe {
+      for idx in 0..ROWBATCH_SIZE {
+        c_api::write_i64_raw(p.chunk(0), idx, idx as i64);
+        c_api::write_i64_raw(p.chunk(1), idx, idx as i64);
+      }
+    }
+  }
+
   #[test]
   pub fn codegen() {
+    let plugin_mgr = PluginManager::new();
+    let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+    assert!(jit.get_ty("struct.Chunk").is_some());
+    assert!(jit.get_ty("struct.Page").is_some());
+
+    let types = &[
+	    I64, // l_orderkey      bigint
+	    I64, // l_partkey       bigint	    
+    ];
+
+	  let names = &[
+	  	"l_orderkey",
+	  	"l_partkey",
+    ];
+
+    let expr1 = Field(I64, "l_orderkey");
+    let expr2 = Field(I64, "l_partkey");
+    let expr3 = Plus(I64, expr1.clone(), expr2.clone());
+    
+    let schema  = NamedSchema::new(names, types);
+  	let session = Session;
+
+    let map = MapCompiler::compile(&jit,
+                          plugin_mgr.fn_registry(),
+                          &session,
+                          &schema,
+                          &[&expr1, &expr2, &expr3]).ok().unwrap();
+
+    let in_page = Page::new(schema.types, None);
+    fill_page(&in_page);
+    
+    let mut out_page =  Page::new(&[I64, I64, I64], None);
+    let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
+
+    // map is the jit compiled function.
+    map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
+    
+    unsafe {
+      for idx in 0..ROWBATCH_SIZE {
+        let lhs_val = c_api::read_i64_raw(in_page.chunk(0), idx);
+        let rhs_val = c_api::read_i64_raw(in_page.chunk(1), idx);      
+        assert_eq!(lhs_val, c_api::read_i64_raw(out_page.chunk(0), idx));
+        assert_eq!(rhs_val, c_api::read_i64_raw(out_page.chunk(1), idx));
+        assert_eq!((lhs_val + rhs_val) as i64, c_api::read_i64_raw(out_page.chunk(2), idx));
+      }
+    }
+  }
+  
+  pub fn tpch1() {
     let plugin_mgr = PluginManager::new();
     let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
     assert!(jit.get_ty("struct.Chunk").is_some());
