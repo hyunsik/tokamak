@@ -44,6 +44,8 @@ pub mod filter;
 pub mod hash_join;
 pub mod scan;
 
+use std::collections::HashMap;
+
 use common::err::{Void, Result};
 use common::page::Page;
 use common::types::Ty;
@@ -91,4 +93,10 @@ impl<'a> NamedSchema<'a>
 			.map(|(id, name)| id)
 			.collect::<Vec<usize>>()
 	}
+  
+  pub fn to_map(&self) -> HashMap<&'a str, (usize, &'a Ty)> {
+    izip!(0..self.names.len(), self.names, self.types)
+      .map(|(id, n, t)| (*n, (id, *t)))
+      .collect::<HashMap<&str, (usize, &Ty)>>()
+  }
 }
