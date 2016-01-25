@@ -258,7 +258,13 @@ fn parse_integer_expr(tokens: &mut Vec<Token>, negative: bool) -> PartParsingRes
 }
 
 fn parse_literal_str_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
-  Error("Not supported yet".to_string())
+  let mut parsed_tokens = Vec::new();
+
+  let mut value = expect_tokens!(
+    [Token::LiteralStr(val), Token::LiteralStr(val.clone()), val] <= tokens, parsed_tokens, "string expected"
+  );
+
+  Done(Const(Literal::String(value.to_string())), parsed_tokens)
 }
 
 fn parse_paren_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
