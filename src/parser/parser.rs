@@ -160,7 +160,7 @@ fn error<T>(message: &str) -> PartParsingResult<T> {
 
 pub fn parse(tokens: &[Token], parsed_trees: &[Expr]) -> ParsingResult {
   let mut rest = tokens.to_vec();
-  rest.reverse();
+  rest.reverse(); // to use like a stack
 
   let mut asts = parsed_trees.to_vec();
 
@@ -262,7 +262,7 @@ fn parse_literal_str_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
 }
 
 fn parse_paren_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
-  tokens.pop();
+  tokens.pop(); // consume a left paren
   let mut parsed_tokens = vec![Token::LeftParen];
 
   let expr = parse_try!(parse_expr, tokens, parsed_tokens);
@@ -302,7 +302,7 @@ fn parse_binary_expr(tokens: &mut Vec<Token>, op_preced: usize, lhs: &Expr) -> P
       let binary_rhs = match tokens.last().map(|next_op| next_op.clone()) {
         Some(token) => match AssocOp::from_token(&token) {
           Some(assoc_op) => {
-            if assoc_op.precedence() > op_preced {
+            if assoc_op.precedence() > preced {
               parse_try!(parse_binary_expr, tokens, parsed_tokens, assoc_op.precedence(), &rhs)
             } else {
               break
@@ -320,7 +320,6 @@ fn parse_binary_expr(tokens: &mut Vec<Token>, op_preced: usize, lhs: &Expr) -> P
       Some(expr) => expr,
       None => panic!(format!("cannot convert to expr: {:?}", op))
     };
-    // result = BinaryExpr(operator, Box::new(result), Box::new(rhs));
   }
 
   Done(result, parsed_tokens)

@@ -52,20 +52,22 @@ fn test_parse_complex_expr() {
 
   let mut ast = Vec::new();
   let parsed = parser::parse(tokens.as_slice(), ast.as_slice());
-  assert_eq!(Ok((vec![expr::Mul(&Ty::F64,
-  	expr::Add(&Ty::I64,
-  		expr::Const(1i64),
-  		expr::Const(1i64)
-  	),
-  	expr::Sub(&Ty::F64,
-  		expr::Div(&Ty::F64,
-  			expr::Sub(&Ty::I64,
-          expr::Const(10i64),
-      		expr::Const(100i64)
-  			),
-  			expr::Const(4.5f64)
-  		),
-  		expr::Const(3i64)
-  	)
-  )], vec![])), parsed);
+  assert_eq!(Ok((vec![
+    expr::Sub(&Ty::F64,
+    	expr::Div(&Ty::F64,
+          expr::Mul(&Ty::I64,
+            expr::Add(&Ty::I64,
+          		expr::Const(1i64),
+          		expr::Const(1i64)
+            ),
+            expr::Sub(&Ty::I64,
+              expr::Const(10i64),
+              expr::Const(100i64)
+            )
+          ),
+          expr::Const(4.5f64)
+        ),
+        expr::Const(3i64)
+    	)
+  ], vec![])), parsed);
 }
