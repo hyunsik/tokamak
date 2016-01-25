@@ -1,8 +1,8 @@
 use lexer::Token;
 
 use common::types::Ty;
-use plan::expr::*;
 use plan::expr;
+use plan::expr::*;
 
 use self::PartParsingResult::{Done, NotComplete, Error};
 
@@ -43,43 +43,39 @@ pub enum AssocOp {
 
 impl AssocOp {
   fn from_token(t: &Token) -> Option<AssocOp> {
-    use self::AssocOp::*;
     match *t {
-      Token::Multiply => Some(Multiply),
-      Token::Divide => Some(Divide),
-      Token::Modulus => Some(Modulus),
-      Token::Plus => Some(Add),
-      Token::Minus => Some(Subtract),
-      Token::Lt => Some(Less),
-      Token::Le => Some(LessEqual),
-      Token::Ge => Some(GreaterEqual),
-      Token::Gt => Some(Greater),
-      Token::Eq => Some(Equal),
-      Token::Ne => Some(NotEqual),
-      Token::And => Some(And),
-      Token::Or => Some(Or),
+      Token::Multiply => Some(AssocOp::Multiply),
+      Token::Divide => Some(AssocOp::Divide),
+      Token::Modulus => Some(AssocOp::Modulus),
+      Token::Plus => Some(AssocOp::Add),
+      Token::Minus => Some(AssocOp::Subtract),
+      Token::Lt => Some(AssocOp::Less),
+      Token::Le => Some(AssocOp::LessEqual),
+      Token::Ge => Some(AssocOp::GreaterEqual),
+      Token::Gt => Some(AssocOp::Greater),
+      Token::Eq => Some(AssocOp::Equal),
+      Token::Ne => Some(AssocOp::NotEqual),
+      Token::And => Some(AssocOp::And),
+      Token::Or => Some(AssocOp::Or),
       _ => None
     }
   }
 
-  fn to_expr(t: &Token, lhs: Expr, rhs: Expr) -> Option<Expr> {
-    use self::AssocOp::*;
-    // let lhs = Box::new(lhs.clone());
-    // let rhs = Box::new(rhs.clone());
+  fn to_expr(t: &Token, lhs: &Expr, rhs: &Expr) -> Option<Expr> {
     match *t {
-      Token::Multiply => Some(expr::Mul(&Ty::I64, lhs, rhs)),
-      Token::Divide => Some(expr::Div(&Ty::I64, lhs, rhs)),
-      Token::Modulus => Some(expr::Modulus(&Ty::I64, lhs, rhs)),
-      Token::Plus => Some(expr::Add(&Ty::I64, lhs, rhs)),
-      Token::Minus => Some(expr::Sub(&Ty::I64, lhs, rhs)),
-      Token::Lt => Some(expr::Cmp(CmpOp::Lt, lhs, rhs)),
-      Token::Le => Some(expr::Cmp(CmpOp::Le, lhs, rhs)),
-      Token::Ge => Some(expr::Cmp(CmpOp::Ge, lhs, rhs)),
-      Token::Gt => Some(expr::Cmp(CmpOp::Gt, lhs, rhs)),
-      Token::Eq => Some(expr::Cmp(CmpOp::Eq, lhs, rhs)),
-      Token::Ne => Some(expr::Cmp(CmpOp::Ne, lhs, rhs)),
-      Token::And => Some(expr::And(lhs, rhs)),
-      Token::Or => Some(expr::Or(lhs, rhs)),
+      Token::Multiply => Some(expr::Mul(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
+      Token::Divide => Some(expr::Div(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
+      Token::Modulus => Some(expr::Modulus(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
+      Token::Plus => Some(expr::Add(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
+      Token::Minus => Some(expr::Sub(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
+      Token::Lt => Some(expr::Cmp(CmpOp::Lt, lhs.clone(), rhs.clone())),
+      Token::Le => Some(expr::Cmp(CmpOp::Le, lhs.clone(), rhs.clone())),
+      Token::Ge => Some(expr::Cmp(CmpOp::Ge, lhs.clone(), rhs.clone())),
+      Token::Gt => Some(expr::Cmp(CmpOp::Gt, lhs.clone(), rhs.clone())),
+      Token::Eq => Some(expr::Cmp(CmpOp::Eq, lhs.clone(), rhs.clone())),
+      Token::Ne => Some(expr::Cmp(CmpOp::Ne, lhs.clone(), rhs.clone())),
+      Token::And => Some(expr::And(lhs.clone(), rhs.clone())),
+      Token::Or => Some(expr::Or(lhs.clone(), rhs.clone())),
       _ => None
     }
   }
@@ -320,7 +316,7 @@ fn parse_binary_expr(tokens: &mut Vec<Token>, op_preced: usize, lhs: &Expr) -> P
       rhs = binary_rhs;
     }
 
-    result = match AssocOp::to_expr(&op, result, rhs) {
+    result = match AssocOp::to_expr(&op, &result, &rhs) {
       Some(expr) => expr,
       None => panic!(format!("cannot convert to expr: {:?}", op))
     };

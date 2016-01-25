@@ -72,7 +72,30 @@ pub enum ArithmOp {
   Sub,
   Mul,
   Div,
-  Rem,
+  Mod,
+}
+
+impl ArithmOp {
+  pub fn out_type<'a>(lhs_ty: &'a Ty, rhs_ty: &'a Ty) -> &'a Ty {
+    if *lhs_ty == *rhs_ty {
+      return lhs_ty;
+    }
+
+    let mut size = if lhs_ty.size_of() > rhs_ty.size_of() {
+      lhs_ty.size_of()
+    } else {
+      rhs_ty.size_of()
+    };
+
+    if lhs_ty.is_float() || rhs_ty.is_float() {
+      if size < 4 {
+        size = 4;
+      }
+      return f(size);
+    } else {
+      return i(size);
+    }
+  }
 }
 
 /// Function Declaration
@@ -224,7 +247,7 @@ pub fn Div(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 
 #[allow(non_snake_case)]
 pub fn Modulus(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
-	expr(ret_type, ExprKind::Arithm(ArithmOp::Rem, Box::new(l), Box::new(r)))
+	expr(ret_type, ExprKind::Arithm(ArithmOp::Mod, Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]

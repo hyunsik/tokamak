@@ -42,7 +42,7 @@ fn test_parse_complex_expr() {
   use plan::expr;
   use plan::expr::*;
   use common::types::*;
-  
+
   let tokens = lexer::tokenize("(1+1) * (10-100) / 4.5 - 3");
   assert_eq!(vec![Token::LeftParen, Token::Integer(1), Token::Plus, Token::Integer(1), Token::RightParen,
     Token::Multiply,
@@ -52,13 +52,13 @@ fn test_parse_complex_expr() {
 
   let mut ast = Vec::new();
   let parsed = parser::parse(tokens.as_slice(), ast.as_slice());
-  assert_eq!(Ok((vec![expr::Mul(&Ty::I64,
+  assert_eq!(Ok((vec![expr::Mul(&Ty::F64,
   	expr::Add(&Ty::I64,
   		expr::Const(1i64),
   		expr::Const(1i64)
   	),
-  	expr::Sub(&Ty::I64,
-  		expr::Div(&Ty::I64,
+  	expr::Sub(&Ty::F64,
+  		expr::Div(&Ty::F64,
   			expr::Sub(&Ty::I64,
           expr::Const(10i64),
       		expr::Const(100i64)

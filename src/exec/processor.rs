@@ -103,8 +103,8 @@ impl MapCompiler {
 
     let const_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => true, _ => false});
     let nonconst_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});
-    
-    let schema_map = schema.to_map();    
+
+    let schema_map = schema.to_map();
 
     // generate write_<ty>_raw(chunk) for all const values
     for (out_idx, e) in const_exprs {
@@ -135,7 +135,7 @@ impl MapCompiler {
 
     for (out_idx, e) in nonconst_exprs {
       let out_idx_val = out_idx.to_value(ctx);
-      
+
       let loop_cond_bb = func.append("loop_cond");
       let loop_body_bb = func.append("loop_body");
       let next_eval_entry = func.append("eval_entry");
@@ -152,7 +152,7 @@ impl MapCompiler {
       loop_builder.create_cond_br(&loop_cond, &loop_body_bb, &next_eval_entry);
 
       loop_builder.position_at_end(&loop_body_bb);
-            
+
       let mut exprc = ExprCompiler::new(jit, &loop_builder, fn_reg, sess, &schema_map, Some(&column_chunks), Some(&row_idx));
       let codegen = try!(exprc.compile(e));
       MapCompiler::write_value(
@@ -164,7 +164,7 @@ impl MapCompiler {
         &out_idx_val,
         &row_idx,
         &codegen);
-      
+
       let add_row_idx = loop_builder.create_add(&row_idx, &1usize.to_value(ctx));
       loop_builder.create_store(&add_row_idx, &row_idx_ptr);
       loop_builder.create_br(&loop_cond_bb);
@@ -410,7 +410,7 @@ impl<'a> ExprCompiler<'a> {
       ArithmOp::Sub  => {builder.create_sub(&lhs_val, &rhs_val)}
       ArithmOp::Mul  => {builder.create_mul(&lhs_val, &rhs_val)}
       ArithmOp::Div  => {builder.create_div(&lhs_val, &rhs_val)}
-      ArithmOp::Rem  => {builder.create_rem(&lhs_val, &rhs_val)}
+      ArithmOp::Mod  => {builder.create_rem(&lhs_val, &rhs_val)}
     });
 	}
 
@@ -436,9 +436,9 @@ impl<'a> ExprCompiler<'a> {
 	{
     println!("called Field");
     let found :&(usize, &Ty) = self.schema.get(name)
-      .expect(&format!("Field '{}' does not exist", name));      
+      .expect(&format!("Field '{}' does not exist", name));
     debug_assert_eq!(ty, found.1);
-    
+
 		let read_fn_name = match *ty {
       Ty::Bool => "read_i8_raw",
       Ty::I8   => "read_i8_raw",
@@ -449,16 +449,16 @@ impl<'a> ExprCompiler<'a> {
       Ty::F64  => "read_f64_raw",
       _        => panic!("not supported type")
     };
-    
+
     let call = match self.jit.get_func(read_fn_name) {
       Some(read_fn) => {
         self.builder.create_call(
-          &read_fn, 
+          &read_fn,
           &[&self.input_vecs.unwrap()[found.0], &self.row_idx.unwrap()])
       }
       _       => panic!("No such a function")
     };
-    
+
     self.stack.push(call);
 	}
 }
@@ -548,7 +548,7 @@ mod tests {
 
     let types = &[
 	    I64, // l_orderkey      bigint
-	    I64, // l_partkey       bigint	    
+	    I64, // l_partkey       bigint
     ];
 
 	  let names = &[
@@ -559,7 +559,7 @@ mod tests {
     let expr1 = Field(I64, "l_orderkey");
     let expr2 = Field(I64, "l_partkey");
     let expr3 = Plus(I64, expr1.clone(), expr2.clone());
-    
+
     let schema  = NamedSchema::new(names, types);
   	let session = Session;
 
@@ -571,24 +571,24 @@ mod tests {
 
     let in_page = Page::new(schema.types, None);
     fill_page(&in_page);
-    
+
     let mut out_page =  Page::new(&[I64, I64, I64], None);
     let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
 
     // map is the jit compiled function.
     map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
-    
+
     unsafe {
       for idx in 0..ROWBATCH_SIZE {
         let lhs_val = c_api::read_i64_raw(in_page.chunk(0), idx);
-        let rhs_val = c_api::read_i64_raw(in_page.chunk(1), idx);      
+        let rhs_val = c_api::read_i64_raw(in_page.chunk(1), idx);
         assert_eq!(lhs_val, c_api::read_i64_raw(out_page.chunk(0), idx));
         assert_eq!(rhs_val, c_api::read_i64_raw(out_page.chunk(1), idx));
         assert_eq!((lhs_val + rhs_val) as i64, c_api::read_i64_raw(out_page.chunk(2), idx));
       }
     }
   }
-  
+
   pub fn tpch1() {
     let plugin_mgr = PluginManager::new();
     let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
