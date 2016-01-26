@@ -95,7 +95,8 @@ pub struct MapCompiler<'a> {
 
   get_chunk_fn: Function,
   zero: Value,
-  one : Value
+  one : Value,
+  rowbatch_size: Value
 }
 
 impl<'a> MapCompiler<'a> {
@@ -111,7 +112,8 @@ impl<'a> MapCompiler<'a> {
 
       get_chunk_fn: jit.get_func("get_chunk").unwrap(),
       zero: jit.get_const(0usize),
-      one: jit.get_const(1usize)
+      one: jit.get_const(1usize),
+      rowbatch_size: jit.get_const(ROWBATCH_SIZE)
     }
   }
 
@@ -148,7 +150,6 @@ impl<'a> MapCompiler<'a> {
   }
 
   fn write_nonconst_values(&self, bld: &Builder, func: &Function, chunk_num: usize, exprs: &[&Expr]) {
-    let ctx = self.ctx;
     let in_page : &Value = &func.arg(0).into();
     let out_page: &Value = &func.arg(1).into();
 
@@ -158,29 +159,37 @@ impl<'a> MapCompiler<'a> {
     let mut eval_entry = func.append("eval_entry");
     let mut vectorized_blocks: Vec<(BasicBlock, BasicBlock)> = Vec::new();
 
-    let nonconst_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});
+    let nonconst_exprs =
+      izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});
 
     for (out_idx, e) in nonconst_exprs {
       let out_idx_val = self.jit.get_const(out_idx);
 
-      let loop_cond_bb = func.append("loop_cond");
-      let loop_body_bb = func.append("loop_body");
+      let loop_cond_bb    = func.append("loop_cond");
+      let loop_body_bb    = func.append("loop_body");
       let next_eval_entry = func.append("eval_entry");
 
       let loop_builder = self.jit.new_builder();
       loop_builder.position_at_end(&eval_entry);
-      let row_idx_ptr = loop_builder.create_alloca(&u64::llvm_ty(ctx));
+      let row_idx_ptr = loop_builder.create_alloca(self.jit.get_u64_ty());
       loop_builder.create_store(&self.zero, &row_idx_ptr);
       loop_builder.create_br(&loop_cond_bb);
 
       loop_builder.position_at_end(&loop_cond_bb);
       let row_idx = loop_builder.create_load(&row_idx_ptr);
-      let loop_cond = loop_builder.create_ucmp(&row_idx, &ROWBATCH_SIZE.to_value(ctx), Predicate::Lt);
+      let loop_cond = loop_builder.create_ucmp(&row_idx, &self.rowbatch_size, Predicate::Lt);
       loop_builder.create_cond_br(&loop_cond, &loop_body_bb, &next_eval_entry);
 
       loop_builder.position_at_end(&loop_body_bb);
 
-      let mut exprc = ExprCompiler::new(self.jit, &loop_builder, self.fn_reg, self.sess, &self.schema, Some(&column_chunks), Some(&row_idx));
+      let mut exprc = ExprCompiler::new(
+        self.jit,
+        &loop_builder,
+        self.fn_reg,
+        self.sess,
+        &self.schema,
+        Some(&column_chunks),
+        Some(&row_idx));
       let codegen = exprc.compile(e).ok().unwrap();
       self.write_value(
         &loop_builder,
