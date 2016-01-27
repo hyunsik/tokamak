@@ -308,6 +308,30 @@ impl Page {
 
 pub mod c_api {
   use super::{Chunk, Page};
+  use types::Ty;
+
+  pub static FN_GET_CHUNK: &'static str = "get_chunk";
+
+  pub static FN_READ_BOOL_RAW: &'static str = "read_i8_raw";
+  pub static FN_READ_I8_RAW  : &'static str = "read_i8_raw";
+  pub static FN_READ_I16_RAW : &'static str = "read_i16_raw";
+  pub static FN_READ_I32_RAW : &'static str = "read_i32_raw";
+  pub static FN_READ_I64_RAW : &'static str = "read_i64_raw";
+  pub static FN_READ_F32_RAW : &'static str = "read_f32_raw";
+  pub static FN_READ_F64_RAW : &'static str = "read_f64_raw";
+
+  pub fn fn_name_of_read_raw(ty: &Ty) -> &'static str {
+    match *ty {
+      Ty::Bool => FN_READ_BOOL_RAW,
+      Ty::I8   => FN_READ_I8_RAW,
+      Ty::I16  => FN_READ_I16_RAW,
+      Ty::I32  => FN_READ_I32_RAW,
+      Ty::I64  => FN_READ_I64_RAW,
+      Ty::F32  => FN_READ_F32_RAW,
+      Ty::F64  => FN_READ_F64_RAW,
+      _        => panic!("not supported type")
+    }
+  }
 
   extern "C" {
     pub fn get_chunk(p: *const Page, idx: usize) -> *const Chunk;

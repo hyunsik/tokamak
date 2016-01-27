@@ -17,6 +17,7 @@ use common::plugin::{
 	TypeRegistry
 };
 use common::page::{
+  c_api,
 	Chunk,
 	Page,
   ROWBATCH_SIZE
@@ -81,9 +82,12 @@ fn to_llvm_ty<'a>(jit: &'a JitCompiler, ty: &Ty) -> &'a types::Ty
   }
 }
 
-pub trait CompilerModule<'a> {
+pub trait CodeGenContext<'a> {
   fn jit(&self) -> &'a JitCompiler;
   fn context(&self) -> LLVMContextRef;
+  fn fn_registry(&self) -> &'a FuncRegistry;
+  fn session(&self) -> &'a Session;
+  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)>;
 }
 
 pub struct MapCompiler<'a> {
@@ -93,26 +97,38 @@ pub struct MapCompiler<'a> {
   sess: &'a Session,
   schema: &'a HashMap<&'a str, (usize, &'a Ty)>,
 
+  // cache
   get_chunk_fn: Function,
   zero: Value,
   one : Value,
   rowbatch_size: Value
 }
 
+impl<'a> CodeGenContext<'a> for MapCompiler<'a> {
+  fn jit(&self) -> &'a JitCompiler { self.jit }
+  fn context(&self) -> LLVMContextRef { self.ctx }
+  fn fn_registry(&self) -> &'a FuncRegistry { self.fn_reg }
+  fn session(&self) -> &'a Session { self.sess }
+  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)> { self.schema }
+}
+
 impl<'a> MapCompiler<'a> {
 
-  pub fn new(jit: &'a JitCompiler, fn_reg: &'a FuncRegistry, sess: &'a Session,
-             schema: &'a HashMap<&'a str, (usize, &'a Ty)>) -> MapCompiler<'a> {
+  pub fn new(jit  : &'a JitCompiler,
+            fn_reg: &'a FuncRegistry,
+            sess  : &'a Session,
+            schema: &'a HashMap<&'a str, (usize, &'a Ty)>) -> MapCompiler<'a> {
+
     MapCompiler {
-      jit: jit,
-      ctx: jit.context(),
+      jit   : jit,
+      ctx   : jit.context(),
       fn_reg: fn_reg,
-      sess: sess,
+      sess  : sess,
       schema: schema,
 
-      get_chunk_fn: jit.get_func("get_chunk").unwrap(),
-      zero: jit.get_const(0usize),
-      one: jit.get_const(1usize),
+      get_chunk_fn : jit.get_func(c_api::FN_GET_CHUNK).unwrap(),
+      zero         : jit.get_const(0usize),
+      one          : jit.get_const(1usize),
       rowbatch_size: jit.get_const(ROWBATCH_SIZE)
     }
   }
@@ -123,79 +139,76 @@ impl<'a> MapCompiler<'a> {
       .collect::<Vec<Value>>()
   }
 
-  fn write_const_values(&self, bld: &Builder, func: &Function, exprs: &[&Expr]) {
+  fn write_const_values(&'a self, bld: &'a Builder, func: &Function, exprs: &[&Expr]) {
+
     let out_page: &Value = &func.arg(1).into();
-    let const_exprs = izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => true, _ => false});
+    let const_exprs = izip!(0..exprs.len(), exprs)
+      .filter(|e| match *e.1.kind() {ExprKind::Const(_) => true, _ => false});
 
     for (out_idx, e) in const_exprs {
-      let out_idx_val = self.jit.get_const(out_idx);
-      let mut exprc = ExprCompiler::new(
-        self.jit,
-        bld,
-        self.fn_reg,
-        self.sess,
-        self.schema,
-        None,
-        Some(&self.zero));
+      let codegen = ExprCompiler::compile(self, bld, None, Some(&self.zero), e).ok().unwrap();
 
-      let codegen = exprc.compile(e).ok().unwrap();
       self.write_value(
         bld,
         e.ty(),
         out_page,
-        &out_idx_val,
+        &self.jit.get_const(out_idx),
         &self.zero,
         &codegen);
     }
   }
 
-  fn write_nonconst_values(&self, bld: &Builder, func: &Function, chunk_num: usize, exprs: &[&Expr]) {
+  fn write_nonconst_values(&'a self,
+      bld       : &'a Builder,
+      func      : &Function,
+      column_num: usize,
+      exprs     : &[&Expr]) {
+
     let in_page : &Value = &func.arg(0).into();
     let out_page: &Value = &func.arg(1).into();
 
     // generate access variables for all chunks of input page
-    let mut column_chunks: Vec<Value> = self.create_columns_accessors(bld, in_page, chunk_num);
+    let mut column_chunks: Vec<Value> = self.create_columns_accessors(bld, in_page, column_num);
 
     let mut eval_entry = func.append("eval_entry");
     let mut vectorized_blocks: Vec<(BasicBlock, BasicBlock)> = Vec::new();
 
     let nonconst_exprs =
-      izip!(0..exprs.len(), exprs).filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});
+      izip!(0..exprs.len(), exprs)
+      .filter(|e| match *e.1.kind() {ExprKind::Const(_) => false, _ => true});
 
     for (out_idx, e) in nonconst_exprs {
-      let out_idx_val = self.jit.get_const(out_idx);
-
       let loop_cond_bb    = func.append("loop_cond");
       let loop_body_bb    = func.append("loop_body");
-      let next_eval_entry = func.append("eval_entry");
+      let next_eval_entry = func.append("eval_entry"); // next loop entry
 
       let loop_builder = self.jit.new_builder();
+
+      // loop entry
       loop_builder.position_at_end(&eval_entry);
       let row_idx_ptr = loop_builder.create_alloca(self.jit.get_u64_ty());
       loop_builder.create_store(&self.zero, &row_idx_ptr);
       loop_builder.create_br(&loop_cond_bb);
 
+      // loop condition
       loop_builder.position_at_end(&loop_cond_bb);
       let row_idx = loop_builder.create_load(&row_idx_ptr);
       let loop_cond = loop_builder.create_ucmp(&row_idx, &self.rowbatch_size, Predicate::Lt);
       loop_builder.create_cond_br(&loop_cond, &loop_body_bb, &next_eval_entry);
 
+      // loop body
       loop_builder.position_at_end(&loop_body_bb);
-
-      let mut exprc = ExprCompiler::new(
-        self.jit,
+      let mut codegen = ExprCompiler::compile(self,
         &loop_builder,
-        self.fn_reg,
-        self.sess,
-        &self.schema,
         Some(&column_chunks),
-        Some(&row_idx));
-      let codegen = exprc.compile(e).ok().unwrap();
+        Some(&row_idx),
+        e).ok().unwrap();
+
       self.write_value(
         &loop_builder,
         e.ty(),
         out_page,
-        &out_idx_val,
+        &self.jit.get_const(out_idx),
         &row_idx,
         &codegen);
 
@@ -216,11 +229,11 @@ impl<'a> MapCompiler<'a> {
     bld.position_at_end(&eval_entry);
   }
 
-  pub fn compile(jit: &JitCompiler,
+  pub fn compile(jit   : &JitCompiler,
                  fn_reg: &FuncRegistry,
-                 sess: &Session,
+                 sess  : &Session,
                  schema: &NamedSchema,
-                 exprs: &[&Expr]) -> Result<Rc<MapFunc>> {
+                 exprs : &[&Expr]) -> Result<Rc<MapFunc>> {
 
     let ctx = jit.context();
     let builder = &jit.new_builder();
@@ -238,16 +251,15 @@ impl<'a> MapCompiler<'a> {
 
     // dump code
     jit.dump();
-    //try!(MapCompiler::verify(jit));
     Ok(mapc.ret_func(&func))
   }
 
   fn write_value(&self,
-                 builder: &Builder,
-                 output_ty: &Ty,
-                 out_page: &Value,
+                 builder   : &Builder,
+                 output_ty : &Ty,
+                 out_page  : &Value,
                  output_idx: &Value,
-                 row_idx: &Value,
+                 row_idx   : &Value,
                  output_val: &Value) {
     let fn_name = match *output_ty {
       Ty::Bool => "write_i8_raw",
@@ -300,30 +312,26 @@ impl<'a> MapCompiler<'a> {
 }
 
 /// Compiler for Columnar Evaluator of Expression
-pub struct ExprCompiler<'a>
+pub struct ExprCompiler<'a, 'b>
 {
-  jit    : &'a JitCompiler,
-  builder: &'a Builder,                  // LLVM IRBuilder
-  schema : &'a HashMap<&'a str, (usize, &'a Ty)>, // Input Schema Map
+  jit_gen: &'a CodeGenContext<'a>,
+  builder: &'b Builder,                  // LLVM IRBuilder
 	stack  : Vec<Value>,                   // LLVM values stack temporarily used for code generation
   error  : Option<Error>,                // Code generation error
 
-  input_vecs: Option<&'a Vec<Value>>,    // LLVM values to represent vector pointers
-  row_idx   : Option<&'a Value>,         // LLVM values to represent row index
+  input_vecs: Option<&'b Vec<Value>>,    // LLVM values to represent vector pointers
+  row_idx   : Option<&'b Value>,         // LLVM values to represent row index
 }
 
-impl<'a> ExprCompiler<'a> {
-  fn new(jit         : &'a JitCompiler,
-         builder     : &'a Builder,
-         fn_registry : &FuncRegistry,
-		     session     : &Session,
-		     schema      : &'a HashMap<&'a str, (usize, &'a Ty)>,
+impl<'a, 'b> ExprCompiler<'a, 'b> {
 
-         input_vecs  : Option<&'a Vec<Value>>,
-         row_idx     : Option<&'a Value>) -> ExprCompiler<'a> {
+  fn new(jit_gen     : &'a CodeGenContext<'a>,
+         builder     : &'b Builder,
+         input_vecs  : Option<&'b Vec<Value>>,
+         row_idx     : Option<&'b Value>) -> ExprCompiler<'a, 'b> {
+
 		ExprCompiler {
-      jit       : jit,
-			schema    : schema,
+      jit_gen   : jit_gen,
 			stack     : Vec::new(),
 			error     : None,
       builder   : builder,
@@ -332,31 +340,20 @@ impl<'a> ExprCompiler<'a> {
 		}
 	}
 
-  pub fn compile(&mut self, expr: &Expr) -> Result<Value>
-  {
-    self.accept(expr);
-    match self.stack.pop() {
+  pub fn compile(
+         jit_gen    : &'a CodeGenContext<'a>,
+         bld        : &'b Builder,
+         input_vecs : Option<&'b Vec<Value>>,
+         row_idx    : Option<&'b Value>,
+         expr: &Expr) -> Result<Value> {
+
+    let mut exprc = ExprCompiler::new(jit_gen, bld, input_vecs, row_idx);
+    exprc.accept(expr);
+    match exprc.stack.pop() {
       Some(v) => Ok(v),
       None    => Err(Error::CorruptedFunction("empty value stack".to_string()))
     }
   }
-
-  /*
-  fn generate_scalar_func(map: &mut ExprCompiler, jit: &JitCompiler) {
-    let func = &map.func;
-    let builder = &map.builder;
-
-    let codegen = map.stack.pop().unwrap();
-    let minipage: Value = func.arg(0).into();
-
-    let call = match jit.get_func("test") {
-      Some(f) => {
-        builder.create_call(&f, &[&minipage, &codegen])
-      },
-      _       => panic!("No such a function")
-    };
-    builder.create_ret(&call);
-  }*/
 
   #[inline(always)]
   fn visit(&mut self, expr: &Expr) -> Value
@@ -370,7 +367,7 @@ impl<'a> ExprCompiler<'a> {
   #[inline(always)]
   fn push_value<T: ToValue>(&mut self, val: &T)
   {
-    let v = val.to_value(self.jit.context());
+    let v = val.to_value(self.jit_gen.jit().context());
     self.stack.push(v);
   }
 
@@ -423,7 +420,7 @@ impl<'a> ExprCompiler<'a> {
     let val = self.visit(e);
     let builder = &self.builder;
 
-    self.stack.push(builder.create_cast(cast_op, &val, to_llvm_ty(self.jit, to)));
+    self.stack.push(builder.create_cast(cast_op, &val, to_llvm_ty(self.jit_gen.jit(), to)));
 	}
 
   bin_codegen!(And, create_and);
@@ -485,23 +482,11 @@ impl<'a> ExprCompiler<'a> {
 
 	pub fn Field(&mut self, ty: &Ty, name: &str)
 	{
-    println!("called Field");
-    let found :&(usize, &Ty) = self.schema.get(name)
-      .expect(&format!("Field '{}' does not exist", name));
+    let found :&(usize, &Ty) = self.jit_gen
+      .schema().get(name).expect(&format!("Field '{}' does not exist", name));
     debug_assert_eq!(ty, found.1);
 
-		let read_fn_name = match *ty {
-      Ty::Bool => "read_i8_raw",
-      Ty::I8   => "read_i8_raw",
-      Ty::I16  => "read_i16_raw",
-      Ty::I32  => "read_i32_raw",
-      Ty::I64  => "read_i64_raw",
-      Ty::F32  => "read_f32_raw",
-      Ty::F64  => "read_f64_raw",
-      _        => panic!("not supported type")
-    };
-
-    let call = match self.jit.get_func(read_fn_name) {
+    let call = match self.jit_gen.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
       Some(read_fn) => {
         self.builder.create_call(
           &read_fn,
@@ -514,7 +499,7 @@ impl<'a> ExprCompiler<'a> {
 	}
 }
 
-impl<'a> visitor::Visitor for ExprCompiler<'a>
+impl<'a, 'b> visitor::Visitor for ExprCompiler<'a, 'b>
 {
 	fn accept(&mut self, e: &Expr)
 	{
