@@ -314,7 +314,7 @@ impl<'a> MapCompiler<'a> {
 /// Compiler for Columnar Evaluator of Expression
 pub struct ExprCompiler<'a, 'b>
 {
-  jit_gen: &'a CodeGenContext<'a>,
+  gen_ctx: &'a CodeGenContext<'a>,
   builder: &'b Builder,                  // LLVM IRBuilder
 	stack  : Vec<Value>,                   // LLVM values stack temporarily used for code generation
   error  : Option<Error>,                // Code generation error
@@ -323,31 +323,40 @@ pub struct ExprCompiler<'a, 'b>
   row_idx   : Option<&'b Value>,         // LLVM values to represent row index
 }
 
+impl<'a, 'b> CodeGenContext<'a> for ExprCompiler<'a, 'b> {
+  fn jit(&self) -> &'a JitCompiler { self.gen_ctx.jit() }
+  fn context(&self) -> LLVMContextRef { self.gen_ctx.context() }
+  fn fn_registry(&self) -> &'a FuncRegistry { self.gen_ctx.fn_registry() }
+  fn session(&self) -> &'a Session { self.gen_ctx.session() }
+  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)> { self.gen_ctx.schema() }
+}
+
 impl<'a, 'b> ExprCompiler<'a, 'b> {
 
-  fn new(jit_gen     : &'a CodeGenContext<'a>,
+  fn new(gen_ctx     : &'a CodeGenContext<'a>,
          builder     : &'b Builder,
          input_vecs  : Option<&'b Vec<Value>>,
          row_idx     : Option<&'b Value>) -> ExprCompiler<'a, 'b> {
 
 		ExprCompiler {
-      jit_gen   : jit_gen,
+      gen_ctx   : gen_ctx,
 			stack     : Vec::new(),
 			error     : None,
       builder   : builder,
       input_vecs: input_vecs,
       row_idx   : row_idx
 		}
-	}
+	} 
 
   pub fn compile(
-         jit_gen    : &'a CodeGenContext<'a>,
+         gen_ctx    : &'a CodeGenContext<'a>,
          bld        : &'b Builder,
          input_vecs : Option<&'b Vec<Value>>,
          row_idx    : Option<&'b Value>,
          expr: &Expr) -> Result<Value> {
 
-    let mut exprc = ExprCompiler::new(jit_gen, bld, input_vecs, row_idx);
+    let mut exprc = ExprCompiler::new(gen_ctx, bld, input_vecs, row_idx);
+    // visit a expression tree
     exprc.accept(expr);
     match exprc.stack.pop() {
       Some(v) => Ok(v),
@@ -367,7 +376,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
   #[inline(always)]
   fn push_value<T: ToValue>(&mut self, val: &T)
   {
-    let v = val.to_value(self.jit_gen.jit().context());
+    let v = val.to_value(self.context());
     self.stack.push(v);
   }
 
@@ -420,7 +429,8 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
     let val = self.visit(e);
     let builder = &self.builder;
 
-    self.stack.push(builder.create_cast(cast_op, &val, to_llvm_ty(self.jit_gen.jit(), to)));
+    let jit = self.jit();
+    self.stack.push(builder.create_cast(cast_op, &val, to_llvm_ty(jit, to)));
 	}
 
   bin_codegen!(And, create_and);
@@ -482,16 +492,14 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
 
 	pub fn Field(&mut self, ty: &Ty, name: &str)
 	{
-    let found :&(usize, &Ty) = self.jit_gen
-      .schema().get(name).expect(&format!("Field '{}' does not exist", name));
+    let found :&(usize, &Ty) = self.schema()
+      .get(name).expect(&format!("Field '{}' does not exist", name));
+    let column_chunk = &self.input_vecs.unwrap()[found.0];
+      
     debug_assert_eq!(ty, found.1);
 
-    let call = match self.jit_gen.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
-      Some(read_fn) => {
-        self.builder.create_call(
-          &read_fn,
-          &[&self.input_vecs.unwrap()[found.0], &self.row_idx.unwrap()])
-      }
+    let call = match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
+      Some(read_fn) => self.builder.create_call(&read_fn, &[column_chunk, &self.row_idx.unwrap()]),
       _       => panic!("No such a function")
     };
 
