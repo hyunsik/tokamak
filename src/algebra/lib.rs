@@ -13,6 +13,29 @@ use rustc_serialize::{Encoder, Decodable};
 
 use common::dataset::DataSet;
 
+/// Comparison Operator Type
+#[derive(Clone, Copy)]
+pub enum CmpOp {
+  Eq,
+  Ne,
+  Lt,
+  Le,
+  Gt,
+  Ge
+}
+
+/// Arithmetic Operator Type
+#[derive(Clone, Copy)]
+pub enum ArithmOp {
+  Plus,
+  Sub,
+  Mul,
+  Div,
+  Rem,
+}
+
+/// Representation for a single value
+
 pub enum AlgebraError 
 {
   EmptyStack,

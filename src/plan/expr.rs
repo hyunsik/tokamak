@@ -1,3 +1,8 @@
+/// Annotated Expression Representation
+///
+/// Expr will be decorated with metadata for better rewrite and optimization. 
+
+pub use algebra::{ArithmOp, CmpOp};
 use common::types::*;
 use util::collection::vec;
 
@@ -12,18 +17,16 @@ pub fn expr(ty: &Ty, kind: ExprKind) -> Expr
 
 impl Expr
 {
-
-	#[inline]
-	pub fn ty(&self) -> &Ty
-	{
-		&self.0
-	}
-
 	#[inline]
 	pub fn kind(&self) -> &ExprKind
 	{
 		&self.1
 	}
+}
+
+impl HasType for Expr {
+  #[inline]
+	fn ty(&self) -> &Ty	{ &self.0 }
 }
 
 /// Expression Specific Element
@@ -53,27 +56,6 @@ pub enum ExprKind {
   Case  (Box<Expr>, Box<Expr>),      // condition, return value
 }
 
-/// Comparison Operator Type
-#[derive(Clone, Copy)]
-pub enum CmpOp {
-  Eq,
-  Ne,
-  Lt,
-  Le,
-  Gt,
-  Ge
-}
-
-/// Arithmetic Operator Type
-#[derive(Clone, Copy)]
-pub enum ArithmOp {
-  Plus,
-  Sub,
-  Mul,
-  Div,
-  Rem,
-}
-
 /// Function Declaration
 #[derive(Clone)]
 pub struct FnDecl {
@@ -81,9 +63,9 @@ pub struct FnDecl {
   ret_ty: Ty
 }
 
-impl FnDecl
+impl HasType for FnDecl
 {
-	pub fn ty(&self) -> &Ty
+	fn ty(&self) -> &Ty
 	{
 		&self.ret_ty
 	}
@@ -104,9 +86,9 @@ pub enum Literal
   String(String)
 }
 
-impl Literal
+impl HasType for Literal
 {
-	pub fn ty(&self) -> &Ty
+	fn ty(&self) -> &Ty
 	{
 		match *self {
 			Literal::Bool(_) => BOOL,
@@ -259,8 +241,8 @@ pub mod optimizer
 
 pub mod visitor
 {
-	//! Visitor for Expr
-	use super::*;
+  use common::types::HasType;
+  use super::*;  
 
 	/// Simple visitor to walk all Expr node in a single accept function.
 	/// It provides an easier way to rewrite a Expr tree.

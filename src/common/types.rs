@@ -255,6 +255,10 @@ pub fn f(size: u32) -> &'static Ty
   }
 }
 
+pub trait HasType {
+  fn ty(&self) -> &Ty;
+}
+
 /*
 impl Ty
 {

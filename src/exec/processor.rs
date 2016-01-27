@@ -23,7 +23,7 @@ use common::page::{
   ROWBATCH_SIZE
 };
 use common::session::Session;
-use common::types::{Ty, name};
+use common::types::{HasType, name, Ty};
 
 use jit::{JitCompiler, LLVMContextRef};
 use jit::block::BasicBlock;
