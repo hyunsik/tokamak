@@ -171,7 +171,7 @@ impl<'a> MapCompiler<'a> {
     let mut column_chunks: Vec<Value> = self.create_columns_accessors(bld, in_page, column_num);
 
     let mut eval_entry = func.append("eval_entry");
-    let mut vectorized_blocks: Vec<BasicBlock> = Vec::new();
+    let mut block_list: Vec<BasicBlock> = Vec::new();
 
     let nonconst_exprs =
       izip!(0..exprs.len(), exprs)
@@ -216,12 +216,12 @@ impl<'a> MapCompiler<'a> {
       loop_builder.create_store(&add_row_idx, &row_idx_ptr);
       loop_builder.create_br(&loop_cond_bb);
 
-      vectorized_blocks.push(eval_entry);
+      block_list.push(eval_entry);
       eval_entry = next_eval_entry;
     }
 
-    if !vectorized_blocks.is_empty() {
-      bld.create_br(&vectorized_blocks[0]);
+    if !block_list.is_empty() {
+      bld.create_br(&block_list[0]);
     } else {
       bld.create_br(&eval_entry);
     }
