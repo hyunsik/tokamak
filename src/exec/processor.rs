@@ -633,6 +633,7 @@ mod tests {
     }
   }
 
+  #[test]
   pub fn tpch1() {
     let plugin_mgr = PluginManager::new();
     let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
@@ -662,14 +663,15 @@ mod tests {
 	  	"l_tax"
     ];
 
-    let expr1 = Field(I64, "l_orderkey");
+    // l_extendedprice*(1-l_discount)
+    let expr1 = Mul(F64, Field(F64, "l_extendedprice"), Subtract(F64, Const(1.0f64), Field(F64, "l_discount")));
     //let expr1 = Const(19800401i32);
-    let expr2 = Const(19840115i32);
+    //let expr2 = Const(19840115i32);
     //let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
     //let expr2 = MinusSign(Const(7i32));
     //let expr = Or(Const(4i32), Const(2i32));
     //let expr = Not(Const(0i32));
-    let schema  = NamedSchema::new(names, types);
+    let schema  = &NamedSchema::new(names, types);
   	let session = Session;
 
     // let map = ExprCompiler::compile(&jit,
@@ -680,18 +682,17 @@ mod tests {
     let map = MapCompiler::compile(&jit,
                           plugin_mgr.fn_registry(),
                           &session,
-                          &schema,
-                          &[&expr1, &expr2]).ok().unwrap();
+                          schema,
+                          &[&expr1]).ok().unwrap();
 
-    let in_page = Page::new(&[I32, I32], None);
-    let mut out_page =  Page::new(&[I32, I32], None);
+    let in_page = Page::new(&schema.types, None);
+    let mut out_page =  Page::new(&[F64], None);
     let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
 
     // map is the jit compiled function.
     map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
     unsafe {
-      assert_eq!(19800401, c_api::read_i32_raw(out_page.chunk(0), 0));
-      assert_eq!(19840115, c_api::read_i32_raw(out_page.chunk(1), 0));
+      assert_eq!(0f64, c_api::read_f64_raw(out_page.chunk(0), 0));
     }
   }
 }
