@@ -1,12 +1,12 @@
 /// Annotated Expression Representation
 ///
-/// Expr will be decorated with metadata for better rewrite and optimization. 
+/// Expr will be decorated with metadata for better rewrite and optimization.
 
 pub use algebra::{ArithmOp, CmpOp};
 use common::types::*;
 use util::collection::vec;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Expr (pub Ty, pub ExprKind);
 
 #[inline(always)]
@@ -30,7 +30,7 @@ impl HasType for Expr {
 }
 
 /// Expression Specific Element
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExprKind {
   // Unary Expressions
   Not      (Box<Expr>),
@@ -48,6 +48,7 @@ pub enum ExprKind {
 
   // function and values
   Fn(FnDecl, Vec<Box<Expr>>),
+  // FnCall(String, Vec<Box<Expr>>),
   Field(String),
   Const(Literal),
 
@@ -57,7 +58,7 @@ pub enum ExprKind {
 }
 
 /// Function Declaration
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FnDecl {
   signature: String,
   ret_ty: Ty
@@ -72,7 +73,7 @@ impl HasType for FnDecl
 }
 
 /// Representation for a single value
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal
 {
   Bool(bool),
@@ -138,7 +139,7 @@ pub fn IsNull(c: Expr) -> Expr
 #[allow(non_snake_case)]
 pub fn IsNotNull(c: Expr) -> Expr
 {
-	expr(BOOL, ExprKind::IsNull(Box::new(c)))
+	expr(BOOL, ExprKind::IsNotNull(Box::new(c)))
 }
 
 #[allow(non_snake_case)]
@@ -184,18 +185,28 @@ pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
 }
 
 #[allow(non_snake_case)]
-pub fn Plus(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+pub fn Add(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	expr(ret_type, ExprKind::Arithm(ArithmOp::Plus, Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
-pub fn Subtract(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+pub fn Sub(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	expr(ret_type, ExprKind::Arithm(ArithmOp::Sub, Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
 pub fn Mul(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	expr(ret_type, ExprKind::Arithm(ArithmOp::Mul, Box::new(l), Box::new(r)))
+}
+
+#[allow(non_snake_case)]
+pub fn Div(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+	expr(ret_type, ExprKind::Arithm(ArithmOp::Div, Box::new(l), Box::new(r)))
+}
+
+#[allow(non_snake_case)]
+pub fn Modulus(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+	expr(ret_type, ExprKind::Arithm(ArithmOp::Rem, Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
@@ -242,7 +253,7 @@ pub mod optimizer
 pub mod visitor
 {
   use common::types::HasType;
-  use super::*;  
+  use super::*;
 
 	/// Simple visitor to walk all Expr node in a single accept function.
 	/// It provides an easier way to rewrite a Expr tree.

@@ -12,9 +12,10 @@ use std::result::Result;
 use rustc_serialize::{Encoder, Decodable};
 
 use common::dataset::DataSet;
+use common::types::{Ty, f, i};
 
 /// Comparison Operator Type
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum CmpOp {
   Eq,
   Ne,
@@ -25,7 +26,7 @@ pub enum CmpOp {
 }
 
 /// Arithmetic Operator Type
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ArithmOp {
   Plus,
   Sub,
@@ -34,9 +35,32 @@ pub enum ArithmOp {
   Rem,
 }
 
+impl ArithmOp {
+  pub fn out_type<'a>(lhs_ty: &'a Ty, rhs_ty: &'a Ty) -> &'a Ty {
+    if *lhs_ty == *rhs_ty {
+      return lhs_ty;
+    }
+
+    let mut size = if lhs_ty.size_of() > rhs_ty.size_of() {
+      lhs_ty.size_of()
+    } else {
+      rhs_ty.size_of()
+    };
+
+    if lhs_ty.is_float() || rhs_ty.is_float() {
+      if size < 4 {
+        size = 4;
+      }
+      return f(size);
+    } else {
+      return i(size);
+    }
+  }
+}
+
 /// Representation for a single value
 
-pub enum AlgebraError 
+pub enum AlgebraError
 {
   EmptyStack,
   MismatchedStackType,
@@ -51,18 +75,18 @@ pub enum JoinType
   FullOuter
 }
 
-pub enum Operator 
+pub enum Operator
 {
   Scan      (DataSet),
   Project   (Box<Operator>, Vec<Operator>),                // child, exprs
   Filter    (Box<Operator>, Vec<Operator>),                // child, bool exprs in a CNF form
   Join      (JoinType, Box<Operator>, Box<Operator>, Vec<Operator>), // join type, left, right, join condition
-  Aggregate (Box<Operator>, Vec<Operator>, Vec<Operator>), // child, keys, exprs    
+  Aggregate (Box<Operator>, Vec<Operator>, Vec<Operator>), // child, keys, exprs
   Head      (Box<Operator>, usize),                        // child, row number to fetch
   Tail      (Box<Operator>, usize),                        // child, row number to fetch
 }
 
-pub struct AlgebraBuilder 
+pub struct AlgebraBuilder
 {
   stack: Vec<Operator>
 }
@@ -70,13 +94,13 @@ pub struct AlgebraBuilder
 impl AlgebraBuilder
 {
   #[inline]
-  pub fn new() -> AlgebraBuilder 
+  pub fn new() -> AlgebraBuilder
   {
     AlgebraBuilder {
       stack: Vec::new()
     }
   }
-  
+
   #[inline]
   pub fn build(mut self) -> Result<Operator, AlgebraError>
   {
@@ -86,31 +110,31 @@ impl AlgebraBuilder
       _ => { Err(AlgebraError::NotConsumedStackItem) }
     }
   }
-  
+
   #[inline]
   fn push(&mut self, op: Operator) -> &mut AlgebraBuilder
   {
     self.stack.push(op);
     self
   }
-  
-  pub fn dataset(&mut self, dataset: DataSet) -> &mut AlgebraBuilder 
+
+  pub fn dataset(&mut self, dataset: DataSet) -> &mut AlgebraBuilder
   {
     self.push(Operator::Scan(dataset));
-    self    
-  } 
-  
-  
+    self
+  }
+
+
   #[inline]
-  pub fn filter(&mut self, op: Operator) -> &mut AlgebraBuilder 
+  pub fn filter(&mut self, op: Operator) -> &mut AlgebraBuilder
   {
     self.push(op)
   }
-  
+
   pub fn join(
-      &mut self, 
-      join_type: JoinType,  
-      cond: Vec<Operator>) -> &mut AlgebraBuilder 
+      &mut self,
+      join_type: JoinType,
+      cond: Vec<Operator>) -> &mut AlgebraBuilder
   {
     debug_assert!(self.stack.len() > 1);
     let left = self.stack.pop().unwrap();
@@ -118,11 +142,11 @@ impl AlgebraBuilder
     self.push(Operator::Join(join_type, Box::new(left), Box::new(right), cond));
     self
   }
-  
+
   pub fn join_with(
-      &mut self, 
-      join_type: JoinType, 
-      right: Operator, 
+      &mut self,
+      join_type: JoinType,
+      right: Operator,
       cond: Vec<Operator>) -> &mut AlgebraBuilder
   {
     debug_assert!(self.stack.len() > 0);
@@ -141,71 +165,71 @@ impl fmt::Display for AlgebraBuilder {
 /// Visitor for Expr Tree
 #[allow(unused_variables)]
 pub trait Visitor<'v, T>: Sized {
- 
+
   fn visit_dataset(
-      &self, 
-      &mut T, 
+      &self,
+      &mut T,
       dataset: &'v DataSet) {}
- 
+
   fn visit_project(
-      &self, 
-      context: &mut T, 
-      child: &'v Operator, 
+      &self,
+      context: &mut T,
+      child: &'v Operator,
       exprs: &Vec<Operator>) {
-      
+
     walk_op(self, context, child);
   }
-  
+
   fn visit_filter(
-      &self, 
-      context: 
-      &mut T, 
-      child: &'v Operator, 
+      &self,
+      context:
+      &mut T,
+      child: &'v Operator,
       filter: &Vec<Operator>) {
-      
+
     walk_op(self, context, child);
   }
 
   fn visit_join(
-      &self, 
-      context: 
+      &self,
+      context:
       &mut T,
       join_type: &JoinType,
       left: &'v Operator,
-      right: &'v Operator, 
+      right: &'v Operator,
       cond: &Vec<Operator>) {
-    
-    walk_op(self, context, left);  
+
+    walk_op(self, context, left);
     walk_op(self, context, right);
-  }        
+  }
 
   fn visit_aggregate(
-      &self, 
-      context: 
-      &mut T, 
-      child: &'v Operator, 
+      &self,
+      context:
+      &mut T,
+      child: &'v Operator,
       keys: &Vec<Operator>,
       exprs:&Vec<Operator>) {
-      
-    walk_op(self, context, child);
-  }      
-      
-  
-  fn visit_head(
-      &self, 
-      context: &mut T, 
-      child: &'v Operator, 
-      fetch_row: usize) {
-        
+
     walk_op(self, context, child);
   }
-  
-  fn visit_tail(
-      &self, 
-      context: &mut T, 
-      child: &'v Operator, 
+
+
+  fn visit_head(
+      &self,
+      context: &mut T,
+      child: &'v Operator,
       fetch_row: usize) {
-        
+
+    walk_op(self, context, child);
+  }
+
+  fn visit_tail(
+      &self,
+      context: &mut T,
+      child: &'v Operator,
+      fetch_row: usize) {
+
     walk_op(self, context, child);
   }
 }
@@ -227,7 +251,7 @@ pub trait SimpleVisitor {
   fn accept(&self, op: &Operator) {
     self.accept_by_default(op);
   }
-  
+
   fn accept_by_default(&self, op: &Operator) {
     match *op {
       Operator::Scan     (_)                  => {},
@@ -238,10 +262,7 @@ pub trait SimpleVisitor {
       Operator::Head     (ref child, _)       => { self.accept(&**child) },
       Operator::Tail     (ref child, _)       => { self.accept(&**child) },
     }
-  } 
+  }
 }
 
 //pub fn walk_op_simple<'v, V>
-    
-    
-    
