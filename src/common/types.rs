@@ -227,30 +227,30 @@ impl Ty
   }
 }
 
-pub fn u(size: usize) -> &'static Ty
+pub fn u(size: u32) -> &'static Ty
 {
   match size {
-    1  => U8,
+    8  => U8,
     _  => panic!("unsupported integer type: i{}", size)
   }
 }
 
-pub fn i(size: usize) -> &'static Ty
+pub fn i(size: u32) -> &'static Ty
 {
   match size {
-    1  => I8,
-    2 => I16,
-    4 => I32,
-    8 => I64,
+    8  => I8,
+    16 => I16,
+    32 => I32,
+    64 => I64,
     _  => panic!("unsupported integer type: i{}", size)
   }
 }
 
-pub fn f(size: usize) -> &'static Ty
+pub fn f(size: u32) -> &'static Ty
 {
   match size {
-    4 => F32,
-    8 => F64,
+    32 => F32,
+    64 => F64,
     _  => panic!("unsupported integer type: f{}", size)
   }
 }

@@ -41,15 +41,15 @@ impl ArithmOp {
       return lhs_ty;
     }
 
-    let mut size = if lhs_ty.size_of() > rhs_ty.size_of() {
+    let mut size: u32 = 8 * if lhs_ty.size_of() > rhs_ty.size_of() {
       lhs_ty.size_of()
     } else {
       rhs_ty.size_of()
-    };
+    } as u32;
 
     if lhs_ty.is_float() || rhs_ty.is_float() {
-      if size < 4 {
-        size = 4;
+      if size < 32 {
+        size = 32;
       }
       return f(size);
     } else {
