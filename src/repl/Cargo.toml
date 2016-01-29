@@ -1,0 +1,17 @@
+[package]
+name = "repl"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
+
+[[bin]]
+name = "repl"
+path = "repl.rs"
+
+[dependencies]
+itertools = "0.4.3"
+
+[dependencies.parser]
+path = "../parser"
+
+[dependencies.readline]
+git = "https://github.com/hyunsik/readline-rs.git"
