@@ -185,7 +185,7 @@ pub fn Arithm(op: &ArithmOp, ret_type: &Ty, l: Expr, r: Expr) -> Expr
 }
 
 #[allow(non_snake_case)]
-pub fn Add(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+pub fn Plus(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	expr(ret_type, ExprKind::Arithm(ArithmOp::Plus, Box::new(l), Box::new(r)))
 }
 
@@ -205,7 +205,7 @@ pub fn Div(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 }
 
 #[allow(non_snake_case)]
-pub fn Modulus(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+pub fn Rem(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	expr(ret_type, ExprKind::Arithm(ArithmOp::Rem, Box::new(l), Box::new(r)))
 }
 

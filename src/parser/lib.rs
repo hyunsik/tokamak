@@ -25,22 +25,20 @@ fn test_tokenize() {
 fn test_parse_simple_expr() {
   use lexer::Token;
   use plan::expr;
-  use plan::expr::*;
   use common::types::*;
 
   let tokens = lexer::tokenize("1+-1");
   assert_eq!(vec![Token::Integer(1), Token::Plus, Token::Minus, Token::Integer(1)], tokens);
 
-  let mut ast = Vec::new();
+  let ast = Vec::new();
   let parsed = parser::parse(tokens.as_slice(), ast.as_slice());
-  assert_eq!(Ok((vec![expr::Add(&Ty::I64, expr::Const(1i64), expr::Const(-1i64))], vec![])), parsed);
+  assert_eq!(Ok((vec![expr::Plus(&Ty::I64, expr::Const(1i64), expr::Const(-1i64))], vec![])), parsed);
 }
 
 #[test]
 fn test_parse_complex_expr() {
   use lexer::Token;
   use plan::expr;
-  use plan::expr::*;
   use common::types::*;
 
   let tokens = lexer::tokenize("(1+1) * (10-100) / 4.5 - 3");
@@ -50,13 +48,13 @@ fn test_parse_complex_expr() {
     Token::Divide, Token::Float(4.5), Token::Minus, Token::Integer(3)],
     tokens);
 
-  let mut ast = Vec::new();
+  let ast = Vec::new();
   let parsed = parser::parse(tokens.as_slice(), ast.as_slice());
   assert_eq!(Ok((vec![
     expr::Sub(&Ty::F64,
     	expr::Div(&Ty::F64,
           expr::Mul(&Ty::I64,
-            expr::Add(&Ty::I64,
+            expr::Plus(&Ty::I64,
           		expr::Const(1i64),
           		expr::Const(1i64)
             ),

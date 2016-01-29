@@ -1,6 +1,5 @@
 use lexer::Token;
 
-use common::types::Ty;
 use common::types::HasType;
 
 use plan::expr;
@@ -67,8 +66,8 @@ impl AssocOp {
     match *t {
       Token::Multiply => Some(expr::Mul(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
       Token::Divide => Some(expr::Div(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
-      Token::Modulus => Some(expr::Modulus(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
-      Token::Plus => Some(expr::Add(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
+      Token::Modulus => Some(expr::Rem(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
+      Token::Plus => Some(expr::Plus(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
       Token::Minus => Some(expr::Sub(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
       Token::Lt => Some(expr::Cmp(CmpOp::Lt, lhs.clone(), rhs.clone())),
       Token::Le => Some(expr::Cmp(CmpOp::Le, lhs.clone(), rhs.clone())),
@@ -262,7 +261,7 @@ fn parse_integer_expr(tokens: &mut Vec<Token>, negative: bool) -> PartParsingRes
 fn parse_literal_str_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
   let mut parsed_tokens = Vec::new();
 
-  let mut value = expect_tokens!(
+  let value = expect_tokens!(
     [Token::LiteralStr(val), Token::LiteralStr(val.clone()), val] <= tokens, parsed_tokens, "string expected"
   );
 
