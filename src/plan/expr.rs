@@ -1,7 +1,12 @@
+/// Annotated Expression Representation
+///
+/// Expr will be decorated with metadata for better rewrite and optimization.
+
+pub use algebra::{ArithmOp, CmpOp};
 use common::types::*;
 use util::collection::vec;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Expr (pub Ty, pub ExprKind);
 
 #[inline(always)]
@@ -12,13 +17,6 @@ pub fn expr(ty: &Ty, kind: ExprKind) -> Expr
 
 impl Expr
 {
-
-	#[inline]
-	pub fn ty(&self) -> &Ty
-	{
-		&self.0
-	}
-
 	#[inline]
 	pub fn kind(&self) -> &ExprKind
 	{
@@ -26,8 +24,13 @@ impl Expr
 	}
 }
 
+impl HasType for Expr {
+  #[inline]
+	fn ty(&self) -> &Ty	{ &self.0 }
+}
+
 /// Expression Specific Element
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExprKind {
   // Unary Expressions
   Not      (Box<Expr>),
@@ -45,6 +48,7 @@ pub enum ExprKind {
 
   // function and values
   Fn(FnDecl, Vec<Box<Expr>>),
+  // FnCall(String, Vec<Box<Expr>>),
   Field(String),
   Const(Literal),
 
@@ -53,44 +57,23 @@ pub enum ExprKind {
   Case  (Box<Expr>, Box<Expr>),      // condition, return value
 }
 
-/// Comparison Operator Type
-#[derive(Clone, Copy)]
-pub enum CmpOp {
-  Eq,
-  Ne,
-  Lt,
-  Le,
-  Gt,
-  Ge
-}
-
-/// Arithmetic Operator Type
-#[derive(Clone, Copy)]
-pub enum ArithmOp {
-  Plus,
-  Sub,
-  Mul,
-  Div,
-  Rem,
-}
-
 /// Function Declaration
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FnDecl {
   signature: String,
   ret_ty: Ty
 }
 
-impl FnDecl
+impl HasType for FnDecl
 {
-	pub fn ty(&self) -> &Ty
+	fn ty(&self) -> &Ty
 	{
 		&self.ret_ty
 	}
 }
 
 /// Representation for a single value
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal
 {
   Bool(bool),
@@ -104,9 +87,9 @@ pub enum Literal
   String(String)
 }
 
-impl Literal
+impl HasType for Literal
 {
-	pub fn ty(&self) -> &Ty
+	fn ty(&self) -> &Ty
 	{
 		match *self {
 			Literal::Bool(_) => BOOL,
@@ -156,7 +139,7 @@ pub fn IsNull(c: Expr) -> Expr
 #[allow(non_snake_case)]
 pub fn IsNotNull(c: Expr) -> Expr
 {
-	expr(BOOL, ExprKind::IsNull(Box::new(c)))
+	expr(BOOL, ExprKind::IsNotNull(Box::new(c)))
 }
 
 #[allow(non_snake_case)]
@@ -207,13 +190,23 @@ pub fn Plus(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 }
 
 #[allow(non_snake_case)]
-pub fn Subtract(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+pub fn Sub(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	expr(ret_type, ExprKind::Arithm(ArithmOp::Sub, Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
 pub fn Mul(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
 	expr(ret_type, ExprKind::Arithm(ArithmOp::Mul, Box::new(l), Box::new(r)))
+}
+
+#[allow(non_snake_case)]
+pub fn Div(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+	expr(ret_type, ExprKind::Arithm(ArithmOp::Div, Box::new(l), Box::new(r)))
+}
+
+#[allow(non_snake_case)]
+pub fn Rem(ret_type: &Ty, l: Expr, r: Expr) -> Expr {
+	expr(ret_type, ExprKind::Arithm(ArithmOp::Rem, Box::new(l), Box::new(r)))
 }
 
 #[allow(non_snake_case)]
@@ -259,8 +252,8 @@ pub mod optimizer
 
 pub mod visitor
 {
-	//! Visitor for Expr
-	use super::*;
+  use common::types::HasType;
+  use super::*;
 
 	/// Simple visitor to walk all Expr node in a single accept function.
 	/// It provides an easier way to rewrite a Expr tree.

@@ -23,7 +23,7 @@ use common::page::{
   ROWBATCH_SIZE
 };
 use common::session::Session;
-use common::types::{Ty, name};
+use common::types::{HasType, name, Ty};
 
 use jit::{JitCompiler, LLVMContextRef};
 use jit::block::BasicBlock;
@@ -171,7 +171,7 @@ impl<'a> MapCompiler<'a> {
     let mut column_chunks: Vec<Value> = self.create_columns_accessors(bld, in_page, column_num);
 
     let mut eval_entry = func.append("eval_entry");
-    let mut vectorized_blocks: Vec<(BasicBlock, BasicBlock)> = Vec::new();
+    let mut block_list: Vec<BasicBlock> = Vec::new();
 
     let nonconst_exprs =
       izip!(0..exprs.len(), exprs)
@@ -216,12 +216,12 @@ impl<'a> MapCompiler<'a> {
       loop_builder.create_store(&add_row_idx, &row_idx_ptr);
       loop_builder.create_br(&loop_cond_bb);
 
-      vectorized_blocks.push((eval_entry, loop_cond_bb));
+      block_list.push(eval_entry);
       eval_entry = next_eval_entry;
     }
 
-    if !vectorized_blocks.is_empty() {
-      bld.create_br(&vectorized_blocks[0].0);
+    if !block_list.is_empty() {
+      bld.create_br(&block_list[0]);
     } else {
       bld.create_br(&eval_entry);
     }
@@ -314,7 +314,7 @@ impl<'a> MapCompiler<'a> {
 /// Compiler for Columnar Evaluator of Expression
 pub struct ExprCompiler<'a, 'b>
 {
-  jit_gen: &'a CodeGenContext<'a>,
+  gen_ctx: &'a CodeGenContext<'a>,
   builder: &'b Builder,                  // LLVM IRBuilder
 	stack  : Vec<Value>,                   // LLVM values stack temporarily used for code generation
   error  : Option<Error>,                // Code generation error
@@ -323,31 +323,40 @@ pub struct ExprCompiler<'a, 'b>
   row_idx   : Option<&'b Value>,         // LLVM values to represent row index
 }
 
+impl<'a, 'b> CodeGenContext<'a> for ExprCompiler<'a, 'b> {
+  fn jit(&self) -> &'a JitCompiler { self.gen_ctx.jit() }
+  fn context(&self) -> LLVMContextRef { self.gen_ctx.context() }
+  fn fn_registry(&self) -> &'a FuncRegistry { self.gen_ctx.fn_registry() }
+  fn session(&self) -> &'a Session { self.gen_ctx.session() }
+  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)> { self.gen_ctx.schema() }
+}
+
 impl<'a, 'b> ExprCompiler<'a, 'b> {
 
-  fn new(jit_gen     : &'a CodeGenContext<'a>,
+  fn new(gen_ctx     : &'a CodeGenContext<'a>,
          builder     : &'b Builder,
          input_vecs  : Option<&'b Vec<Value>>,
          row_idx     : Option<&'b Value>) -> ExprCompiler<'a, 'b> {
 
 		ExprCompiler {
-      jit_gen   : jit_gen,
+      gen_ctx   : gen_ctx,
 			stack     : Vec::new(),
 			error     : None,
       builder   : builder,
       input_vecs: input_vecs,
       row_idx   : row_idx
 		}
-	}
+	} 
 
   pub fn compile(
-         jit_gen    : &'a CodeGenContext<'a>,
+         gen_ctx    : &'a CodeGenContext<'a>,
          bld        : &'b Builder,
          input_vecs : Option<&'b Vec<Value>>,
          row_idx    : Option<&'b Value>,
          expr: &Expr) -> Result<Value> {
 
-    let mut exprc = ExprCompiler::new(jit_gen, bld, input_vecs, row_idx);
+    let mut exprc = ExprCompiler::new(gen_ctx, bld, input_vecs, row_idx);
+    // visit a expression tree
     exprc.accept(expr);
     match exprc.stack.pop() {
       Some(v) => Ok(v),
@@ -367,7 +376,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
   #[inline(always)]
   fn push_value<T: ToValue>(&mut self, val: &T)
   {
-    let v = val.to_value(self.jit_gen.jit().context());
+    let v = val.to_value(self.context());
     self.stack.push(v);
   }
 
@@ -420,7 +429,8 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
     let val = self.visit(e);
     let builder = &self.builder;
 
-    self.stack.push(builder.create_cast(cast_op, &val, to_llvm_ty(self.jit_gen.jit(), to)));
+    let jit = self.jit();
+    self.stack.push(builder.create_cast(cast_op, &val, to_llvm_ty(jit, to)));
 	}
 
   bin_codegen!(And, create_and);
@@ -482,16 +492,14 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
 
 	pub fn Field(&mut self, ty: &Ty, name: &str)
 	{
-    let found :&(usize, &Ty) = self.jit_gen
-      .schema().get(name).expect(&format!("Field '{}' does not exist", name));
+    let found :&(usize, &Ty) = self.schema()
+      .get(name).expect(&format!("Field '{}' does not exist", name));
+    let column_chunk = &self.input_vecs.unwrap()[found.0];
+      
     debug_assert_eq!(ty, found.1);
 
-    let call = match self.jit_gen.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
-      Some(read_fn) => {
-        self.builder.create_call(
-          &read_fn,
-          &[&self.input_vecs.unwrap()[found.0], &self.row_idx.unwrap()])
-      }
+    let call = match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
+      Some(read_fn) => self.builder.create_call(&read_fn, &[column_chunk, &self.row_idx.unwrap()]),
       _       => panic!("No such a function")
     };
 
@@ -625,6 +633,7 @@ mod tests {
     }
   }
 
+  #[test]
   pub fn tpch1() {
     let plugin_mgr = PluginManager::new();
     let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
@@ -654,14 +663,15 @@ mod tests {
 	  	"l_tax"
     ];
 
-    let expr1 = Field(I64, "l_orderkey");
+    // l_extendedprice*(1-l_discount)
+    let expr1 = Mul(F64, Field(F64, "l_extendedprice"), Subtract(F64, Const(1.0f64), Field(F64, "l_discount")));
     //let expr1 = Const(19800401i32);
-    let expr2 = Const(19840115i32);
+    //let expr2 = Const(19840115i32);
     //let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
     //let expr2 = MinusSign(Const(7i32));
     //let expr = Or(Const(4i32), Const(2i32));
     //let expr = Not(Const(0i32));
-    let schema  = NamedSchema::new(names, types);
+    let schema  = &NamedSchema::new(names, types);
   	let session = Session;
 
     // let map = ExprCompiler::compile(&jit,
@@ -672,18 +682,17 @@ mod tests {
     let map = MapCompiler::compile(&jit,
                           plugin_mgr.fn_registry(),
                           &session,
-                          &schema,
-                          &[&expr1, &expr2]).ok().unwrap();
+                          schema,
+                          &[&expr1]).ok().unwrap();
 
-    let in_page = Page::new(&[I32, I32], None);
-    let mut out_page =  Page::new(&[I32, I32], None);
+    let in_page = Page::new(&schema.types, None);
+    let mut out_page =  Page::new(&[F64], None);
     let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
 
     // map is the jit compiled function.
     map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
     unsafe {
-      assert_eq!(19800401, c_api::read_i32_raw(out_page.chunk(0), 0));
-      assert_eq!(19840115, c_api::read_i32_raw(out_page.chunk(1), 0));
+      assert_eq!(0f64, c_api::read_f64_raw(out_page.chunk(0), 0));
     }
   }
 }
