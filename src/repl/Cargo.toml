@@ -13,5 +13,8 @@ itertools = "0.4.3"
 [dependencies.parser]
 path = "../parser"
 
+[dependencies.exec]
+path = "../exec"
+
 [dependencies.readline]
 git = "https://github.com/hyunsik/readline-rs.git"
