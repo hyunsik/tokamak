@@ -20,6 +20,15 @@ overhead of query processing, Tokamak exploits JIT compilation techniques
 through LLVM. In other words, Tokamak works like the compilers of programming
 languages but runs on large clusters.
 
+# Features
+ * Functional programming language for computational pipelines based on data flow
+ * Strong, safe, and static type system
+ * Array-oriented data processing
+ * Distributed and parallel computation
+ * SQL-style null handling
+ * Integrated with SQL
+ * Foreign function interface (FFI) for C APIs
+
 ## See Also
  1. [Array DBMS](https://en.wikipedia.org/wiki/Array_DBMS)
 
