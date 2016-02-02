@@ -10,11 +10,20 @@ path = "repl.rs"
 [dependencies]
 itertools = "0.4.3"
 
-[dependencies.parser]
-path = "../parser"
+[dependencies.common]
+path = "../common"
 
 [dependencies.exec]
 path = "../exec"
+
+[dependencies.llvm]
+path = "../llvm"
+
+[dependencies.plan]
+path = "../plan"
+
+[dependencies.parser]
+path = "../parser"
 
 [dependencies.readline]
 git = "https://github.com/hyunsik/readline-rs.git"

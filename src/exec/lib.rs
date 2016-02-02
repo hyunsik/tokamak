@@ -30,7 +30,7 @@ extern crate libc;
 #[macro_use] extern crate log;
 
 #[macro_use] extern crate common;
-extern crate llvm_rs as jit;
+extern crate llvm as jit;
 extern crate plan;
 extern crate storage;
 

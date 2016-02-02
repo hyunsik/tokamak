@@ -20,5 +20,5 @@ path = "../plan"
 [dependencies.storage]
 path = "../storage"
 
-[dependencies.llvm-rs]
+[dependencies.llvm]
 path = "../llvm"

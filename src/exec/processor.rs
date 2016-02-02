@@ -314,7 +314,12 @@ impl<'a> MapCompiler<'a> {
 /// Compiler for Columnar Evaluator of Expression
 pub struct ExprCompiler<'a, 'b>
 {
-  gen_ctx: &'a CodeGenContext<'a>,
+  jit: &'a JitCompiler,
+  ctx: LLVMContextRef,
+  fn_reg: &'a FuncRegistry,
+  sess: &'a Session,
+  schema: &'a HashMap<&'a str, (usize, &'a Ty)>,
+  
   builder: &'b Builder,                  // LLVM IRBuilder
 	stack  : Vec<Value>,                   // LLVM values stack temporarily used for code generation
   error  : Option<Error>,                // Code generation error
@@ -324,22 +329,47 @@ pub struct ExprCompiler<'a, 'b>
 }
 
 impl<'a, 'b> CodeGenContext<'a> for ExprCompiler<'a, 'b> {
-  fn jit(&self) -> &'a JitCompiler { self.gen_ctx.jit() }
-  fn context(&self) -> LLVMContextRef { self.gen_ctx.context() }
-  fn fn_registry(&self) -> &'a FuncRegistry { self.gen_ctx.fn_registry() }
-  fn session(&self) -> &'a Session { self.gen_ctx.session() }
-  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)> { self.gen_ctx.schema() }
+  fn jit(&self) -> &'a JitCompiler { self.jit }
+  fn context(&self) -> LLVMContextRef { self.ctx }
+  fn fn_registry(&self) -> &'a FuncRegistry { self.fn_reg }
+  fn session(&self) -> &'a Session { self.sess }
+  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)> { self.schema }
 }
 
 impl<'a, 'b> ExprCompiler<'a, 'b> {
 
-  fn new(gen_ctx     : &'a CodeGenContext<'a>,
-         builder     : &'b Builder,
-         input_vecs  : Option<&'b Vec<Value>>,
-         row_idx     : Option<&'b Value>) -> ExprCompiler<'a, 'b> {
+  fn new(jit   : &'a JitCompiler,
+         fn_reg: &'a FuncRegistry,
+         sess  : &'a Session,
+         schema: &'a HashMap<&'a str, (usize, &'a Ty)>,
+         bld   : &'b Builder) -> ExprCompiler<'a, 'b> {
+    ExprCompiler {
+      jit       : jit,
+      ctx       : jit.context(),
+      fn_reg    : fn_reg,
+      sess      : sess,
+      schema    : schema,
+      
+      stack     : Vec::new(),
+			error     : None,
+      builder   : bld,
+      input_vecs: None,
+      row_idx   : None
+    }
+  }
+
+  fn new_genctx(gen_ctx : &'a CodeGenContext<'a>,
+         builder    : &'b Builder,
+         input_vecs : Option<&'b Vec<Value>>,
+         row_idx    : Option<&'b Value>) -> ExprCompiler<'a, 'b> {
 
 		ExprCompiler {
-      gen_ctx   : gen_ctx,
+      jit       : gen_ctx.jit(),
+      ctx       : gen_ctx.context(),
+      fn_reg    : gen_ctx.fn_registry(),
+      sess      : gen_ctx.session(),
+      schema    : gen_ctx.schema(), 
+      
 			stack     : Vec::new(),
 			error     : None,
       builder   : builder,
@@ -355,7 +385,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
          row_idx    : Option<&'b Value>,
          expr: &Expr) -> Result<Value> {
 
-    let mut exprc = ExprCompiler::new(gen_ctx, bld, input_vecs, row_idx);
+    let mut exprc = ExprCompiler::new_genctx(gen_ctx, bld, input_vecs, row_idx);
     // visit a expression tree
     exprc.accept(expr);
     match exprc.stack.pop() {
