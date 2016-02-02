@@ -7,8 +7,8 @@ extern crate llvm;
 extern crate parser;
 extern crate readline;
 
-use common::plugin::FuncRegistry;
-use common::types::Ty;
+use common::plugin::{FuncRegistry, PluginManager};
+use common::types::{HasType, Ty};
 use common::session::Session;
 use exec::processor::ExprCompiler;
 use llvm::JitCompiler;
@@ -25,6 +25,18 @@ pub struct ReplContext<'a> {
   pub sess  : &'a Session
 }
 
+impl<'a> ReplContext<'a> {
+  pub fn new(jit   : &'a JitCompiler, 
+             fn_reg: &'a FuncRegistry, 
+             sess  : &'a Session) -> ReplContext<'a> {                   
+    ReplContext {
+      jit   : jit,
+      fn_reg: fn_reg,
+      sess  : sess
+    }
+  }
+}
+
 // Execute the completed AST, then 
 // * return a value if expression
 // * return an empty value if statement
@@ -34,10 +46,14 @@ pub struct IncrementalExecutor;
 // TODO - Error should include span and error message.
 
 impl IncrementalExecutor {
-  pub fn exec1<'a>(ctx: &'a ReplContext, line: &'a Expr) -> Result<Option<(&'a Ty, Value)>, String> {
-    Err("".to_string())
+  pub fn exec1<'a>(ctx: &'a ReplContext, expr: &'a Expr) -> Result<Option<(&'a Ty, Value)>, String> {    
+    let bld = ctx.jit.new_builder();
+    let mut exprc = ExprCompiler::new(ctx.jit, ctx.fn_reg, ctx.sess, &bld);
     
-    let exprc = ExprCompiler::new(ctx.jit, ctx.fn_reg, ctx.sess);
+    match exprc.compile2(&bld, expr) {
+      Ok(v)  => Ok( Some((expr.ty(), v)) ),
+      Err(_) => Err("".to_string()) 
+    }   
   }
 }
 
@@ -45,7 +61,15 @@ impl IncrementalExecutor {
 pub struct ValuePrinter;
 
 pub fn main() {
-  unsafe {
+  let plugin_mgr = PluginManager::new();
+  let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+  assert!(jit.get_ty("struct.Chunk").is_some());
+  assert!(jit.get_ty("struct.Page").is_some());
+  let sess = Session;
+    
+  unsafe {    
+    let repl_ctx = ReplContext::new(&jit, plugin_mgr.fn_registry(), &sess);
+    
     let mut ast = Vec::new();
 
     loop {
@@ -61,7 +85,8 @@ pub fn main() {
         Ok(r) => {
           match r.1.len() {
             0 => {
-              println!("{:?}, {:?}", r.0, r.1);
+              let res = IncrementalExecutor::exec1(&repl_ctx, &r.0[0]).ok().unwrap();
+              println!("{}", res.unwrap().1);
               add_history(line);
             }
             _ => {}

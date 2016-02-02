@@ -87,7 +87,7 @@ pub trait CodeGenContext<'a> {
   fn context(&self) -> LLVMContextRef;
   fn fn_registry(&self) -> &'a FuncRegistry;
   fn session(&self) -> &'a Session;
-  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)>;
+  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty)>>;
 }
 
 pub struct MapCompiler<'a> {
@@ -109,7 +109,7 @@ impl<'a> CodeGenContext<'a> for MapCompiler<'a> {
   fn context(&self) -> LLVMContextRef { self.ctx }
   fn fn_registry(&self) -> &'a FuncRegistry { self.fn_reg }
   fn session(&self) -> &'a Session { self.sess }
-  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)> { self.schema }
+  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty)>> { Some(self.schema) }
 }
 
 impl<'a> MapCompiler<'a> {
@@ -318,12 +318,12 @@ pub struct ExprCompiler<'a, 'b>
   ctx: LLVMContextRef,
   fn_reg: &'a FuncRegistry,
   sess: &'a Session,
-  schema: &'a HashMap<&'a str, (usize, &'a Ty)>,
   
   builder: &'b Builder,                  // LLVM IRBuilder
 	stack  : Vec<Value>,                   // LLVM values stack temporarily used for code generation
   error  : Option<Error>,                // Code generation error
 
+  schema    : Option<&'a HashMap<&'a str, (usize, &'a Ty)>>,
   input_vecs: Option<&'b Vec<Value>>,    // LLVM values to represent vector pointers
   row_idx   : Option<&'b Value>,         // LLVM values to represent row index
 }
@@ -333,28 +333,36 @@ impl<'a, 'b> CodeGenContext<'a> for ExprCompiler<'a, 'b> {
   fn context(&self) -> LLVMContextRef { self.ctx }
   fn fn_registry(&self) -> &'a FuncRegistry { self.fn_reg }
   fn session(&self) -> &'a Session { self.sess }
-  fn schema(&self) -> &'a HashMap<&'a str, (usize, &'a Ty)> { self.schema }
+  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty)>> { self.schema }
 }
 
 impl<'a, 'b> ExprCompiler<'a, 'b> {
 
-  fn new(jit   : &'a JitCompiler,
-         fn_reg: &'a FuncRegistry,
-         sess  : &'a Session,
-         schema: &'a HashMap<&'a str, (usize, &'a Ty)>,
-         bld   : &'b Builder) -> ExprCompiler<'a, 'b> {
+  pub fn new(jit : &'a JitCompiler,
+         fn_reg  : &'a FuncRegistry,
+         sess    : &'a Session,         
+         bld     : &'b Builder) -> ExprCompiler<'a, 'b> {
     ExprCompiler {
       jit       : jit,
       ctx       : jit.context(),
       fn_reg    : fn_reg,
       sess      : sess,
-      schema    : schema,
       
       stack     : Vec::new(),
 			error     : None,
       builder   : bld,
+      
+      schema    : None,
       input_vecs: None,
-      row_idx   : None
+      row_idx   : None,
+    }
+  }
+  
+  pub fn compile2(&mut self, bld: &'b Builder, expr: &Expr) -> Result<Value> {
+    self.accept(expr);
+    match self.stack.pop() {
+      Some(v) => Ok(v),
+      None    => Err(Error::CorruptedFunction("empty value stack".to_string()))
     }
   }
 
@@ -522,7 +530,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
 
 	pub fn Field(&mut self, ty: &Ty, name: &str)
 	{
-    let found :&(usize, &Ty) = self.schema()
+    let found :&(usize, &Ty) = self.schema().expect("no schema")
       .get(name).expect(&format!("Field '{}' does not exist", name));
     let column_chunk = &self.input_vecs.unwrap()[found.0];
       
