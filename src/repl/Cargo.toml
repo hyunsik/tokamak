@@ -9,6 +9,8 @@ path = "repl.rs"
 
 [dependencies]
 itertools = "0.4.3"
+libc = "*"
+llvm-sys = "*"
 
 [dependencies.common]
 path = "../common"

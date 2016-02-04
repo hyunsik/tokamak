@@ -4,6 +4,7 @@ extern crate exec;
 extern crate plan;
 extern crate libc;
 extern crate llvm;
+extern crate llvm_sys;
 extern crate parser;
 extern crate readline;
 
@@ -13,10 +14,13 @@ use common::session::Session;
 use exec::processor::ExprCompiler;
 use llvm::JitCompiler;
 use llvm::value::Value;
+use llvm_sys::execution_engine::LLVMGenericValueToInt;
 use plan::expr::Expr;
 use parser::lexer;
 use parser::parser as p;
 use readline::*;
+
+mod value_printer;
 
 // Keep
 pub struct ReplContext<'a> {
@@ -60,6 +64,16 @@ impl IncrementalExecutor {
 // Print a value according to the Type
 pub struct ValuePrinter;
 
+impl ValuePrinter {
+  pub fn print(ty: &Ty, val: &Value) {
+    match *ty {
+      Ty::Bool => {}
+      Ty::I64  => {println!("x {}", val)}
+      _        => panic!("Unknown")      
+    }
+  }
+}
+
 pub fn main() {
   let plugin_mgr = PluginManager::new();
   let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
@@ -82,18 +96,18 @@ pub fn main() {
       let parsed = p::parse(&tokens[..], &ast[..]);
 
       match parsed {
-        Ok(r) => {
-          match r.1.len() {
-            0 => {
-              let res = IncrementalExecutor::exec1(&repl_ctx, &r.0[0]).ok().unwrap();
-              println!("{}", res.unwrap().1);
-              add_history(line);
-            }
-            _ => {}
-          }
-        }
-        Err(msg) => {println!("{}", msg)}
+        Ok(r) => match r.1.len() {
+          0 => match IncrementalExecutor::exec1(&repl_ctx, &r.0[0]) {
+            Ok(Some((ty, ref val))) => ValuePrinter::print(ty, val),
+            Ok(None) => {},
+            Err(msg) => println!("e1 {}", msg)
+          },
+          _ => {}
+        },
+        Err(msg) => {println!("e2 {}", msg)}
       }
+      
+      add_history(line);
     }
   }
 }
