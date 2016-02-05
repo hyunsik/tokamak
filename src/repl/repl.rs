@@ -26,9 +26,9 @@ pub struct ReplContext<'a> {
 }
 
 impl<'a> ReplContext<'a> {
-  pub fn new(jit   : &'a JitCompiler, 
-             fn_reg: &'a FuncRegistry, 
-             sess  : &'a Session) -> ReplContext<'a> {                   
+  pub fn new(jit   : &'a JitCompiler,
+             fn_reg: &'a FuncRegistry,
+             sess  : &'a Session) -> ReplContext<'a> {
     ReplContext {
       jit   : jit,
       fn_reg: fn_reg,
@@ -37,23 +37,23 @@ impl<'a> ReplContext<'a> {
   }
 }
 
-// Execute the completed AST, then 
+// Execute the completed AST, then
 // * return a value if expression
 // * return an empty value if statement
-// * return error if any error is included  
+// * return error if any error is included
 pub struct IncrementalExecutor;
 
 // TODO - Error should include span and error message.
 
 impl IncrementalExecutor {
-  pub fn exec1<'a>(ctx: &'a ReplContext, expr: &'a Expr) -> Result<Option<(&'a Ty, Value)>, String> {    
+  pub fn exec1<'a>(ctx: &'a ReplContext, expr: &'a Expr) -> Result<Option<(&'a Ty, Value)>, String> {
     let bld = ctx.jit.new_builder();
     let mut exprc = ExprCompiler::new(ctx.jit, ctx.fn_reg, ctx.sess, &bld);
-    
+
     match exprc.compile2(&bld, expr) {
       Ok(v)  => Ok( Some((expr.ty(), v)) ),
-      Err(_) => Err("".to_string()) 
-    }   
+      Err(_) => Err("".to_string())
+    }
   }
 }
 
@@ -66,11 +66,12 @@ pub fn main() {
   assert!(jit.get_ty("struct.Chunk").is_some());
   assert!(jit.get_ty("struct.Page").is_some());
   let sess = Session;
-    
-  unsafe {    
+
+  unsafe {
     let repl_ctx = ReplContext::new(&jit, plugin_mgr.fn_registry(), &sess);
-    
+
     let mut ast = Vec::new();
+    let mut tokens = Vec::new();
 
     loop {
       let line = readline(from_str("\x1b[33mtkm> \x1b[0m"));
@@ -78,7 +79,7 @@ pub fn main() {
         break;
       }
 
-      let tokens = lexer::tokenize(to_str(line));
+      tokens.extend(lexer::tokenize(to_str(line)));
       let parsed = p::parse(&tokens[..], &ast[..]);
 
       match parsed {
@@ -88,11 +89,19 @@ pub fn main() {
               let res = IncrementalExecutor::exec1(&repl_ctx, &r.0[0]).ok().unwrap();
               println!("{}", res.unwrap().1);
               add_history(line);
+              ast.clear();
+              tokens.clear();
             }
-            _ => {}
+            _ => {
+              ast.extend(r.0);
+            }
           }
         }
-        Err(msg) => {println!("{}", msg)}
+        Err(msg) => {
+          println!("{}", msg);
+          ast.clear();
+          tokens.clear();
+        }
       }
     }
   }
