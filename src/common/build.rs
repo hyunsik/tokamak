@@ -2,52 +2,71 @@ extern crate gcc;
 
 use std::process::Command;
 
-fn main() {
+static IR_TARGET_PATH: &'static str = "target/ir";
 
+// Prepare a directory
+fn prepare_dir(path: &str) {
   assert!(
     Command::new("mkdir")
-      .args(&["-p", "target/ir"])
+      .args(&["-p", path])
       .status()
       .unwrap()
       .success()
   );
+}
 
-  // Emitting LLVM IR via Rustc
-  //
-  // assert!(
-  // 	Command::new("rustc")
-  // 		.args(&["rows_ir.rs", "--crate-type", "dylib", "--emit", "llvm-ir", "-O", "-o", "target/ir/rows_ir.ll"])
-  //   	.status()
-  //   	.unwrap()
-  //   	.success()
- 	// );
+// Emit C++ source file into LLVM IR and LLVM Bitcode
+fn emit_llvm_ir(src_fname: &str, ir_fname: &str, bc_fname: &str) {
+  let ir_path  = &format!("{}/{}", IR_TARGET_PATH, ir_fname);
+  let bc_path  = &format!("{}/{}", IR_TARGET_PATH, bc_fname);
 
   assert!(
   	Command::new("clang++")
-  		.args(&["page_ir.cc", "-std=c++11", "-S", "-emit-llvm", "-O2", "-o", "target/ir/page_ir.ll"])
+  		.args(&[
+        src_fname,
+        "-std=c++11",
+        "-S", "-emit-llvm",
+        "-O2",
+        "-o", ir_path
+      ])
     	.status()
     	.unwrap()
     	.success()
  	);
-
   assert!(
   	Command::new("llvm-as")
-  		.args(&["target/ir/page_ir.ll", "-o=target/ir/page_ir.bc"])
+  		.args(&[ir_path, &format!("-o={}", bc_path)])
     	.status()
     	.unwrap()
     	.success()
  	);
+}
+
+// Link multiple bc files into a single bc file.
+fn link_llvm_bc(src_bc: &[&str], target_bc: &str) {
+  let mut args = src_bc.iter().map(|name| format!("{}/{}", IR_TARGET_PATH, name)).collect::<Vec<String>>();
+  args.push(format!("-o={}/{}", IR_TARGET_PATH, target_bc));
 
   assert!(
   	Command::new("llvm-link")
-  		.args(&["target/ir/page_ir.bc", "-o=target/ir/common.bc"])
+  		.args(&args)
     	.status()
     	.unwrap()
     	.success()
  	);
+}
 
-   gcc::Config::new()
-        .cpp(true)
-        .file("page_ir.cc")
-        .compile("libpage.a");
+fn main() {
+
+  prepare_dir(IR_TARGET_PATH);
+
+  emit_llvm_ir("page_ir.cc", "page_ir.ll", "page_ir.bc");
+  emit_llvm_ir("common_ir.cc", "common_ir.ll", "common_ir.bc");
+
+  link_llvm_bc(&["page_ir.bc", "common_ir.bc"], "common.bc");
+
+  gcc::Config::new()
+    .cpp(true)
+    .file("page_ir.cc")
+    .compile("libpage.a");
 }
