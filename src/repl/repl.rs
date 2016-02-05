@@ -10,7 +10,7 @@ extern crate parser;
 extern crate rl_sys; // libreadline
 
 use std::collections::HashMap;
-use std::io::{self, Write};
+use std::io;
 use common::plugin::{FuncRegistry, PluginManager};
 use common::types::{HasType, Ty};
 use common::session::Session;
@@ -85,20 +85,29 @@ impl<'a> Repl<'a> {
   /// Loop for read and eval
   pub fn eval_loop(&self) {
     unsafe {
+      let mut tokens = Vec::new();
       let mut ast = Vec::new();
 
       loop {
         let line = match readline::readline("\x1b[33mtkm> \x1b[0m") {
           Ok(Some(line)) => {
-            let tokens = lexer::tokenize(&line);
+            tokens.extend(lexer::tokenize(&line));
             let parsed = p::parse(&tokens[..], &ast[..]);
 
             match parsed {
               Ok(r) => match r.1.len() {
                 0 => match self.compiler.exec1(&r.0[0]) {
-                  Ok(Some((ty, ref val))) => ValuePrinter::print(ty, val),
-                  Ok(None) => {},
-                  Err(msg) => println!("{}", msg)
+                  Ok(Some((ty, ref val))) => {
+                    ValuePrinter::print(ty, val);
+                    ast.clear();
+                    tokens.clear();
+                  }
+                  Ok(None) => {}
+                  Err(msg) => {
+                    println!("{}", msg);
+                    ast.clear();
+                    tokens.clear();
+                  }
                 },
                 _ => {}
               },
@@ -108,7 +117,6 @@ impl<'a> Repl<'a> {
           Ok(None)       => { break }
           Err(e)         => { println!("{}", e) }
         };
-
         //add_history(line);
       }
     }
@@ -121,6 +129,7 @@ pub struct IncrementalCompiler2<'a> {
   pub fn_reg: &'a FuncRegistry,
   pub sym_tb: HashMap<(SymbolKind, String), Symbol>
 }
+
 
 impl<'a> IncrementalCompiler2<'a> {
   pub fn exec1<'b>(&self, expr: &'b Expr) -> Result<Option<(&'b Ty, Value)>, String> {
