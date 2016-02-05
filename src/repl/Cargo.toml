@@ -11,6 +11,7 @@ path = "repl.rs"
 itertools = "0.4.3"
 libc = "*"
 llvm-sys = "*"
+rl-sys = "~0.4.1"
 
 [dependencies.common]
 path = "../common"
@@ -26,6 +27,3 @@ path = "../plan"
 
 [dependencies.parser]
 path = "../parser"
-
-[dependencies.readline]
-git = "https://github.com/hyunsik/readline-rs.git"

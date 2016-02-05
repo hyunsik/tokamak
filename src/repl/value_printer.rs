@@ -20,5 +20,5 @@ encode_value!(encode_i64, i64);
 encode_value!(encode_f32, f32);
 encode_value!(encode_f64, f64);
 
-pub fn write<V: Into<Value>>(buf: &mut String, val: &Value) {
+pub fn write<V: Into<Value>>(buf: &mut String, val: &V) {
 }
