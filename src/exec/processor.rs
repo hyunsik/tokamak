@@ -68,7 +68,7 @@ macro_rules! bin_codegen (
   );
 );
 
-fn to_llvm_ty<'a>(jit: &'a JitCompiler, ty: &Ty) -> &'a types::Ty
+pub fn to_llvm_ty<'a>(jit: &'a JitCompiler, ty: &Ty) -> &'a types::Ty
 {
   match *ty {
     Ty::Bool => jit.get_bool_ty(),
@@ -318,7 +318,7 @@ pub struct ExprCompiler<'a, 'b>
   ctx: LLVMContextRef,
   fn_reg: &'a FuncRegistry,
   sess: &'a Session,
-  
+
   builder: &'b Builder,                  // LLVM IRBuilder
 	stack  : Vec<Value>,                   // LLVM values stack temporarily used for code generation
   error  : Option<Error>,                // Code generation error
@@ -340,24 +340,24 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
 
   pub fn new(jit : &'a JitCompiler,
          fn_reg  : &'a FuncRegistry,
-         sess    : &'a Session,         
+         sess    : &'a Session,
          bld     : &'b Builder) -> ExprCompiler<'a, 'b> {
     ExprCompiler {
       jit       : jit,
       ctx       : jit.context(),
       fn_reg    : fn_reg,
       sess      : sess,
-      
+
       stack     : Vec::new(),
 			error     : None,
       builder   : bld,
-      
+
       schema    : None,
       input_vecs: None,
       row_idx   : None,
     }
   }
-  
+
   pub fn compile2(&mut self, bld: &'b Builder, expr: &Expr) -> Result<Value> {
     self.accept(expr);
     match self.stack.pop() {
@@ -376,15 +376,15 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
       ctx       : gen_ctx.context(),
       fn_reg    : gen_ctx.fn_registry(),
       sess      : gen_ctx.session(),
-      schema    : gen_ctx.schema(), 
-      
+      schema    : gen_ctx.schema(),
+
 			stack     : Vec::new(),
 			error     : None,
       builder   : builder,
       input_vecs: input_vecs,
       row_idx   : row_idx
 		}
-	} 
+	}
 
   pub fn compile(
          gen_ctx    : &'a CodeGenContext<'a>,
@@ -533,7 +533,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
     let found :&(usize, &Ty) = self.schema().expect("no schema")
       .get(name).expect(&format!("Field '{}' does not exist", name));
     let column_chunk = &self.input_vecs.unwrap()[found.0];
-      
+
     debug_assert_eq!(ty, found.1);
 
     let call = match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
