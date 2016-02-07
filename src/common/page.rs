@@ -30,26 +30,27 @@ use types::Ty;
 /// The experiment of MonetDB presented that 1024 is the best number of a row batch.
 /// It's reason why I currently use 1024 as the number of row batch.
 pub const ROWBATCH_SIZE: usize = 1024;
-pub const ALIGNED_SIZE : usize = 16;
+pub const ALIGNED_SIZE: usize = 16;
 
 /// Encoding Type for Chunk
 ///
 /// * RAW - No encoding and raw byte representation
 /// * RLE - Run length encoding
-#[repr(C)] #[derive(Clone)]
+#[repr(C)]
+#[derive(Clone)]
 pub enum EncType {
   RAW = 0,
-  RLE = 1
+  RLE = 1,
 }
 
 /// Memory Chunk
 ///
 /// It is usually a slice to point the memory area.
-#[repr(C)] #[derive(Copy, Clone)]
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct Chunk {
-  pub ptr : *const u8,
-  pub size: usize,
-  //pub owned: false
+  pub ptr: *const u8,
+  pub size: usize, // pub owned: false
 }
 
 
@@ -61,32 +62,38 @@ impl fmt::Display for Chunk {
 
 pub struct RawChunkWriter;
 
-#[repr(C)] #[derive(Clone)]
+#[repr(C)]
+#[derive(Clone)]
 pub struct Page {
-  pub ptr        : *const u8,
-  pub size       : usize,
+  pub ptr: *const u8,
+  pub size: usize,
 
-  pub chunks     : *const Chunk,
+  pub chunks: *const Chunk,
   /// the number of Chunks
-  pub chunk_num  : usize,
+  pub chunk_num: usize,
   // the number of values stored in each Chunk.
   // All Chunks share the same val_cnt.
-  pub value_cnt  : usize,
+  pub value_cnt: usize,
   // Does this page own the Chunks?
-  pub owned      : bool
+  pub owned: bool,
 }
 
 impl fmt::Display for Page {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "Page {{ptr:{}, size:{}, chunk_num:{}, value_cnt:{}, owned:{}}}",
-      self.ptr as usize, self.size, self.chunk_num, self.value_cnt, self.owned)
+    write!(f,
+           "Page {{ptr:{}, size:{}, chunk_num:{}, value_cnt:{}, owned:{}}}",
+           self.ptr as usize,
+           self.size,
+           self.chunk_num,
+           self.value_cnt,
+           self.owned)
   }
 }
 
 impl Drop for Page {
   fn drop(&mut self) {
     // to deallocate vector
-    let vec:Vec<Chunk> = unsafe {
+    let vec: Vec<Chunk> = unsafe {
       Vec::from_raw_parts(self.chunks as *mut Chunk, self.chunk_num, self.chunk_num)
     };
 
@@ -103,12 +110,10 @@ fn compute_chunk_size(ty: &Ty, enc: &EncType) -> usize {
 }
 
 impl Page {
-
   pub fn empty_page(num: usize) -> Page {
-    let mut empty_chunks: Vec<Chunk> =
-      ::std::iter::repeat(unsafe {::std::mem::uninitialized()})
-      .take(num)
-      .collect::<Vec<Chunk>>();
+    let mut empty_chunks: Vec<Chunk> = ::std::iter::repeat(unsafe { ::std::mem::uninitialized() })
+                                         .take(num)
+                                         .collect::<Vec<Chunk>>();
     empty_chunks.shrink_to_fit();
 
     let page = Page {
@@ -126,8 +131,10 @@ impl Page {
   }
 
   pub fn set_chunks(&mut self, chunks: &[&Chunk]) {
-    assert!(self.owned == false, "Owned page does not support Page::set().");
-    debug_assert!(chunks.len() == self.chunk_num, "The number of chunks must be the same to that of the page.");
+    assert!(self.owned == false,
+            "Owned page does not support Page::set().");
+    debug_assert!(chunks.len() == self.chunk_num,
+                  "The number of chunks must be the same to that of the page.");
 
     let mut total_sz = 0;
     for (idx, each_chunk) in izip!(0..chunks.len(), chunks) {
@@ -140,10 +147,10 @@ impl Page {
   pub fn new(types: &[&Ty], encs: Option<&[EncType]>) -> Page {
     match encs {
       Some(e) => Page::new_with_enc(types, e),
-      None    => {
+      None => {
         let raw_encs = ::std::iter::repeat(EncType::RAW)
-          .take(types.len())
-          .collect::<Vec<EncType>>();
+                         .take(types.len())
+                         .collect::<Vec<EncType>>();
         Page::new_with_enc(types, &raw_encs[..])
       }
     }
@@ -152,28 +159,27 @@ impl Page {
   fn new_with_enc(types: &[&Ty], encs: &[EncType]) -> Page {
     // Precondition
     debug_assert!(types.len() == encs.len(),
-      "num of types and encodings must be equal.");
+                  "num of types and encodings must be equal.");
 
     // extract fixed columns
     // allocate memory for fixed columns
     // assign pointers to chunks
 
-    let mem_sz = get_aligned_size(
-      izip!(types, encs)
-      .map(|(t,e)| compute_chunk_size(t, e))
-      .fold(0, |acc, sz| acc + sz));
+    let mem_sz = get_aligned_size(izip!(types, encs)
+                                    .map(|(t, e)| compute_chunk_size(t, e))
+                                    .fold(0, |acc, sz| acc + sz));
 
     let mut ptr = unsafe { heap::allocate(mem_sz, ALIGNED_SIZE) };
     let chunks = Page::create_chunks(ptr, mem_sz, types, encs);
 
     let page = Page {
-      ptr      : ptr,
-      size     : mem_sz,
+      ptr: ptr,
+      size: mem_sz,
 
-      chunks   : chunks.as_ptr(),
+      chunks: chunks.as_ptr(),
       chunk_num: types.len(),
       value_cnt: 0usize,
-      owned    : true
+      owned: true,
     };
     // forget Vec to keep raw pointer in Page.
     // It is necessary in order to make Page compatible with LLVM IR.
@@ -188,9 +194,12 @@ impl Page {
     let mut acc: usize = 0;
     let mut chunks: Vec<Chunk> = Vec::with_capacity(types.len());
 
-    for (t,e) in izip!(types, encs) {
+    for (t, e) in izip!(types, encs) {
       let sz = compute_chunk_size(t, e);
-      chunks.push( Chunk {ptr: unsafe { ptr.offset(acc as isize) }, size: sz});
+      chunks.push(Chunk {
+        ptr: unsafe { ptr.offset(acc as isize) },
+        size: sz,
+      });
       acc += sz;
     }
 
@@ -224,11 +233,17 @@ impl Page {
     &ms[page_id]
   }
 
-  pub fn chunk_num(&self) -> usize { self.chunk_num }
+  pub fn chunk_num(&self) -> usize {
+    self.chunk_num
+  }
 
-  pub fn set_value_count(&mut self, cnt: usize) { self.value_cnt = cnt }
+  pub fn set_value_count(&mut self, cnt: usize) {
+    self.value_cnt = cnt
+  }
 
-  pub fn value_count(&self) -> usize { self.value_cnt }
+  pub fn value_count(&self) -> usize {
+    self.value_cnt
+  }
 
   pub fn copy(&self) -> Page {
     if self.owned {
@@ -240,23 +255,28 @@ impl Page {
 
   fn copy_owned(&self) -> Page {
     let mut ptr = unsafe { heap::allocate(self.size, ALIGNED_SIZE) };
-    unsafe { ptr::copy_nonoverlapping(self.ptr, ptr, self.size); }
+    unsafe {
+      ptr::copy_nonoverlapping(self.ptr, ptr, self.size);
+    }
 
     let mut chunks = Vec::new();
     let mut acc = 0;
     for c in self.chunks() {
-      chunks.push( Chunk { ptr: unsafe { ptr.offset(acc as isize) }, size: c.size });
+      chunks.push(Chunk {
+        ptr: unsafe { ptr.offset(acc as isize) },
+        size: c.size,
+      });
       acc += c.size;
     }
 
     let page = Page {
-      ptr      : ptr,
-      size     : self.size,
+      ptr: ptr,
+      size: self.size,
 
-      chunks   : chunks.as_ptr(),
+      chunks: chunks.as_ptr(),
       chunk_num: self.chunk_num,
       value_cnt: self.value_cnt,
-      owned    : true
+      owned: true,
     };
     // forget Vec to keep raw pointer in Page.
     // It is necessary in order to make Page compatible with LLVM IR.
@@ -267,7 +287,9 @@ impl Page {
 
   fn copy_not_owned(&self) -> Page {
     // if still empty, just return its copy.
-    if self.size == 0 { return self.clone(); }
+    if self.size == 0 {
+      return self.clone();
+    }
 
     let mut ptr = unsafe { heap::allocate(self.size, ALIGNED_SIZE) };
 
@@ -276,20 +298,25 @@ impl Page {
 
     for src_chunk in self.chunks() {
       let chunk_ptr = unsafe { ptr.offset(acc as isize) };
-      unsafe { ptr::copy_nonoverlapping(src_chunk.ptr, chunk_ptr, src_chunk.size); }
-      chunks.push(Chunk { ptr: chunk_ptr, size: src_chunk.size });
+      unsafe {
+        ptr::copy_nonoverlapping(src_chunk.ptr, chunk_ptr, src_chunk.size);
+      }
+      chunks.push(Chunk {
+        ptr: chunk_ptr,
+        size: src_chunk.size,
+      });
 
       acc += src_chunk.size;
     }
 
     let page = Page {
-      ptr      : ptr,
-      size     : self.size,
+      ptr: ptr,
+      size: self.size,
 
-      chunks   : chunks.as_ptr(),
+      chunks: chunks.as_ptr(),
       chunk_num: self.chunk_num,
       value_cnt: self.value_cnt,
-      owned    : true
+      owned: true,
     };
 
     // forget Vec to keep raw pointer in Page.
@@ -300,9 +327,9 @@ impl Page {
   }
 
   pub fn project<'a>(&'a self, ids: &[usize]) -> Vec<&'a Chunk> {
-  	ids.iter()
-  		.map(|i| self.chunk(*i))
-  		.collect::<Vec<&Chunk>>()
+    ids.iter()
+       .map(|i| self.chunk(*i))
+       .collect::<Vec<&Chunk>>()
   }
 }
 
@@ -313,37 +340,37 @@ pub mod c_api {
   pub static FN_GET_CHUNK: &'static str = "get_chunk";
 
   pub static FN_READ_BOOL_RAW: &'static str = "read_i8_raw";
-  pub static FN_READ_I8_RAW  : &'static str = "read_i8_raw";
-  pub static FN_READ_I16_RAW : &'static str = "read_i16_raw";
-  pub static FN_READ_I32_RAW : &'static str = "read_i32_raw";
-  pub static FN_READ_I64_RAW : &'static str = "read_i64_raw";
-  pub static FN_READ_F32_RAW : &'static str = "read_f32_raw";
-  pub static FN_READ_F64_RAW : &'static str = "read_f64_raw";
+  pub static FN_READ_I8_RAW: &'static str = "read_i8_raw";
+  pub static FN_READ_I16_RAW: &'static str = "read_i16_raw";
+  pub static FN_READ_I32_RAW: &'static str = "read_i32_raw";
+  pub static FN_READ_I64_RAW: &'static str = "read_i64_raw";
+  pub static FN_READ_F32_RAW: &'static str = "read_f32_raw";
+  pub static FN_READ_F64_RAW: &'static str = "read_f64_raw";
 
   pub fn fn_name_of_read_raw(ty: &Ty) -> &'static str {
     match *ty {
       Ty::Bool => FN_READ_BOOL_RAW,
-      Ty::I8   => FN_READ_I8_RAW,
-      Ty::I16  => FN_READ_I16_RAW,
-      Ty::I32  => FN_READ_I32_RAW,
-      Ty::I64  => FN_READ_I64_RAW,
-      Ty::F32  => FN_READ_F32_RAW,
-      Ty::F64  => FN_READ_F64_RAW,
-      _        => panic!("not supported type")
+      Ty::I8 => FN_READ_I8_RAW,
+      Ty::I16 => FN_READ_I16_RAW,
+      Ty::I32 => FN_READ_I32_RAW,
+      Ty::I64 => FN_READ_I64_RAW,
+      Ty::F32 => FN_READ_F32_RAW,
+      Ty::F64 => FN_READ_F64_RAW,
+      _ => panic!("not supported type"),
     }
   }
 
   extern "C" {
     pub fn get_chunk(p: *const Page, idx: usize) -> *const Chunk;
 
-    pub fn write_i8_raw (p: *const Chunk, idx: usize, val: i8);
+    pub fn write_i8_raw(p: *const Chunk, idx: usize, val: i8);
     pub fn write_i16_raw(p: *const Chunk, idx: usize, val: i16);
     pub fn write_i32_raw(p: *const Chunk, idx: usize, val: i32);
     pub fn write_i64_raw(p: *const Chunk, idx: usize, val: i64);
     pub fn write_f32_raw(p: *const Chunk, idx: usize, val: f32);
     pub fn write_f64_raw(p: *const Chunk, idx: usize, val: f64);
 
-    pub fn read_i8_raw (p: *const Chunk, idx: usize) -> i8;
+    pub fn read_i8_raw(p: *const Chunk, idx: usize) -> i8;
     pub fn read_i16_raw(p: *const Chunk, idx: usize) -> i16;
     pub fn read_i32_raw(p: *const Chunk, idx: usize) -> i32;
     pub fn read_i64_raw(p: *const Chunk, idx: usize) -> i64;

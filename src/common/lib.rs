@@ -4,7 +4,8 @@
 #![feature(libc)]
 #![feature(raw)]
 extern crate alloc;
-#[macro_use] extern crate itertools;
+#[macro_use]
+extern crate itertools;
 extern crate libc;
 extern crate rand;
 extern crate rustc_serialize;
@@ -29,5 +30,5 @@ mod random_table;
 
 pub mod storage {
   pub use memtable::*;
-	pub use random_table::*;
+  pub use random_table::*;
 }

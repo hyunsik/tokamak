@@ -7,52 +7,47 @@ use rand;
 
 use itertools::Zip;
 
-use err::{Error, Result, void_ok, Void};
+use err::{Error, Result, Void, void_ok};
 use session::Session;
 use types::Ty;
-use page::{
-  c_api,
-  Chunk,
-  Page,
-  ROWBATCH_SIZE
-};
+use page::{Chunk, Page, ROWBATCH_SIZE, c_api};
 use input::InputSource;
 
-pub struct RandomTable
-{
-  page     : Page,
+pub struct RandomTable {
+  page: Page,
   write_fns: Vec<Box<Fn(&mut Chunk, usize)>>,
-  row_num  : usize, // number of rows to generate
-  cur_pos  : usize  // how many rows are generated so far?
+  row_num: usize, // number of rows to generate
+  cur_pos: usize, // how many rows are generated so far?
 }
 
-impl RandomTable
-{
+impl RandomTable {
   pub fn new(session: &Session, types: &[&Ty], row_num: usize) -> Box<InputSource> {
 
     Box::new(RandomTable {
       page: Page::new(types, None),
       write_fns: types.iter()
-        .map(|ty| choose_random_fn(ty)) // choose random functions for types
-        .collect::<Vec<Box<Fn(&mut Chunk, usize)>>>(),
+                      .map(|ty| choose_random_fn(ty))
+                      .collect::<Vec<Box<Fn(&mut Chunk, usize)>>>(),
       row_num: row_num,
-      cur_pos: 0
+      cur_pos: 0,
     })
   }
 }
 
-impl InputSource for RandomTable
-{
-  fn open(&mut self) -> Void { void_ok }
+impl InputSource for RandomTable {
+  fn open(&mut self) -> Void {
+    void_ok
+  }
 
-  fn has_next(&mut self) -> bool { true }
+  fn has_next(&mut self) -> bool {
+    true
+  }
 
-  fn next(&mut self) -> Result<&Page>
-  {
+  fn next(&mut self) -> Result<&Page> {
     println!("enter next");
     if self.cur_pos >= self.row_num {
       self.page.set_value_count(0);
-    	return Ok(&self.page)
+      return Ok(&self.page);
     }
 
     // determine the row number to generate at this call
@@ -71,52 +66,49 @@ impl InputSource for RandomTable
     Ok(&self.page)
   }
 
-  fn close(&mut self) -> Void { void_ok }
+  fn close(&mut self) -> Void {
+    void_ok
+  }
 }
 
-fn write_rand_for_i32(mp: &mut Chunk, rownum: usize)
-{
+fn write_rand_for_i32(mp: &mut Chunk, rownum: usize) {
   unsafe {
-    for pos in 0 .. rownum {
+    for pos in 0..rownum {
       c_api::write_i32_raw(mp, pos, rand::random::<i32>());
     }
   }
 }
 
-fn write_rand_for_i64(mp: &mut Chunk, rownum: usize)
-{
+fn write_rand_for_i64(mp: &mut Chunk, rownum: usize) {
   unsafe {
-    for pos in 0 .. rownum {
+    for pos in 0..rownum {
       c_api::write_i64_raw(mp, pos, rand::random::<i64>());
     }
   }
 }
 
-fn write_rand_for_f32(mp: &mut Chunk, rownum: usize)
-{
+fn write_rand_for_f32(mp: &mut Chunk, rownum: usize) {
   unsafe {
-    for pos in 0 .. rownum {
+    for pos in 0..rownum {
       c_api::write_f32_raw(mp, pos, rand::random::<f32>());
     }
   }
 }
 
-fn write_rand_for_f64(mp: &mut Chunk, rownum: usize)
-{
+fn write_rand_for_f64(mp: &mut Chunk, rownum: usize) {
   unsafe {
-    for pos in 0 .. rownum {
+    for pos in 0..rownum {
       c_api::write_f64_raw(mp, pos, rand::random::<f64>());
     }
   }
 }
 
-fn choose_random_fn(ty: &Ty) -> Box<Fn(&mut Chunk, usize)>
-{
+fn choose_random_fn(ty: &Ty) -> Box<Fn(&mut Chunk, usize)> {
   match ty.base() {
     "i32" => Box::new(write_rand_for_i32),
     "i64" => Box::new(write_rand_for_i64),
     "f32" => Box::new(write_rand_for_f32),
     "f64" => Box::new(write_rand_for_f64),
-    _ => panic!("not supported type")
+    _ => panic!("not supported type"),
   }
 }

@@ -37,19 +37,19 @@ pub enum Error {
   EndOfStream,
 
   // Compilation
-  CorruptedFunction(String)
+  CorruptedFunction(String),
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;
 
 pub type Void = Result<()>;
 
-pub const void_ok : Void = Ok(());
+pub const void_ok: Void = Ok(());
 
 impl From<io::Error> for Error {
   fn from(e: io::Error) -> Error {
     match e {
-      _ => Error::InternalError
+      _ => Error::InternalError,
     }
   }
 }

@@ -4,7 +4,8 @@
 //! It should be carefully used because it just contains borrowed contents.
 //! StrSlice looks similar to rust's `str`, but it just handles a sequence of
 //! bytes instead of unicode. In other words, it does not consider any encoding.
-//! Also, it internally uses highly low-level optimization techniques like SSE 4.2.
+//! Also, it internally uses highly low-level optimization techniques like SSE
+//! 4.2.
 //!
 //! # Examples
 //!
@@ -19,7 +20,7 @@ use alloc::heap;
 use libc::{c_void, memcmp};
 use std::cmp;
 use std::cmp::Ordering;
-use std::fmt::{Error, Display, Formatter};
+use std::fmt::{Display, Error, Formatter};
 use std::mem;
 use std::raw::Slice;
 use std::result::Result;
@@ -39,14 +40,14 @@ impl StrSlice {
   pub fn new(ptr: *const u8, len: i32) -> StrSlice {
     StrSlice {
       ptr: ptr,
-      len: len
+      len: len,
     }
   }
   #[inline]
   pub fn from_str<'a>(s: &str) -> StrSlice {
     StrSlice {
       ptr: s.as_ptr(),
-      len: s.len() as i32
+      len: s.len() as i32,
     }
   }
 
@@ -72,18 +73,20 @@ impl StrSlice {
 
   #[inline]
   pub fn as_slice<'a>(&'a self) -> &'a [u8] {
-    let slice = Slice {data: self.ptr, len: (self.len as usize)};
-    unsafe {
-      mem::transmute(slice)
-    }
+    let slice = Slice {
+      data: self.ptr,
+      len: (self.len as usize),
+    };
+    unsafe { mem::transmute(slice) }
   }
 
   #[inline]
   pub fn as_slice_mut<'a>(&'a self) -> &'a mut [u8] {
-    let slice = Slice {data: self.ptr, len: (self.len as usize)};
-    unsafe {
-      mem::transmute(slice)
-    }
+    let slice = Slice {
+      data: self.ptr,
+      len: (self.len as usize),
+    };
+    unsafe { mem::transmute(slice) }
   }
 
   #[inline]
@@ -100,7 +103,7 @@ impl StrSlice {
 pub unsafe fn alloc_str_slice(len: usize, align: usize) -> StrSlice {
   StrSlice {
     ptr: heap::allocate(len, align),
-    len: len as i32
+    len: len as i32,
   }
 }
 
@@ -132,13 +135,7 @@ impl PartialEq for StrSlice {
 
 #[inline]
 fn rawcmp(x: *const u8, y: *const u8, len: i32) -> i32 {
-  unsafe {
-    memcmp(
-      x as *const c_void,
-      y as *const c_void,
-      len as usize
-    )
-  }
+  unsafe { memcmp(x as *const c_void, y as *const c_void, len as usize) }
 }
 
 impl PartialOrd for StrSlice {
@@ -152,7 +149,7 @@ impl PartialOrd for StrSlice {
     let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
     match cmp {
       0 => (self.len() - other.len()) < 0,
-      _ => cmp < 0
+      _ => cmp < 0,
     }
   }
 
@@ -161,7 +158,7 @@ impl PartialOrd for StrSlice {
     let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
     match cmp {
       0 => (self.len() - other.len()) <= 0,
-      _ => cmp <= 0
+      _ => cmp <= 0,
     }
   }
 
@@ -170,7 +167,7 @@ impl PartialOrd for StrSlice {
     let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
     match cmp {
       0 => (self.len() - other.len()) > 0,
-      _ => cmp > 0
+      _ => cmp > 0,
     }
   }
 
@@ -179,7 +176,7 @@ impl PartialOrd for StrSlice {
     let cmp = rawcmp(self.ptr, other.ptr, cmp::min(self.len, other.len));
     match cmp {
       0 => (self.len() - other.len()) >= 0,
-      _ => cmp >= 0
+      _ => cmp >= 0,
     }
   }
 }
@@ -189,11 +186,12 @@ impl PartialOrd for StrSlice {
 /// and how many slices are filled in out_slices.
 #[inline]
 pub unsafe fn split_str_slice(slice: &mut StrSlice,
-                   out_slices: &mut [StrSlice],
-                   delim: u8) -> (usize, usize) {
-  let mut split_idx  : usize = 0;
-  let mut last_pos   : usize = 0; // keep the start offset
-  let mut cur_pos    : usize = 0; // the current offset
+                              out_slices: &mut [StrSlice],
+                              delim: u8)
+                              -> (usize, usize) {
+  let mut split_idx: usize = 0;
+  let mut last_pos: usize = 0; // keep the start offset
+  let mut cur_pos: usize = 0; // the current offset
 
   let line_len = slice.len() as usize;
 
@@ -224,8 +222,8 @@ pub unsafe fn split_str_slice(slice: &mut StrSlice,
 fn test_split_str_slice_case1() {
   // less than num of output slices
   let mut input = StrSlice::from_str("aaa,bbb,ccc,ddd,eee");
-  let mut slices: [StrSlice;6] = unsafe { mem::zeroed() };
-  let res = unsafe {split_str_slice(&mut input, &mut slices, ',' as u8)};
+  let mut slices: [StrSlice; 6] = unsafe { mem::zeroed() };
+  let res = unsafe { split_str_slice(&mut input, &mut slices, ',' as u8) };
   assert_eq!(input.len() as usize, res.0);
   assert_eq!(5, res.1);
 }
@@ -234,8 +232,8 @@ fn test_split_str_slice_case1() {
 fn test_split_str_slice_case2() {
   // equal to num of output slices
   let mut input = StrSlice::from_str("aaa,bbb,ccc,ddd,eee,fff");
-  let mut slices: [StrSlice;6] = unsafe { mem::zeroed() };
-  let res = unsafe {split_str_slice(&mut input, &mut slices, ',' as u8)};
+  let mut slices: [StrSlice; 6] = unsafe { mem::zeroed() };
+  let res = unsafe { split_str_slice(&mut input, &mut slices, ',' as u8) };
   assert_eq!(input.len() as usize, res.0);
   assert_eq!(6, res.1);
 }
@@ -244,9 +242,9 @@ fn test_split_str_slice_case2() {
 fn test_split_str_slice_case3() {
   // greater than num of output slices
   let mut input = StrSlice::from_str("aaa,bbb,ccc,ddd,eee,fff,ggg,hhh");
-                                   // 0123456789012345678901234567890
-  let mut slices: [StrSlice;6] = unsafe { mem::zeroed() };
-  let res = unsafe {split_str_slice(&mut input, &mut slices, ',' as u8)};
+  // 0123456789012345678901234567890
+  let mut slices: [StrSlice; 6] = unsafe { mem::zeroed() };
+  let res = unsafe { split_str_slice(&mut input, &mut slices, ',' as u8) };
   assert_eq!(24 as usize, res.0);
   assert_eq!(6, res.1);
 }
