@@ -25,11 +25,14 @@
 ///
 
 extern crate alloc;
-#[macro_use] extern crate itertools;
+#[macro_use]
+extern crate itertools;
 extern crate libc;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
-#[macro_use] extern crate common;
+#[macro_use]
+extern crate common;
 extern crate llvm as jit;
 extern crate plan;
 extern crate storage;
@@ -46,7 +49,7 @@ pub mod scan;
 
 use std::collections::HashMap;
 
-use common::err::{Void, Result};
+use common::err::{Result, Void};
 use common::page::Page;
 use common::types::Ty;
 
@@ -54,11 +57,11 @@ use driver::DriverContext;
 
 pub trait Executor
 {
-  fn init      (&mut self) -> Void;
+  fn init(&mut self) -> Void;
   fn need_input(&self) -> bool;
   fn add_input(&mut self, &Page) -> Void;
   fn next(&mut self) -> Result<&Page>;
-  fn close     (&mut self) -> Void;
+  fn close(&mut self) -> Void;
 }
 
 pub trait ExecutorFactory
@@ -68,32 +71,29 @@ pub trait ExecutorFactory
   fn types(&self) -> &Vec<Ty>;
 }
 
-pub struct NamedSchema<'a>
-{
-	pub names: &'a [&'a str],
-	pub types: &'a [&'a Ty]
+pub struct NamedSchema<'a> {
+  pub names: &'a [&'a str],
+  pub types: &'a [&'a Ty],
 }
 
-impl<'a> NamedSchema<'a>
-{
-	pub fn new(names: &'a [&'a str], types: &'a [&Ty]) -> NamedSchema<'a>
-	{
-		debug_assert_eq!(names.len(), types.len());
+impl<'a> NamedSchema<'a> {
+  pub fn new(names: &'a [&'a str], types: &'a [&Ty]) -> NamedSchema<'a> {
+    debug_assert_eq!(names.len(), types.len());
 
-		NamedSchema {
-			names: names,
-			types: types
-		}
-	}
+    NamedSchema {
+      names: names,
+      types: types,
+    }
+  }
 
-	pub fn find_ids(&self, names: &[&str]) -> Vec<usize>
-	{
-		(0..self.names.len()).zip(self.names)
-			.filter(|&(id, name)| names.contains(name))
-			.map(|(id, name)| id)
-			.collect::<Vec<usize>>()
-	}
-  
+  pub fn find_ids(&self, names: &[&str]) -> Vec<usize> {
+    (0..self.names.len())
+      .zip(self.names)
+      .filter(|&(id, name)| names.contains(name))
+      .map(|(id, name)| id)
+      .collect::<Vec<usize>>()
+  }
+
   pub fn to_map(&self) -> HashMap<&'a str, (usize, &'a Ty)> {
     izip!(0..self.names.len(), self.names, self.types)
       .map(|(id, n, t)| (*n, (id, *t)))
