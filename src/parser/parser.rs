@@ -5,41 +5,41 @@ use common::types::HasType;
 use plan::expr;
 use plan::expr::*;
 
-use self::PartParsingResult::{Done, NotComplete, Error};
+use self::PartParsingResult::{Done, Error, NotComplete};
 
 /// Associative operator with precedence.
 ///
 /// This is the enum which specifies operator precedence and fixity to the parser.
 #[derive(Debug, PartialEq, Eq)]
 pub enum AssocOp {
-    /// `+`
-    Add,
-    /// `-`
-    Subtract,
-    /// `*`
-    Multiply,
-    /// `/`
-    Divide,
-    /// `%`
-    Modulus,
-    /// `&`
-    And,
-    /// `|`
-    Or,
-    /// `==`
-    Equal,
-    /// `<`
-    Less,
-    /// `<=`
-    LessEqual,
-    /// `!=`
-    NotEqual,
-    /// `>`
-    Greater,
-    /// `>=`
-    GreaterEqual,
-    /// `=`
-    Assign,
+  /// `+`
+  Add,
+  /// `-`
+  Subtract,
+  /// `*`
+  Multiply,
+  /// `/`
+  Divide,
+  /// `%`
+  Modulus,
+  /// `&`
+  And,
+  /// `|`
+  Or,
+  /// `==`
+  Equal,
+  /// `<`
+  Less,
+  /// `<=`
+  LessEqual,
+  /// `!=`
+  NotEqual,
+  /// `>`
+  Greater,
+  /// `>=`
+  GreaterEqual,
+  /// `=`
+  Assign,
 }
 
 impl AssocOp {
@@ -58,17 +58,37 @@ impl AssocOp {
       Token::Ne => Some(AssocOp::NotEqual),
       Token::And => Some(AssocOp::And),
       Token::Or => Some(AssocOp::Or),
-      _ => None
+      _ => None,
     }
   }
 
   fn to_expr(t: &Token, lhs: &Expr, rhs: &Expr) -> Option<Expr> {
     match *t {
-      Token::Multiply => Some(expr::Mul(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
-      Token::Divide => Some(expr::Div(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
-      Token::Modulus => Some(expr::Rem(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
-      Token::Plus => Some(expr::Plus(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
-      Token::Minus => Some(expr::Sub(ArithmOp::out_type(lhs.ty(), rhs.ty()), lhs.clone(), rhs.clone())),
+      Token::Multiply => {
+        Some(expr::Mul(ArithmOp::out_type(lhs.ty(), rhs.ty()),
+                       lhs.clone(),
+                       rhs.clone()))
+      }
+      Token::Divide => {
+        Some(expr::Div(ArithmOp::out_type(lhs.ty(), rhs.ty()),
+                       lhs.clone(),
+                       rhs.clone()))
+      }
+      Token::Modulus => {
+        Some(expr::Rem(ArithmOp::out_type(lhs.ty(), rhs.ty()),
+                       lhs.clone(),
+                       rhs.clone()))
+      }
+      Token::Plus => {
+        Some(expr::Plus(ArithmOp::out_type(lhs.ty(), rhs.ty()),
+                        lhs.clone(),
+                        rhs.clone()))
+      }
+      Token::Minus => {
+        Some(expr::Sub(ArithmOp::out_type(lhs.ty(), rhs.ty()),
+                       lhs.clone(),
+                       rhs.clone()))
+      }
       Token::Lt => Some(expr::Cmp(CmpOp::Lt, lhs.clone(), rhs.clone())),
       Token::Le => Some(expr::Cmp(CmpOp::Le, lhs.clone(), rhs.clone())),
       Token::Ge => Some(expr::Cmp(CmpOp::Ge, lhs.clone(), rhs.clone())),
@@ -77,19 +97,19 @@ impl AssocOp {
       Token::Ne => Some(expr::Cmp(CmpOp::Ne, lhs.clone(), rhs.clone())),
       Token::And => Some(expr::And(lhs.clone(), rhs.clone())),
       Token::Or => Some(expr::Or(lhs.clone(), rhs.clone())),
-      _ => None
+      _ => None,
     }
   }
 
   fn precedence(&self) -> usize {
     use self::AssocOp::*;
-      match *self {
-        Multiply | Divide | Modulus => 13,
-        Add | Subtract => 12,
-        And => 10,
-        Or => 8,
-        Less | Greater | LessEqual | GreaterEqual | Equal | NotEqual => 7,
-        _ => 0,
+    match *self {
+      Multiply | Divide | Modulus => 13,
+      Add | Subtract => 12,
+      And => 10,
+      Or => 8,
+      Less | Greater | LessEqual | GreaterEqual | Equal | NotEqual => 7,
+      _ => 0,
     }
   }
 }
@@ -97,7 +117,7 @@ impl AssocOp {
 enum PartParsingResult<T> {
   Done(T, Vec<Token>),
   NotComplete,
-  Error(String)
+  Error(String),
 }
 
 pub type ParsingResult = Result<(Vec<Expr>, Vec<Token>), String>;
@@ -124,7 +144,8 @@ macro_rules! parse_try(
 );
 
 macro_rules! expect_tokens(
-  ([ $($token: pat, $value: expr, $result: stmt);+ ] <= $tokens: ident, $parsed_tokens: ident, $error: expr) => (
+  ([ $($token: pat, $value: expr, $result: stmt);+ ]
+      <= $tokens: ident, $parsed_tokens: ident, $error: expr) => (
     match $tokens.pop() {
       $(
         Some($token) => {
@@ -141,7 +162,8 @@ macro_rules! expect_tokens(
     }
   );
 
-  ([ $($token:pat, $value:expr, $result: stmt);+ ] else $not_matched: block <= $tokens: ident, $parsed_tokens: ident) => (
+  ([ $($token:pat, $value:expr, $result: stmt);+ ] else $not_matched: block
+      <= $tokens: ident, $parsed_tokens: ident) => (
     match $tokens.last().map(|t| t.clone()) {
       $(
         Some($token) => {
@@ -168,15 +190,16 @@ pub fn parse(tokens: &[Token], parsed_trees: &[Expr]) -> ParsingResult {
   loop {
     let cur_token = match rest.last() {
       Some(t) => t.clone(),
-      None => break
+      None => break,
     };
 
     let result = match cur_token {
       // Fn => parse_function(&mut rest), TODO
       // Extern => parse_extern(&mut rest), TODO
       Token::Delimiter => {
-        rest.pop(); continue
-      },
+        rest.pop();
+        continue;
+      }
       _ => parse_expr(&mut rest),
     };
 
@@ -208,7 +231,7 @@ fn parse_primary_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
     Some(&Token::LiteralStr(_)) => parse_literal_str_expr(tokens),
     Some(&Token::LeftParen) => parse_paren_expr(tokens),
     None => NotComplete,
-    _ => error("unknown token when expecting an expression")
+    _ => error("unknown token when expecting an expression"),
   }
 }
 
@@ -222,7 +245,7 @@ fn parse_minus_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
   match tokens.last() {
     Some(&Token::Float(_)) => parse_float_expr(tokens, true),
     Some(&Token::Integer(_)) => parse_integer_expr(tokens, true),
-    _ => error("unknown token when expecting an expression")
+    _ => error("unknown token when expecting an expression"),
   }
 }
 
@@ -233,9 +256,9 @@ fn parse_ident_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
 fn parse_float_expr(tokens: &mut Vec<Token>, negative: bool) -> PartParsingResult<Expr> {
   let mut parsed_tokens = Vec::new();
 
-  let mut value = expect_tokens!(
-    [Token::Float(val), Token::Float(val), val] <= tokens, parsed_tokens, "float expected"
-  );
+  let mut value = expect_tokens!([Token::Float(val), Token::Float(val), val] <= tokens,
+                                 parsed_tokens,
+                                 "float expected");
 
   if negative {
     value *= -1.;
@@ -247,9 +270,9 @@ fn parse_float_expr(tokens: &mut Vec<Token>, negative: bool) -> PartParsingResul
 fn parse_integer_expr(tokens: &mut Vec<Token>, negative: bool) -> PartParsingResult<Expr> {
   let mut parsed_tokens = Vec::new();
 
-  let mut value = expect_tokens!(
-    [Token::Integer(val), Token::Integer(val), val] <= tokens, parsed_tokens, "integer expected"
-  );
+  let mut value = expect_tokens!([Token::Integer(val), Token::Integer(val), val] <= tokens,
+                                 parsed_tokens,
+                                 "integer expected");
 
   if negative {
     value *= -1;
@@ -261,9 +284,10 @@ fn parse_integer_expr(tokens: &mut Vec<Token>, negative: bool) -> PartParsingRes
 fn parse_literal_str_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
   let mut parsed_tokens = Vec::new();
 
-  let value = expect_tokens!(
-    [Token::LiteralStr(val), Token::LiteralStr(val.clone()), val] <= tokens, parsed_tokens, "string expected"
-  );
+  let value = expect_tokens!([Token::LiteralStr(val), Token::LiteralStr(val.clone()), val] <=
+                             tokens,
+                             parsed_tokens,
+                             "string expected");
 
   Done(Const(Literal::String(value.to_string())), parsed_tokens)
 }
@@ -274,30 +298,35 @@ fn parse_paren_expr(tokens: &mut Vec<Token>) -> PartParsingResult<Expr> {
 
   let expr = parse_try!(parse_expr, tokens, parsed_tokens);
 
-  let paren = expect_tokens!(
-    [Token::RightParen, Token::RightParen, ()] <= tokens, parsed_tokens, "')' expected"
-  );
+  let paren = expect_tokens!([Token::RightParen, Token::RightParen, ()] <= tokens,
+                             parsed_tokens,
+                             "')' expected");
 
   Done(expr, parsed_tokens)
 }
 
-fn parse_binary_expr(tokens: &mut Vec<Token>, op_preced: usize, lhs: &Expr) -> PartParsingResult<Expr> {
+fn parse_binary_expr(tokens: &mut Vec<Token>,
+                     op_preced: usize,
+                     lhs: &Expr)
+                     -> PartParsingResult<Expr> {
   let mut result = lhs.clone();
   let mut parsed_tokens = Vec::new();
 
   loop {
     let (op, preced) = match tokens.last() {
-      Some(token) => match AssocOp::from_token(token) {
-        Some(assoc_op) => {
-          if assoc_op.precedence() >= op_preced {
-            (token.clone(), assoc_op.precedence())
-          } else {
-            break
+      Some(token) => {
+        match AssocOp::from_token(token) {
+          Some(assoc_op) => {
+            if assoc_op.precedence() >= op_preced {
+              (token.clone(), assoc_op.precedence())
+            } else {
+              break;
+            }
           }
-        },
-        None => break, // TODO: check
-      },
-      _ => break
+          None => break, // TODO: check
+        }
+      }
+      _ => break,
     };
 
     tokens.pop();
@@ -307,17 +336,23 @@ fn parse_binary_expr(tokens: &mut Vec<Token>, op_preced: usize, lhs: &Expr) -> P
 
     loop {
       let binary_rhs = match tokens.last().map(|next_op| next_op.clone()) {
-        Some(token) => match AssocOp::from_token(&token) {
-          Some(assoc_op) => {
-            if assoc_op.precedence() > preced {
-              parse_try!(parse_binary_expr, tokens, parsed_tokens, assoc_op.precedence(), &rhs)
-            } else {
-              break
+        Some(token) => {
+          match AssocOp::from_token(&token) {
+            Some(assoc_op) => {
+              if assoc_op.precedence() > preced {
+                parse_try!(parse_binary_expr,
+                           tokens,
+                           parsed_tokens,
+                           assoc_op.precedence(),
+                           &rhs)
+              } else {
+                break;
+              }
             }
-          },
-          None => break, // TODO: check
-        },
-        _ => break
+            None => break, // TODO: check
+          }
+        }
+        _ => break,
       };
 
       rhs = binary_rhs;
@@ -325,7 +360,7 @@ fn parse_binary_expr(tokens: &mut Vec<Token>, op_preced: usize, lhs: &Expr) -> P
 
     result = match AssocOp::to_expr(&op, &result, &rhs) {
       Some(expr) => expr,
-      None => panic!(format!("cannot convert to expr: {:?}", op))
+      None => panic!(format!("cannot convert to expr: {:?}", op)),
     };
   }
 

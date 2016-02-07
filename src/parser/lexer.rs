@@ -1,31 +1,9 @@
 use regex::Regex;
 
-use self::Token::{
-  Delimiter,
-  LeftParen,
-  RightParen,
-  Comma,
-  Plus,
-  Minus,
-  Multiply,
-  Divide,
-  Modulus,
-  Not,
-  IsNull,
-  IsNotNull,
-  And,
-  Or,
-  Eq,
-  Ne,
-  Lt,
-  Le,
-  Gt,
-  Ge,
-  Ident,  // function call, field name,
-  Float,
-  Integer,
-  LiteralStr,
-};
+use self::Token::{And, Comma, Delimiter, Divide, Eq, Float, Ge, Gt,
+                  Ident /* function call, field name, */, Integer, IsNotNull, IsNull, Le,
+                  LeftParen, LiteralStr, Lt, Minus, Modulus, Multiply, Ne, Not, Or, Plus,
+                  RightParen};
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Token {
@@ -57,12 +35,11 @@ pub enum Token {
   Le,
   Gt,
   Ge,
-  Ident(String),  // function call, field name,
+  Ident(String), // function call, field name,
   Float(f64),
   Integer(i64),
-  LiteralStr(String),
-  // TODO
-  // cast
+  LiteralStr(String), /* TODO
+                       * cast */
 }
 
 pub fn tokenize(input: &str) -> Vec<Token> {
@@ -94,62 +71,105 @@ pub fn tokenize(input: &str) -> Vec<Token> {
     r"(?P<le><=)|",
     r"(?P<gt>>)|",
     r"(?P<ge>>=)",
-  )).unwrap();
+  ))
+                   .unwrap();
 
-  let types = vec!["and", "or", "is_null", "is_not_null", "not", "literal_str", "ident", "float", "integer",
-    "delim", "lpar", "rpar", "comma", "plus", "minus", "multiply", "divide", "modulus", "eq",
-    "ne", "lt", "le", "gt", "ge"];
+  let types = vec!["and",
+                   "or",
+                   "is_null",
+                   "is_not_null",
+                   "not",
+                   "literal_str",
+                   "ident",
+                   "float",
+                   "integer",
+                   "delim",
+                   "lpar",
+                   "rpar",
+                   "comma",
+                   "plus",
+                   "minus",
+                   "multiply",
+                   "divide",
+                   "modulus",
+                   "eq",
+                   "ne",
+                   "lt",
+                   "le",
+                   "gt",
+                   "ge"];
 
-  let result: Vec<Token> = token_re.captures_iter(preprocessed.as_str()).map(|cap| {
-    match types.iter().find(|keyword| cap.name(keyword).is_some()) {
-        None => panic!(format!("Undefined token")),
-        Some(k) => {
-          match *k {
-            "and" => And,
-            "or" => Or,
-            "is_null" => IsNull,
-            "is_not_null" => IsNotNull,
-            "not" => Not,
-            "literal_str" => LiteralStr(cap.name("literal_str").unwrap().to_string()),
-            "ident" => Ident(cap.name("ident").unwrap().to_string()),
-            "float" => {
-              match cap.name("float") {
-                Some(val) => match val.parse() {
-                  Ok(float) => Float(float),
-                  Err(_) => panic!(format!("Lexer failed trying to parse "))
-                },
-                None => panic!(format!("Lexer failed trying to parse "))
-              }
-            },
-            "integer" => {
-              match cap.name("integer") {
-                Some(val) => match val.parse() {
-                  Ok(integer) => Integer(integer),
-                  Err(_) => panic!(format!("Lexer failed trying to parse "))
-                },
-                None => panic!(format!("Lexer failed trying to parse "))
-              }
-            }
-            "delimiter" => Delimiter,
-            "lpar" => LeftParen,
-            "rpar" => RightParen,
-            "comma" => Comma,
-            "plus" => Plus,
-            "minus" => Minus,
-            "multiply" => Multiply,
-            "divide" => Divide,
-            "modulus" => Modulus,
-            "eq" => Eq,
-            "ne" => Ne,
-            "lt" => Lt,
-            "le" => Le,
-            "gt" => Gt,
-            "ge" => Ge,
-            _ => panic!("Undefined token: {}", *k)
-          }
-        }
-      }
-  }).collect::<Vec<_>>();
+  let result: Vec<Token> = token_re.captures_iter(preprocessed.as_str())
+                                   .map(|cap| {
+                                     match types.iter()
+                                                .find(|keyword| cap.name(keyword).is_some()) {
+                                       None => panic!(format!("Undefined token")),
+                                       Some(k) => {
+                                         match *k {
+                                           "and" => And,
+                                           "or" => Or,
+                                           "is_null" => IsNull,
+                                           "is_not_null" => IsNotNull,
+                                           "not" => Not,
+                                           "literal_str" => {
+                                             LiteralStr(cap.name("literal_str")
+                                                           .unwrap()
+                                                           .to_string())
+                                           }
+                                           "ident" => Ident(cap.name("ident").unwrap().to_string()),
+                                           "float" => {
+                                             match cap.name("float") {
+                                               Some(val) => {
+                                                 match val.parse() {
+                                                   Ok(float) => Float(float),
+                                                   Err(_) => {
+                                                     panic!(format!("Lexer failed trying to \
+                                                                     parse "))
+                                                   }
+                                                 }
+                                               }
+                                               None => {
+                                                 panic!(format!("Lexer failed trying to parse "))
+                                               }
+                                             }
+                                           }
+                                           "integer" => {
+                                             match cap.name("integer") {
+                                               Some(val) => {
+                                                 match val.parse() {
+                                                   Ok(integer) => Integer(integer),
+                                                   Err(_) => {
+                                                     panic!(format!("Lexer failed trying to \
+                                                                     parse "))
+                                                   }
+                                                 }
+                                               }
+                                               None => {
+                                                 panic!(format!("Lexer failed trying to parse "))
+                                               }
+                                             }
+                                           }
+                                           "delimiter" => Delimiter,
+                                           "lpar" => LeftParen,
+                                           "rpar" => RightParen,
+                                           "comma" => Comma,
+                                           "plus" => Plus,
+                                           "minus" => Minus,
+                                           "multiply" => Multiply,
+                                           "divide" => Divide,
+                                           "modulus" => Modulus,
+                                           "eq" => Eq,
+                                           "ne" => Ne,
+                                           "lt" => Lt,
+                                           "le" => Le,
+                                           "gt" => Gt,
+                                           "ge" => Ge,
+                                           _ => panic!("Undefined token: {}", *k),
+                                         }
+                                       }
+                                     }
+                                   })
+                                   .collect::<Vec<_>>();
 
   result
 }
