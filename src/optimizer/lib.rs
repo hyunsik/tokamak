@@ -1,4 +1,3 @@
-//!
 //! Planner and Optimizer
 
 extern crate common;
@@ -11,18 +10,18 @@ use plan::LogicalPlan;
 
 pub struct LogicalOptimizer;
 
-impl LogicalOptimizer 
-{
-  pub fn new() -> LogicalOptimizer 
-  {
+impl LogicalOptimizer {
+  pub fn new() -> LogicalOptimizer {
     LogicalOptimizer
   }
-  
+
   #[allow(unused_variables)]
-  pub fn optimize(&self, 
-  	type_registry: &TypeRegistry,
-  	func_registry: &FuncRegistry,
-  	session: &Session, plan: &LogicalPlan) -> Result<LogicalPlan> {
+  pub fn optimize(&self,
+                  type_registry: &TypeRegistry,
+                  func_registry: &FuncRegistry,
+                  session: &Session,
+                  plan: &LogicalPlan)
+                  -> Result<LogicalPlan> {
     let x = (*plan).clone();
     Ok(x)
   }
