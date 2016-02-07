@@ -1,6 +1,7 @@
 use std::fmt::Write;
 use std::convert::Into;
 use libc::c_void;
+use llvm::analysis::Verifier;
 use llvm::{self, JitCompiler};
 use llvm::builder::Builder;
 use llvm::value::Function;
@@ -104,9 +105,7 @@ impl<'a> ValuePrint<'a> {
     let fn_ptr: fn(&mut String) = trans!(self.jit
                                              .get_func_ptr(print_fn)
                                              .expect("Value Print function does not exist."));
-
-    //self.jit.dump();
-    //self.jit.verify().ok().expect("Module verification failed...");
+    Verifier::verify_func(print_fn).unwrap_or_else(|err_msg| panic!("{}", err_msg));
     fn_ptr(buf);
     self.jit.delete_func(print_fn);
   }
