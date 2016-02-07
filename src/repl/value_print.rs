@@ -17,6 +17,7 @@ macro_rules! encode_value(
   );
 );
 
+encode_value!(encode_bool, bool);
 encode_value!(encode_i8, i8);
 encode_value!(encode_i16, i16);
 encode_value!(encode_i32, i32);
@@ -44,6 +45,7 @@ impl<'a> ValuePrint<'a> {
                   .pointer_ty(),
     };
 
+    vp.register_fn("encode_bool", jit.get_bool_ty(), trans!(encode_bool));
     vp.register_fn("encode_i8", jit.get_i8_ty(), trans!(encode_i8));
     vp.register_fn("encode_i16", jit.get_i16_ty(), trans!(encode_i16));
     vp.register_fn("encode_i32", jit.get_i32_ty(), trans!(encode_i32));
@@ -73,6 +75,7 @@ impl<'a> ValuePrint<'a> {
     let print_fn = self.create_fn_proto(&bld, val_ty);
 
     let encode_fn_name = match *val_ty {
+      Ty::Bool => "encode_bool",
       Ty::I8 => "encode_i8",
       Ty::I16 => "encode_i16",
       Ty::I32 => "encode_i32",
@@ -102,7 +105,8 @@ impl<'a> ValuePrint<'a> {
                                              .get_func_ptr(print_fn)
                                              .expect("Value Print function does not exist."));
 
-    self.jit.verify().ok().unwrap();
+    //self.jit.dump();
+    //self.jit.verify().ok().expect("Module verification failed...");
     fn_ptr(buf);
     self.jit.delete_func(print_fn);
   }

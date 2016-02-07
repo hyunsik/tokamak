@@ -174,8 +174,6 @@ impl<'a> IncCompiler<'a> {
       Err(_) => Err("".to_string()),
     }
   }
-
-  fn build_value_printer(&self) {}
 }
 
 // Execute the completed AST, then
