@@ -1,4 +1,5 @@
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate uuid;
 extern crate rustc_serialize;
 
@@ -13,4 +14,4 @@ pub mod df;
 mod context;
 pub use context::TokamakContext;
 
-//pub mod schema;
+// pub mod schema;
