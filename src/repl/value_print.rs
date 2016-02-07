@@ -26,7 +26,7 @@ encode_value!(encode_f64, f64);
 
 pub struct ValuePrint<'a> {
   jit: &'a JitCompiler,
-  rstr_ty: llvm::Ty
+  rstr_ty: llvm::Ty,
 }
 
 macro_rules! trans(
@@ -40,11 +40,11 @@ impl<'a> ValuePrint<'a> {
     let vp = ValuePrint {
       jit: jit,
       rstr_ty: jit.get_ty("struct.RustStringRef")
-        .expect("struct.RustStringRef does not exist.")
-        .pointer_ty()
+                  .expect("struct.RustStringRef does not exist.")
+                  .pointer_ty(),
     };
 
-    vp.register_fn("encode_i8",  jit.get_i8_ty(),  trans!(encode_i8));
+    vp.register_fn("encode_i8", jit.get_i8_ty(), trans!(encode_i8));
     vp.register_fn("encode_i16", jit.get_i16_ty(), trans!(encode_i16));
     vp.register_fn("encode_i32", jit.get_i32_ty(), trans!(encode_i32));
     vp.register_fn("encode_i64", jit.get_i64_ty(), trans!(encode_i64));
@@ -62,11 +62,10 @@ impl<'a> ValuePrint<'a> {
 
   // void print(*RustStringRef, val: <?>)
   fn create_fn_proto(&self, bld: &Builder, val_ty: &Ty) -> Function {
-    self.jit.create_func_prototype(
-      "print_value",
-      self.jit.get_void_ty(),
-      &[&self.rstr_ty, to_llvm_ty(self.jit, val_ty)],
-      Some(bld))
+    self.jit.create_func_prototype("print_value",
+                                   self.jit.get_void_ty(),
+                                   &[&self.rstr_ty, to_llvm_ty(self.jit, val_ty)],
+                                   Some(bld))
   }
 
   fn build(&self, val_fn: &Function, val_ty: &Ty) -> Function {
@@ -74,22 +73,22 @@ impl<'a> ValuePrint<'a> {
     let print_fn = self.create_fn_proto(&bld, val_ty);
 
     let encode_fn_name = match *val_ty {
-      Ty::I8  => "encode_i8",
+      Ty::I8 => "encode_i8",
       Ty::I16 => "encode_i16",
       Ty::I32 => "encode_i32",
       Ty::I64 => "encode_i64",
       Ty::F32 => "encode_f32",
       Ty::F64 => "encode_f64",
-      _       => panic!("not supported type")
+      _ => panic!("not supported type"),
     };
 
-    let encode_fn = self.jit.get_func(encode_fn_name)
-      .expect(&format!("function {} does not exist", encode_fn_name));
+    let encode_fn = self.jit
+                        .get_func(encode_fn_name)
+                        .expect(&format!("function {} does not exist", encode_fn_name));
 
-    bld.create_call(&encode_fn, &[
-      &print_fn.arg(0).into(),       // *RustStringRef
-      &bld.create_call(val_fn, &[]), // value
-    ]);
+    bld.create_call(&encode_fn,
+                    &[&print_fn.arg(0).into(), // *RustStringRef
+                      &bld.create_call(val_fn, &[]) /* value */]);
 
     bld.create_ret_void();
 
@@ -99,9 +98,9 @@ impl<'a> ValuePrint<'a> {
   pub fn print(&self, val_fn: &Function, ty: &Ty, buf: &mut String) {
     let print_fn = &self.build(val_fn, ty);
 
-    let fn_ptr: fn(&mut String) = trans!(self.jit.get_func_ptr(print_fn)
-      .expect("Value Print function does not exist.")
-    );
+    let fn_ptr: fn(&mut String) = trans!(self.jit
+                                             .get_func_ptr(print_fn)
+                                             .expect("Value Print function does not exist."));
 
     self.jit.verify().ok().unwrap();
     fn_ptr(buf);

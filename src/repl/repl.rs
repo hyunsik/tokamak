@@ -1,10 +1,12 @@
-/// REPL (Read–eval–print loop) executable module provides interactive execution of Tokamak language.
+//! REPL (Read–eval–print loop) executable module provides interactive
+//! execution of Tokamak language.
 
 extern crate env_logger;
 extern crate libc;
 extern crate llvm;
 extern crate llvm_sys;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate parser;
 extern crate rl_sys; // libreadline
 
@@ -38,15 +40,15 @@ use value_print::ValuePrint;
 
 pub struct Repl<'a> {
   // for system
-  jit       : &'a JitCompiler,
-  sess      : &'a Session,
+  jit: &'a JitCompiler,
+  sess: &'a Session,
   plugin_mgr: &'a PluginManager<'a>,
 
   // in/out descriptors
-  out       : &'a mut io::Write, // can be stdout or anything else,
+  out: &'a mut io::Write, // can be stdout or anything else,
 
   // for compile internal
-  compiler  : IncCompiler<'a>,
+  compiler: IncCompiler<'a>,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -56,29 +58,30 @@ pub enum SymbolKind {
   // Immutable value
   ImmVal,
   // Mutable value
-  MutVal
+  MutVal,
 }
 
 pub struct Symbol;
 
 impl<'a> Repl<'a> {
-  pub fn new(sess      : &'a Session,
+  pub fn new(sess: &'a Session,
              plugin_mgr: &'a PluginManager<'a>,
-             jit       : &'a JitCompiler,
-             out       : &'a mut io::Write) -> Repl<'a> {
+             jit: &'a JitCompiler,
+             out: &'a mut io::Write)
+             -> Repl<'a> {
     Repl {
-      jit       : jit,
-      sess      : sess,
+      jit: jit,
+      sess: sess,
       plugin_mgr: plugin_mgr,
 
-      out       : out,
+      out: out,
 
-      compiler  : IncCompiler {
+      compiler: IncCompiler {
         jit: jit,
         fn_reg: plugin_mgr.fn_registry(),
         sess: sess,
-        sym_tb: HashMap::new()
-      }
+        sym_tb: HashMap::new(),
+      },
     }
   }
 
@@ -106,54 +109,56 @@ impl<'a> Repl<'a> {
           let parsed = p::parse(&tokens[..], &ast[..]);
 
           match parsed {
-            Ok(r) => match r.1.len() {
-              0 => match self.compiler.compile(&r.0[0]) {
-                Ok(f) => {
-                  let mut buf = String::new();
-                  value_print.print(&f, r.0[0].ty(), &mut buf);
-                  self.out.write(buf.as_bytes()).ok().unwrap();
-                  self.out.write("\n".as_bytes()).ok().unwrap();
-                  self.out.flush().ok().unwrap();
-                  ast.clear();
-                  tokens.clear();
-                  self.jit.delete_func(&f);
+            Ok(r) => {
+              match r.1.len() {
+                0 => {
+                  match self.compiler.compile(&r.0[0]) {
+                    Ok(f) => {
+                      let mut buf = String::new();
+                      value_print.print(&f, r.0[0].ty(), &mut buf);
+                      self.out.write(buf.as_bytes()).ok().unwrap();
+                      self.out.write("\n".as_bytes()).ok().unwrap();
+                      self.out.flush().ok().unwrap();
+                      ast.clear();
+                      tokens.clear();
+                      self.jit.delete_func(&f);
+                    }
+                    Err(msg) => {
+                      println!("{}", msg);
+                      ast.clear();
+                      tokens.clear();
+                    }
+                  }
                 }
-                Err(msg) => {
-                  println!("{}", msg);
-                  ast.clear();
-                  tokens.clear();
-                }
-              },
-              _ => {}
-            },
-            Err(msg) => {println!("{}", msg)}
+                _ => {}
+              }
+            }
+            Err(msg) => println!("{}", msg),
           }
         }
-        Ok(None)       => { break }
-        Err(e)         => { println!("{}", e) }
+        Ok(None) => break,
+        Err(e) => println!("{}", e),
       };
-      //add_history(line);
+      // add_history(line);
     }
   }
 }
 
 pub struct IncCompiler<'a> {
-  pub jit   : &'a JitCompiler,
-  pub sess  : &'a Session,
+  pub jit: &'a JitCompiler,
+  pub sess: &'a Session,
   pub fn_reg: &'a FuncRegistry,
-  pub sym_tb: HashMap<(SymbolKind, String), Symbol>
+  pub sym_tb: HashMap<(SymbolKind, String), Symbol>,
 }
 
 
 impl<'a> IncCompiler<'a> {
-
   fn create_fn_proto(&self, bld: &Builder, ret_ty: &Ty) -> Function {
     let jit = self.jit;
-    jit.create_func_prototype(
-      "processor",
-      to_llvm_ty(jit, ret_ty),
-      &[jit.get_void_ty()],
-      Some(bld))
+    jit.create_func_prototype("processor",
+                              to_llvm_ty(jit, ret_ty),
+                              &[jit.get_void_ty()],
+                              Some(bld))
   }
 
   fn compile(&self, expr: &Expr) -> Result<Function, String> {
@@ -162,16 +167,15 @@ impl<'a> IncCompiler<'a> {
     let mut exprc = ExprCompiler::new(self.jit, self.fn_reg, self.sess, &bld);
 
     match exprc.compile2(&bld, expr) {
-      Ok(value)  => {
+      Ok(value) => {
         bld.create_ret(&value);
         Ok(func)
       }
-      Err(_) => Err("".to_string())
+      Err(_) => Err("".to_string()),
     }
   }
 
-  fn build_value_printer(&self) {
-  }
+  fn build_value_printer(&self) {}
 }
 
 // Execute the completed AST, then
@@ -188,8 +192,8 @@ impl ValuePrinter {
   pub fn print(ty: &Ty, val: &Value) {
     match *ty {
       Ty::Bool => {}
-      Ty::I64  => {println!("x {}", val)}
-      _        => panic!("Unknown")
+      Ty::I64 => println!("x {}", val),
+      _ => panic!("Unknown"),
     }
   }
 }
