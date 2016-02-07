@@ -1,4 +1,3 @@
-//!
 //! Arena for Variable Sized Data
 //!
 
@@ -14,7 +13,7 @@ pub static DEFAULT_ALIGNED_SIZE: usize = 16;
 
 #[derive(Copy, Clone)]
 #[allow(raw_pointer_derive)]
-struct Chunk {  
+struct Chunk {
   ptr: *const u8,
   size: usize,
 }
@@ -23,50 +22,48 @@ pub struct Arena {
   default_page_size: usize,
   aligned_size: usize,
   head: Chunk,
-  offset: usize,  
+  offset: usize,
   chunks: Vec<Chunk>,
 
   // stats
   allocated_size: usize,
-  used_size: usize
+  used_size: usize,
 }
 
 impl Drop for Arena {
   fn drop(&mut self) {
     unsafe {
       // free head
-      heap::deallocate(self.head.ptr as *mut u8, self.head.size, 
-        self.aligned_size);
+      heap::deallocate(self.head.ptr as *mut u8, self.head.size, self.aligned_size);
 
       // free all chunks
       for chunk in &*self.chunks {
-        heap::deallocate(chunk.ptr as *mut u8, chunk.size, 
-          self.aligned_size);
+        heap::deallocate(chunk.ptr as *mut u8, chunk.size, self.aligned_size);
       }
     }
   }
 }
 
 impl Arena {
-
   pub fn new(page_size: usize) -> Arena {
     Arena::new_with_aligned(page_size, DEFAULT_ALIGNED_SIZE)
   }
 
   pub fn new_with_aligned(page_size: usize, aligned_size: usize) -> Arena {
-    let allocated: *mut u8 = unsafe {
-      heap::allocate(page_size, aligned_size) as *mut u8
-    };
+    let allocated: *mut u8 = unsafe { heap::allocate(page_size, aligned_size) as *mut u8 };
 
     Arena {
       default_page_size: page_size,
       aligned_size: aligned_size,
-      head: Chunk{ptr: allocated, size: page_size},
+      head: Chunk {
+        ptr: allocated,
+        size: page_size,
+      },
       offset: 0,
       chunks: Vec::new(),
 
       allocated_size: page_size,
-      used_size: 0
+      used_size: 0,
     }
   }
 
@@ -87,7 +84,7 @@ impl Arena {
       self.new_chunk(size);
     }
 
-    let addr = self.head.ptr as usize + self.offset;    
+    let addr = self.head.ptr as usize + self.offset;
     self.offset += size;
     let limit = addr + size;
 
@@ -96,16 +93,16 @@ impl Arena {
 
   /// Allocate a string 
   pub fn alloc_str(&mut self, str: &str) -> *const u8 {
-    let bytes: &[u8] = unsafe {
-      mem::transmute(str)
-    };
+    let bytes: &[u8] = unsafe { mem::transmute(str) };
 
     if self.need_grow(bytes.len()) {
       self.new_chunk(bytes.len());
     }
 
     let addr = (self.head.ptr as usize + self.offset) as *mut u8;
-    unsafe { ptr::copy(bytes.as_ptr(), addr, bytes.len()); }
+    unsafe {
+      ptr::copy(bytes.as_ptr(), addr, bytes.len());
+    }
     self.offset += bytes.len();
 
     addr
@@ -124,22 +121,21 @@ impl Arena {
         // because the current head chunk is deallocated
         self.allocated_size = self.allocated_size - self.head.size;
 
-        heap::reallocate(
-          self.head.ptr as *mut u8, 
-          self.head.size, 
-          actual_size, 
-          self.aligned_size) as *mut u8
-      } else {        
+        heap::reallocate(self.head.ptr as *mut u8,
+                         self.head.size,
+                         actual_size,
+                         self.aligned_size) as *mut u8
+      } else {
         self.chunks.push(self.head.clone());
 
-        heap::allocate(
-          actual_size, 
-          self.aligned_size) as *mut u8
+        heap::allocate(actual_size, self.aligned_size) as *mut u8
       }
 
     };
 
-    if allocated.is_null() { alloc::oom() }
+    if allocated.is_null() {
+      alloc::oom()
+    }
 
     // update stats
     self.used_size = self.used_size + self.offset;
@@ -147,9 +143,9 @@ impl Arena {
 
     // new head chunk
     self.offset = 0;
-    self.head = Chunk{
-      ptr: allocated, 
-      size: actual_size, 
+    self.head = Chunk {
+      ptr: allocated,
+      size: actual_size,
     };
   }
 }
@@ -157,7 +153,7 @@ impl Arena {
 #[allow(unused_imports)]
 use bytesize::ByteSize;
 #[allow(unused_imports)]
-use buffer::{UnSafeDatumWriter, UnSafeDatumReader};
+use buffer::{UnSafeDatumReader, UnSafeDatumWriter};
 
 #[test]
 fn test_buf_read_write() {
@@ -197,7 +193,7 @@ fn test_write_buf_overrun() {
 }
 
 #[test]
-#[allow(unused_variables)] 
+#[allow(unused_variables)]
 fn test_many_chunks() {
   let mut arena = Arena::new(ByteSize::kb(4).as_usize());
 
@@ -211,7 +207,7 @@ fn test_many_chunks() {
 }
 
 #[test]
-#[allow(unused_variables)] 
+#[allow(unused_variables)]
 fn test_large_chunks() {
   let mut arena = Arena::new(ByteSize::kb(4).as_usize());
 
