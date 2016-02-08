@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use common::err::{Error, Result, Void, void_ok};
 use common::plugin::{FuncRegistry, TypeRegistry};
-use common::page::{Chunk, Page, ROWBATCH_SIZE, c_api};
+use common::page::{Chunk, EncType, Page, ROWBATCH_SIZE, c_api};
 use common::session::Session;
 use common::types::{HasType, Ty, name};
 
@@ -79,7 +79,7 @@ pub trait CodeGenContext<'a> {
   fn context(&self) -> LLVMContextRef;
   fn fn_registry(&self) -> &'a FuncRegistry;
   fn session(&self) -> &'a Session;
-  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty)>>;
+  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>>;
 }
 
 pub struct MapCompiler<'a> {
@@ -87,7 +87,7 @@ pub struct MapCompiler<'a> {
   ctx: LLVMContextRef,
   fn_reg: &'a FuncRegistry,
   sess: &'a Session,
-  schema: &'a HashMap<&'a str, (usize, &'a Ty)>,
+  schema: &'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>,
 
   // cache
   get_chunk_fn: Function,
@@ -109,7 +109,7 @@ impl<'a> CodeGenContext<'a> for MapCompiler<'a> {
   fn session(&self) -> &'a Session {
     self.sess
   }
-  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty)>> {
+  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>> {
     Some(self.schema)
   }
 }
@@ -118,7 +118,7 @@ impl<'a> MapCompiler<'a> {
   pub fn new(jit: &'a JitCompiler,
              fn_reg: &'a FuncRegistry,
              sess: &'a Session,
-             schema: &'a HashMap<&'a str, (usize, &'a Ty)>)
+             schema: &'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>)
              -> MapCompiler<'a> {
 
     MapCompiler {
@@ -192,13 +192,13 @@ impl<'a> MapCompiler<'a> {
 
       let loop_builder = self.jit.new_builder();
 
-      // loop entry
+      // loop entry: initialize idx as 0
       loop_builder.position_at_end(&eval_entry);
       let row_idx_ptr = loop_builder.create_alloca(self.jit.get_u64_ty());
       loop_builder.create_store(&self.zero, &row_idx_ptr);
       loop_builder.create_br(&loop_cond_bb);
 
-      // loop condition
+      // loop condition: check if idx < rowbatch_size
       loop_builder.position_at_end(&loop_cond_bb);
       let row_idx = loop_builder.create_load(&row_idx_ptr);
       let loop_cond = loop_builder.create_ucmp(&row_idx, &self.rowbatch_size, Predicate::Lt);
@@ -221,6 +221,7 @@ impl<'a> MapCompiler<'a> {
                        &row_idx,
                        &codegen);
 
+      // idx++
       let add_row_idx = loop_builder.create_add(&row_idx, &self.one);
       loop_builder.create_store(&add_row_idx, &row_idx_ptr);
       loop_builder.create_br(&loop_cond_bb);
@@ -332,7 +333,7 @@ pub struct ExprCompiler<'a, 'b> {
   stack: Vec<Value>, // LLVM values stack temporarily used for code generation
   error: Option<Error>, // Code generation error
 
-  schema: Option<&'a HashMap<&'a str, (usize, &'a Ty)>>,
+  schema: Option<&'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>>,
   input_vecs: Option<&'b Vec<Value>>, // LLVM values to represent vector pointers
   row_idx: Option<&'b Value>, // LLVM values to represent row index
 }
@@ -350,7 +351,7 @@ impl<'a, 'b> CodeGenContext<'a> for ExprCompiler<'a, 'b> {
   fn session(&self) -> &'a Session {
     self.sess
   }
-  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty)>> {
+  fn schema(&self) -> Option<&'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>> {
     self.schema
   }
 }
@@ -538,18 +539,31 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
   }
 
   pub fn Field(&mut self, ty: &Ty, name: &str) {
-    let found: &(usize, &Ty) = self.schema()
-                                   .expect("no schema")
-                                   .get(name)
-                                   .expect(&format!("Field '{}' does not exist", name));
+    let found: &(usize, &Ty, &EncType) = self.schema()
+                                             .expect("no schema")
+                                             .get(name)
+                                             .expect(&format!("Field '{}' does not exist", name));
     let column_chunk = &self.input_vecs.unwrap()[found.0];
 
     debug_assert_eq!(ty, found.1);
 
-    let call = match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
-      Some(read_fn) => self.builder.create_call(&read_fn, &[column_chunk, &self.row_idx.unwrap()]),
-      _ => panic!("No such a function"),
+    let call = match found.2 {
+      &EncType::RAW => {
+        match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
+          Some(read_fn) => {
+            self.builder.create_call(&read_fn, &[column_chunk, &self.row_idx.unwrap()])
+          }
+          _ => panic!("No such a function"),
+        }
+      }
+      &EncType::RLE => panic!("Not implemented yet"),
     };
+
+    // let call = match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
+    // Some(read_fn) => self.builder.create_call(&read_fn, &[column_chunk,
+    // &self.row_idx.unwrap()]),
+    //   _ => panic!("No such a function"),
+    // };
 
     self.stack.push(call);
   }
@@ -595,7 +609,7 @@ pub trait Processor
 
 #[cfg(test)]
 mod tests {
-  use common::page::{Chunk, Page, ROWBATCH_SIZE, c_api};
+  use common::page::{Chunk, EncType, Page, ROWBATCH_SIZE, c_api};
   use common::plugin::*;
   use common::session::Session;
   use common::storage::{MemTable, RandomTable};
@@ -627,6 +641,7 @@ mod tests {
     assert!(jit.get_ty("struct.Page").is_some());
 
     let types = &[I64 /* l_orderkey      bigint */, I64 /* l_partkey       bigint */];
+    let enc_types = &[RAW, RAW];
 
     let names = &["l_orderkey", "l_partkey"];
 
@@ -634,7 +649,7 @@ mod tests {
     let expr2 = Field(I64, "l_partkey");
     let expr3 = Plus(I64, expr1.clone(), expr2.clone());
 
-    let schema = NamedSchema::new(names, types);
+    let schema = NamedSchema::new(names, types, enc_types);
     let session = Session;
 
     let map = MapCompiler::compile(&jit,
@@ -682,6 +697,7 @@ mod tests {
                   F64, // l_discount      double,
                   F64 /* l_tax           double,
                        * string types are not implmeneted yet. */];
+    let enc_types = &[RAW, RAW, RAW, RAW, RAW, RAW, RAW, RAW];
 
     let names = &["l_orderkey",
                   "l_partkey",
@@ -702,7 +718,7 @@ mod tests {
     // let expr2 = MinusSign(Const(7i32));
     // let expr = Or(Const(4i32), Const(2i32));
     // let expr = Not(Const(0i32));
-    let schema = &NamedSchema::new(names, types);
+    let schema = &NamedSchema::new(names, types, enc_types);
     let session = Session;
 
     // let map = ExprCompiler::compile(&jit,

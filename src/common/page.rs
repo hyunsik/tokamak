@@ -104,9 +104,10 @@ impl Drop for Page {
   }
 }
 
-/// Get a chunk size according to both type and encoding type.
+// Get a chunk size according to both type and encoding type.
 fn compute_chunk_size(ty: &Ty, enc: &EncType) -> usize {
-  get_aligned_size(ty.size_of() * ROWBATCH_SIZE * 4)
+  // TODO: consider the given encoding type.
+  get_aligned_size(ty.size_of() * ROWBATCH_SIZE)
 }
 
 impl Page {
