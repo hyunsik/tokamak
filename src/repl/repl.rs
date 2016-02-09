@@ -18,9 +18,10 @@ mod value_print;
 
 use std::collections::HashMap;
 use std::io;
+use llvm::analysis::Verifier;
 use llvm::builder::Builder;
 use llvm::JitCompiler;
-use llvm::value::{Function, Value};
+use llvm::value::{Function, Value, ValueRef};
 use rl_sys::readline;
 
 use common::plugin::{FuncRegistry, PluginManager};
@@ -113,12 +114,26 @@ impl<'a> Repl<'a> {
               match r.1.len() {
                 0 => {
                   match self.compiler.compile(&r.0[0]) {
-                    Ok(f) => {
+                    Ok(ref f) => {
+
+                      debug!("{:?}", r.0[0]);
+                      if log_enabled!(::log::LogLevel::Debug) {
+                        f.dump();
+                      }
+                      Verifier::verify_func(f).unwrap_or_else(|err_msg| {
+                        if !log_enabled!(::log::LogLevel::Debug) {
+                          f.dump();
+                        }
+                        panic!("{}", err_msg);
+                      });
+
                       let mut buf = String::new();
-                      value_print.print(&f, r.0[0].ty(), &mut buf);
+                      value_print.print(f, r.0[0].ty(), &mut buf);
+
                       self.out.write(buf.as_bytes()).ok().unwrap();
                       self.out.write("\n".as_bytes()).ok().unwrap();
                       self.out.flush().ok().unwrap();
+
                       ast.clear();
                       tokens.clear();
                       self.jit.delete_func(&f);
@@ -157,7 +172,7 @@ impl<'a> IncCompiler<'a> {
     let jit = self.jit;
     jit.create_func_prototype("processor",
                               to_llvm_ty(jit, ret_ty),
-                              &[jit.get_void_ty()],
+                              &[],
                               Some(bld))
   }
 
