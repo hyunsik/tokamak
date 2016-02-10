@@ -152,7 +152,7 @@ impl<'a> MapCompiler<'a> {
     });
 
     for (out_idx, e) in const_exprs {
-      let codegen = ExprCompiler::compile(self, bld, None, Some(&self.zero), e).ok().unwrap();
+      let codegen = ExprCompiler::compile(self, bld, func, None, Some(&self.zero), e).ok().unwrap();
 
       self.write_value(bld,
                        e.ty(),
@@ -208,6 +208,7 @@ impl<'a> MapCompiler<'a> {
       loop_builder.position_at_end(&loop_body_bb);
       let mut codegen = ExprCompiler::compile(self,
                                               &loop_builder,
+                                              func,
                                               Some(&column_chunks),
                                               Some(&row_idx),
                                               e)
@@ -330,6 +331,7 @@ pub struct ExprCompiler<'a, 'b> {
   sess: &'a Session,
 
   builder: &'b Builder, // LLVM IRBuilder
+  func: &'b Function, // current Function
   stack: Vec<Value>, // LLVM values stack temporarily used for code generation
   error: Option<Error>, // Code generation error
 
@@ -360,7 +362,8 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
   pub fn new(jit: &'a JitCompiler,
              fn_reg: &'a FuncRegistry,
              sess: &'a Session,
-             bld: &'b Builder)
+             bld: &'b Builder,
+           func: &'b Function)
              -> ExprCompiler<'a, 'b> {
     ExprCompiler {
       jit: jit,
@@ -371,6 +374,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
       stack: Vec::new(),
       error: None,
       builder: bld,
+      func: func,
 
       schema: None,
       input_vecs: None,
@@ -388,6 +392,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
 
   fn new_genctx(gen_ctx: &'a CodeGenContext<'a>,
                 builder: &'b Builder,
+                func: &'b Function,
                 input_vecs: Option<&'b Vec<Value>>,
                 row_idx: Option<&'b Value>)
                 -> ExprCompiler<'a, 'b> {
@@ -402,6 +407,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
       stack: Vec::new(),
       error: None,
       builder: builder,
+      func: func,
       input_vecs: input_vecs,
       row_idx: row_idx,
     }
@@ -409,12 +415,13 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
 
   pub fn compile(gen_ctx: &'a CodeGenContext<'a>,
                  bld: &'b Builder,
+                 func: &'b Function,
                  input_vecs: Option<&'b Vec<Value>>,
                  row_idx: Option<&'b Value>,
                  expr: &Expr)
                  -> Result<Value> {
 
-    let mut exprc = ExprCompiler::new_genctx(gen_ctx, bld, input_vecs, row_idx);
+    let mut exprc = ExprCompiler::new_genctx(gen_ctx, bld, func, input_vecs, row_idx);
     // visit a expression tree
     exprc.accept(expr);
     match exprc.stack.pop() {
@@ -547,25 +554,107 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
 
     debug_assert_eq!(ty, found.1);
 
-    let call = match found.2 {
+    match found.2 {
       &EncType::RAW => {
-        match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
+        let call = match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
           Some(read_fn) => {
             self.builder.create_call(&read_fn, &[column_chunk, &self.row_idx.unwrap()])
           }
           _ => panic!("No such a function"),
-        }
+        };
+
+        self.stack.push(call);
       }
-      &EncType::RLE => panic!("Not implemented yet"),
-    };
+
+      &EncType::RLE => {
+        // Simple RLE chunk layout
+        //
+        // +----------------------+---------------------------+------------------------------+
+        // | # of runs (4 ~ 1024) | lengths of runs (1 ~ 256) |     fixed-length values      |
+        // |        2 byte        |    # of runs * 1 byte     | # of runs * type length byte |
+        // +----------------------+---------------------------+------------------------------+
+
+        let builder = self.builder;
+        let func = self.func;
+
+        // read # of runs
+        //
+        // let n = read_i16_from_raw(column_chunk, 0);
+        let n = match self.jit().get_func(c_api::FN_READ_I16_FROM_RAW) {
+          Some(func) => {
+            builder.create_call(&func, &[column_chunk, &self.jit.get_const(0i64)])
+          }
+          _ => panic!("No such a function"),
+        };
+
+        // find the run which includes the row corresponds to the given row idx
+        //
+        // let mut offset: i64 = 2;
+        // let mut r = 0;
+        let mut offset = self.jit.get_const(2i64);
+        let mut r = self.jit.get_const(0i64);
+        let mut i = self.jit.get_const(0i64);
+        let one = self.jit.get_const(1i64);
+
+        // for i in 0..n {
+        //   r += read_i8_from_raw(column_chunk, offset);
+        //   if r >= row_idx {
+        //     return read_${type}_from_raw(column_chunk, 2 + n + i * ${type_len});
+        //   }
+        //   offset += 1;
+        // }
+        // panic!(format!("The page contains only {} rows, but the {}th row is requested", r, row_idx));
+        let loop_cond_bb = func.append("decode_rle_chunk_loop_cond");
+        let loop_body_bb = func.append("decode_rle_chunk_loop_body");
+        let loop_continue_bb = func.append("decode_rle_chunk_loop_continue");
+        let loop_end_bb = func.append("decode_rle_chunk_loop_end");
+        let loop_panic_bb = func.append("decode_rle_chunk_loop_panic");
+
+        builder.create_br(&loop_cond_bb);
+
+        builder.position_at_end(&loop_cond_bb);
+        let loop_cond = builder.create_ucmp(&i, &n, Predicate::Lt);
+        builder.create_cond_br(&loop_cond, &loop_body_bb, &loop_panic_bb);
+
+        builder.position_at_end(&loop_body_bb);
+        let rl = match self.jit().get_func(c_api::FN_READ_I8_FROM_RAW) {
+          Some(func) => {
+            builder.create_call(&func, &[column_chunk, &offset])
+          }
+          _ => panic!("No such a function"),
+        };
+        r = builder.create_add(&r, &rl);
+
+        let loop_cond = builder.create_ucmp(&r, &self.row_idx.unwrap(), Predicate::Ge);
+        builder.create_cond_br(&loop_cond, &loop_end_bb, &loop_continue_bb);
+
+        builder.position_at_end(&loop_end_bb);
+        let call = match self.jit().get_func(c_api::fn_name_of_read_from_raw(ty)) {
+          Some(read_fn) => {
+            let mut val_offset = self.jit.get_const(2i64);
+            val_offset = builder.create_add(&val_offset, &n);
+            let val_idx = builder.create_mul(&i, &self.jit.get_const(ty.size_of()));
+            val_offset = builder.create_add(&val_offset, &val_idx);
+
+            self.builder.create_call(&read_fn, &[column_chunk, &val_offset])
+          }
+          _ => panic!("No such a function"),
+        };
+
+        builder.position_at_end(&loop_continue_bb);
+        builder.create_add(&offset, &one);
+        builder.create_add(&i, &one);
+        builder.create_br(&loop_cond_bb);
+
+        // builder.position_at(&loop_panic_bb);
+      },
+    }
 
     // let call = match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
     // Some(read_fn) => self.builder.create_call(&read_fn, &[column_chunk,
     // &self.row_idx.unwrap()]),
     //   _ => panic!("No such a function"),
     // };
-
-    self.stack.push(call);
   }
 }
 

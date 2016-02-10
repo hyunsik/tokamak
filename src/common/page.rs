@@ -50,7 +50,8 @@ pub enum EncType {
 #[derive(Copy, Clone)]
 pub struct Chunk {
   pub ptr: *const u8,
-  pub size: usize, // pub owned: false
+  pub size: usize,
+  // pub owned: false
 }
 
 
@@ -348,6 +349,11 @@ pub mod c_api {
   pub static FN_READ_F32_RAW: &'static str = "read_f32_raw";
   pub static FN_READ_F64_RAW: &'static str = "read_f64_raw";
 
+  pub static FN_READ_I8_FROM_RAW: &'static str = "read_i8_from_raw";
+  pub static FN_READ_I16_FROM_RAW: &'static str = "read_i16_from_raw";
+  pub static FN_READ_I32_FROM_RAW: &'static str = "read_i32_from_raw";
+  pub static FN_READ_I64_FROM_RAW: &'static str = "read_i64_from_raw";
+
   pub fn fn_name_of_read_raw(ty: &Ty) -> &'static str {
     match *ty {
       Ty::Bool => FN_READ_BOOL_RAW,
@@ -357,6 +363,16 @@ pub mod c_api {
       Ty::I64 => FN_READ_I64_RAW,
       Ty::F32 => FN_READ_F32_RAW,
       Ty::F64 => FN_READ_F64_RAW,
+      _ => panic!("not supported type"),
+    }
+  }
+
+  pub fn fn_name_of_read_from_raw(ty: &Ty) -> &'static str {
+    match *ty {
+      Ty::I8 => FN_READ_I8_FROM_RAW,
+      Ty::I16 => FN_READ_I16_FROM_RAW,
+      Ty::I32 => FN_READ_I32_FROM_RAW,
+      Ty::I64 => FN_READ_I64_FROM_RAW,
       _ => panic!("not supported type"),
     }
   }
