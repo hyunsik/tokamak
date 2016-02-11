@@ -163,16 +163,20 @@ impl fmt::Display for Ty {
       Ty::F32 => write!(f, "f32"),
       Ty::F64 => write!(f, "f64"),
       Ty::Array(ref ty, ref dims) => {
-        write!(f, "Array({},{})", ty, dims.iter().map(|dim| format!("{}", dim)).join(","))
+        write!(f,
+               "Array({},{})",
+               ty,
+               dims.iter().map(|dim| format!("{}", dim)).join(","))
       }
       Ty::Tuple(ref types) => {
-        write!(f, "({})", types.iter().map(|dim| format!("{}", dim)).join(","))
+        write!(f,
+               "({})",
+               types.iter().map(|dim| format!("{}", dim)).join(","))
       }
     }
   }
 }
 
-//
 // Determine a result data type from two expression data types.
 // #[allow(unused_variables)]
 // pub fn result_data_ty(lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
@@ -413,7 +417,7 @@ mod tests {
 
   #[test]
   fn test_display_agg_types() {
-    assert_display(Ty::Array(Box::new(Ty::F64), vec!(4,4)), "Array(f64,4,4)");
-    assert_display(Ty::Tuple(vec!(Ty::F64, Ty::F64, Ty::I64)), "(f64,f64,i64)");
+    assert_display(Ty::Array(Box::new(Ty::F64), vec![4, 4]), "Array(f64,4,4)");
+    assert_display(Ty::Tuple(vec![Ty::F64, Ty::F64, Ty::I64]), "(f64,f64,i64)");
   }
 }
