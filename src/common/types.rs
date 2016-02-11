@@ -166,7 +166,7 @@ impl fmt::Display for Ty {
         write!(f, "Array({},{})", ty, dims.iter().map(|dim| format!("{}", dim)).join(","))
       }
       Ty::Tuple(ref types) => {
-        write!(f, "Tuple({})", types.iter().map(|dim| format!("{}", dim)).join(","))
+        write!(f, "({})", types.iter().map(|dim| format!("{}", dim)).join(","))
       }
     }
   }
@@ -401,3 +401,19 @@ impl fmt::Display for Ty {
 // Ty::new(F64_STR, true, true, handler)
 // }
 //
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use libc::c_void;
+
+  fn assert_display(ty: Ty, expected: &str) {
+    assert_eq!(&format!("{}", ty), expected)
+  }
+
+  #[test]
+  fn test_display_agg_types() {
+    assert_display(Ty::Array(Box::new(Ty::F64), vec!(4,4)), "Array(f64,4,4)");
+    assert_display(Ty::Tuple(vec!(Ty::F64, Ty::F64, Ty::I64)), "(f64,f64,i64)");
+  }
+}
