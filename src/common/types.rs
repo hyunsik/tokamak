@@ -145,6 +145,14 @@ pub fn f(size: u32) -> &'static Ty {
   }
 }
 
+pub fn Array(ty: &Ty, dims: &[usize]) -> Ty {
+  Ty::Array(Box::new(ty.clone()), dims.to_vec())
+}
+
+pub fn Tuple(types: &[&Ty]) -> Ty {
+  Ty::Tuple(types.iter().map(|ty| (*ty).clone()).collect::<Vec<Ty>>())
+}
+
 /// Typed implementation
 pub trait HasType {
   fn ty(&self) -> &Ty;
@@ -417,7 +425,7 @@ mod tests {
 
   #[test]
   fn test_display_agg_types() {
-    assert_display(Ty::Array(Box::new(Ty::F64), vec![4, 4]), "Array(f64,4,4)");
-    assert_display(Ty::Tuple(vec![Ty::F64, Ty::F64, Ty::I64]), "(f64,f64,i64)");
+    assert_display(Array(&Ty::F64, &[4, 4]), "Array(f64,4,4)");
+    assert_display(Tuple(&[&Ty::F64, &Ty::F64, &Ty::I64]), "(f64,f64,i64)");
   }
 }
