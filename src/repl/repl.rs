@@ -18,10 +18,7 @@ mod value_print;
 
 use std::collections::HashMap;
 use std::io;
-use llvm::analysis::Verifier;
-use llvm::builder::Builder;
-use llvm::JitCompiler;
-use llvm::value::{Function, Value, ValueRef};
+use llvm::{Builder, Function, JitCompiler, Value, ValueRef, Verifier};
 use rl_sys::readline;
 
 use common::plugin::{FuncRegistry, PluginManager};
