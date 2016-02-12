@@ -52,6 +52,14 @@ pub struct Chunk {
   // pub owned: false
 }
 
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct RLEChunk {
+  pub run_num: i16,
+  pub run_lengths: *const i8,
+  pub values: *const u8,
+}
+
 
 impl fmt::Display for Chunk {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -334,10 +342,12 @@ impl Page {
 }
 
 pub mod c_api {
-  use super::{Chunk, Page};
+  use super::{Chunk, RLEChunk, Page, EncType};
   use types::Ty;
 
-  pub static FN_GET_CHUNK: &'static str = "get_chunk";
+  // pub static FN_GET_CHUNK: &'static str = "get_chunk";
+  pub static FN_GET_RAW_CHUNK: &'static str = "get_raw_chunk";
+  pub static FN_GET_RLE_CHUNK: &'static str = "get_rle_chunk";
 
   pub static FN_READ_BOOL_RAW: &'static str = "read_i8_raw";
   pub static FN_READ_I8_RAW: &'static str = "read_i8_raw";
@@ -347,10 +357,12 @@ pub mod c_api {
   pub static FN_READ_F32_RAW: &'static str = "read_f32_raw";
   pub static FN_READ_F64_RAW: &'static str = "read_f64_raw";
 
-  pub static FN_READ_I8_FROM_RAW: &'static str = "read_i8_from_raw";
-  pub static FN_READ_I16_FROM_RAW: &'static str = "read_i16_from_raw";
-  pub static FN_READ_I32_FROM_RAW: &'static str = "read_i32_from_raw";
-  pub static FN_READ_I64_FROM_RAW: &'static str = "read_i64_from_raw";
+  pub fn fn_name_of_get_chunk(enc_type: &EncType) -> &'static str {
+    match *enc_type {
+      EncType::RAW => FN_GET_RAW_CHUNK,
+      EncType::RLE => FN_GET_RLE_CHUNK,
+    }
+  }
 
   pub fn fn_name_of_read_raw(ty: &Ty) -> &'static str {
     match *ty {
@@ -361,16 +373,6 @@ pub mod c_api {
       Ty::I64 => FN_READ_I64_RAW,
       Ty::F32 => FN_READ_F32_RAW,
       Ty::F64 => FN_READ_F64_RAW,
-      _ => panic!("not supported type"),
-    }
-  }
-
-  pub fn fn_name_of_read_from_raw(ty: &Ty) -> &'static str {
-    match *ty {
-      Ty::I8 => FN_READ_I8_FROM_RAW,
-      Ty::I16 => FN_READ_I16_FROM_RAW,
-      Ty::I32 => FN_READ_I32_FROM_RAW,
-      Ty::I64 => FN_READ_I64_FROM_RAW,
       _ => panic!("not supported type"),
     }
   }
@@ -391,5 +393,7 @@ pub mod c_api {
     pub fn read_i64_raw(p: *const Chunk, idx: usize) -> i64;
     pub fn read_f32_raw(p: *const Chunk, idx: usize) -> f32;
     pub fn read_f64_raw(p: *const Chunk, idx: usize) -> f64;
+
+    pub fn read_i32_rle(p: *const RLEChunk, idx: usize) -> i32;
   }
 }

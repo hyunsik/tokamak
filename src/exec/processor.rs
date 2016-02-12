@@ -88,7 +88,8 @@ pub struct MapCompiler<'a> {
   schema: &'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>,
 
   // cache
-  get_chunk_fn: Function,
+  // get_chunk_fn: Function,
+  get_chunk_fns: [Function],
   zero: Value,
   one: Value,
   rowbatch_size: Value,
@@ -126,7 +127,10 @@ impl<'a> MapCompiler<'a> {
       sess: sess,
       schema: schema,
 
-      get_chunk_fn: jit.get_func(c_api::FN_GET_CHUNK).unwrap(),
+      // get_chunk_fn: jit.get_func(c_api::FN_GET_CHUNK).unwrap(),
+      get_chunk_fns: {
+        schema.values().map(|(_, _, enc_type)| jit().get_func(c_api::fn_name_of_get_chunk(enc_type))).collect::<Vec<Function>>().as_slice()
+      },
       zero: jit.get_const(0usize),
       one: jit.get_const(1usize),
       rowbatch_size: jit.get_const(ROWBATCH_SIZE),
@@ -135,7 +139,7 @@ impl<'a> MapCompiler<'a> {
 
   fn create_columns_accessors(&self, bld: &Builder, in_page: &Value, num: usize) -> Vec<Value> {
     (0..num)
-      .map(|idx| bld.create_call(&self.get_chunk_fn, &[&in_page, &idx.to_value(self.ctx)]))
+      .map(|idx| bld.create_call(&self.get_chunk_fns[idx], &[&in_page, &idx.to_value(self.ctx)]))
       .collect::<Vec<Value>>()
   }
 
@@ -282,7 +286,7 @@ impl<'a> MapCompiler<'a> {
       _ => panic!("not supported type"),
     };
 
-    let out_chunk = builder.create_call(&self.get_chunk_fn, &[out_page, output_idx]);
+    let out_chunk = builder.create_call(&self.get_chunk_fns[output_idx], &[out_page, output_idx]);
     let call = match self.jit.get_func(fn_name) {
       Some(write_fn) => builder.create_call(&write_fn, &[&out_chunk, row_idx, output_val]),
       _ => panic!("No such a function"),
@@ -572,6 +576,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
         // |        2 byte        |    # of runs * 1 byte     | # of runs * type length byte |
         // +----------------------+---------------------------+------------------------------+
 
+/*
         let builder = self.builder;
         let func = self.func;
 
@@ -645,6 +650,8 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
         builder.create_br(&loop_cond_bb);
 
         // builder.position_at(&loop_panic_bb);
+        */
+        panic!("Not implemented yet")
       },
     }
 
