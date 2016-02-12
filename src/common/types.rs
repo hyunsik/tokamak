@@ -3,14 +3,11 @@
 //!
 
 use std::fmt;
-use std::mem;
-use std::cmp::Ordering;
 use std::rc::Rc;
 
 use itertools::Itertools;
 
 use err::Result;
-use page::Chunk;
 
 pub type TypeFactory = Rc<Fn(&str) -> Result<Ty>>;
 
@@ -23,8 +20,8 @@ pub mod name {
   pub static I64: &'static str = "i64";
   pub static F32: &'static str = "f32";
   pub static F64: &'static str = "f64";
-  pub static Array: &'static str = "Array";
-  pub static Tuple: &'static str = "Tuple";
+  pub static ARRAY: &'static str = "Array";
+  pub static TUPLE: &'static str = "Tuple";
 }
 
 pub static BOOL: &'static Ty = &Ty::Bool;
@@ -145,10 +142,12 @@ pub fn f(size: u32) -> &'static Ty {
   }
 }
 
+#[allow(non_snake_case)]
 pub fn Array(ty: &Ty, dims: &[usize]) -> Ty {
   Ty::Array(Box::new(ty.clone()), dims.to_vec())
 }
 
+#[allow(non_snake_case)]
 pub fn Tuple(types: &[&Ty]) -> Ty {
   Ty::Tuple(types.iter().map(|ty| (*ty).clone()).collect::<Vec<Ty>>())
 }

@@ -19,9 +19,7 @@
 
 use alloc::heap;
 use std::fmt;
-use std::marker;
 use std::ptr;
-use std::slice;
 
 use platform::get_aligned_size;
 use types::Ty;

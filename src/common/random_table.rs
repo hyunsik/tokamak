@@ -2,12 +2,11 @@
 //!
 //! It is designed for unit tests or users' prototypying.
 
-use std::rc::Rc;
 use rand;
 
 use itertools::Zip;
 
-use err::{Error, Result, Void, void_ok};
+use err::{Result, Void, void_ok};
 use session::Session;
 use types::Ty;
 use page::{Chunk, Page, ROWBATCH_SIZE, c_api};

@@ -3,15 +3,14 @@
 //! MemTable is designed to be used to contain the result or for fastest
 //! processing.
 
+#![allow(unused_variables)]
+
 use rustc_serialize::{Decodable, Decoder};
 
 use session::Session;
-use err;
 use err::{Void, void_ok};
 use page::{Page, c_api};
 use types::Ty;
-
-use util::collection::vec;
 
 pub struct MemTable {
   types: Vec<Ty>,
