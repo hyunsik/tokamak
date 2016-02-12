@@ -17,11 +17,9 @@ use common::page::{Chunk, EncType, Page, ROWBATCH_SIZE, c_api};
 use common::session::Session;
 use common::types::{HasType, Ty, name};
 
-use jit::{JitCompiler, LLVMContextRef};
+use jit::{Arg, Builder, CastOp, Function, JitCompiler, LLVMContextRef, Predicate, ToValue, Value, ValueRef};
 use jit::block::BasicBlock;
-use jit::builder::{Builder, CastOp};
 use jit::types::{self, LLVMTy};
-use jit::value::{Arg, Function, Predicate, ToValue, Value, ValueRef};
 use plan::expr::*;
 use plan::expr::visitor::{Visitor, accept_by_default};
 

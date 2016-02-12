@@ -1,8 +1,6 @@
 #![feature(alloc)]
 #![feature(const_fn)]
-#![feature(heap_api)]
 #![feature(libc)]
-#![feature(raw)]
 
 ///
 /// # An overview of Execution Operators
