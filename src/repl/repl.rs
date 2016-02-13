@@ -18,7 +18,7 @@ mod value_print;
 
 use std::collections::HashMap;
 use std::io;
-use llvm::{Builder, Function, JitCompiler, Value, ValueRef, Verifier};
+use llvm::{Builder, Function, JitCompiler, ValueRef, Verifier};
 use rl_sys::readline;
 
 use common::plugin::{FuncRegistry, PluginManager};
@@ -133,7 +133,7 @@ impl<'a> Repl<'a> {
 
                       ast.clear();
                       tokens.clear();
-                      self.jit.delete_func(&f);
+                      llvm::delete_func(&f);
                     }
                     Err(msg) => {
                       println!("{}", msg);
@@ -195,20 +195,6 @@ impl<'a> IncCompiler<'a> {
 
 // TODO - Error should include span and error message.
 
-// Print a value according to the Type
-pub struct ValuePrinter;
-
-impl ValuePrinter {
-  pub fn print(ty: &Ty, val: &Value) {
-    match *ty {
-      Ty::Bool => {}
-      Ty::I64 => println!("x {}", val),
-      _ => panic!("Unknown"),
-    }
-  }
-}
-
-
 pub fn main() {
   env_logger::init().unwrap();
 
@@ -217,7 +203,7 @@ pub fn main() {
 
   // Initialize system context
   let plugin_mgr = &PluginManager::new();
-  let jit = &JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+  let jit = &JitCompiler::from_bc("../common/target/ir/common.bc").ok().unwrap();
   assert!(jit.get_ty("struct.Chunk").is_some());
   assert!(jit.get_ty("struct.Page").is_some());
   let sess = &Session;

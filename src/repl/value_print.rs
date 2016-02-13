@@ -119,6 +119,6 @@ impl<'a> ValuePrint<'a> {
       panic!("{}", err_msg);
     });
 
-    self.jit.delete_func(print_fn);
+    llvm::delete_func(print_fn);
   }
 }
