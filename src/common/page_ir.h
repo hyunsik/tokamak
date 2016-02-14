@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <memory>
 
 #include "page_ir_macro.h"
 
@@ -84,12 +85,29 @@ extern "C" int32_t read_i32_rle(RLEChunk* chunk, size_t idx) {
 
   for (i = 0; i < n; i++) {
     r += chunk->run_lengths[i];
-    if (r >= idx) {
+    if (r > idx) {
       return reinterpret_cast<int32_t *>(chunk->values)[i];
     }
   }
   // TODO: error
   return -1;
+}
+
+// for test
+// TODO: should be removed after implementing write functions for variable-length chunks
+extern "C" RLEChunk random_rle_chunk() {
+  std::unique_ptr<RLEChunk> chunk(new RLEChunk);
+  std::allocator<int8_t> length_alloc;
+  std::allocator<int32_t> value_alloc;
+
+  chunk->run_num = 10;
+  chunk->run_lengths = length_alloc.allocate(chunk->run_num);
+  chunk->values = value_alloc.allocate(chunk->run_num);
+  for (int i = 0; i < chunk->run_num; i++) {
+    chunk->run_lengths[i] = i + 1;
+    reinterpret_cast<int32_t *>(chunk->values)[i] = i * 10;
+  }
+  return *chunk;
 }
 
 void dummy(Page* v1, Chunk* v2) {}

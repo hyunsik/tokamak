@@ -1,7 +1,7 @@
 #[macro_use] extern crate common;
 use common::session::Session;
 use common::types::{BOOL, I8, I16, I32, I64, F32, F64};
-use common::page::{c_api, Page, Chunk, ROWBATCH_SIZE};
+use common::page::{c_api, Page, Chunk, RLEChunk, ROWBATCH_SIZE};
 use common::input::InputSource;
 use common::storage::RandomTable;
 
@@ -76,8 +76,8 @@ fn test_get_chunk() {
 
   unsafe {
     for x in 0..p.chunk_num() {
-      assert_eq!(&p.chunks()[x] as *const Chunk, c_api::get_chunk(&p, x));
-      assert_eq!(p.chunk_ptr(x), c_api::get_chunk(&p, x));
+      assert_eq!(&p.chunks()[x] as *const Chunk, c_api::get_raw_chunk(&p, x));
+      assert_eq!(p.chunk_ptr(x), c_api::get_raw_chunk(&p, x));
     }
   }
 }
@@ -111,6 +111,20 @@ pub fn test_project()
     for x in 0 .. 5 {
       assert_eq!(c_api::read_f32_raw(page.chunk(1), x), c_api::read_f32_raw(projected[0], x));
       assert_eq!(c_api::read_i32_raw(page.chunk(2), x), c_api::read_i32_raw(projected[1], x));
+    }
+  }
+}
+
+#[test]
+pub fn test_rle_chunk() {
+  let chunk: RLEChunk = unsafe { c_api::random_rle_chunk() };
+  let mut idx: usize = 0;
+  for i in 0..10 {
+    for j in 0..(i + 1) {
+      unsafe {
+        assert_eq!(i * 10i32, c_api::read_i32_rle(&chunk, idx));
+      }
+      idx += 1;
     }
   }
 }

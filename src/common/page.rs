@@ -60,10 +60,15 @@ pub struct RLEChunk {
   pub values: *const u8,
 }
 
-
 impl fmt::Display for Chunk {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "Chunk {{ptr:{}, size:{}}}", self.ptr as usize, self.size)
+  }
+}
+
+impl fmt::Display for RLEChunk {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "RLEChunk {{ run_num: {}, run_lengths: {}, values: {}}}", self.run_num, self.run_lengths as usize, self.values as usize)
   }
 }
 
@@ -357,6 +362,8 @@ pub mod c_api {
   pub static FN_READ_F32_RAW: &'static str = "read_f32_raw";
   pub static FN_READ_F64_RAW: &'static str = "read_f64_raw";
 
+  pub static FN_READ_I32_RLE: &'static str = "read_i32_rle";
+
   pub fn fn_name_of_get_chunk(enc_type: &EncType) -> &'static str {
     match *enc_type {
       EncType::RAW => FN_GET_RAW_CHUNK,
@@ -378,7 +385,8 @@ pub mod c_api {
   }
 
   extern "C" {
-    pub fn get_chunk(p: *const Page, idx: usize) -> *const Chunk;
+    pub fn get_raw_chunk(p: *const Page, idx: usize) -> *const Chunk;
+    pub fn get_rle_chunk(p: *const Page, idx: usize) -> *const RLEChunk;
 
     pub fn write_i8_raw(p: *const Chunk, idx: usize, val: i8);
     pub fn write_i16_raw(p: *const Chunk, idx: usize, val: i16);
@@ -395,5 +403,8 @@ pub mod c_api {
     pub fn read_f64_raw(p: *const Chunk, idx: usize) -> f64;
 
     pub fn read_i32_rle(p: *const RLEChunk, idx: usize) -> i32;
+
+    // for test
+    pub fn random_rle_chunk() -> RLEChunk;
   }
 }

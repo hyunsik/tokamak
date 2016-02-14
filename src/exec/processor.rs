@@ -89,7 +89,7 @@ pub struct MapCompiler<'a> {
 
   // cache
   // get_chunk_fn: Function,
-  get_chunk_fns: [Function],
+  get_chunk_fns: Vec<Function>,
   zero: Value,
   one: Value,
   rowbatch_size: Value,
@@ -117,7 +117,8 @@ impl<'a> MapCompiler<'a> {
   pub fn new(jit: &'a JitCompiler,
              fn_reg: &'a FuncRegistry,
              sess: &'a Session,
-             schema: &'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>)
+             schema: &'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>,
+             enc_types: &'a [&EncType])
              -> MapCompiler<'a> {
 
     MapCompiler {
@@ -129,7 +130,7 @@ impl<'a> MapCompiler<'a> {
 
       // get_chunk_fn: jit.get_func(c_api::FN_GET_CHUNK).unwrap(),
       get_chunk_fns: {
-        schema.values().map(|(_, _, enc_type)| jit().get_func(c_api::fn_name_of_get_chunk(enc_type))).collect::<Vec<Function>>().as_slice()
+        enc_types.iter().map(|e| jit.get_func(c_api::fn_name_of_get_chunk(e)).unwrap()).collect::<Vec<Function>>()
       },
       zero: jit.get_const(0usize),
       one: jit.get_const(1usize),
@@ -159,7 +160,8 @@ impl<'a> MapCompiler<'a> {
       self.write_value(bld,
                        e.ty(),
                        out_page,
-                       &self.jit.get_const(out_idx),
+                      //  &self.jit.get_const(out_idx),
+                      out_idx,
                        &self.zero,
                        &codegen);
     }
@@ -220,7 +222,8 @@ impl<'a> MapCompiler<'a> {
       self.write_value(&loop_builder,
                        e.ty(),
                        out_page,
-                       &self.jit.get_const(out_idx),
+                      //  &self.jit.get_const(out_idx),
+                       out_idx,
                        &row_idx,
                        &codegen);
 
@@ -253,7 +256,7 @@ impl<'a> MapCompiler<'a> {
     let builder = &jit.new_builder();
 
     let schema_map = schema.to_map();
-    let mapc = MapCompiler::new(jit, fn_reg, sess, &schema_map);
+    let mapc = MapCompiler::new(jit, fn_reg, sess, &schema_map, schema.enc_types);
     let func = &mapc.create_fn_prototype(builder);
 
     let sel_list: &Value = &func.arg(2).into();
@@ -272,7 +275,7 @@ impl<'a> MapCompiler<'a> {
                  builder: &Builder,
                  output_ty: &Ty,
                  out_page: &Value,
-                 output_idx: &Value,
+                 output_idx: usize,
                  row_idx: &Value,
                  output_val: &Value) {
     let fn_name = match *output_ty {
@@ -286,7 +289,7 @@ impl<'a> MapCompiler<'a> {
       _ => panic!("not supported type"),
     };
 
-    let out_chunk = builder.create_call(&self.get_chunk_fns[output_idx], &[out_page, output_idx]);
+    let out_chunk = builder.create_call(&self.get_chunk_fns[output_idx], &[out_page, &self.jit.get_const(output_idx)]);
     let call = match self.jit.get_func(fn_name) {
       Some(write_fn) => builder.create_call(&write_fn, &[&out_chunk, row_idx, output_val]),
       _ => panic!("No such a function"),
@@ -569,97 +572,16 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
       }
 
       &EncType::RLE => {
-        // Simple RLE chunk layout
-        //
-        // +----------------------+---------------------------+------------------------------+
-        // | # of runs (4 ~ 1024) | lengths of runs (1 ~ 256) |     fixed-length values      |
-        // |        2 byte        |    # of runs * 1 byte     | # of runs * type length byte |
-        // +----------------------+---------------------------+------------------------------+
-
-/*
-        let builder = self.builder;
-        let func = self.func;
-
-        // read # of runs
-        //
-        // let n = read_i16_from_raw(column_chunk, 0);
-        let n = match self.jit().get_func(c_api::FN_READ_I16_FROM_RAW) {
-          Some(func) => {
-            builder.create_call(&func, &[column_chunk, &self.jit.get_const(0i64)])
-          }
-          _ => panic!("No such a function"),
-        };
-
-        // find the run which includes the row corresponds to the given row idx
-        //
-        // let mut offset: i64 = 2;
-        // let mut r = 0;
-        let mut offset = self.jit.get_const(2i64);
-        let mut r = self.jit.get_const(0i64);
-        let mut i = self.jit.get_const(0i64);
-        let one = self.jit.get_const(1i64);
-
-        // for i in 0..n {
-        //   r += read_i8_from_raw(column_chunk, offset);
-        //   if r >= row_idx {
-        //     return read_${type}_from_raw(column_chunk, 2 + n + i * ${type_len});
-        //   }
-        //   offset += 1;
-        // }
-        // panic!(format!("The page contains only {} rows, but the {}th row is requested", r, row_idx));
-        let loop_cond_bb = func.append("decode_rle_chunk_loop_cond");
-        let loop_body_bb = func.append("decode_rle_chunk_loop_body");
-        let loop_continue_bb = func.append("decode_rle_chunk_loop_continue");
-        let loop_end_bb = func.append("decode_rle_chunk_loop_end");
-        let loop_panic_bb = func.append("decode_rle_chunk_loop_panic");
-
-        builder.create_br(&loop_cond_bb);
-
-        builder.position_at_end(&loop_cond_bb);
-        let loop_cond = builder.create_ucmp(&i, &n, Predicate::Lt);
-        builder.create_cond_br(&loop_cond, &loop_body_bb, &loop_panic_bb);
-
-        builder.position_at_end(&loop_body_bb);
-        let rl = match self.jit().get_func(c_api::FN_READ_I8_FROM_RAW) {
-          Some(func) => {
-            builder.create_call(&func, &[column_chunk, &offset])
-          }
-          _ => panic!("No such a function"),
-        };
-        r = builder.create_add(&r, &rl);
-
-        let loop_cond = builder.create_ucmp(&r, &self.row_idx.unwrap(), Predicate::Ge);
-        builder.create_cond_br(&loop_cond, &loop_end_bb, &loop_continue_bb);
-
-        builder.position_at_end(&loop_end_bb);
-        let call = match self.jit().get_func(c_api::fn_name_of_read_from_raw(ty)) {
+        let call = match self.jit().get_func(c_api::FN_READ_I32_RLE) {
           Some(read_fn) => {
-            let mut val_offset = self.jit.get_const(2i64);
-            val_offset = builder.create_add(&val_offset, &n);
-            let val_idx = builder.create_mul(&i, &self.jit.get_const(ty.size_of()));
-            val_offset = builder.create_add(&val_offset, &val_idx);
-
-            self.builder.create_call(&read_fn, &[column_chunk, &val_offset])
+            self.builder.create_call(&read_fn, &[column_chunk, &self.row_idx.unwrap()])
           }
-          _ => panic!("No such a function"),
+          _ => panic!("No such function")
         };
 
-        builder.position_at_end(&loop_continue_bb);
-        builder.create_add(&offset, &one);
-        builder.create_add(&i, &one);
-        builder.create_br(&loop_cond_bb);
-
-        // builder.position_at(&loop_panic_bb);
-        */
-        panic!("Not implemented yet")
+        self.stack.push(call);
       },
     }
-
-    // let call = match self.jit().get_func(c_api::fn_name_of_read_raw(ty)) {
-    // Some(read_fn) => self.builder.create_call(&read_fn, &[column_chunk,
-    // &self.row_idx.unwrap()]),
-    //   _ => panic!("No such a function"),
-    // };
   }
 }
 
