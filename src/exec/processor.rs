@@ -572,7 +572,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
       }
 
       &EncType::RLE => {
-        let call = match self.jit().get_func(c_api::FN_READ_I32_RLE) {
+        let call = match self.jit().get_func(c_api::fn_name_of_read_rle(ty)) {
           Some(read_fn) => {
             self.builder.create_call(&read_fn, &[column_chunk, &self.row_idx.unwrap()])
           }

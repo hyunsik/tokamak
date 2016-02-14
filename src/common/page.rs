@@ -350,7 +350,6 @@ pub mod c_api {
   use super::{Chunk, RLEChunk, Page, EncType};
   use types::Ty;
 
-  // pub static FN_GET_CHUNK: &'static str = "get_chunk";
   pub static FN_GET_RAW_CHUNK: &'static str = "get_raw_chunk";
   pub static FN_GET_RLE_CHUNK: &'static str = "get_rle_chunk";
 
@@ -362,7 +361,12 @@ pub mod c_api {
   pub static FN_READ_F32_RAW: &'static str = "read_f32_raw";
   pub static FN_READ_F64_RAW: &'static str = "read_f64_raw";
 
+  pub static FN_READ_I8_RLE: &'static str = "read_i8_rle";
+  pub static FN_READ_I16_RLE: &'static str = "read_i16_rle";
   pub static FN_READ_I32_RLE: &'static str = "read_i32_rle";
+  pub static FN_READ_I64_RLE: &'static str = "read_i64_rle";
+  pub static FN_READ_F32_RLE: &'static str = "read_f32_rle";
+  pub static FN_READ_F64_RLE: &'static str = "read_f64_rle";
 
   pub fn fn_name_of_get_chunk(enc_type: &EncType) -> &'static str {
     match *enc_type {
@@ -380,6 +384,18 @@ pub mod c_api {
       Ty::I64 => FN_READ_I64_RAW,
       Ty::F32 => FN_READ_F32_RAW,
       Ty::F64 => FN_READ_F64_RAW,
+      _ => panic!("not supported type"),
+    }
+  }
+
+  pub fn fn_name_of_read_rle(ty: &Ty) -> &'static str {
+    match *ty {
+      Ty::I8 => FN_READ_I8_RLE,
+      Ty::I16 => FN_READ_I16_RLE,
+      Ty::I32 => FN_READ_I32_RLE,
+      Ty::I64 => FN_READ_I64_RLE,
+      Ty::F32 => FN_READ_F32_RLE,
+      Ty::F64 => FN_READ_F64_RLE,
       _ => panic!("not supported type"),
     }
   }
@@ -402,7 +418,12 @@ pub mod c_api {
     pub fn read_f32_raw(p: *const Chunk, idx: usize) -> f32;
     pub fn read_f64_raw(p: *const Chunk, idx: usize) -> f64;
 
+    pub fn read_i8_rle(p: *const RLEChunk, idx: usize) -> i8;
+    pub fn read_i16_rle(p: *const RLEChunk, idx: usize) -> i16;
     pub fn read_i32_rle(p: *const RLEChunk, idx: usize) -> i32;
+    pub fn read_i64_rle(p: *const RLEChunk, idx: usize) -> i64;
+    pub fn read_f32_rle(p: *const RLEChunk, idx: usize) -> f32;
+    pub fn read_f64_rle(p: *const RLEChunk, idx: usize) -> f64;
 
     // for test
     pub fn random_rle_chunk() -> RLEChunk;

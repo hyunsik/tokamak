@@ -16,4 +16,18 @@
     return reinterpret_cast<type *>(page->ptr)[idx]; \
   } \
 
+#define READ_RLE_VAL(suffix, type) \
+  extern "C" type read_##suffix##_rle(RLEChunk* chunk, size_t idx) { \
+    int16_t n = chunk->run_num; \
+    int16_t i; \
+    size_t r = 0; \
+    for (i = 0; i < n; i++) { \
+      r += chunk->run_lengths[i]; \
+      if (r > idx) { \
+        return reinterpret_cast<type *>(chunk->values)[i]; \
+      } \
+    } \
+    return -1; \
+  } \
+
 #endif // PAGE_IR_MACRO_H_

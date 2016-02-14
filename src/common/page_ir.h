@@ -46,10 +46,6 @@ struct Page {
   bool   owned;
 };
 
-// extern "C" Chunk* get_chunk(Page* page, size_t idx) {
-//   return &page->chunks[idx];
-// }
-
 GET_CHUNK(raw, Chunk);
 GET_CHUNK(rle, RLEChunk);
 
@@ -78,20 +74,13 @@ READ_RAW_VAL(f32, float);
 READ_RAW_VAL(f64, double);
 
 // for RLE chunk
-extern "C" int32_t read_i32_rle(RLEChunk* chunk, size_t idx) {
-  int16_t n = chunk->run_num;
-  int16_t i;
-  size_t r = 0;
+READ_RLE_VAL(i8, int8_t);
+READ_RLE_VAL(i16, int16_t);
+READ_RLE_VAL(i32, int32_t);
+READ_RLE_VAL(i64, int64_t);
+READ_RLE_VAL(f32, float);
+READ_RLE_VAL(f64, double);
 
-  for (i = 0; i < n; i++) {
-    r += chunk->run_lengths[i];
-    if (r > idx) {
-      return reinterpret_cast<int32_t *>(chunk->values)[i];
-    }
-  }
-  // TODO: error
-  return -1;
-}
 
 // for test
 // TODO: should be removed after implementing write functions for variable-length chunks
