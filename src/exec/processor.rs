@@ -88,7 +88,6 @@ pub struct MapCompiler<'a> {
   schema: &'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>,
 
   // cache
-  // get_chunk_fn: Function,
   get_chunk_fns: Vec<Function>,
   zero: Value,
   one: Value,
@@ -128,7 +127,6 @@ impl<'a> MapCompiler<'a> {
       sess: sess,
       schema: schema,
 
-      // get_chunk_fn: jit.get_func(c_api::FN_GET_CHUNK).unwrap(),
       get_chunk_fns: {
         enc_types.iter().map(|e| jit.get_func(c_api::fn_name_of_get_chunk(e)).unwrap()).collect::<Vec<Function>>()
       },
@@ -160,7 +158,6 @@ impl<'a> MapCompiler<'a> {
       self.write_value(bld,
                        e.ty(),
                        out_page,
-                      //  &self.jit.get_const(out_idx),
                       out_idx,
                        &self.zero,
                        &codegen);
@@ -222,7 +219,6 @@ impl<'a> MapCompiler<'a> {
       self.write_value(&loop_builder,
                        e.ty(),
                        out_page,
-                      //  &self.jit.get_const(out_idx),
                        out_idx,
                        &row_idx,
                        &codegen);

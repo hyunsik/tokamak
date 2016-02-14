@@ -76,15 +76,6 @@ pub struct NamedSchema<'a> {
 }
 
 impl<'a> NamedSchema<'a> {
-  // pub fn new(names: &'a [&'a str], types: &'a [&Ty]) -> NamedSchema<'a> {
-  //   debug_assert_eq!(names.len(), types.len());
-  //
-  //   NamedSchema {
-  //     names: names,
-  //     types: types,
-  //   }
-  // }
-
   pub fn new(names: &'a [&'a str], types: &'a [&Ty], enc_types: &'a [&EncType]) -> NamedSchema<'a> {
     debug_assert_eq!(names.len(), types.len());
     debug_assert_eq!(types.len(), enc_types.len());
