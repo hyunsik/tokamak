@@ -68,7 +68,11 @@ impl fmt::Display for Chunk {
 
 impl fmt::Display for RLEChunk {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "RLEChunk {{ run_num: {}, run_lengths: {}, values: {}}}", self.run_num, self.run_lengths as usize, self.values as usize)
+    write!(f,
+           "RLEChunk {{ run_num: {}, run_lengths: {}, values: {}}}",
+           self.run_num,
+           self.run_lengths as usize,
+           self.values as usize)
   }
 }
 
@@ -347,7 +351,7 @@ impl Page {
 }
 
 pub mod c_api {
-  use super::{Chunk, RLEChunk, Page, EncType};
+  use super::{Chunk, EncType, Page, RLEChunk};
   use types::Ty;
 
   pub static FN_GET_RAW_CHUNK: &'static str = "get_raw_chunk";

@@ -48,7 +48,7 @@ pub mod scan;
 use std::collections::HashMap;
 
 use common::err::{Result, Void};
-use common::page::{Page, EncType};
+use common::page::{EncType, Page};
 use common::types::Ty;
 
 use driver::DriverContext;

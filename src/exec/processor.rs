@@ -17,7 +17,8 @@ use common::page::{Chunk, EncType, Page, ROWBATCH_SIZE, c_api};
 use common::session::Session;
 use common::types::{HasType, Ty, name};
 
-use jit::{Arg, Builder, CastOp, Function, JitCompiler, LLVMContextRef, Predicate, ToValue, Value, ValueRef};
+use jit::{Arg, Builder, CastOp, Function, JitCompiler, LLVMContextRef, Predicate, ToValue, Value,
+          ValueRef};
 use jit::block::BasicBlock;
 use jit::types::{self, LLVMTy};
 use plan::expr::*;
@@ -128,7 +129,9 @@ impl<'a> MapCompiler<'a> {
       schema: schema,
 
       get_chunk_fns: {
-        enc_types.iter().map(|e| jit.get_func(c_api::fn_name_of_get_chunk(e)).unwrap()).collect::<Vec<Function>>()
+        enc_types.iter()
+                 .map(|e| jit.get_func(c_api::fn_name_of_get_chunk(e)).unwrap())
+                 .collect::<Vec<Function>>()
       },
       zero: jit.get_const(0usize),
       one: jit.get_const(1usize),
@@ -138,7 +141,10 @@ impl<'a> MapCompiler<'a> {
 
   fn create_columns_accessors(&self, bld: &Builder, in_page: &Value, num: usize) -> Vec<Value> {
     (0..num)
-      .map(|idx| bld.create_call(&self.get_chunk_fns[idx], &[&in_page, &idx.to_value(self.ctx)]))
+      .map(|idx| {
+        bld.create_call(&self.get_chunk_fns[idx],
+                        &[&in_page, &idx.to_value(self.ctx)])
+      })
       .collect::<Vec<Value>>()
   }
 
@@ -155,12 +161,7 @@ impl<'a> MapCompiler<'a> {
     for (out_idx, e) in const_exprs {
       let codegen = ExprCompiler::compile(self, bld, func, None, Some(&self.zero), e).ok().unwrap();
 
-      self.write_value(bld,
-                       e.ty(),
-                       out_page,
-                      out_idx,
-                       &self.zero,
-                       &codegen);
+      self.write_value(bld, e.ty(), out_page, out_idx, &self.zero, &codegen);
     }
   }
 
@@ -216,12 +217,7 @@ impl<'a> MapCompiler<'a> {
                           .ok()
                           .unwrap();
 
-      self.write_value(&loop_builder,
-                       e.ty(),
-                       out_page,
-                       out_idx,
-                       &row_idx,
-                       &codegen);
+      self.write_value(&loop_builder, e.ty(), out_page, out_idx, &row_idx, &codegen);
 
       // idx++
       let add_row_idx = loop_builder.create_add(&row_idx, &self.one);
@@ -285,7 +281,8 @@ impl<'a> MapCompiler<'a> {
       _ => panic!("not supported type"),
     };
 
-    let out_chunk = builder.create_call(&self.get_chunk_fns[output_idx], &[out_page, &self.jit.get_const(output_idx)]);
+    let out_chunk = builder.create_call(&self.get_chunk_fns[output_idx],
+                                        &[out_page, &self.jit.get_const(output_idx)]);
     let call = match self.jit.get_func(fn_name) {
       Some(write_fn) => builder.create_call(&write_fn, &[&out_chunk, row_idx, output_val]),
       _ => panic!("No such a function"),
@@ -364,7 +361,7 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
              fn_reg: &'a FuncRegistry,
              sess: &'a Session,
              bld: &'b Builder,
-           func: &'b Function)
+             func: &'b Function)
              -> ExprCompiler<'a, 'b> {
     ExprCompiler {
       jit: jit,
@@ -572,11 +569,11 @@ impl<'a, 'b> ExprCompiler<'a, 'b> {
           Some(read_fn) => {
             self.builder.create_call(&read_fn, &[column_chunk, &self.row_idx.unwrap()])
           }
-          _ => panic!("No such function")
+          _ => panic!("No such function"),
         };
 
         self.stack.push(call);
-      },
+      }
     }
   }
 }
