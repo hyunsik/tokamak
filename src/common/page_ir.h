@@ -86,6 +86,7 @@ READ_RLE_VAL(f64, double);
 extern "C" RLEChunk random_rle_chunk() {
   std::unique_ptr<RLEChunk> chunk(new RLEChunk);
   std::allocator<Run> run_alloc;
+  std::allocator<int32_t> value_alloc;
 
   chunk->run_num = 10;
   chunk->runs = run_alloc.allocate(chunk->run_num);
@@ -93,6 +94,7 @@ extern "C" RLEChunk random_rle_chunk() {
   // chunk->values = value_alloc.allocate(chunk->run_num);
   for (int i = 0; i < chunk->run_num; i++) {
     chunk->runs[i].length = i + 1;
+    chunk->runs[i].value = value_alloc.allocate(1);
     *(reinterpret_cast<int32_t *>(chunk->runs[i].value)) = i * 10;
     // reinterpret_cast<int32_t *>(chunk->values)[i] = i * 10;
   }
