@@ -620,7 +620,7 @@ mod tests {
   #[test]
   pub fn codegen() {
     let plugin_mgr = PluginManager::new();
-    let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+    let jit = JitCompiler::from_bc("../common/target/ir/common.bc").ok().unwrap();
     assert!(jit.get_ty("struct.Chunk").is_some());
     assert!(jit.get_ty("struct.Page").is_some());
 
@@ -667,7 +667,7 @@ mod tests {
   #[test]
   pub fn tpch1() {
     let plugin_mgr = PluginManager::new();
-    let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+    let jit = JitCompiler::from_bc("../common/target/ir/common.bc").ok().unwrap();
     assert!(jit.get_ty("struct.Chunk").is_some());
     assert!(jit.get_ty("struct.Page").is_some());
 
@@ -693,7 +693,7 @@ mod tests {
     // l_extendedprice*(1-l_discount)
     let expr1 = Mul(F64,
                     Field(F64, "l_extendedprice"),
-                    Subtract(F64, Const(1.0f64), Field(F64, "l_discount")));
+                    Sub(F64, Const(1.0f64), Field(F64, "l_discount")));
     // let expr1 = Const(19800401i32);
     // let expr2 = Const(19840115i32);
     // let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
