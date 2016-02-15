@@ -20,16 +20,15 @@ struct Chunk {
   size_t size;
 };
 
-// Simple RLE chunk layout
-//
-// +----------------------+---------------------------+------------------------------+
-// | # of runs (4 ~ 1024) | lengths of runs (1 ~ 256) |     fixed-length values      |
-// |        2 byte        |    # of runs * 1 byte     | # of runs * type length byte |
-// +----------------------+---------------------------+------------------------------+
+// TODO: align each run when using SIMD instructions
+struct Run {
+  uint8_t length;
+  void *value;
+};
+
 struct RLEChunk {
   int16_t run_num;
-  int8_t  *run_lengths;
-  void    *values;
+  Run* runs;
 };
 
 struct Page {
@@ -86,15 +85,16 @@ READ_RLE_VAL(f64, double);
 // TODO: should be removed after implementing write functions for variable-length chunks
 extern "C" RLEChunk random_rle_chunk() {
   std::unique_ptr<RLEChunk> chunk(new RLEChunk);
-  std::allocator<int8_t> length_alloc;
-  std::allocator<int32_t> value_alloc;
+  std::allocator<Run> run_alloc;
 
   chunk->run_num = 10;
-  chunk->run_lengths = length_alloc.allocate(chunk->run_num);
-  chunk->values = value_alloc.allocate(chunk->run_num);
+  chunk->runs = run_alloc.allocate(chunk->run_num);
+  // chunk->run_lengths = length_alloc.allocate(chunk->run_num);
+  // chunk->values = value_alloc.allocate(chunk->run_num);
   for (int i = 0; i < chunk->run_num; i++) {
-    chunk->run_lengths[i] = i + 1;
-    reinterpret_cast<int32_t *>(chunk->values)[i] = i * 10;
+    chunk->runs[i].length = i + 1;
+    *(reinterpret_cast<int32_t *>(chunk->runs[i].value)) = i * 10;
+    // reinterpret_cast<int32_t *>(chunk->values)[i] = i * 10;
   }
   return *chunk;
 }

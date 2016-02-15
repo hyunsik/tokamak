@@ -53,26 +53,22 @@ pub struct Chunk {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
+pub struct Run {
+  pub length: u8,
+  pub value: *const u8,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub struct RLEChunk {
   pub run_num: i16,
-  pub run_lengths: *const i8,
-  pub values: *const u8,
+  pub runs: *const Run,
 }
 
 impl fmt::Display for Chunk {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "Chunk {{ptr:{}, size:{}}}", self.ptr as usize, self.size)
-  }
-}
-
-impl fmt::Display for RLEChunk {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f,
-           "RLEChunk {{ run_num: {}, run_lengths: {}, values: {}}}",
-           self.run_num,
-           self.run_lengths as usize,
-           self.values as usize)
   }
 }
 
