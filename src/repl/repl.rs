@@ -18,7 +18,7 @@ mod value_print;
 
 use std::collections::HashMap;
 use std::io;
-use llvm::{Builder, Function, JitCompiler, Value, ValueRef, Verifier};
+use llvm::{Builder, Function, JitCompiler, ValueRef, Verifier};
 use rl_sys::readline;
 
 use common::plugin::{FuncRegistry, PluginManager};
@@ -33,7 +33,7 @@ use value_print::ValuePrint;
 // Logical Components
 // Repl - Main compoenent for REPL
 // SymbolTable - HashMap, keeping functions and variables in top-level module
-// IncCompiler - Imitate incremental execution with some tricky way
+// IncrementalCompiler - Imitate incremental execution with some tricky way
 // ValuePrinter - Print the value contents.
 
 pub struct Repl<'a> {
@@ -46,7 +46,7 @@ pub struct Repl<'a> {
   out: &'a mut io::Write, // can be stdout or anything else,
 
   // for compile internal
-  compiler: IncCompiler<'a>,
+  compiler: IncrementalCompiler<'a>,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -74,7 +74,7 @@ impl<'a> Repl<'a> {
 
       out: out,
 
-      compiler: IncCompiler {
+      compiler: IncrementalCompiler {
         jit: jit,
         fn_reg: plugin_mgr.fn_registry(),
         sess: sess,
@@ -133,7 +133,7 @@ impl<'a> Repl<'a> {
 
                       ast.clear();
                       tokens.clear();
-                      self.jit.delete_func(&f);
+                      llvm::delete_func(&f);
                     }
                     Err(msg) => {
                       println!("{}", msg);
@@ -156,7 +156,12 @@ impl<'a> Repl<'a> {
   }
 }
 
-pub struct IncCompiler<'a> {
+/// Evaluator: Expr -> String
+
+/// ValuePrint: Value -> String
+
+/// IncCompiler: Expr -> Value
+pub struct IncrementalCompiler<'a> {
   pub jit: &'a JitCompiler,
   pub sess: &'a Session,
   pub fn_reg: &'a FuncRegistry,
@@ -164,7 +169,7 @@ pub struct IncCompiler<'a> {
 }
 
 
-impl<'a> IncCompiler<'a> {
+impl<'a> IncrementalCompiler<'a> {
   fn create_fn_proto(&self, bld: &Builder, ret_ty: &Ty) -> Function {
     let jit = self.jit;
     jit.create_func_prototype("processor",
@@ -195,20 +200,6 @@ impl<'a> IncCompiler<'a> {
 
 // TODO - Error should include span and error message.
 
-// Print a value according to the Type
-pub struct ValuePrinter;
-
-impl ValuePrinter {
-  pub fn print(ty: &Ty, val: &Value) {
-    match *ty {
-      Ty::Bool => {}
-      Ty::I64 => println!("x {}", val),
-      _ => panic!("Unknown"),
-    }
-  }
-}
-
-
 pub fn main() {
   env_logger::init().unwrap();
 
@@ -217,7 +208,7 @@ pub fn main() {
 
   // Initialize system context
   let plugin_mgr = &PluginManager::new();
-  let jit = &JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+  let jit = &JitCompiler::from_bc("../common/target/ir/common.bc").ok().unwrap();
   assert!(jit.get_ty("struct.Chunk").is_some());
   assert!(jit.get_ty("struct.Page").is_some());
   let sess = &Session;
