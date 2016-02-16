@@ -1,10 +1,10 @@
-use std::fmt::Write;
+use std::io;
 
 use common::page::{c_api, Page};
 use common::types::Ty;
 
 pub trait RowPrinter {
-  fn write(&[&Ty], &Page, &mut String);
+  fn write(&[&Ty], &Page, &mut io::Write);
 }
 
 
@@ -17,7 +17,7 @@ macro_rules! write_value(
 );
 
 impl RowPrinter for ColumnarRowPrinter {
-  fn write(tys: &[&Ty], page: &Page, buf: &mut String) {
+  fn write(tys: &[&Ty], page: &Page, buf: &mut io::Write) {
     for row_idx in 0..page.value_count() {
 
       // newline for rows
@@ -33,7 +33,13 @@ impl RowPrinter for ColumnarRowPrinter {
         }
 
         match **ty {
-          Ty::Bool => write!(buf, "{}", unsafe { c_api::read_i8_raw(page.chunk(col_idx), row_idx) }),
+          Ty::Bool => {
+            if unsafe { c_api::read_i8_raw(page.chunk(col_idx), row_idx) } == 0 {
+              write!(buf, "false")
+            } else {
+              write!(buf, "true")
+            }
+          },
           Ty::I8 => write!(buf, "{}", unsafe { c_api::read_i8_raw(page.chunk(col_idx), row_idx) }),
           Ty::I16 => write!(buf, "{}", unsafe { c_api::read_i16_raw(page.chunk(col_idx), row_idx) }),
           Ty::I32 => write!(buf, "{}", unsafe { c_api::read_i32_raw(page.chunk(col_idx), row_idx) }),
