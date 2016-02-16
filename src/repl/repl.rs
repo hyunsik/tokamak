@@ -147,10 +147,6 @@ impl<'a> Repl<'a> {
   }
 }
 
-/// Evaluator: Expr -> String
-/// ValuePrint: Value -> String
-/// IncCompiler: Expr -> Value
-
 pub struct Evaluator;
 
 impl Evaluator {
@@ -164,25 +160,13 @@ impl Evaluator {
                                &NamedSchema::new(&[], &[]),
                                &[expr]) {
 
-      Ok((llvm_func, map)) => {
+      Ok((llvm_func, eval_fn)) => {
         let result_ty = expr.ty();
-
-        // debug!("{:?}", r.0[0]);
-        // if log_enabled!(::log::LogLevel::Debug) {
-        // f.dump();
-        // }
-        // Verifier::verify_func(f).unwrap_or_else(|err_msg| {
-        // if !log_enabled!(::log::LogLevel::Debug) {
-        // f.dump();
-        // }
-        // panic!("{}", err_msg);
-        // });
-
         let in_page = Page::empty_page(0);
         let mut out_page = Page::new(&[result_ty], None);
         let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
-        map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
-        out_page.set_value_count(1);
+        eval_fn(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
+        out_page.set_value_count(1); // because of a single expression
 
         let mut buf: Vec<u8> = Vec::new();
         ColumnarPagePrinter::write(&[result_ty], &out_page, &mut BufWriter::new(&mut buf));
@@ -197,13 +181,6 @@ impl Evaluator {
     }
   }
 }
-
-// Execute the completed AST, then
-// * return a value if expression
-// * return an empty value if statement
-// * return error if any error is included
-
-// TODO - Error should include span and error message.
 
 pub fn main() {
   env_logger::init().unwrap();
