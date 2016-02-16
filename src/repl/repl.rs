@@ -44,9 +44,6 @@ pub struct Repl<'a> {
 
   // in/out descriptors
   out: &'a mut io::Write, // can be stdout or anything else,
-
-  // for compile internal
-  compiler: IncrementalCompiler<'a>,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -72,15 +69,7 @@ impl<'a> Repl<'a> {
       module: Module::new(jit.context(), "root"),
       sess: sess,
       plugin_mgr: plugin_mgr,
-
-      out: out,
-
-      compiler: IncrementalCompiler {
-        jit: jit,
-        fn_reg: plugin_mgr.fn_registry(),
-        sess: sess,
-        sym_tb: HashMap::new(),
-      },
+      out: out
     }
   }
 
@@ -109,16 +98,18 @@ impl<'a> Repl<'a> {
           self.jit.add_module(&self.module);
 
           match parsed {
-            Ok(r) => {
-              match r.1.len() {
+            Ok((exprs, remain_tokens)) => {
+              match remain_tokens.len() {
                 0 => {
                   match MapCompiler::compile(self.jit,
                           &self.module,
                           self.plugin_mgr.fn_registry(),
                           self.sess,
                           &NamedSchema::new(&[], &[]),
-                          &[&r.0[0]]) {
+                          &[&exprs[0]]) {
                     Ok((llvm_func, map)) => {
+                      let result_ty = exprs[0].ty();
+
                       /*
                       debug!("{:?}", r.0[0]);
                       if log_enabled!(::log::LogLevel::Debug) {
@@ -132,14 +123,14 @@ impl<'a> Repl<'a> {
                       });*/
 
                       let in_page = Page::empty_page(0);
-                      let mut out_page = Page::new(&[r.0[0].ty()], None);
+                      let mut out_page = Page::new(&[result_ty], None);
                       let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
                       map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
                       out_page.set_value_count(1);
 
-                      let mut buf = String::new();
-                      ColumnarRowPrinter::write(&[r.0[0].ty()], &out_page, &mut buf);
-                      println!("{}", buf);
+                      ColumnarRowPrinter::write(&[result_ty], &out_page, self.out);
+                      self.out.write("\n".as_bytes()).ok().unwrap();
+                      self.out.flush().ok().unwrap();
 
                       self.jit.remove_module(&self.module);
                       llvm::delete_func(&llvm_func);
@@ -168,41 +159,8 @@ impl<'a> Repl<'a> {
 }
 
 /// Evaluator: Expr -> String
-
 /// ValuePrint: Value -> String
-
 /// IncCompiler: Expr -> Value
-pub struct IncrementalCompiler<'a> {
-  pub jit: &'a JitCompiler,
-  pub sess: &'a Session,
-  pub fn_reg: &'a FuncRegistry,
-  pub sym_tb: HashMap<(SymbolKind, String), Symbol>,
-}
-
-
-impl<'a> IncrementalCompiler<'a> {
-  fn create_fn_proto(&self, bld: &Builder, ret_ty: &Ty) -> Function {
-    let jit = self.jit;
-    jit.create_func_prototype("processor",
-                              to_llvm_ty(jit, ret_ty),
-                              &[],
-                              Some(bld))
-  }
-
-  fn compile(&self, expr: &Expr) -> Result<Function, String> {
-    let bld = self.jit.new_builder();
-    let func = self.create_fn_proto(&bld, expr.ty());
-    let mut exprc = ExprCompiler::new(self.jit, self.fn_reg, self.sess, &bld);
-
-    match exprc.compile2(&bld, expr) {
-      Ok(value) => {
-        bld.create_ret(&value);
-        Ok(func)
-      }
-      Err(_) => Err("".to_string()),
-    }
-  }
-}
 
 // Execute the completed AST, then
 // * return a value if expression
