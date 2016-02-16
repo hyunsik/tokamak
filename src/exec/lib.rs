@@ -44,6 +44,7 @@ pub mod processor;
 pub mod filter;
 pub mod hash_join;
 pub mod scan;
+pub mod value_print;
 
 use std::collections::HashMap;
 
@@ -52,6 +53,7 @@ use common::page::Page;
 use common::types::Ty;
 
 use driver::DriverContext;
+pub use value_print::{ColumnarRowPrinter, RowPrinter};
 
 pub trait Executor
 {
@@ -84,6 +86,10 @@ impl<'a> NamedSchema<'a> {
     }
   }
 
+  pub fn size(&self) -> usize {
+    self.names.len()
+  }
+
   pub fn find_ids(&self, names: &[&str]) -> Vec<usize> {
     (0..self.names.len())
       .zip(self.names)
@@ -96,5 +102,32 @@ impl<'a> NamedSchema<'a> {
     izip!(0..self.names.len(), self.names, self.types)
       .map(|(id, n, t)| (*n, (id, *t)))
       .collect::<HashMap<&str, (usize, &Ty)>>()
+  }
+}
+
+pub struct NamedSchemaIterator<'a> {
+  schema: &'a NamedSchema<'a>,
+  pos   : usize
+}
+
+impl<'a> Iterator for NamedSchemaIterator<'a> {
+  type Item = (&'a str, &'a Ty);
+
+  fn next(&mut self) -> Option<(&'a str, &'a Ty)> {
+    let pos = self.pos;
+    if pos < self.schema.names.len() {
+      Some( (self.schema.names[pos], self.schema.types[pos]) )
+    } else {
+      None
+    }
+  }
+}
+
+impl<'a> IntoIterator for &'a NamedSchema<'a> {
+  type Item = (&'a str, &'a Ty);
+  type IntoIter = NamedSchemaIterator<'a>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    NamedSchemaIterator {schema: self, pos: 0}
   }
 }

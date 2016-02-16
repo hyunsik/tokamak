@@ -257,8 +257,6 @@ impl<'a> MapCompiler<'a> {
     mapc.write_nonconst_values(builder, func, schema.types.len(), exprs);
     builder.create_ret_void();
 
-    // dump code
-    jit.dump();
     Ok(mapc.ret_func(&func))
   }
 

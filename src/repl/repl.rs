@@ -14,21 +14,20 @@ extern crate common;
 extern crate exec;
 extern crate plan;
 
-mod value_print;
-
 use std::collections::HashMap;
 use std::io;
 use llvm::{Builder, Function, JitCompiler, ValueRef, Verifier};
 use rl_sys::readline;
 
+use common::page::{Page, ROWBATCH_SIZE};
 use common::plugin::{FuncRegistry, PluginManager};
 use common::types::{HasType, Ty};
 use common::session::Session;
-use exec::processor::{ExprCompiler, to_llvm_ty};
+use exec::{NamedSchema, ColumnarRowPrinter, RowPrinter};
+use exec::processor::{MapCompiler, ExprCompiler, to_llvm_ty};
 use plan::expr::Expr;
 use parser::lexer;
 use parser::parser as p;
-use value_print::ValuePrint;
 
 // Logical Components
 // Repl - Main compoenent for REPL
@@ -96,7 +95,6 @@ impl<'a> Repl<'a> {
   /// Loop for read and eval
   pub fn eval_loop(&mut self) {
 
-    let value_print = ValuePrint::new(self.jit);
     let mut tokens = Vec::new();
     let mut ast = Vec::new();
 
@@ -110,9 +108,13 @@ impl<'a> Repl<'a> {
             Ok(r) => {
               match r.1.len() {
                 0 => {
-                  match self.compiler.compile(&r.0[0]) {
-                    Ok(ref f) => {
-
+                  match MapCompiler::compile(self.jit,
+                          self.plugin_mgr.fn_registry(),
+                          self.sess,
+                          &NamedSchema::new(&[], &[]),
+                          &[&r.0[0]]) {
+                    Ok(f) => {
+                      /*
                       debug!("{:?}", r.0[0]);
                       if log_enabled!(::log::LogLevel::Debug) {
                         f.dump();
@@ -122,21 +124,23 @@ impl<'a> Repl<'a> {
                           f.dump();
                         }
                         panic!("{}", err_msg);
-                      });
+                      });*/
+
+                      let in_page = Page::empty_page(0);
+                      let mut out_page = Page::new(&[r.0[0].ty()], None);
+                      let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
+                      f(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
+                      out_page.set_value_count(1);
 
                       let mut buf = String::new();
-                      value_print.print(f, r.0[0].ty(), &mut buf);
-
-                      self.out.write(buf.as_bytes()).ok().unwrap();
-                      self.out.write("\n".as_bytes()).ok().unwrap();
-                      self.out.flush().ok().unwrap();
+                      ColumnarRowPrinter::write(&[r.0[0].ty()], &out_page, &mut buf);
+                      println!(">>> {}", buf);
 
                       ast.clear();
                       tokens.clear();
-                      llvm::delete_func(&f);
                     }
                     Err(msg) => {
-                      println!("{}", msg);
+                      panic!("error");
                       ast.clear();
                       tokens.clear();
                     }
