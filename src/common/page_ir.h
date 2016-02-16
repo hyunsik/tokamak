@@ -20,15 +20,20 @@ struct Chunk {
   size_t size;
 };
 
-// TODO: align each run when using SIMD instructions
-struct Run {
-  uint8_t length;
-  void *value;
-};
-
+// Simple Run-length chunk layout
+//
+// +----------------------+---------------------------+------------------------------+
+// | # of runs (4 ~ 1024) | lengths of runs (1 ~ 256) |     fixed-length values      |
+// |        2 byte        |    # of runs * 1 byte     | # of runs * type length byte |
+// +----------------------+---------------------------+------------------------------+
+//
+// Full data scan is very popular in OLAP workloads. So, only the values in each run-length chunk are mostly expected to be read sequentially.
+// In addition, to retrieve a single value from a run-length chunk, the lengths are expected to be read sequentially.
+// The structure of run-length chunk is suitable to maximize the locality in memory space in both cases.
 struct RLEChunk {
   int16_t run_num;
-  Run* runs;
+  int8_t  *lengths;
+  void    *values;
 };
 
 struct Page {
@@ -85,18 +90,15 @@ READ_RLE_VAL(f64, double);
 // TODO: should be removed after implementing write functions for variable-length chunks
 extern "C" RLEChunk random_rle_chunk() {
   std::unique_ptr<RLEChunk> chunk(new RLEChunk);
-  std::allocator<Run> run_alloc;
+  std::allocator<int8_t> length_alloc;
   std::allocator<int32_t> value_alloc;
 
   chunk->run_num = 10;
-  chunk->runs = run_alloc.allocate(chunk->run_num);
-  // chunk->run_lengths = length_alloc.allocate(chunk->run_num);
-  // chunk->values = value_alloc.allocate(chunk->run_num);
+  chunk->lengths = length_alloc.allocate(chunk->run_num);
+  chunk->values = value_alloc.allocate(chunk->run_num);
   for (int i = 0; i < chunk->run_num; i++) {
-    chunk->runs[i].length = i + 1;
-    chunk->runs[i].value = value_alloc.allocate(1);
-    *(reinterpret_cast<int32_t *>(chunk->runs[i].value)) = i * 10;
-    // reinterpret_cast<int32_t *>(chunk->values)[i] = i * 10;
+    chunk->lengths[i] = i + 1;
+    reinterpret_cast<int32_t *>(chunk->values)[i] = i * 10;
   }
   return *chunk;
 }

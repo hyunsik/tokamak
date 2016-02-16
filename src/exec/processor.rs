@@ -17,8 +17,7 @@ use common::page::{Chunk, EncType, Page, ROWBATCH_SIZE, c_api};
 use common::session::Session;
 use common::types::{HasType, Ty, name};
 
-use jit::{Arg, Builder, CastOp, Function, JitCompiler, LLVMContextRef, Predicate, ToValue, Value,
-          ValueRef};
+use jit::{Arg, Builder, CastOp, Function, JitCompiler, LLVMContextRef, Module, Predicate, ToValue, Value, ValueRef};
 use jit::block::BasicBlock;
 use jit::types::{self, LLVMTy};
 use plan::expr::*;
@@ -83,7 +82,7 @@ pub trait CodeGenContext<'a> {
 
 pub struct MapCompiler<'a> {
   jit: &'a JitCompiler,
-  ctx: LLVMContextRef,
+  module: &'a Module,
   fn_reg: &'a FuncRegistry,
   sess: &'a Session,
   schema: &'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>,
@@ -100,7 +99,7 @@ impl<'a> CodeGenContext<'a> for MapCompiler<'a> {
     self.jit
   }
   fn context(&self) -> LLVMContextRef {
-    self.ctx
+    self.jit.context()
   }
   fn fn_registry(&self) -> &'a FuncRegistry {
     self.fn_reg
@@ -115,6 +114,7 @@ impl<'a> CodeGenContext<'a> for MapCompiler<'a> {
 
 impl<'a> MapCompiler<'a> {
   pub fn new(jit: &'a JitCompiler,
+             module: &'a Module,
              fn_reg: &'a FuncRegistry,
              sess: &'a Session,
              schema: &'a HashMap<&'a str, (usize, &'a Ty, &'a EncType)>,
@@ -123,7 +123,7 @@ impl<'a> MapCompiler<'a> {
 
     MapCompiler {
       jit: jit,
-      ctx: jit.context(),
+      module: module,
       fn_reg: fn_reg,
       sess: sess,
       schema: schema,
@@ -143,7 +143,7 @@ impl<'a> MapCompiler<'a> {
     (0..num)
       .map(|idx| {
         bld.create_call(&self.get_chunk_fns[idx],
-                        &[&in_page, &idx.to_value(self.ctx)])
+                        &[&in_page, &idx.to_value(self.context())])
       })
       .collect::<Vec<Value>>()
   }
@@ -238,29 +238,29 @@ impl<'a> MapCompiler<'a> {
   }
 
   pub fn compile(jit: &JitCompiler,
+                 module: &Module,
                  fn_reg: &FuncRegistry,
                  sess: &Session,
                  schema: &NamedSchema,
                  exprs: &[&Expr])
-                 -> Result<Rc<MapFunc>> {
+                 -> Result<(Function, Rc<MapFunc>)> {
 
     let ctx = jit.context();
     let builder = &jit.new_builder();
 
     let schema_map = schema.to_map();
-    let mapc = MapCompiler::new(jit, fn_reg, sess, &schema_map, schema.enc_types);
-    let func = &mapc.create_fn_prototype(builder);
+    let mapc = MapCompiler::new(jit, module, fn_reg, sess, &schema_map, schema.enc_types);
+    let func = mapc.create_fn_prototype(builder);
 
     let sel_list: &Value = &func.arg(2).into();
     let row_num: &Value = &func.arg(3).into();
 
-    mapc.write_const_values(builder, func, exprs);
-    mapc.write_nonconst_values(builder, func, schema.types.len(), exprs);
+    mapc.write_const_values(builder, &func, exprs);
+    mapc.write_nonconst_values(builder, &func, schema.types.len(), exprs);
     builder.create_ret_void();
 
-    // dump code
-    jit.dump();
-    Ok(mapc.ret_func(&func))
+    let map_func = mapc.ret_func(&func);
+    Ok((func, map_func))
   }
 
   fn write_value(&self,
@@ -298,7 +298,7 @@ impl<'a> MapCompiler<'a> {
     let sellist_ty = jit.get_i64_ty().pointer_ty(); // *const usize
     let usize_ty = jit.get_i64_ty(); // usize
 
-    jit.create_func_prototype("processor",
+    self.module.create_func_prototype("processor",
                               &i32::llvm_ty(jit.context()),
                               &[&page_ty, &page_ty, &sellist_ty, &usize_ty],
                               Some(bld))
@@ -645,7 +645,7 @@ mod tests {
   #[test]
   pub fn codegen() {
     let plugin_mgr = PluginManager::new();
-    let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+    let jit = JitCompiler::from_bc("../common/target/ir/common.bc").ok().unwrap();
     assert!(jit.get_ty("struct.Chunk").is_some());
     assert!(jit.get_ty("struct.Page").is_some());
 
@@ -662,6 +662,7 @@ mod tests {
     let session = Session;
 
     let map = MapCompiler::compile(&jit,
+                                   jit.module(),
                                    plugin_mgr.fn_registry(),
                                    &session,
                                    &schema,
@@ -693,7 +694,7 @@ mod tests {
   #[test]
   pub fn tpch1() {
     let plugin_mgr = PluginManager::new();
-    let jit = JitCompiler::new_from_bc("../common/target/ir/common.bc").ok().unwrap();
+    let jit = JitCompiler::from_bc("../common/target/ir/common.bc").ok().unwrap();
     assert!(jit.get_ty("struct.Chunk").is_some());
     assert!(jit.get_ty("struct.Page").is_some());
 
@@ -720,7 +721,7 @@ mod tests {
     // l_extendedprice*(1-l_discount)
     let expr1 = Mul(F64,
                     Field(F64, "l_extendedprice"),
-                    Subtract(F64, Const(1.0f64), Field(F64, "l_discount")));
+                    Sub(F64, Const(1.0f64), Field(F64, "l_discount")));
     // let expr1 = Const(19800401i32);
     // let expr2 = Const(19840115i32);
     // let expr1 = Plus(I32, Const(19800401i32), Const(1i32));
@@ -735,7 +736,7 @@ mod tests {
     // 															 &session,
     // 															 &schema,
     // 															 &expr).ok().unwrap();
-    let map = MapCompiler::compile(&jit, plugin_mgr.fn_registry(), &session, schema, &[&expr1])
+    let map = MapCompiler::compile(&jit, jit.module(), plugin_mgr.fn_registry(), &session, schema, &[&expr1])
                 .ok()
                 .unwrap();
 

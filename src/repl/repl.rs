@@ -14,21 +14,20 @@ extern crate common;
 extern crate exec;
 extern crate plan;
 
-mod value_print;
-
-use std::collections::HashMap;
-use std::io;
-use llvm::{Builder, Function, JitCompiler, ValueRef, Verifier};
+use std::io::{self, BufWriter, Write};
+use llvm::{JitCompiler, Module, ValueRef};
 use rl_sys::readline;
 
-use common::plugin::{FuncRegistry, PluginManager};
-use common::types::{HasType, Ty};
+use common::page::{Page, ROWBATCH_SIZE};
+use common::page_printer::{ColumnarPagePrinter, PagePrinter};
+use common::plugin::{PluginManager};
+use common::types::HasType;
 use common::session::Session;
-use exec::processor::{ExprCompiler, to_llvm_ty};
-use plan::expr::Expr;
-use parser::lexer;
+use exec::NamedSchema;
+use exec::processor::MapCompiler;
+use parser::lexer::{self, Token};
 use parser::parser as p;
-use value_print::ValuePrint;
+use plan::expr::Expr;
 
 // Logical Components
 // Repl - Main compoenent for REPL
@@ -38,15 +37,17 @@ use value_print::ValuePrint;
 
 pub struct Repl<'a> {
   // for system
-  jit: &'a JitCompiler,
-  sess: &'a Session,
-  plugin_mgr: &'a PluginManager<'a>,
+  ctx: ReplContext<'a>,
 
   // in/out descriptors
   out: &'a mut io::Write, // can be stdout or anything else,
+}
 
-  // for compile internal
-  compiler: IncrementalCompiler<'a>,
+pub struct ReplContext<'a> {
+  jit: &'a JitCompiler,
+  module: Module,
+  sess: &'a Session,
+  plugin_mgr: &'a PluginManager<'a>,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -61,6 +62,10 @@ pub enum SymbolKind {
 
 pub struct Symbol;
 
+fn is_complete_stmt(tokens: &Vec<Token>) -> bool {
+  tokens.len() == 0
+}
+
 impl<'a> Repl<'a> {
   pub fn new(sess: &'a Session,
              plugin_mgr: &'a PluginManager<'a>,
@@ -68,137 +73,126 @@ impl<'a> Repl<'a> {
              out: &'a mut io::Write)
              -> Repl<'a> {
     Repl {
-      jit: jit,
-      sess: sess,
-      plugin_mgr: plugin_mgr,
-
-      out: out,
-
-      compiler: IncrementalCompiler {
+      ctx: ReplContext {
         jit: jit,
-        fn_reg: plugin_mgr.fn_registry(),
+        module: Module::new(jit.context(), "root"),
         sess: sess,
-        sym_tb: HashMap::new(),
+        plugin_mgr: plugin_mgr,
       },
+      out: out,
     }
   }
 
-  /// Execute a statement or expression (public for testing)
-  pub fn execute(stmts: &str) -> Result<(), String> {
-    Ok(())
+  pub fn print(&mut self, msg: &str) -> &mut Self {
+    self.out.write(msg.as_bytes()).ok().unwrap();
+    self
   }
 
-  /// Execute a meta command (public for testing)
-  pub fn run_metacmd(cmd: &str) -> Result<(), String> {
-    Ok(())
+  pub fn newline(&mut self) -> &mut Self {
+    self.out.write("\n".as_bytes()).ok().unwrap();
+    self
+  }
+
+  pub fn flush(&mut self) -> &mut Self {
+    self.out.flush().ok().unwrap();
+    self
+  }
+
+  /// for unit test
+  pub fn eval(&mut self, line: &str) -> Result<String, String> {
+    let tokens = lexer::tokenize(&line);
+    let parsed = p::parse(&tokens[..], &vec![]);
+
+    match parsed {
+      Ok((exprs, remain_tokens)) => {
+        if is_complete_stmt(&remain_tokens) {
+          Evaluator::eval(&self.ctx, &exprs[0])
+        } else {
+          Err("Incomplete statement".to_string())
+        }
+      }
+      Err(msg) => Err(format!("{}", msg)),
+    }
+  }
+
+  /// Incrementally parse and eval statements
+  pub fn try_eval(&mut self, tokens: &mut Vec<Token>, ast: &mut Vec<Expr>, line: &str) {
+    tokens.extend(lexer::tokenize(&line));
+    let parsed = p::parse(&tokens[..], &ast[..]);
+
+    match parsed {
+      Ok((exprs, remain_tokens)) => {
+        if is_complete_stmt(&remain_tokens) {
+          match Evaluator::eval(&self.ctx, &exprs[0]) {
+            Ok(result) => {
+              self.print(&result).newline().flush();
+              ast.clear();
+              tokens.clear();
+            }
+            Err(msg) => {
+              panic!("{}", msg);
+            }
+          }
+        }
+      }
+
+      Err(msg) => println!("{}", msg),
+    }
   }
 
   /// Loop for read and eval
   pub fn eval_loop(&mut self) {
 
-    let value_print = ValuePrint::new(self.jit);
+    let mut linenum = 1usize; // repl line number
     let mut tokens = Vec::new();
     let mut ast = Vec::new();
 
     loop {
-      match readline::readline("\x1b[33mtkm> \x1b[0m") {
-        Ok(Some(line)) => {
-          tokens.extend(lexer::tokenize(&line));
-          let parsed = p::parse(&tokens[..], &ast[..]);
-
-          match parsed {
-            Ok(r) => {
-              match r.1.len() {
-                0 => {
-                  match self.compiler.compile(&r.0[0]) {
-                    Ok(ref f) => {
-
-                      debug!("{:?}", r.0[0]);
-                      if log_enabled!(::log::LogLevel::Debug) {
-                        f.dump();
-                      }
-                      Verifier::verify_func(f).unwrap_or_else(|err_msg| {
-                        if !log_enabled!(::log::LogLevel::Debug) {
-                          f.dump();
-                        }
-                        panic!("{}", err_msg);
-                      });
-
-                      let mut buf = String::new();
-                      value_print.print(f, r.0[0].ty(), &mut buf);
-
-                      self.out.write(buf.as_bytes()).ok().unwrap();
-                      self.out.write("\n".as_bytes()).ok().unwrap();
-                      self.out.flush().ok().unwrap();
-
-                      ast.clear();
-                      tokens.clear();
-                      llvm::delete_func(&f);
-                    }
-                    Err(msg) => {
-                      println!("{}", msg);
-                      ast.clear();
-                      tokens.clear();
-                    }
-                  }
-                }
-                _ => {}
-              }
-            }
-            Err(msg) => println!("{}", msg),
-          }
-        }
+      match readline::readline(&format!("\x1b[33mtkm [{}]> \x1b[0m", linenum)) {
+        Ok(Some(line)) => self.try_eval(&mut ast, &mut tokens, &line),
         Ok(None) => break,
         Err(e) => println!("{}", e),
       };
-      // add_history(line);
+
+      linenum += 1;
     }
   }
 }
 
-/// Evaluator: Expr -> String
+pub struct Evaluator;
 
-/// ValuePrint: Value -> String
+impl Evaluator {
+  pub fn eval(ctx: &ReplContext, expr: &Expr) -> Result<String, String> {
+    ctx.jit.add_module(&ctx.module);
 
-/// IncCompiler: Expr -> Value
-pub struct IncrementalCompiler<'a> {
-  pub jit: &'a JitCompiler,
-  pub sess: &'a Session,
-  pub fn_reg: &'a FuncRegistry,
-  pub sym_tb: HashMap<(SymbolKind, String), Symbol>,
-}
+    match MapCompiler::compile(ctx.jit,
+                               &ctx.module,
+                               ctx.plugin_mgr.fn_registry(),
+                               ctx.sess,
+                               &NamedSchema::new(&[], &[]),
+                               &[expr]) {
 
+      Ok((llvm_func, eval_fn)) => {
+        let result_ty = expr.ty();
+        let in_page = Page::empty_page(0);
+        let mut out_page = Page::new(&[result_ty], None);
+        let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
+        eval_fn(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
+        out_page.set_value_count(1); // because of a single expression
 
-impl<'a> IncrementalCompiler<'a> {
-  fn create_fn_proto(&self, bld: &Builder, ret_ty: &Ty) -> Function {
-    let jit = self.jit;
-    jit.create_func_prototype("processor",
-                              to_llvm_ty(jit, ret_ty),
-                              &[],
-                              Some(bld))
-  }
+        let mut buf: Vec<u8> = Vec::new();
+        ColumnarPagePrinter::write(&[result_ty], &out_page, &mut BufWriter::new(&mut buf));
 
-  fn compile(&self, expr: &Expr) -> Result<Function, String> {
-    let bld = self.jit.new_builder();
-    let func = self.create_fn_proto(&bld, expr.ty());
-    let mut exprc = ExprCompiler::new(self.jit, self.fn_reg, self.sess, &bld);
-
-    match exprc.compile2(&bld, expr) {
-      Ok(value) => {
-        bld.create_ret(&value);
-        Ok(func)
+        ctx.jit.remove_module(&ctx.module);
+        llvm::delete_func(&llvm_func);
+        Ok(String::from_utf8(buf).ok().expect("invalid UTF-8 characters"))
       }
-      Err(_) => Err("".to_string()),
+      Err(msg) => {
+        panic!("error");
+      }
     }
   }
 }
-
-// Execute the completed AST, then
-// * return a value if expression
-// * return an empty value if statement
-// * return error if any error is included
-
-// TODO - Error should include span and error message.
 
 pub fn main() {
   env_logger::init().unwrap();

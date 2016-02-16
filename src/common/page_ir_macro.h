@@ -22,9 +22,9 @@
     int16_t i; \
     size_t r = 0; \
     for (i = 0; i < n; i++) { \
-      r += chunk->runs[i].length; \
+      r += chunk->lengths[i]; \
       if (r > idx) { \
-        return *(reinterpret_cast<type *>(chunk->runs[i].value)); \
+        return reinterpret_cast<type *>(chunk->values)[i]; \
       } \
     } \
     return -1; \

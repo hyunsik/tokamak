@@ -53,17 +53,11 @@ pub struct Chunk {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
-pub struct Run {
-  pub length: u8,
-  pub value: *const u8,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct RLEChunk {
   pub run_num: i16,
-  pub runs: *const Run,
+  pub lengths: *const u8,
+  pub values: *const u8,
 }
 
 impl fmt::Display for Chunk {
