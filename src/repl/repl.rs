@@ -20,7 +20,7 @@ use rl_sys::readline;
 
 use common::page::{Page, ROWBATCH_SIZE};
 use common::page_printer::{ColumnarPagePrinter, PagePrinter};
-use common::plugin::{FuncRegistry, PluginManager};
+use common::plugin::{PluginManager};
 use common::types::HasType;
 use common::session::Session;
 use exec::NamedSchema;
@@ -62,6 +62,10 @@ pub enum SymbolKind {
 
 pub struct Symbol;
 
+fn is_complete_stmt(tokens: &Vec<Token>) -> bool {
+  tokens.len() == 0
+}
+
 impl<'a> Repl<'a> {
   pub fn new(sess: &'a Session,
              plugin_mgr: &'a PluginManager<'a>,
@@ -79,16 +83,6 @@ impl<'a> Repl<'a> {
     }
   }
 
-  /// Execute a statement or expression (public for testing)
-  pub fn execute(stmts: &str) -> Result<(), String> {
-    Ok(())
-  }
-
-  /// Execute a meta command (public for testing)
-  pub fn run_metacmd(cmd: &str) -> Result<(), String> {
-    Ok(())
-  }
-
   pub fn print(&mut self, msg: &str) -> &mut Self {
     self.out.write(msg.as_bytes()).ok().unwrap();
     self
@@ -104,13 +98,31 @@ impl<'a> Repl<'a> {
     self
   }
 
-  pub fn try_eval(&mut self, tokens: &mut Vec<Token>, ast: &mut Vec<Expr>, line: String) {
+  /// for unit test
+  pub fn eval(&mut self, line: &str) -> Result<String, String> {
+    let tokens = lexer::tokenize(&line);
+    let parsed = p::parse(&tokens[..], &vec![]);
+
+    match parsed {
+      Ok((exprs, remain_tokens)) => {
+        if is_complete_stmt(&remain_tokens) {
+          Evaluator::eval(&self.ctx, &exprs[0])
+        } else {
+          Err("Incomplete statement".to_string())
+        }
+      }
+      Err(msg) => Err(format!("{}", msg)),
+    }
+  }
+
+  /// Incrementally parse and eval statements
+  pub fn try_eval(&mut self, tokens: &mut Vec<Token>, ast: &mut Vec<Expr>, line: &str) {
     tokens.extend(lexer::tokenize(&line));
     let parsed = p::parse(&tokens[..], &ast[..]);
 
     match parsed {
       Ok((exprs, remain_tokens)) => {
-        if remain_tokens.len() == 0 {
+        if is_complete_stmt(&remain_tokens) {
           match Evaluator::eval(&self.ctx, &exprs[0]) {
             Ok(result) => {
               self.print(&result).newline().flush();
@@ -118,7 +130,7 @@ impl<'a> Repl<'a> {
               tokens.clear();
             }
             Err(msg) => {
-              panic!("error");
+              panic!("{}", msg);
             }
           }
         }
@@ -131,13 +143,13 @@ impl<'a> Repl<'a> {
   /// Loop for read and eval
   pub fn eval_loop(&mut self) {
 
-    let mut linenum = 1usize;
+    let mut linenum = 1usize; // repl line number
     let mut tokens = Vec::new();
     let mut ast = Vec::new();
 
     loop {
       match readline::readline(&format!("\x1b[33mtkm [{}]> \x1b[0m", linenum)) {
-        Ok(Some(line)) => self.try_eval(&mut ast, &mut tokens, line),
+        Ok(Some(line)) => self.try_eval(&mut ast, &mut tokens, &line),
         Ok(None) => break,
         Err(e) => println!("{}", e),
       };
