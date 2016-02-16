@@ -1,9 +1,17 @@
-#[macro_use] extern crate common;
+#![feature(alloc)]
+#![feature(heap_api)]
+#[macro_use]
+extern crate common;
+extern crate alloc;
 use common::session::Session;
 use common::types::{BOOL, I8, I16, I32, I64, F32, F64};
-use common::page::{c_api, Page, Chunk, RLEChunk, ROWBATCH_SIZE};
+use common::page::{c_api, Page, Chunk, RLEChunk, ROWBATCH_SIZE, ALIGNED_SIZE};
 use common::input::InputSource;
 use common::storage::RandomTable;
+
+use alloc::heap;
+
+use std::ptr;
 
 fn create_page() -> Page {
   Page::new(&[BOOL, I8, I16, I32, I64, F32, F64], None)
@@ -115,9 +123,29 @@ pub fn test_project()
   }
 }
 
+fn create_rle_chunk() -> RLEChunk {
+  let size = 2 + (1 + 4) * 10;
+  let mut ptr = unsafe { heap::allocate(size, ALIGNED_SIZE) };
+  let mut chunk = RLEChunk {
+    run_num: 10,
+    lengths: ptr,
+    values: unsafe { ptr.offset(10) },
+  };
+
+  for i in 0..10 {
+    unsafe {
+      ptr::write(&mut *(ptr.offset(i)), (i + 1) as u8);
+      ptr::write(&mut *(ptr.offset(10 + i * 4)), (i * 10) as u8);
+    }
+  }
+
+  ::std::mem::forget(chunk);
+  chunk
+}
+
 #[test]
 pub fn test_rle_chunk() {
-  let chunk: RLEChunk = unsafe { c_api::random_rle_chunk() };
+  let chunk: RLEChunk = create_rle_chunk();
   let mut idx: usize = 0;
   for i in 0..10 {
     for j in 0..(i + 1) {
@@ -127,4 +155,6 @@ pub fn test_rle_chunk() {
       idx += 1;
     }
   }
+
+  unsafe { heap::deallocate(chunk.lengths as *mut u8, 52, ALIGNED_SIZE) };
 }

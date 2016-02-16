@@ -86,23 +86,6 @@ READ_RLE_VAL(f32, float);
 READ_RLE_VAL(f64, double);
 
 
-// for test
-// TODO: should be removed after implementing write functions for variable-length chunks
-extern "C" RLEChunk random_rle_chunk() {
-  std::unique_ptr<RLEChunk> chunk(new RLEChunk);
-  std::allocator<int8_t> length_alloc;
-  std::allocator<int32_t> value_alloc;
-
-  chunk->run_num = 10;
-  chunk->lengths = length_alloc.allocate(chunk->run_num);
-  chunk->values = value_alloc.allocate(chunk->run_num);
-  for (int i = 0; i < chunk->run_num; i++) {
-    chunk->lengths[i] = i + 1;
-    reinterpret_cast<int32_t *>(chunk->values)[i] = i * 10;
-  }
-  return *chunk;
-}
-
 void dummy(Page* v1, Chunk* v2) {}
 
 #endif // PAGE_IR_H_
