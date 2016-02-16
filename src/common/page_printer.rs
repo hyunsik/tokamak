@@ -1,22 +1,24 @@
+//! Page Printer
+//!
+//! Convert a page into human-readable string representations according to its
+//! encodings and store methods.
+
 use std::io;
 
-use common::page::{c_api, Page};
-use common::types::Ty;
+use page::{c_api, Page};
+use types::Ty;
 
-pub trait RowPrinter {
+/// PagePrinter trait
+pub trait PagePrinter {
+  /// Write the rows into io::Write instace
   fn write(&[&Ty], &Page, &mut io::Write);
 }
 
+/// PagePrinter for Columnar and RAW encoding page
+pub struct ColumnarPagePrinter;
 
-pub struct ColumnarRowPrinter;
+impl PagePrinter for ColumnarPagePrinter {
 
-macro_rules! write_value(
-  ($ty:ident, $name:ident) => (
-    Ty::$ty => { write!(buf, "{}", unsafe { c_api::$name(page.chunk(col_idx), row_idx) }); }
-  );
-);
-
-impl RowPrinter for ColumnarRowPrinter {
   fn write(tys: &[&Ty], page: &Page, buf: &mut io::Write) {
     for row_idx in 0..page.value_count() {
 

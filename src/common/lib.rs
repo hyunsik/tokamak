@@ -19,6 +19,7 @@ pub mod func;
 pub mod input;
 pub mod mm;
 pub mod page;
+pub mod page_printer;
 pub mod plugin;
 pub mod session;
 pub mod str;

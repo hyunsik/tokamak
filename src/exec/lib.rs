@@ -44,7 +44,6 @@ pub mod processor;
 pub mod filter;
 pub mod hash_join;
 pub mod scan;
-pub mod value_print;
 
 use std::collections::HashMap;
 
@@ -53,7 +52,6 @@ use common::page::Page;
 use common::types::Ty;
 
 use driver::DriverContext;
-pub use value_print::{ColumnarRowPrinter, RowPrinter};
 
 pub trait Executor
 {

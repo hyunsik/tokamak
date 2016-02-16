@@ -14,20 +14,20 @@ extern crate common;
 extern crate exec;
 extern crate plan;
 
-use std::collections::HashMap;
-use std::io;
-use llvm::{Builder, Function, JitCompiler, Module, ValueRef, Verifier};
+use std::io::{self, BufWriter, Write};
+use llvm::{JitCompiler, Module, ValueRef};
 use rl_sys::readline;
 
 use common::page::{Page, ROWBATCH_SIZE};
+use common::page_printer::{ColumnarPagePrinter, PagePrinter};
 use common::plugin::{FuncRegistry, PluginManager};
-use common::types::{HasType, Ty};
+use common::types::HasType;
 use common::session::Session;
-use exec::{NamedSchema, ColumnarRowPrinter, RowPrinter};
-use exec::processor::{MapCompiler, ExprCompiler, to_llvm_ty};
-use plan::expr::Expr;
-use parser::lexer;
+use exec::NamedSchema;
+use exec::processor::MapCompiler;
+use parser::lexer::{self, Token};
 use parser::parser as p;
+use plan::expr::Expr;
 
 // Logical Components
 // Repl - Main compoenent for REPL
@@ -37,13 +37,17 @@ use parser::parser as p;
 
 pub struct Repl<'a> {
   // for system
+  ctx: ReplContext<'a>,
+
+  // in/out descriptors
+  out: &'a mut io::Write, // can be stdout or anything else,
+}
+
+pub struct ReplContext<'a> {
   jit: &'a JitCompiler,
   module: Module,
   sess: &'a Session,
   plugin_mgr: &'a PluginManager<'a>,
-
-  // in/out descriptors
-  out: &'a mut io::Write, // can be stdout or anything else,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -65,11 +69,13 @@ impl<'a> Repl<'a> {
              out: &'a mut io::Write)
              -> Repl<'a> {
     Repl {
-      jit: jit,
-      module: Module::new(jit.context(), "root"),
-      sess: sess,
-      plugin_mgr: plugin_mgr,
-      out: out
+      ctx: ReplContext {
+        jit: jit,
+        module: Module::new(jit.context(), "root"),
+        sess: sess,
+        plugin_mgr: plugin_mgr,
+      },
+      out: out,
     }
   }
 
@@ -83,77 +89,60 @@ impl<'a> Repl<'a> {
     Ok(())
   }
 
+  pub fn print(&mut self, msg: &str) -> &mut Self {
+    self.out.write(msg.as_bytes()).ok().unwrap();
+    self
+  }
+
+  pub fn newline(&mut self) -> &mut Self {
+    self.out.write("\n".as_bytes()).ok().unwrap();
+    self
+  }
+
+  pub fn flush(&mut self) -> &mut Self {
+    self.out.flush().ok().unwrap();
+    self
+  }
+
+  pub fn try_eval(&mut self, tokens: &mut Vec<Token>, ast: &mut Vec<Expr>, line: String) {
+    tokens.extend(lexer::tokenize(&line));
+    let parsed = p::parse(&tokens[..], &ast[..]);
+
+    match parsed {
+      Ok((exprs, remain_tokens)) => {
+        if remain_tokens.len() == 0 {
+          match Evaluator::eval(&self.ctx, &exprs[0]) {
+            Ok(result) => {
+              self.print(&result).newline().flush();
+              ast.clear();
+              tokens.clear();
+            }
+            Err(msg) => {
+              panic!("error");
+            }
+          }
+        }
+      }
+
+      Err(msg) => println!("{}", msg),
+    }
+  }
+
   /// Loop for read and eval
   pub fn eval_loop(&mut self) {
 
+    let mut linenum = 1usize;
     let mut tokens = Vec::new();
     let mut ast = Vec::new();
 
     loop {
-      match readline::readline("\x1b[33mtkm> \x1b[0m") {
-        Ok(Some(line)) => {
-          tokens.extend(lexer::tokenize(&line));
-          let parsed = p::parse(&tokens[..], &ast[..]);
-
-          self.jit.add_module(&self.module);
-
-          match parsed {
-            Ok((exprs, remain_tokens)) => {
-              match remain_tokens.len() {
-                0 => {
-                  match MapCompiler::compile(self.jit,
-                          &self.module,
-                          self.plugin_mgr.fn_registry(),
-                          self.sess,
-                          &NamedSchema::new(&[], &[]),
-                          &[&exprs[0]]) {
-                    Ok((llvm_func, map)) => {
-                      let result_ty = exprs[0].ty();
-
-                      /*
-                      debug!("{:?}", r.0[0]);
-                      if log_enabled!(::log::LogLevel::Debug) {
-                        f.dump();
-                      }
-                      Verifier::verify_func(f).unwrap_or_else(|err_msg| {
-                        if !log_enabled!(::log::LogLevel::Debug) {
-                          f.dump();
-                        }
-                        panic!("{}", err_msg);
-                      });*/
-
-                      let in_page = Page::empty_page(0);
-                      let mut out_page = Page::new(&[result_ty], None);
-                      let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
-                      map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
-                      out_page.set_value_count(1);
-
-                      ColumnarRowPrinter::write(&[result_ty], &out_page, self.out);
-                      self.out.write("\n".as_bytes()).ok().unwrap();
-                      self.out.flush().ok().unwrap();
-
-                      self.jit.remove_module(&self.module);
-                      llvm::delete_func(&llvm_func);
-                      ast.clear();
-                      tokens.clear();
-                    }
-                    Err(msg) => {
-                      panic!("error");
-                      ast.clear();
-                      tokens.clear();
-                    }
-                  }
-                }
-                _ => {}
-              }
-            }
-            Err(msg) => println!("{}", msg),
-          }
-        }
+      match readline::readline(&format!("\x1b[33mtkm [{}]> \x1b[0m", linenum)) {
+        Ok(Some(line)) => self.try_eval(&mut ast, &mut tokens, line),
         Ok(None) => break,
         Err(e) => println!("{}", e),
       };
-      // add_history(line);
+
+      linenum += 1;
     }
   }
 }
@@ -161,6 +150,53 @@ impl<'a> Repl<'a> {
 /// Evaluator: Expr -> String
 /// ValuePrint: Value -> String
 /// IncCompiler: Expr -> Value
+
+pub struct Evaluator;
+
+impl Evaluator {
+  pub fn eval(ctx: &ReplContext, expr: &Expr) -> Result<String, String> {
+    ctx.jit.add_module(&ctx.module);
+
+    match MapCompiler::compile(ctx.jit,
+                               &ctx.module,
+                               ctx.plugin_mgr.fn_registry(),
+                               ctx.sess,
+                               &NamedSchema::new(&[], &[]),
+                               &[expr]) {
+
+      Ok((llvm_func, map)) => {
+        let result_ty = expr.ty();
+
+        // debug!("{:?}", r.0[0]);
+        // if log_enabled!(::log::LogLevel::Debug) {
+        // f.dump();
+        // }
+        // Verifier::verify_func(f).unwrap_or_else(|err_msg| {
+        // if !log_enabled!(::log::LogLevel::Debug) {
+        // f.dump();
+        // }
+        // panic!("{}", err_msg);
+        // });
+
+        let in_page = Page::empty_page(0);
+        let mut out_page = Page::new(&[result_ty], None);
+        let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
+        map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
+        out_page.set_value_count(1);
+
+        let mut buf: Vec<u8> = Vec::new();
+        ColumnarPagePrinter::write(&[result_ty], &out_page, &mut BufWriter::new(&mut buf));
+
+        ctx.jit.remove_module(&ctx.module);
+        llvm::delete_func(&llvm_func);
+        Ok(String::from_utf8(buf).ok().expect("invalid UTF-8 characters"))
+      }
+      Err(msg) => {
+        panic!("error");
+      }
+    }
+  }
+}
 
 // Execute the completed AST, then
 // * return a value if expression
