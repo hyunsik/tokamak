@@ -16,7 +16,7 @@ extern crate plan;
 
 use std::collections::HashMap;
 use std::io;
-use llvm::{Builder, Function, JitCompiler, ValueRef, Verifier};
+use llvm::{Builder, Function, JitCompiler, Module, ValueRef, Verifier};
 use rl_sys::readline;
 
 use common::page::{Page, ROWBATCH_SIZE};
@@ -38,6 +38,7 @@ use parser::parser as p;
 pub struct Repl<'a> {
   // for system
   jit: &'a JitCompiler,
+  module: Module,
   sess: &'a Session,
   plugin_mgr: &'a PluginManager<'a>,
 
@@ -68,6 +69,7 @@ impl<'a> Repl<'a> {
              -> Repl<'a> {
     Repl {
       jit: jit,
+      module: Module::new(jit.context(), "root"),
       sess: sess,
       plugin_mgr: plugin_mgr,
 
@@ -104,16 +106,19 @@ impl<'a> Repl<'a> {
           tokens.extend(lexer::tokenize(&line));
           let parsed = p::parse(&tokens[..], &ast[..]);
 
+          self.jit.add_module(&self.module);
+
           match parsed {
             Ok(r) => {
               match r.1.len() {
                 0 => {
                   match MapCompiler::compile(self.jit,
+                          &self.module,
                           self.plugin_mgr.fn_registry(),
                           self.sess,
                           &NamedSchema::new(&[], &[]),
                           &[&r.0[0]]) {
-                    Ok(f) => {
+                    Ok((llvm_func, map)) => {
                       /*
                       debug!("{:?}", r.0[0]);
                       if log_enabled!(::log::LogLevel::Debug) {
@@ -129,13 +134,15 @@ impl<'a> Repl<'a> {
                       let in_page = Page::empty_page(0);
                       let mut out_page = Page::new(&[r.0[0].ty()], None);
                       let sellist: [usize; ROWBATCH_SIZE] = unsafe { ::std::mem::uninitialized() };
-                      f(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
+                      map(&in_page, &mut out_page, sellist.as_ptr(), ROWBATCH_SIZE);
                       out_page.set_value_count(1);
 
                       let mut buf = String::new();
                       ColumnarRowPrinter::write(&[r.0[0].ty()], &out_page, &mut buf);
-                      println!(">>> {}", buf);
+                      println!("{}", buf);
 
+                      self.jit.remove_module(&self.module);
+                      llvm::delete_func(&llvm_func);
                       ast.clear();
                       tokens.clear();
                     }
