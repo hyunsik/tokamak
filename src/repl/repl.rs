@@ -16,11 +16,12 @@ extern crate plan;
 
 use std::io::{self, BufWriter, Write};
 use llvm::{JitCompiler, Module, ValueRef};
+use log::LogLevel;
 use rl_sys::readline;
 
 use common::page::{Page, ROWBATCH_SIZE};
 use common::page_printer::{ColumnarPagePrinter, PagePrinter};
-use common::plugin::{PluginManager};
+use common::plugin::PluginManager;
 use common::types::HasType;
 use common::session::Session;
 use exec::NamedSchema;
@@ -99,24 +100,21 @@ impl<'a> Repl<'a> {
   }
 
   /// for unit test
-  pub fn eval(&mut self, line: &str) -> Result<String, String> {
-    let tokens = lexer::tokenize(&line);
-    let parsed = p::parse(&tokens[..], &vec![]);
-
-    match parsed {
-      Ok((exprs, remain_tokens)) => {
-        if is_complete_stmt(&remain_tokens) {
-          Evaluator::eval(&self.ctx, &exprs[0])
-        } else {
-          Err("Incomplete statement".to_string())
-        }
-      }
-      Err(msg) => Err(format!("{}", msg)),
-    }
+  pub fn eval_inline(&mut self, line: &str) -> Result<Option<String>, String> {
+    self.eval(&mut Vec::new(), &mut Vec::new(), line)
   }
 
   /// Incrementally parse and eval statements
-  pub fn try_eval(&mut self, tokens: &mut Vec<Token>, ast: &mut Vec<Expr>, line: &str) {
+  ///
+  /// The result is set only if parsing and evaluation are completed.
+  /// The result is none if statement is incomplete.
+  /// The error is set if some error occurs in parsing, code generation or evaluation phase.
+  pub fn eval(&mut self,
+              tokens: &mut Vec<Token>,
+              ast: &mut Vec<Expr>,
+              line: &str)
+              -> Result<Option<String>, String> {
+
     tokens.extend(lexer::tokenize(&line));
     let parsed = p::parse(&tokens[..], &ast[..]);
 
@@ -124,19 +122,14 @@ impl<'a> Repl<'a> {
       Ok((exprs, remain_tokens)) => {
         if is_complete_stmt(&remain_tokens) {
           match Evaluator::eval(&self.ctx, &exprs[0]) {
-            Ok(result) => {
-              self.print(&result).newline().flush();
-              ast.clear();
-              tokens.clear();
-            }
-            Err(msg) => {
-              panic!("{}", msg);
-            }
+            Ok(result) => Ok(Some(result)),
+            Err(errmsg) => Err(errmsg),
           }
+        } else {
+          Ok(None)
         }
       }
-
-      Err(msg) => println!("{}", msg),
+      Err(msg) => Err(msg),
     }
   }
 
@@ -149,9 +142,28 @@ impl<'a> Repl<'a> {
 
     loop {
       match readline::readline(&format!("\x1b[33mtkm [{}]> \x1b[0m", linenum)) {
-        Ok(Some(line)) => self.try_eval(&mut ast, &mut tokens, &line),
-        Ok(None) => break,
-        Err(e) => println!("{}", e),
+        Ok(Some(line)) => {
+          match self.eval(&mut ast, &mut tokens, &line) {
+            Ok(Some(result)) => {
+              self.print(&result).newline().flush();
+              ast.clear();
+              tokens.clear();
+            }
+            Ok(None) => {
+              // when statement is incomplete
+            }
+            Err(msg) => {
+              self.print(&msg).newline().flush();
+              ast.clear();
+              tokens.clear();
+            }
+          }
+        }
+        Ok(None) => break, // when eof
+        Err(e) => {
+          // readline error
+          self.print(&format!("{}", e)).newline().flush();
+        }
       };
 
       linenum += 1;
@@ -187,8 +199,8 @@ impl Evaluator {
         llvm::delete_func(&llvm_func);
         Ok(String::from_utf8(buf).ok().expect("invalid UTF-8 characters"))
       }
-      Err(msg) => {
-        panic!("error");
+      Err(_) => {
+        panic!("Compilation error");
       }
     }
   }
