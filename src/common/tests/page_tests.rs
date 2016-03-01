@@ -3,9 +3,10 @@
 #[macro_use]
 extern crate common;
 extern crate alloc;
+#[macro_use] extern crate itertools;
 use common::session::Session;
 use common::types::{BOOL, I8, I16, I32, I64, F32, F64};
-use common::page::{c_api, Page, Chunk, RLEChunk, ROWBATCH_SIZE, ALIGNED_SIZE};
+use common::page::{c_api, Page, Chunk, RLEChunk, Run, ROWBATCH_SIZE, ALIGNED_SIZE};
 use common::input::InputSource;
 use common::storage::RandomTable;
 
@@ -126,18 +127,22 @@ pub fn test_project()
 fn create_rle_chunk() -> RLEChunk {
   let size = 2 + (1 + 4) * 10;
   let mut ptr = unsafe { heap::allocate(size, ALIGNED_SIZE) };
-  let mut chunk = RLEChunk {
-    run_num: 10,
-    lengths: ptr,
-    values: unsafe { ptr.offset(10) },
-  };
-
   for i in 0..10 {
     unsafe {
-      ptr::write(&mut *(ptr.offset(i)), (i + 1) as u8);
-      ptr::write(&mut *(ptr.offset(10 + i * 4)), (i * 10) as u8);
+      ptr::write(&mut *ptr.offset(i * 5), (i + 1) as u8);
+      ptr::write(&mut *ptr.offset(i * 5 + 1), (i * 10) as u8);
     }
   }
+
+  let mut runs: Vec<Run> = (0..10).map(|i| Run {
+    length: unsafe { ptr.offset(i * 5) },
+    value: unsafe { ptr.offset(i * 5 + 1) },
+  }).collect::<Vec<Run>>();
+
+  let mut chunk = RLEChunk {
+    run_num: 10,
+    runs: runs.as_ptr(),
+  };
 
   ::std::mem::forget(chunk);
   chunk
@@ -156,5 +161,5 @@ pub fn test_rle_chunk() {
     }
   }
 
-  unsafe { heap::deallocate(chunk.lengths as *mut u8, 52, ALIGNED_SIZE) };
+  unsafe { heap::deallocate((*(chunk.runs)).length as *mut u8, 52, ALIGNED_SIZE) };
 }

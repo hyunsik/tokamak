@@ -22,11 +22,13 @@
     int16_t i; \
     size_t r = 0; \
     for (i = 0; i < n; i++) { \
-      r += chunk->lengths[i]; \
-      if (r > idx) { \
-        return reinterpret_cast<type *>(chunk->values)[i]; \
+      Run run = chunk->runs[i]; \
+      if (r <= idx && idx < r + *(run.length)) { \
+        return *(reinterpret_cast<type *>(run.value)); \
       } \
+      r += *(run.length); \
     } \
+    /* TODO: error handling */ \
     return -1; \
   } \
 

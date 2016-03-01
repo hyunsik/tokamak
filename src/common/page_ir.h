@@ -20,20 +20,14 @@ struct Chunk {
   size_t size;
 };
 
-// Simple Run-length chunk layout
-//
-// +----------------------+---------------------------+------------------------------+
-// | # of runs (4 ~ 1024) | lengths of runs (1 ~ 256) |     fixed-length values      |
-// |        2 byte        |    # of runs * 1 byte     | # of runs * type length byte |
-// +----------------------+---------------------------+------------------------------+
-//
-// Full data scan is very popular in OLAP workloads. So, only the values in each run-length chunk are mostly expected to be read sequentially.
-// In addition, to retrieve a single value from a run-length chunk, the lengths are expected to be read sequentially.
-// The structure of run-length chunk is suitable to maximize the locality in memory space in both cases.
+struct Run {
+  uint8_t *length;
+  void * value;
+};
+
 struct RLEChunk {
-  int16_t run_num;
-  int8_t  *lengths;
-  void    *values;
+  uint16_t run_num;
+  Run* runs;
 };
 
 struct Page {
@@ -77,7 +71,7 @@ READ_RAW_VAL(i64, int64_t);
 READ_RAW_VAL(f32, float);
 READ_RAW_VAL(f64, double);
 
-// for RLE chunk
+// RLE chunk interface
 READ_RLE_VAL(i8, int8_t);
 READ_RLE_VAL(i16, int16_t);
 READ_RLE_VAL(i32, int32_t);
@@ -85,6 +79,23 @@ READ_RLE_VAL(i64, int64_t);
 READ_RLE_VAL(f32, float);
 READ_RLE_VAL(f64, double);
 
+// TODO
+// Chunk rle_to_raw(RLEChunk* chunk) {}
+
+// TODO
+// RLEChunk raw_to_rle(Chunk* chunk) {}
+
+// TODO
+// Chunk filter_with_pos_return_chunk(RLEChunk* chunk, vector<size_t> pos) {}
+
+// TODO: take a generated function as the parameter to filter input tuples out
+// vector<size_t> filter_with_pred_return_pos(RLEChunk* chunk, Function predicate) {}
+
+// TODO: take a generated function as the parameter to filter input tuples out
+// type aggregate(RLEChunk* chunk, Function predicate, Function agg_func) {}
+
+// TODO: take a generated function as the parameter to filter input tuples out
+// Chunk sort(RLEChunk* chunk, Function predicate) {}
 
 void dummy(Page* v1, Chunk* v2) {}
 

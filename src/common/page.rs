@@ -48,22 +48,27 @@ pub enum EncType {
 #[derive(Copy, Clone)]
 pub struct Chunk {
   pub ptr: *const u8,
-  pub size: usize,
-  // pub owned: false
-}
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct RLEChunk {
-  pub run_num: i16,
-  pub lengths: *const u8,
-  pub values: *const u8,
+  pub size: usize, // pub owned: false
 }
 
 impl fmt::Display for Chunk {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "Chunk {{ptr:{}, size:{}}}", self.ptr as usize, self.size)
   }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct Run {
+  pub length: *const u8,
+  pub value: *const u8,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct RLEChunk {
+  pub run_num: u16,
+  pub runs: *const Run,
 }
 
 pub struct RawChunkWriter;
@@ -418,8 +423,5 @@ pub mod c_api {
     pub fn read_i64_rle(p: *const RLEChunk, idx: usize) -> i64;
     pub fn read_f32_rle(p: *const RLEChunk, idx: usize) -> f32;
     pub fn read_f64_rle(p: *const RLEChunk, idx: usize) -> f64;
-
-    // for test
-    pub fn random_rle_chunk() -> RLEChunk;
   }
 }
