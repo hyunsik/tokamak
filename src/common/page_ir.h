@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <memory>
+#include <cstdlib>
 
 #include "page_ir_macro.h"
 

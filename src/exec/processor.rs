@@ -619,7 +619,8 @@ pub trait Processor
 
 #[cfg(test)]
 mod tests {
-  use common::page::{Chunk, EncType, Page, ROWBATCH_SIZE, c_api};
+  use common::page::{Chunk, Page, ROWBATCH_SIZE, c_api};
+  use common::page::EncType::{RAW, RLE};
   use common::plugin::*;
   use common::session::Session;
   use common::storage::{MemTable, RandomTable};

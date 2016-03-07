@@ -28,8 +28,8 @@
       } \
       r += *(run.length); \
     } \
-    /* TODO: error handling */ \
-    return -1; \
+    fprintf(stderr, "%zu is greater than # of rows (%zu) in a chunk", idx, r); \
+    std::abort(); \
   } \
 
 #endif // PAGE_IR_MACRO_H_
