@@ -29,3 +29,6 @@ path = "../plan"
 
 [dependencies.parser]
 path = "../parser"
+
+[dependencies.syntax]
+path = "../libsyntax"

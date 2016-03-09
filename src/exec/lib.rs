@@ -105,7 +105,7 @@ impl<'a> NamedSchema<'a> {
 
 pub struct NamedSchemaIterator<'a> {
   schema: &'a NamedSchema<'a>,
-  pos   : usize
+  pos: usize,
 }
 
 impl<'a> Iterator for NamedSchemaIterator<'a> {
@@ -114,7 +114,7 @@ impl<'a> Iterator for NamedSchemaIterator<'a> {
   fn next(&mut self) -> Option<(&'a str, &'a Ty)> {
     let pos = self.pos;
     if pos < self.schema.names.len() {
-      Some( (self.schema.names[pos], self.schema.types[pos]) )
+      Some((self.schema.names[pos], self.schema.types[pos]))
     } else {
       None
     }
@@ -126,6 +126,9 @@ impl<'a> IntoIterator for &'a NamedSchema<'a> {
   type IntoIter = NamedSchemaIterator<'a>;
 
   fn into_iter(self) -> Self::IntoIter {
-    NamedSchemaIterator {schema: self, pos: 0}
+    NamedSchemaIterator {
+      schema: self,
+      pos: 0,
+    }
   }
 }

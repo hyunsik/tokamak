@@ -5,7 +5,7 @@
 
 use std::io;
 
-use page::{c_api, Page};
+use page::{Page, c_api};
 use types::Ty;
 
 /// PagePrinter trait
@@ -18,7 +18,6 @@ pub trait PagePrinter {
 pub struct ColumnarPagePrinter;
 
 impl PagePrinter for ColumnarPagePrinter {
-
   fn write(tys: &[&Ty], page: &Page, buf: &mut io::Write) {
     for row_idx in 0..page.value_count() {
 
@@ -41,15 +40,40 @@ impl PagePrinter for ColumnarPagePrinter {
             } else {
               write!(buf, "true")
             }
-          },
-          Ty::I8 => write!(buf, "{}", unsafe { c_api::read_i8_raw(page.chunk(col_idx), row_idx) }),
-          Ty::I16 => write!(buf, "{}", unsafe { c_api::read_i16_raw(page.chunk(col_idx), row_idx) }),
-          Ty::I32 => write!(buf, "{}", unsafe { c_api::read_i32_raw(page.chunk(col_idx), row_idx) }),
-          Ty::I64 => write!(buf, "{}", unsafe { c_api::read_i64_raw(page.chunk(col_idx), row_idx) }),
-          Ty::F32 => write!(buf, "{}", unsafe { c_api::read_f32_raw(page.chunk(col_idx), row_idx) }),
-          Ty::F64 => write!(buf, "{}", unsafe { c_api::read_f64_raw(page.chunk(col_idx), row_idx) }),
-          _ => panic!("not supported")
-        }.unwrap();
+          }
+          Ty::I8 => {
+            write!(buf,
+                   "{}",
+                   unsafe { c_api::read_i8_raw(page.chunk(col_idx), row_idx) })
+          }
+          Ty::I16 => {
+            write!(buf,
+                   "{}",
+                   unsafe { c_api::read_i16_raw(page.chunk(col_idx), row_idx) })
+          }
+          Ty::I32 => {
+            write!(buf,
+                   "{}",
+                   unsafe { c_api::read_i32_raw(page.chunk(col_idx), row_idx) })
+          }
+          Ty::I64 => {
+            write!(buf,
+                   "{}",
+                   unsafe { c_api::read_i64_raw(page.chunk(col_idx), row_idx) })
+          }
+          Ty::F32 => {
+            write!(buf,
+                   "{}",
+                   unsafe { c_api::read_f32_raw(page.chunk(col_idx), row_idx) })
+          }
+          Ty::F64 => {
+            write!(buf,
+                   "{}",
+                   unsafe { c_api::read_f64_raw(page.chunk(col_idx), row_idx) })
+          }
+          _ => panic!("not supported"),
+        }
+        .unwrap();
       }
     }
   }

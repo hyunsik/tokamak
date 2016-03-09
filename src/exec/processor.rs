@@ -17,7 +17,8 @@ use common::page::{Chunk, Page, ROWBATCH_SIZE, c_api};
 use common::session::Session;
 use common::types::{HasType, Ty, name};
 
-use jit::{Arg, Builder, CastOp, Function, JitCompiler, LLVMContextRef, Module, Predicate, ToValue, Value, ValueRef};
+use jit::{Arg, Builder, CastOp, Function, JitCompiler, LLVMContextRef, Module, Predicate, ToValue,
+          Value, ValueRef};
 use jit::block::BasicBlock;
 use jit::types::{self, LLVMTy};
 use plan::expr::*;
@@ -136,7 +137,10 @@ impl<'a> MapCompiler<'a> {
 
   fn create_columns_accessors(&self, bld: &Builder, in_page: &Value, num: usize) -> Vec<Value> {
     (0..num)
-      .map(|idx| bld.create_call(&self.get_chunk_fn, &[&in_page, &idx.to_value(self.context())]))
+      .map(|idx| {
+        bld.create_call(&self.get_chunk_fn,
+                        &[&in_page, &idx.to_value(self.context())])
+      })
       .collect::<Vec<Value>>()
   }
 
@@ -298,9 +302,9 @@ impl<'a> MapCompiler<'a> {
     let usize_ty = jit.get_i64_ty(); // usize
 
     self.module.create_func_prototype("processor",
-                              &i32::llvm_ty(jit.context()),
-                              &[&page_ty, &page_ty, &sellist_ty, &usize_ty],
-                              Some(bld))
+                                      &i32::llvm_ty(jit.context()),
+                                      &[&page_ty, &page_ty, &sellist_ty, &usize_ty],
+                                      Some(bld))
   }
 
   fn verify(&self) -> Result<()> {
@@ -710,7 +714,12 @@ mod tests {
     // 															 &session,
     // 															 &schema,
     // 															 &expr).ok().unwrap();
-    let map = MapCompiler::compile(&jit, jit.module(), plugin_mgr.fn_registry(), &session, schema, &[&expr1])
+    let map = MapCompiler::compile(&jit,
+                                   jit.module(),
+                                   plugin_mgr.fn_registry(),
+                                   &session,
+                                   schema,
+                                   &[&expr1])
                 .ok()
                 .unwrap();
 
