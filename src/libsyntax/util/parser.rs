@@ -52,6 +52,8 @@ pub enum AssocOp {
     As,
     /// `..` range
     DotDot,
+    /// `...` range
+    DotDotDot,
     /// `:`
     Colon,
 }
@@ -93,6 +95,7 @@ impl AssocOp {
             Token::AndAnd => Some(LAnd),
             Token::OrOr => Some(LOr),
             Token::DotDot => Some(DotDot),
+            Token::DotDotDot => Some(DotDotDot),
             Token::Colon => Some(Colon),
             _ if t.is_keyword(keywords::As) => Some(As),
             _ => None
@@ -138,7 +141,7 @@ impl AssocOp {
             Less | Greater | LessEqual | GreaterEqual | Equal | NotEqual => 7,
             LAnd => 6,
             LOr => 5,
-            DotDot => 4,
+            DotDot | DotDotDot => 4,
             Inplace => 3,
             Assign | AssignOp(_) => 2,
         }
@@ -153,7 +156,7 @@ impl AssocOp {
             As | Multiply | Divide | Modulus | Add | Subtract | ShiftLeft | ShiftRight | BitAnd |
             BitXor | BitOr | Less | Greater | LessEqual | GreaterEqual | Equal | NotEqual |
             LAnd | LOr | Colon => Fixity::Left,
-            DotDot => Fixity::None
+            DotDot | DotDotDot => Fixity::None
         }
     }
 
@@ -162,7 +165,7 @@ impl AssocOp {
         match *self {
             Less | Greater | LessEqual | GreaterEqual | Equal | NotEqual => true,
             Inplace | Assign | AssignOp(_) | As | Multiply | Divide | Modulus | Add | Subtract |
-            ShiftLeft | ShiftRight | BitAnd | BitXor | BitOr | LAnd | LOr | DotDot | Colon => false
+            ShiftLeft | ShiftRight | BitAnd | BitXor | BitOr | LAnd | LOr | DotDot | DotDotDot | Colon => false
         }
     }
 
@@ -172,7 +175,7 @@ impl AssocOp {
             Assign | AssignOp(_) | Inplace => true,
             Less | Greater | LessEqual | GreaterEqual | Equal | NotEqual | As | Multiply | Divide |
             Modulus | Add | Subtract | ShiftLeft | ShiftRight | BitAnd | BitXor | BitOr | LAnd |
-            LOr | DotDot | Colon => false
+            LOr | DotDot | DotDotDot | Colon => false
         }
     }
 
@@ -197,7 +200,7 @@ impl AssocOp {
             BitOr => Some(BinOpKind::BitOr),
             LAnd => Some(BinOpKind::And),
             LOr => Some(BinOpKind::Or),
-            Inplace | Assign | AssignOp(_) | As | DotDot | Colon => None
+            Inplace | Assign | AssignOp(_) | As | DotDot | DotDotDot | Colon => None
         }
     }
 }

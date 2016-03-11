@@ -8,7 +8,7 @@ use ast::Block;
 use ast::{BlockCheckMode, CaptureBy};
 use ast::{Constness, Crate, CrateConfig};
 use ast::{Decl, DeclKind};
-use ast::{Expr, ExprKind};
+use ast::{Expr, ExprKind, RangeLimits};
 use ast::{Field, FnDecl, FunctionRetTy};
 use ast::{Ident, Item, ItemKind};
 use ast::{Lit, LitKind, UintTy};
@@ -1339,9 +1339,10 @@ impl<'a> Parser<'a> {
 
     pub fn mk_range(&mut self,
                     start: Option<P<Expr>>,
-                    end: Option<P<Expr>>)
+                    end: Option<P<Expr>>,
+                    limits: RangeLimits)
                     -> ast::ExprKind {
-        ExprKind::Range(start, end)
+        ExprKind::Range(start, end, limits)
     }
 
     pub fn mk_field(&mut self, expr: P<Expr>, ident: ast::SpannedIdent) -> ast::ExprKind {
@@ -1986,7 +1987,7 @@ impl<'a> Parser<'a> {
                 LhsExpr::AttributesParsed(attrs) => Some(attrs),
                 _ => None,
             };
-            if self.token == token::DotDot {
+            if self.token == token::DotDot || self.token == token::DotDotDot {
                 return self.parse_prefix_range_expr(attrs);
             } else {
                 try!(self.parse_prefix_expr(attrs))
@@ -2055,7 +2056,7 @@ impl<'a> Parser<'a> {
                     } else {
                         cur_op_span
                     });
-                    let r = self.mk_range(Some(lhs), rhs);
+                    let r = self.mk_range(Some(lhs), rhs, RangeLimits::HalfOpen);
                     lhs = self.mk_expr(lhs_span.lo, rhs_span.hi, r, None);
                     break
             }
@@ -2115,6 +2116,11 @@ impl<'a> Parser<'a> {
                     let aopexpr = self.mk_assign_op(codemap::respan(cur_op_span, aop), lhs, rhs);
                     self.mk_expr(lhs_span.lo, rhs_span.hi, aopexpr, None)
                 }
+                AssocOp::DotDotDot => {
+                    let (lhs_span, rhs_span) = (lhs.span, rhs.span);
+                    let r = self.mk_range(Some(lhs), Some(rhs), RangeLimits::Closed);
+                    self.mk_expr(lhs_span.lo, rhs_span.hi, r, None)
+                }
                 AssocOp::As | AssocOp::Colon | AssocOp::DotDot => {
                     self.bug("As, Colon or DotDot branch reached")
                 }
@@ -2146,11 +2152,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse prefix-forms of range notation: `..expr` and `..`
+    /// Parse prefix-forms of range notation: `..expr`, `..`, `...expr`
     fn parse_prefix_range_expr(&mut self,
                                already_parsed_attrs: Option<ThinAttributes>)
                                -> PResult<'a, P<Expr>> {
-        debug_assert!(self.token == token::DotDot);
+        debug_assert!(self.token == token::DotDot || self.token == token::DotDotDot);
+        let tok = self.token.clone();
         let attrs = try!(self.parse_or_use_outer_attributes(already_parsed_attrs));
         let lo = self.span.lo;
         let mut hi = self.span.hi;
@@ -2167,7 +2174,13 @@ impl<'a> Parser<'a> {
          } else {
             None
         };
-        let r = self.mk_range(None, opt_end);
+        let r = self.mk_range(None,
+                              opt_end,
+                              if tok == token::DotDot {
+                                  RangeLimits::HalfOpen
+                              } else {
+                                  RangeLimits::Closed
+                              });
         Ok(self.mk_expr(lo, hi, r, attrs))
     }
 
@@ -2443,6 +2456,10 @@ impl<'a> Parser<'a> {
       let pat;
 
       match self.token {
+        token::DotDotDot => {
+          self.bump();
+          pat = PatKind::Wild;
+        }
         token::Underscore => {
           // Parse _
           self.bump();

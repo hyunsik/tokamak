@@ -61,3 +61,34 @@ pub fn ident_to_pat(id: NodeId, s: Span, i: Ident) -> P<Pat> {
         span: s
     })
 }
+
+// ______________________________________________________________________
+// Enumerating the IDs which appear in an AST
+
+#[derive(Copy, Clone, RustcEncodable, RustcDecodable, Debug)]
+pub struct IdRange {
+    pub min: NodeId,
+    pub max: NodeId,
+}
+
+impl IdRange {
+    pub fn max() -> IdRange {
+        IdRange {
+            min: u32::MAX,
+            max: u32::MIN,
+        }
+    }
+
+    pub fn empty(&self) -> bool {
+        self.min >= self.max
+    }
+
+    pub fn add(&mut self, id: NodeId) {
+        self.min = cmp::min(self.min, id);
+        self.max = cmp::max(self.max, id + 1);
+    }
+}
+
+pub trait IdVisitingOperation {
+    fn visit_id(&mut self, node_id: NodeId);
+}
