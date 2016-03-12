@@ -125,12 +125,14 @@ pub fn test_project()
 }
 
 fn create_rle_chunk() -> RLEChunk {
-  let size = 2 + (1 + 4) * 10;
+  let size = (1 + 4) * 10;
   let mut ptr = unsafe { heap::allocate(size, ALIGNED_SIZE) };
   for i in 0..10 {
     unsafe {
       ptr::write(&mut *ptr.offset(i * 5), (i + 1) as u8);
-      ptr::write(&mut *ptr.offset(i * 5 + 1), (i * 10) as u8);
+      let val: i32 = (i * 10) as i32;
+      let p: *mut u8 = std::mem::transmute(&val);
+      ptr::copy(p, &mut *ptr.offset(i * 5 + 1), 4);
     }
   }
 
@@ -151,6 +153,7 @@ fn create_rle_chunk() -> RLEChunk {
 #[test]
 pub fn test_rle_chunk() {
   let chunk: RLEChunk = create_rle_chunk();
+
   let mut idx: usize = 0;
   for i in 0..10 {
     for j in 0..(i + 1) {
@@ -161,5 +164,5 @@ pub fn test_rle_chunk() {
     }
   }
 
-  unsafe { heap::deallocate((*(chunk.runs)).length as *mut u8, 52, ALIGNED_SIZE) };
+  unsafe { heap::deallocate((*(chunk.runs)).length as *mut u8, 50, ALIGNED_SIZE) };
 }

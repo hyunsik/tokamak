@@ -28,7 +28,7 @@
       } \
       r += *(run.length); \
     } \
-    fprintf(stderr, "%zu is greater than # of rows (%zu) in a chunk", idx, r); \
+    fprintf(stderr, "%zu is greater than # of rows (%zu) in the chunk", idx, r); \
     std::abort(); \
   } \
 
