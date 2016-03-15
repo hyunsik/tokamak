@@ -1,0 +1,21 @@
+[package]
+name = "hir"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[lib]
+name = "hir"
+path = "lib.rs"
+
+[dependencies]
+itertools = "0.4.3"
+rustc-serialize = "0.3.16"
+
+[dependencies.common]
+path = "../common"
+
+[dependencies.util]
+path = "../util"
+
+[dependencies.syntax]
+path = "../libsyntax"

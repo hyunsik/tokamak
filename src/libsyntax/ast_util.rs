@@ -92,3 +92,43 @@ impl IdRange {
 pub trait IdVisitingOperation {
     fn visit_id(&mut self, node_id: NodeId);
 }
+
+/// A visitor that applies its operation to all of the node IDs
+/// in a visitable thing.
+
+pub struct IdVisitor<'a, O:'a> {
+    pub operation: &'a mut O,
+    pub visited_outermost: bool,
+}
+
+
+impl<'a, O: IdVisitingOperation> IdVisitor<'a, O> {
+    fn visit_generics_helper(&mut self, generics: &Generics) {
+        for type_parameter in generics.ty_params.iter() {
+            self.operation.visit_id(type_parameter.id)
+        }
+        for lifetime in &generics.lifetimes {
+            self.operation.visit_id(lifetime.lifetime.id)
+        }
+    }
+}
+
+pub struct IdRangeComputingVisitor {
+    pub result: IdRange,
+}
+
+impl IdRangeComputingVisitor {
+    pub fn new() -> IdRangeComputingVisitor {
+        IdRangeComputingVisitor { result: IdRange::max() }
+    }
+
+    pub fn result(&self) -> IdRange {
+        self.result
+    }
+}
+
+impl IdVisitingOperation for IdRangeComputingVisitor {
+    fn visit_id(&mut self, id: NodeId) {
+        self.result.add(id);
+    }
+}

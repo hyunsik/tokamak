@@ -551,8 +551,6 @@ pub enum PatKind {
 
   /// A tuple pattern `(a, b)`
   Tup(Vec<P<Pat>>),
-  /// A `box` pattern
-  Box(P<Pat>),
   /// A reference pattern, e.g. `&mut (a, b)`
   Ref(P<Pat>, Mutability),
   /// A literal
@@ -1246,6 +1244,7 @@ pub struct ImplItem {
     pub id: NodeId,
     pub ident: Ident,
     pub vis: Visibility,
+    pub defaultness: Defaultness,
     pub attrs: Vec<Attribute>,
     pub node: ImplItemKind,
     pub span: Span,
@@ -1491,6 +1490,12 @@ pub enum Unsafety {
 pub enum Constness {
     Const,
     NotConst,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub enum Defaultness {
+    Default,
+    Final,
 }
 
 impl fmt::Display for Unsafety {

@@ -7,7 +7,7 @@ use ast::{Mod, Arg, Arm, Attribute};
 use ast::Block;
 use ast::{BlockCheckMode, CaptureBy};
 use ast::{Constness, Crate, CrateConfig};
-use ast::{Decl, DeclKind};
+use ast::{Decl, DeclKind, Defaultness};
 use ast::{Expr, ExprKind, RangeLimits};
 use ast::{Field, FnDecl, FunctionRetTy};
 use ast::{Ident, Item, ItemKind};
@@ -471,6 +471,25 @@ impl<'a> Parser<'a> {
             true
         } else {
             false
+        }
+    }
+
+    pub fn check_contextual_keyword(&mut self, ident: Ident) -> bool {
+        let tok = token::Ident(ident, token::Plain);
+        self.expected_tokens.push(TokenType::Token(tok));
+        if let token::Ident(ref cur_ident, _) = self.token {
+            cur_ident.name == ident.name
+        } else {
+            false
+        }
+    }
+
+    pub fn eat_contextual_keyword(&mut self, ident: Ident) -> PResult<bool> {
+        if self.check_contextual_keyword(ident) {
+            self.bump();
+            Ok(true)
+        } else {
+            Ok(false)
         }
     }
 
@@ -2489,10 +2508,6 @@ impl<'a> Parser<'a> {
             // Parse ref ident @ pat / ref mut ident @ pat
             let mutbl = try!(self.parse_mutability());
             pat = try!(self.parse_pat_ident(BindingMode::ByRef(mutbl)));
-          } else if self.eat_keyword(keywords::Box) {
-            // Parse box pat
-            let subpat = try!(self.parse_pat());
-            pat = PatKind::Box(subpat);
           } else if self.is_path_start() {
             // Parse pattern starting with a path
             if self.token.is_plain_ident() && self.look_ahead(1, |t| *t != token::DotDotDot &&
@@ -3331,6 +3346,15 @@ impl<'a> Parser<'a> {
     fn parse_visibility(&mut self) -> PResult<'a, Visibility> {
         if self.eat_keyword(keywords::Pub) { Ok(Visibility::Public) }
         else { Ok(Visibility::Inherited) }
+    }
+
+    /// Parse defaultness: DEFAULT or nothing
+    fn parse_defaultness(&mut self) -> PResult<Defaultness> {
+        if try!(self.eat_contextual_keyword(special_idents::DEFAULT)) {
+            Ok(Defaultness::Default)
+        } else {
+            Ok(Defaultness::Final)
+        }
     }
 
     /// Parse one of the items allowed by the flags.
