@@ -44,5 +44,5 @@ script:
 
 notifications:
   email:
-    - hyunsik.choi@gmail.com
+    - hyunsik@apache.org
     - jihoonson@apache.org
