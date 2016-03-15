@@ -1,0 +1,43 @@
+language: rust
+addons:
+  apt:
+    sources:
+      - llvm-toolchain-precise-3.7
+      - ubuntu-toolchain-r-test
+    packages:
+      - libclang-3.7-dev
+      - llvm-3.7-dev
+      - clang-3.7
+      - libedit-dev
+env:
+  - LLVM_VERSION=3.7
+rust:
+  - nightly
+matrix:
+  include:
+    - os: osx
+      env: LLVM_VERSION=3.7
+
+before_install:
+  -
+    if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      if [ "${LLVM_VERSION}" != "devtools" ]; then
+        brew update >/dev/null;
+        brew install llvm3${LLVM_VERSION#3.};
+      fi
+    fi
+
+before_script:
+  -
+    if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+      export LIBCLANG_PATH=/usr/lib/llvm-${LLVM_VERSION}/lib;
+    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      export LIBCLANG_PATH=`brew --prefix llvm3${LLVM_VERSION#3.}`/lib/llvm-${LLVM_VERSION}/lib;
+    fi
+  - export PATH=/usr/lib/llvm-${LLVM_VERSION}/bin:$PATH
+  - export CC=/usr/lib/llvm-${LLVM_VERSION}/bin/clang
+  - export CXX=/usr/lib/llvm-${LLVM_VERSION}/bin/clang++
+
+script:
+  - cargo build --verbose
+  - dev-support/run-all-tests.sh
