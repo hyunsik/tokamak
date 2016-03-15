@@ -41,3 +41,8 @@ before_script:
 script:
   - cargo build --verbose
   - dev-support/run-all-tests.sh
+
+notifications:
+  email:
+    - hyunsik.choi@gmail.com
+    - jihoonson@apache.org
