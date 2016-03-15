@@ -13,6 +13,7 @@ env:
   - LLVM_VERSION=3.7
 rust:
   - nightly
+# TODO: enable this when osx build is back to normal: https://www.traviscistatus.com/incidents/msk3sqgp4pcj
 #matrix:
 #  include:
 #    - os: osx
