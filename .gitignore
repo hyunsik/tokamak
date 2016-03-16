@@ -1,5 +1,7 @@
+.idea
 .project
 Cargo.lock
 target
 .vscode
 .bk
+.iml
