@@ -3,5 +3,5 @@
 Cargo.lock
 target
 .vscode
-.bk
-.iml
+**/*.bk
+**/*.iml
