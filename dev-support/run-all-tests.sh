@@ -21,8 +21,9 @@ for module in "${MODULE_DIRS[@]}"
 do
   cd "${SRC_DIR}/${module}"
   cargo test --verbose
-  if [ $? != 0 ]; then
-    exit $?
+  exit_code=$?
+  if [ $exit_code != 0 ]; then
+    exit $exit_code
   fi
   cd $ROOT_DIR
 done
