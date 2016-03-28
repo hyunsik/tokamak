@@ -1,10 +1,10 @@
 use ast;
 use parse::{ParseSess,PResult,filemap_to_tts};
-use parse::new_parser_from_source_str;
+use parse::{lexer, new_parser_from_source_str};
 use parse::parser::Parser;
 use parse::token;
 use ptr::P;
-use str::char_at;
+use std::iter::Peekable;
 
 /// Map a string to tts, using a made-up filename:
 pub fn string_to_tts(source_str: String) -> Vec<ast::TokenTree> {
@@ -75,16 +75,56 @@ pub fn strs_to_idents(ids: Vec<&str> ) -> Vec<ast::Ident> {
     ids.iter().map(|u| token::str_to_ident(*u)).collect()
 }
 
-/// Given a string and an index, return the first usize >= idx
-/// that is a non-ws-char or is outside of the legal range of
-/// the string.
-fn scan_for_non_ws_or_end(a : &str, idx: usize) -> usize {
-    let mut i = idx;
-    let len = a.len();
-    while (i < len) && (is_whitespace(char_at(a, i))) {
-        i += 1;
+/// Does the given string match the pattern? whitespace in the first string
+/// may be deleted or replaced with other whitespace to match the pattern.
+/// This function is relatively Unicode-ignorant; fortunately, the careful design
+/// of UTF-8 mitigates this ignorance. It doesn't do NKF-normalization(?).
+pub fn matches_codepattern(a : &str, b : &str) -> bool {
+    let mut a_iter = a.chars().peekable();
+    let mut b_iter = b.chars().peekable();
+
+    loop {
+        let (a, b) = match (a_iter.peek(), b_iter.peek()) {
+            (None, None) => return true,
+            (None, _) => return false,
+            (Some(&a), None) => {
+                if is_pattern_whitespace(a) {
+                    break // trailing whitespace check is out of loop for borrowck
+                } else {
+                    return false
+                }
+            }
+            (Some(&a), Some(&b)) => (a, b)
+        };
+
+        if is_pattern_whitespace(a) && is_pattern_whitespace(b) {
+            // skip whitespace for a and b
+            scan_for_non_ws_or_end(&mut a_iter);
+            scan_for_non_ws_or_end(&mut b_iter);
+        } else if is_pattern_whitespace(a) {
+            // skip whitespace for a
+            scan_for_non_ws_or_end(&mut a_iter);
+        } else if a == b {
+            a_iter.next();
+            b_iter.next();
+        } else {
+            return false
+        }
     }
-    i
+
+    // check if a has *only* trailing whitespace
+    a_iter.all(is_pattern_whitespace)
+}
+
+/// Advances the given peekable `Iterator` until it reaches a non-whitespace character
+fn scan_for_non_ws_or_end<I: Iterator<Item= char>>(iter: &mut Peekable<I>) {
+    while lexer::is_whitespace(iter.peek().cloned()) {
+        iter.next();
+    }
+}
+
+pub fn is_pattern_whitespace(c: char) -> bool {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
 /// Copied from lexer.

@@ -38,6 +38,7 @@ pub mod ast_util;
 pub mod attr;
 pub mod codemap;
 pub mod errors;
+pub mod fold;
 pub mod parse;
 pub mod ptr;
 pub mod str;
@@ -54,6 +55,8 @@ pub mod print {
 
 pub mod util {
   pub mod interner;
+  pub mod move_map;
   pub mod parser;
   pub mod parser_testing;
+  pub mod small_vector;
 }

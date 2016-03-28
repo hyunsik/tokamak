@@ -62,6 +62,27 @@ pub fn ident_to_pat(id: NodeId, s: Span, i: Ident) -> P<Pat> {
     })
 }
 
+/// Generate a "pretty" name for an `impl` from its type and trait.
+/// This is designed so that symbols of `impl`'d methods give some
+/// hint of where they came from, (previously they would all just be
+/// listed as `__extensions__::method_name::hash`, with no indication
+/// of the type).
+pub fn impl_pretty_name(trait_ref: &Option<TraitRef>, ty: Option<&Ty>) -> Ident {
+    let mut pretty = match ty {
+        Some(t) => pprust::ty_to_string(t),
+        None => String::from("..")
+    };
+
+    match *trait_ref {
+        Some(ref trait_ref) => {
+            pretty.push('.');
+            pretty.push_str(&pprust::path_to_string(&trait_ref.path));
+        }
+        None => {}
+    }
+    token::gensym_ident(&pretty[..])
+}
+
 // ______________________________________________________________________
 // Enumerating the IDs which appear in an AST
 
