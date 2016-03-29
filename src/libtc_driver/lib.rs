@@ -2,12 +2,23 @@
 #![feature(set_stdio)]
 
 extern crate getopts;
+extern crate syntax;
 
+pub mod config;
+pub mod driver;
+pub mod pretty;
 pub mod session;
+pub mod backend;
 
-pub use session::{CompileResult, Session};
+use syntax::diagnostics;
+
+use driver::CompileController;
+use config::{Input, ErrorOutputType};
+use session::{CompileResult, Session};
+use pretty::{PpMode, UserIdentifiedItem};
 
 use std::io;
+use std::path::PathBuf;
 
 pub fn run(args: Vec<String>) -> isize {
   0
