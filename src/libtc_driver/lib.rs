@@ -17,8 +17,10 @@ use config::{Input, ErrorOutputType};
 use session::{CompileResult, Session};
 use pretty::{PpMode, UserIdentifiedItem};
 
+use std::env;
 use std::io;
 use std::path::PathBuf;
+use std::process;
 
 pub fn run(args: Vec<String>) -> isize {
   let (result, session) = run_compiler(&args, &mut RustcDefaultCalls);
@@ -192,4 +194,9 @@ impl<'a> CompilerCalls<'a> for RustcDefaultCalls {
   fn build_controller(&mut self, sess: &Session) -> CompileController<'a> {
     CompileController::basic()
   }
+}
+
+pub fn main() {
+    let result = run(env::args().collect());
+    process::exit(result as i32);
 }
