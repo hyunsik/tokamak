@@ -11,6 +11,8 @@ pub mod session;
 pub mod backend;
 
 use syntax::diagnostics;
+use syntax::errors;
+use syntax::errors::emitter::Emitter;
 
 use driver::CompileController;
 use config::{Input, ErrorOutputType};
@@ -22,9 +24,30 @@ use std::io;
 use std::path::PathBuf;
 use std::process;
 
+#[inline]
+fn abort_msg(err_count: usize) -> String {
+    match err_count {
+        0 => "aborting with no errors (maybe a bug?)".to_owned(),
+        1 => "aborting due to previous error".to_owned(),
+        e => format!("aborting due to {} previous errors", e),
+    }
+}
+
 pub fn run(args: Vec<String>) -> isize {
   let (result, session) = run_compiler(&args, &mut RustcDefaultCalls);
 
+  if let Err(err_count) = result {
+    if err_count > 0 {
+      match session {
+        Some(sess) => sess.fatal(&abort_msg(err_count)),
+        None => {
+          let mut emitter = errors::emitter::BasicEmitter::stderr(errors::ColorConfig::Auto);
+          emitter.emit(None, &abort_msg(err_count), None, errors::Level::Fatal);
+          exit_on_err();
+        }
+      }
+    }
+  }
   0
 }
 
@@ -47,14 +70,6 @@ pub fn run_compiler<'a>(args: &[String],
   };
 
   (Ok(()), None)
-}
-
-fn exit_on_err() -> ! {
-    // Panic so the process returns a failure code, but don't pollute the
-    // output with some unnecessary panic messages, we've already
-    // printed everything that we needed to.
-    io::set_panic(Box::new(io::sink()));
-    panic!();
 }
 
 // Whether to stop or continue compilation.
@@ -194,6 +209,14 @@ impl<'a> CompilerCalls<'a> for RustcDefaultCalls {
   fn build_controller(&mut self, sess: &Session) -> CompileController<'a> {
     CompileController::basic()
   }
+}
+
+fn exit_on_err() -> ! {
+    // Panic so the process returns a failure code, but don't pollute the
+    // output with some unnecessary panic messages, we've already
+    // printed everything that we needed to.
+    io::set_panic(Box::new(io::sink()));
+    panic!();
 }
 
 pub fn main() {

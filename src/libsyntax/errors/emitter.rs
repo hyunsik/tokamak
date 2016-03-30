@@ -52,6 +52,41 @@ impl ColorConfig {
     }
 }
 
+/// A basic emitter for when we don't have access to a codemap or registry. Used
+/// for reporting very early errors, etc.
+pub struct BasicEmitter {
+    dst: Destination,
+}
+
+impl Emitter for BasicEmitter {
+    fn emit(&mut self,
+            msp: Option<&MultiSpan>,
+            msg: &str,
+            code: Option<&str>,
+            lvl: Level) {
+        assert!(msp.is_none(), "BasicEmitter can't handle spans");
+        if let Err(e) = print_diagnostic(&mut self.dst, "", lvl, msg, code) {
+            panic!("failed to print diagnostics: {:?}", e);
+        }
+
+    }
+
+    fn custom_emit(&mut self, _: &RenderSpan, _: &str, _: Level) {
+        panic!("BasicEmitter can't handle custom_emit");
+    }
+}
+
+impl BasicEmitter {
+    pub fn stderr(color_config: ColorConfig) -> BasicEmitter {
+        if color_config.use_color() {
+            let dst = Destination::from_stderr();
+            BasicEmitter { dst: dst }
+        } else {
+            BasicEmitter { dst: Raw(Box::new(io::stderr())) }
+        }
+    }
+}
+
 pub struct EmitterWriter {
     dst: Destination,
     registry: Option<diagnostics::registry::Registry>,
