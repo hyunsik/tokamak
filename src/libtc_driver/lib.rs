@@ -16,7 +16,7 @@ use syntax::errors::emitter::Emitter;
 
 use driver::CompileController;
 use config::{Input, ErrorOutputType};
-use session::{CompileResult, Session};
+use session::{CompileResult, Session, early_error, early_warn};
 use pretty::{PpMode, UserIdentifiedItem};
 
 use std::env;
@@ -166,6 +166,10 @@ pub trait CompilerCalls<'a> {
     fn build_controller(&mut self, &Session) -> CompileController<'a>;
 }
 
+fn usage(verbose: bool, include_unstable_options: bool) {
+  // TODO
+}
+
 /// Process command line options. Emits messages as appropriate. If compilation
 /// should continue, returns a getopts::Matches object parsed from args,
 /// otherwise returns None.
@@ -193,7 +197,23 @@ pub trait CompilerCalls<'a> {
 /// So with all that in mind, the comments below have some more detail about the
 /// contortions done here to get things to work out correctly.
 pub fn handle_options(mut args: Vec<String>) -> Option<getopts::Matches> {
-  None
+  // Throw away the first argument, the name of the binary
+  let args = &args[1..];
+
+  if args.is_empty() {
+    // user did not write `-v` nor `-Z unstable-options`, so do not
+    // include that extra information.
+    usage(false, false);
+    return None;
+  }
+
+  let opts = config::compiler_optgroups();
+  let matches = match opts.parse(&args[..]) {
+      Ok(m) => m,
+      Err(f) => early_error(ErrorOutputType::default(), &f.to_string()),
+  };
+
+  Some(matches)
 }
 
 #[derive(Copy, Clone)]

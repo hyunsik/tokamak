@@ -1,4 +1,7 @@
+use config;
+
 use syntax::errors;
+use syntax::errors::emitter::{Emitter, BasicEmitter, EmitterWriter};
 use syntax::diagnostics;
 use syntax::parse::ParseSess;
 
@@ -16,6 +19,27 @@ impl Session {
   pub fn diagnostic<'a>(&'a self) -> &'a errors::Handler {
     &self.parse_sess.span_diagnostic
   }
+}
+
+pub fn early_error(output: config::ErrorOutputType, msg: &str) -> ! {
+    let mut emitter: Box<Emitter> = match output {
+        config::ErrorOutputType::HumanReadable(color_config) => {
+            Box::new(BasicEmitter::stderr(color_config))
+        }
+        config::ErrorOutputType::Json => panic!("JsonEmitter is not supported yet")
+    };
+    emitter.emit(None, msg, None, errors::Level::Fatal);
+    panic!(errors::FatalError);
+}
+
+pub fn early_warn(output: config::ErrorOutputType, msg: &str) {
+    let mut emitter: Box<Emitter> = match output {
+        config::ErrorOutputType::HumanReadable(color_config) => {
+            Box::new(BasicEmitter::stderr(color_config))
+        }
+        config::ErrorOutputType::Json => panic!("JsonEmitter is not supported yet")
+    };
+    emitter.emit(None, msg, None, errors::Level::Warning);
 }
 
 // Err(0) means compilation was stopped, but no errors were found.
