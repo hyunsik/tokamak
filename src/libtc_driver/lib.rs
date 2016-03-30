@@ -166,6 +166,40 @@ pub trait CompilerCalls<'a> {
     fn build_controller(&mut self, &Session) -> CompileController<'a>;
 }
 
+/// Returns a version string such as "0.12.0-dev".
+pub fn release_str() -> Option<&'static str> {
+    option_env!("CFG_RELEASE")
+}
+
+/// Returns the full SHA1 hash of HEAD of the Git repo from which rustc was built.
+pub fn commit_hash_str() -> Option<&'static str> {
+    option_env!("CFG_VER_HASH")
+}
+
+/// Returns the "commit date" of HEAD of the Git repo from which rustc was built as a static string.
+pub fn commit_date_str() -> Option<&'static str> {
+    option_env!("CFG_VER_DATE")
+}
+
+/// Prints version information
+pub fn version(binary: &str, matches: &getopts::Matches) {
+    let verbose = matches.opt_present("verbose");
+
+    println!("{} {}",
+             binary,
+             option_env!("CFG_VERSION").unwrap_or("unknown version"));
+    if verbose {
+        fn unw(x: Option<&str>) -> &str {
+            x.unwrap_or("unknown")
+        }
+        println!("binary: {}", binary);
+        println!("commit-hash: {}", unw(commit_hash_str()));
+        println!("commit-date: {}", unw(commit_date_str()));
+        println!("host: {}", config::host_triple());
+        println!("release: {}", unw(release_str()));
+    }
+}
+
 fn usage(verbose: bool, include_unstable_options: bool) {
   // TODO
 }
@@ -212,6 +246,11 @@ pub fn handle_options(mut args: Vec<String>) -> Option<getopts::Matches> {
       Ok(m) => m,
       Err(f) => early_error(ErrorOutputType::default(), &f.to_string()),
   };
+
+  if matches.opt_present("version") {
+    version("rustc", &matches);
+    return None;
+  }
 
   Some(matches)
 }
