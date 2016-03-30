@@ -22,12 +22,34 @@ pub struct CompileController<'a> {
   pub after_llvm: PhaseController<'a>,
 }
 
+impl<'a> CompileController<'a> {
+    pub fn basic() -> CompileController<'a> {
+        CompileController {
+            after_parse: PhaseController::basic(),
+            after_expand: PhaseController::basic(),
+            after_write_deps: PhaseController::basic(),
+            after_analysis: PhaseController::basic(),
+            after_llvm: PhaseController::basic(),
+        }
+    }
+}
+
 pub struct PhaseController<'a> {
     pub stop: Compilation,
     // If true then the compiler will try to run the callback even if the phase
     // ends with an error. Note that this is not always possible.
     pub run_callback_on_error: bool,
     pub callback: Box<Fn(CompileState) -> () + 'a>,
+}
+
+impl<'a> PhaseController<'a> {
+    pub fn basic() -> PhaseController<'a> {
+        PhaseController {
+            stop: Compilation::Continue,
+            run_callback_on_error: false,
+            callback: Box::new(|_| {}),
+        }
+    }
 }
 
 /// State that is passed to a callback. What state is available depends on when

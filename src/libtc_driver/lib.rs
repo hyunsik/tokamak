@@ -21,6 +21,8 @@ use std::io;
 use std::path::PathBuf;
 
 pub fn run(args: Vec<String>) -> isize {
+  let (result, session) = run_compiler(&args, &mut RustcDefaultCalls);
+
   0
 }
 
@@ -175,4 +177,19 @@ pub trait CompilerCalls<'a> {
 /// contortions done here to get things to work out correctly.
 pub fn handle_options(mut args: Vec<String>) -> Option<getopts::Matches> {
   None
+}
+
+#[derive(Copy, Clone)]
+pub struct RustcDefaultCalls;
+
+impl RustcDefaultCalls {
+  pub fn test() {}
+}
+
+impl<'a> CompilerCalls<'a> for RustcDefaultCalls {
+  // Create a CompilController struct for controlling the behaviour of
+  // compilation.
+  fn build_controller(&mut self, sess: &Session) -> CompileController<'a> {
+    CompileController::basic()
+  }
 }
