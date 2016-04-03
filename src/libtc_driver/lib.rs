@@ -4,9 +4,12 @@
 extern crate getopts;
 extern crate syntax;
 
+#[macro_use] pub mod macros;
 pub mod config;
+pub mod cstore;
 pub mod driver;
 pub mod pretty;
+pub mod search_paths;
 pub mod session;
 pub mod backend;
 
@@ -68,6 +71,8 @@ pub fn run_compiler<'a>(args: &[String],
         Some(matches) => matches,
         None => return (Ok(()), None),
   };
+
+  //let sopts = config::build_session_options(&matches);
 
   (Ok(()), None)
 }
@@ -248,7 +253,7 @@ pub fn handle_options(mut args: Vec<String>) -> Option<getopts::Matches> {
   };
 
   if matches.opt_present("version") {
-    version("rustc", &matches);
+    version("tc", &matches);
     return None;
   }
 

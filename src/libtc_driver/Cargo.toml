@@ -8,6 +8,10 @@ name = "tc_driver"
 path = "lib.rs"
 crate-type = ["dylib"]
 
+[[bin]]
+name = "tc"
+path = "lib.rs"
+
 [dependencies]
 syntax = { path = "../libsyntax" }
 tc_hir = { path = "../libtc_hir" }

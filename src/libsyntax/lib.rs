@@ -38,6 +38,7 @@ pub mod ast_util;
 pub mod attr;
 pub mod codemap;
 pub mod errors;
+pub mod feature_gate;
 pub mod fold;
 pub mod parse;
 pub mod ptr;
