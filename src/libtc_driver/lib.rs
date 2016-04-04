@@ -3,6 +3,7 @@
 
 extern crate getopts;
 extern crate syntax;
+extern crate llvm;
 
 #[macro_use] pub mod macros;
 pub mod config;
@@ -23,7 +24,7 @@ use session::{CompileResult, Session, early_error, early_warn};
 use pretty::{PpMode, UserIdentifiedItem};
 
 use std::env;
-use std::io;
+use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process;
 
@@ -72,9 +73,47 @@ pub fn run_compiler<'a>(args: &[String],
         None => return (Ok(()), None),
   };
 
-  //let sopts = config::build_session_options(&matches);
+  let sopts = config::build_session_options(&matches);
+
+  if sopts.debugging_opts.debug_llvm {
+    unsafe { llvm::LLVMSetDebug(1); }
+  }
+
+  let descriptions = diagnostics_registry();
+
+  do_or_return!(callbacks.early_callback(&matches,
+                                         &sopts,
+                                         &descriptions,
+                                         sopts.error_format),
+                                         None);
+
+  let (input, input_file_path) = match make_input(&matches.free) {
+    Some((input, input_file_path)) => callbacks.some_input(input, input_file_path),
+    None => match callbacks.no_input(&matches, &sopts, &descriptions) {
+      Some((input, input_file_path)) => (input, input_file_path),
+      None => return (Ok(()), None),
+    },
+  };
 
   (Ok(()), None)
+}
+
+// Extract input (string or file and optional path) from matches.
+fn make_input(free_matches: &[String]) -> Option<(Input, Option<PathBuf>)> {
+    if free_matches.len() == 1 {
+        let ifile = &free_matches[0][..];
+        if ifile == "-" {
+            let mut src = String::new();
+            io::stdin().read_to_string(&mut src).unwrap();
+            Some((Input::Str { name: driver::anon_src(), input: src },
+                  None))
+        } else {
+            Some((Input::File(PathBuf::from(ifile)),
+                  Some(PathBuf::from(ifile))))
+        }
+    } else {
+        None
+    }
 }
 
 // Whether to stop or continue compilation.
@@ -139,8 +178,6 @@ pub trait CompilerCalls<'a> {
     fn no_input(&mut self,
                 _: &getopts::Matches,
                 _: &config::Options,
-                _: &Option<PathBuf>,
-                _: &Option<PathBuf>,
                 _: &diagnostics::registry::Registry)
                 -> Option<(Input, Option<PathBuf>)> {
         None
@@ -281,6 +318,14 @@ fn exit_on_err() -> ! {
     // printed everything that we needed to.
     io::set_panic(Box::new(io::sink()));
     panic!();
+}
+
+pub fn diagnostics_registry() -> diagnostics::registry::Registry {
+    use syntax::diagnostics::registry::Registry;
+
+    let mut all_errors = Vec::new();
+    // TODO - add diagnostic extensions.
+    Registry::new(&all_errors)
 }
 
 pub fn main() {

@@ -96,7 +96,24 @@ pub enum PrintRequest {
 }
 
 pub enum Input {
-  PathBuf
+    /// Load source from file
+    File(PathBuf),
+    Str {
+        /// String that is shown in place of a filename
+        name: String,
+        /// Anonymous source string
+        input: String,
+    },
+}
+
+impl Input {
+    pub fn filestem(&self) -> String {
+        match *self {
+            Input::File(ref ifile) => ifile.file_stem().unwrap()
+                                           .to_str().unwrap().to_string(),
+            Input::Str { .. } => "rust_out".to_string(),
+        }
+    }
 }
 
 pub fn host_triple() -> &'static str {

@@ -15,5 +15,6 @@ path = "lib.rs"
 [dependencies]
 syntax = { path = "../libsyntax" }
 tc_hir = { path = "../libtc_hir" }
+llvm   = { path = "../llvm" }
 
 getopts = "0.2.14"

@@ -1,5 +1,11 @@
 use super::Compilation;
 
+/// The name used for source code that doesn't originate in a file
+/// (e.g. source from stdin or a string)
+pub fn anon_src() -> String {
+    "<anon>".to_string()
+}
+
 /// CompileController is used to customise compilation, it allows compilation to
 /// be stopped and/or to call arbitrary code at various points in compilation.
 /// It also allows for various flags to be set to influence what information gets
