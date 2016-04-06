@@ -1,18 +1,25 @@
 
 #![feature(set_stdio)]
+#![feature(question_mark)]
 
+extern crate env_logger;
 extern crate getopts;
 extern crate syntax;
+#[macro_use]
+extern crate log;
 extern crate llvm;
+extern crate rustc_serialize;
 
 #[macro_use] pub mod macros;
+pub mod backend;
 pub mod config;
 pub mod cstore;
 pub mod driver;
+pub mod middle;
 pub mod pretty;
 pub mod search_paths;
 pub mod session;
-pub mod backend;
+pub mod targets;
 
 use syntax::diagnostics;
 use syntax::errors;
