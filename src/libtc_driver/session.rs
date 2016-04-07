@@ -2,7 +2,7 @@ use config;
 
 use filesearch;
 use middle::cstore::CrateStore;
-use syntax::ast;
+use syntax::ast::{self, NodeId, NodeIdAssigner, Name};
 use syntax::codemap::{self, Span, MultiSpan};
 use syntax::errors::{self, DiagnosticBuilder, Handler};
 use syntax::errors::emitter::{Emitter, BasicEmitter, EmitterWriter};
@@ -12,6 +12,8 @@ use syntax::parse::ParseSess;
 use targets::Target;
 
 use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet};
+use std::env;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::fmt;
@@ -19,8 +21,15 @@ use std::fmt;
 // Represents the data associated with a compilation
 // session for a single crate.
 pub struct Session {
+  pub target: config::Config,
+  pub host: Target,
   pub opts: config::Options,
+  pub cstore: Rc<for<'a> CrateStore<'a>>,
   pub parse_sess: ParseSess,
+  // For a library crate, this is always none
+  pub entry_fn: RefCell<Option<(NodeId, Span)>>,
+  pub entry_type: Cell<Option<config::EntryFnType>>,
+  pub plugin_registrar_fn: Cell<Option<ast::NodeId>>,
   pub default_sysroot: Option<PathBuf>,
   // The name of the root source file of the crate, in the local file system.
   // The path is always expected to be absolute. `None` means that there is no
@@ -139,7 +148,35 @@ pub fn build_session_(sopts: config::Options,
     Some(_) => None,
     None => Some(filesearch::get_or_default_sysroot())
   };
-  unimplemented!()
+
+  // Make the path absolute, if necessary
+  let local_crate_source_file = local_crate_source_file.map(|path|
+    if path.is_absolute() {
+      path.clone()
+    } else {
+      env::current_dir().unwrap().join(&path)
+    }
+  );
+
+  let sess = Session {
+        target: target_cfg,
+        host: host,
+        opts: sopts,
+        cstore: cstore,
+        parse_sess: p_s,
+        // For a library crate, this is always none
+        entry_fn: RefCell::new(None),
+        entry_type: Cell::new(None),
+        plugin_registrar_fn: Cell::new(None),
+        default_sysroot: default_sysroot,
+        local_crate_source_file: local_crate_source_file,
+        working_dir: env::current_dir().unwrap(),
+        plugin_llvm_passes: RefCell::new(Vec::new()),
+        recursion_limit: Cell::new(64),
+        next_node_id: Cell::new(1),
+    };
+
+    sess
 }
 
 pub fn early_error(output: config::ErrorOutputType, msg: &str) -> ! {

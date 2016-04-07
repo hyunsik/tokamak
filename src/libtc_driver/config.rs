@@ -163,6 +163,17 @@ pub fn basic_options() -> Options {
     }
 }
 
+// The type of entry function, so
+// users can have their own entry
+// functions that don't start a
+// scheduler
+#[derive(Copy, Clone, PartialEq)]
+pub enum EntryFnType {
+    EntryMain,
+    EntryStart,
+    EntryNone,
+}
+
 #[derive(Clone)]
 pub enum Passes {
     SomePasses(Vec<String>),
