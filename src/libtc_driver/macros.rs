@@ -44,3 +44,11 @@ macro_rules! enum_from_u32 {
         }
     }
 }
+
+#[macro_export]
+macro_rules! bug {
+    () => ( bug!("impossible case reached") );
+    ($($message:tt)*) => ({
+        $crate::session::bug_fmt(file!(), line!(), format_args!($($message)*))
+    })
+}

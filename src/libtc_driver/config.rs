@@ -8,15 +8,20 @@ use cstore;
 use search_paths::SearchPaths;
 use session::early_error;
 
-use syntax::ast;
+use syntax::ast::{self, IntTy, UintTy};
 use syntax::errors::{ColorConfig, Handler};
 use syntax::feature_gate::UnstableFeatures;
+use targets::Target;
 
 use getopts;
 use std::path::PathBuf;
 use std::collections::HashMap;
 
-pub struct Config;
+pub struct Config {
+  pub target: Target,
+  pub int_type: IntTy,
+  pub uint_type: UintTy,
+}
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum OptLevel {
@@ -529,6 +534,28 @@ options! {DebuggingOptions, DebuggingSetter, basic_debugging_options,
           "dump MIR state at various points in translation"),
     orbit: bool = (false, parse_bool,
           "get MIR where it belongs - everywhere; most importantly, in orbit"),
+}
+
+pub fn build_target_config(opts: &Options, sp: &Handler) -> Config {
+  let target = match Target::search(&opts.target_triple) {
+    Ok(t) => t,
+    Err(e) => {
+      panic!(sp.fatal(&format!("Error loading target specification: {}", e)));
+    }
+  };
+
+  let (int_type, uint_type) = match &target.target_pointer_width[..] {
+    "32" => (ast::IntTy::I32, ast::UintTy::U32),
+    "64" => (ast::IntTy::I64, ast::UintTy::U64),
+    w    => panic!(sp.fatal(&format!("target specification was invalid: \
+                                          unrecognized target-pointer-width {}", w))),
+  };
+
+  Config {
+    target: target,
+    int_type: int_type,
+    uint_type: uint_type,
+  }
 }
 
 /// Returns the "short" subset of the rustc command line options,

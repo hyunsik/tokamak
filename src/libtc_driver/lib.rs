@@ -5,6 +5,7 @@
 extern crate env_logger;
 extern crate getopts;
 extern crate syntax;
+extern crate typed_arena;
 #[macro_use]
 extern crate log;
 extern crate llvm;
@@ -15,11 +16,13 @@ pub mod backend;
 pub mod config;
 pub mod cstore;
 pub mod driver;
+pub mod filesearch;
 pub mod middle;
 pub mod pretty;
 pub mod search_paths;
 pub mod session;
 pub mod targets;
+//pub mod ty;
 
 use syntax::diagnostics;
 use syntax::errors;

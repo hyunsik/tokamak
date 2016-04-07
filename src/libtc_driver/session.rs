@@ -1,16 +1,20 @@
 use config;
 
+use filesearch;
 use middle::cstore::CrateStore;
 use syntax::ast;
 use syntax::codemap::{self, Span, MultiSpan};
 use syntax::errors::{self, DiagnosticBuilder, Handler};
 use syntax::errors::emitter::{Emitter, BasicEmitter, EmitterWriter};
 use syntax::diagnostics;
+use syntax::parse;
 use syntax::parse::ParseSess;
+use targets::Target;
 
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::fmt;
 
 // Represents the data associated with a compilation
 // session for a single crate.
@@ -123,9 +127,20 @@ pub fn build_session_(sopts: config::Options,
                       codemap: Rc<codemap::CodeMap>,
                       cstore: Rc<for<'a> CrateStore<'a>>)
                       -> Session {
+  let host = match Target::search(config::host_triple()) {
+    Ok(t) => t,
+    Err(e) => {
+      panic!(span_diagnostic.fatal(&format!("Error loading host specification: {}", e)));
+    }
+  };
+  let target_cfg = config::build_target_config(&sopts, &span_diagnostic);
+  let p_s = parse::ParseSess::with_span_handler(span_diagnostic, codemap);
+  let default_sysroot = match sopts.maybe_sysroot {
+    Some(_) => None,
+    None => Some(filesearch::get_or_default_sysroot())
+  };
   unimplemented!()
 }
-
 
 pub fn early_error(output: config::ErrorOutputType, msg: &str) -> ! {
     let mut emitter: Box<Emitter> = match output {
@@ -158,4 +173,28 @@ pub fn compile_result_from_err_count(err_count: usize) -> CompileResult {
     } else {
         Err(err_count)
     }
+}
+
+#[cold]
+#[inline(never)]
+pub fn bug_fmt(file: &'static str, line: u32, args: fmt::Arguments) -> ! {
+    // this wrapper mostly exists so I don't have to write a fully
+    // qualified path of None::<Span> inside the bug!() macro defintion
+    opt_span_bug_fmt(file, line, None::<Span>, args);
+}
+
+fn opt_span_bug_fmt<S: Into<MultiSpan>>(file: &'static str,
+                                          line: u32,
+                                          span: Option<S>,
+                                          args: fmt::Arguments) -> ! {
+    // TODO
+    /*tls::with_opt(move |tcx| {
+        let msg = format!("{}:{}: {}", file, line, args);
+        match (tcx, span) {
+            (Some(tcx), Some(span)) => tcx.sess.diagnostic().span_bug(span, &msg),
+            (Some(tcx), None) => tcx.sess.diagnostic().bug(&msg),
+            (None, _) => panic!(msg)
+        }
+    });*/
+    unreachable!();
 }
