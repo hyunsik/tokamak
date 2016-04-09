@@ -1,3 +1,5 @@
+pub use self::StabilityLevel::*;
+
 use ast;
 use ast::{AttrId, Attribute, Attribute_, MetaItem, MetaItemKind};
 use ast::{Stmt, StmtKind, DeclKind};
@@ -216,6 +218,38 @@ pub fn mk_sugared_doc_attr(id: AttrId, text: InternedString, lo: BytePos,
     spanned(lo, hi, attr)
 }
 
+/// Represents the #[stable], #[unstable] and #[rustc_deprecated] attributes.
+#[derive(RustcEncodable, RustcDecodable, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Stability {
+    pub level: StabilityLevel,
+    pub feature: InternedString,
+    pub rustc_depr: Option<RustcDeprecation>,
+}
+
+/// The available stability levels.
+#[derive(RustcEncodable, RustcDecodable, PartialEq, PartialOrd, Clone, Debug, Eq, Hash)]
+pub enum StabilityLevel {
+    // Reason for the current stability level and the relevant rust-lang issue
+    Unstable { reason: Option<InternedString>, issue: u32 },
+    Stable { since: InternedString },
+}
+
+#[derive(RustcEncodable, RustcDecodable, PartialEq, PartialOrd, Clone, Debug, Eq, Hash)]
+pub struct RustcDeprecation {
+    pub since: InternedString,
+    pub reason: InternedString,
+}
+
+#[derive(RustcEncodable, RustcDecodable, PartialEq, PartialOrd, Clone, Debug, Eq, Hash)]
+pub struct Deprecation {
+    pub since: Option<InternedString>,
+    pub note: Option<InternedString>,
+}
+
+impl StabilityLevel {
+    pub fn is_unstable(&self) -> bool { if let Unstable {..} = *self { true } else { false }}
+    pub fn is_stable(&self) -> bool { if let Stable {..} = *self { true } else { false }}
+}
 
 /// A list of attributes, behind a optional box as
 /// a space optimization.

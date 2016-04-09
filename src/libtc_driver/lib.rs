@@ -17,24 +17,28 @@ pub mod config;
 pub mod cstore;
 pub mod driver;
 pub mod filesearch;
+pub mod metadata;
 pub mod middle;
 pub mod pretty;
 pub mod search_paths;
 pub mod session;
 pub mod targets;
-//pub mod ty;
+pub mod ty;
 
 use syntax::diagnostics;
 use syntax::errors;
 use syntax::errors::emitter::Emitter;
+use syntax::parse::token;
 
 use driver::CompileController;
 use config::{Input, ErrorOutputType};
-use session::{CompileResult, Session, early_error, early_warn};
+use metadata::cstore::CStore;
+use session::{build_session, CompileResult, early_error, early_warn, Session};
 use pretty::{PpMode, UserIdentifiedItem};
 
 use std::env;
 use std::io::{self, Read};
+use std::rc::Rc;
 use std::path::PathBuf;
 use std::process;
 
@@ -104,6 +108,9 @@ pub fn run_compiler<'a>(args: &[String],
       None => return (Ok(()), None),
     },
   };
+
+  let cstore = Rc::new(CStore::new(token::get_ident_interner()));
+  //let sess = build_session(sopts, input_file_path, descriptions, cstore.clone());
 
   (Ok(()), None)
 }

@@ -10,6 +10,7 @@ use syntax::diagnostics;
 use syntax::parse;
 use syntax::parse::ParseSess;
 use targets::Target;
+use ty::tls;
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
@@ -224,14 +225,13 @@ fn opt_span_bug_fmt<S: Into<MultiSpan>>(file: &'static str,
                                           line: u32,
                                           span: Option<S>,
                                           args: fmt::Arguments) -> ! {
-    // TODO
-    /*tls::with_opt(move |tcx| {
+    tls::with_opt(move |tcx| {
         let msg = format!("{}:{}: {}", file, line, args);
         match (tcx, span) {
             (Some(tcx), Some(span)) => tcx.sess.diagnostic().span_bug(span, &msg),
             (Some(tcx), None) => tcx.sess.diagnostic().bug(&msg),
             (None, _) => panic!(msg)
         }
-    });*/
+    });
     unreachable!();
 }
