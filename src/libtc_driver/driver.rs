@@ -1,6 +1,9 @@
+use config::{self, Input};
 use metadata::cstore::CStore;
 use session::{Session, CompileResult};
-use config::{self, Input};
+use util::common::time;
+
+
 
 use syntax::ast;
 use syntax::parse::{self, PResult, token};
@@ -97,5 +100,20 @@ pub fn phase_1_parse_input<'a>(sess: &'a Session,
                                cfg: ast::CrateConfig,
                                input: &Input)
                                -> PResult<'a, ast::Crate> {
-  unimplemented!()
+
+ let krate = time(sess.time_passes(), "parsing", || {
+    match *input {
+      Input::File(ref file) => {
+        parse::parse_crate_from_file(file, cfg.clone(), &sess.parse_sess)
+      }
+      Input::Str { ref input, ref name } => {
+        parse::parse_crate_from_source_str(name.clone(),
+                                            input.clone(),
+                                            cfg.clone(),
+                                            &sess.parse_sess)
+      }
+    }
+ })?;
+
+ unimplemented!()
 }
