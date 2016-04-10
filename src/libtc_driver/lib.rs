@@ -27,6 +27,10 @@ pub mod targets;
 pub mod target_features;
 pub mod ty;
 
+pub mod util {
+  pub mod common;
+}
+
 use syntax::diagnostics;
 use syntax::errors;
 use syntax::errors::emitter::Emitter;
