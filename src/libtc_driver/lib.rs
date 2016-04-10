@@ -3,6 +3,7 @@
 #![feature(question_mark)]
 
 extern crate env_logger;
+extern crate data_structures;
 extern crate getopts;
 extern crate syntax;
 extern crate typed_arena;
@@ -23,6 +24,7 @@ pub mod pretty;
 pub mod search_paths;
 pub mod session;
 pub mod targets;
+pub mod target_features;
 pub mod ty;
 
 use syntax::diagnostics;
@@ -110,9 +112,16 @@ pub fn run_compiler<'a>(args: &[String],
   };
 
   let cstore = Rc::new(CStore::new(token::get_ident_interner()));
-  //let sess = build_session(sopts, input_file_path, descriptions, cstore.clone());
+  let sess = build_session(sopts, input_file_path, descriptions, cstore.clone());
+  let mut cfg = config::build_configuration(&sess);
 
-  (Ok(()), None)
+  do_or_return!(callbacks.late_callback(&matches, &sess, &input), Some(sess));
+
+  let plugins = sess.opts.debugging_opts.extra_plugins.clone();
+  let control = callbacks.build_controller(&sess);
+
+  (driver::compile_input(&sess, &cstore, cfg, &input,
+                         Some(plugins), &control), Some(sess))
 }
 
 // Extract input (string or file and optional path) from matches.
@@ -170,9 +179,7 @@ pub trait CompilerCalls<'a> {
     fn late_callback(&mut self,
                      _: &getopts::Matches,
                      _: &Session,
-                     _: &Input,
-                     _: &Option<PathBuf>,
-                     _: &Option<PathBuf>)
+                     _: &Input)
                      -> Compilation {
         Compilation::Continue
     }

@@ -1,0 +1,15 @@
+[package]
+authors = ["Hyunsik Choi <hyunsik@apache.org>"]
+name = "data_structures"
+version = "0.0.0"
+
+[lib]
+name = "data_structures"
+path = "lib.rs"
+crate-type = ["dylib"]
+
+[dependencies]
+env_logger = "0.3.2"
+log = "0.3.4"
+rustc-serialize = "0.3.16"
+

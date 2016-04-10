@@ -6,11 +6,13 @@ pub use self::Passes::*;
 
 use cstore;
 use search_paths::SearchPaths;
-use session::early_error;
+use session::{early_error, early_warn, Session};
 
 use syntax::ast::{self, IntTy, UintTy};
+use syntax::attr::{self, AttrMetaMethods};
 use syntax::errors::{ColorConfig, Handler};
 use syntax::feature_gate::UnstableFeatures;
+use syntax::parse::token::InternedString;
 use targets::Target;
 
 use getopts;
@@ -545,6 +547,68 @@ options! {DebuggingOptions, DebuggingSetter, basic_debugging_options,
           "dump MIR state at various points in translation"),
     orbit: bool = (false, parse_bool,
           "get MIR where it belongs - everywhere; most importantly, in orbit"),
+}
+
+pub fn default_configuration(sess: &Session) -> ast::CrateConfig {
+    use syntax::parse::token::intern_and_get_ident as intern;
+
+    let end = &sess.target.target.target_endian;
+    let arch = &sess.target.target.arch;
+    let wordsz = &sess.target.target.target_pointer_width;
+    let os = &sess.target.target.target_os;
+    let env = &sess.target.target.target_env;
+    let vendor = &sess.target.target.target_vendor;
+
+    let fam = if let Some(ref fam) = sess.target.target.options.target_family {
+        intern(fam)
+    } else if sess.target.target.options.is_like_windows {
+        InternedString::new("windows")
+    } else {
+        InternedString::new("unix")
+    };
+
+    let mk = attr::mk_name_value_item_str;
+    let mut ret = vec![ // Target bindings.
+        mk(InternedString::new("target_os"), intern(os)),
+        mk(InternedString::new("target_family"), fam.clone()),
+        mk(InternedString::new("target_arch"), intern(arch)),
+        mk(InternedString::new("target_endian"), intern(end)),
+        mk(InternedString::new("target_pointer_width"), intern(wordsz)),
+        mk(InternedString::new("target_env"), intern(env)),
+        mk(InternedString::new("target_vendor"), intern(vendor)),
+    ];
+    match &fam[..] {
+        "windows" | "unix" => ret.push(attr::mk_word_item(fam)),
+        _ => (),
+    }
+    if sess.target.target.options.has_elf_tls {
+        ret.push(attr::mk_word_item(InternedString::new("target_thread_local")));
+    }
+    if sess.opts.debug_assertions {
+        ret.push(attr::mk_word_item(InternedString::new("debug_assertions")));
+    }
+    return ret;
+}
+
+pub fn append_configuration(cfg: &mut ast::CrateConfig,
+                            name: InternedString) {
+    if !cfg.iter().any(|mi| mi.name() == name) {
+        cfg.push(attr::mk_word_item(name))
+    }
+}
+
+pub fn build_configuration(sess: &Session) -> ast::CrateConfig {
+    // Combine the configuration requested by the session (command line) with
+    // some default and generated configuration items
+    let default_cfg = default_configuration(sess);
+    let mut user_cfg = sess.opts.cfg.clone();
+    // If the user wants a test runner, then add the test cfg
+    if sess.opts.test {
+        append_configuration(&mut user_cfg, InternedString::new("test"))
+    }
+    let mut v = user_cfg.into_iter().collect::<Vec<_>>();
+    v.extend_from_slice(&default_cfg[..]);
+    v
 }
 
 pub fn build_target_config(opts: &Options, sp: &Handler) -> Config {

@@ -1,4 +1,34 @@
+use metadata::cstore::CStore;
+use session::{Session, CompileResult};
+use config::{self, Input};
+
+use syntax::ast;
+use syntax::parse::{self, PResult, token};
+
 use super::Compilation;
+
+pub fn compile_input(sess: &Session,
+                     cstore: &CStore,
+                     cfg: ast::CrateConfig,
+                     input: &Input,
+                     addl_plugins: Option<Vec<String>>,
+                     control: &CompileController) -> CompileResult {
+
+  macro_rules! controller_entry_point {
+      ($point: ident, $tsess: expr, $make_state: expr, $phase_result: expr) => {{
+          let state = $make_state;
+          let phase_result: &CompileResult = &$phase_result;
+          if phase_result.is_ok() || control.$point.run_callback_on_error {
+              (control.$point.callback)(state);
+          }
+
+          if control.$point.stop == Compilation::Stop {
+              return compile_result_from_err_count($tsess.err_count());
+          }
+      }}
+  }
+  unimplemented!()
+}
 
 /// The name used for source code that doesn't originate in a file
 /// (e.g. source from stdin or a string)
@@ -62,3 +92,10 @@ impl<'a> PhaseController<'a> {
 /// during compilation the callback is made. See the various constructor methods
 /// (`state_*`) in the impl to see which data is provided for any given entry point.
 pub struct CompileState;
+
+pub fn phase_1_parse_input<'a>(sess: &'a Session,
+                               cfg: ast::CrateConfig,
+                               input: &Input)
+                               -> PResult<'a, ast::Crate> {
+  unimplemented!()
+}
