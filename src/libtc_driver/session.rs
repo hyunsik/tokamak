@@ -67,6 +67,21 @@ impl Session {
     panic!(self.diagnostic().fatal(msg))
   }
 
+  pub fn span_err_or_warn<S: Into<MultiSpan>>(&self, is_warning: bool, sp: S, msg: &str) {
+    if is_warning {
+      self.span_warn(sp, msg);
+    } else {
+      self.span_err(sp, msg);
+    }
+  }
+
+  pub fn span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str) {
+    match split_msg_into_multilines(msg) {
+      Some(msg) => self.diagnostic().span_err(sp, &msg),
+      None => self.diagnostic().span_err(sp, msg)
+    }
+  }
+
   pub fn err(&self, msg: &str) {
     self.diagnostic().err(msg)
   }
@@ -95,6 +110,10 @@ impl Session {
     }
   }
 
+  pub fn span_warn<S: Into<MultiSpan>>(&self, sp: S, msg: &str) {
+    self.diagnostic().span_warn(sp, msg)
+  }
+
   pub fn diagnostic<'a>(&'a self) -> &'a errors::Handler {
     &self.parse_sess.span_diagnostic
   }
@@ -107,6 +126,66 @@ impl Session {
   pub fn time_passes(&self) -> bool { self.opts.debugging_opts.time_passes }
 }
 
+fn split_msg_into_multilines(msg: &str) -> Option<String> {
+    // Conditions for enabling multi-line errors:
+    if !msg.contains("mismatched types") &&
+        !msg.contains("type mismatch resolving") &&
+        !msg.contains("if and else have incompatible types") &&
+        !msg.contains("if may be missing an else clause") &&
+        !msg.contains("match arms have incompatible types") &&
+        !msg.contains("structure constructor specifies a structure of type") &&
+        !msg.contains("has an incompatible type for trait") {
+            return None
+    }
+    let first = msg.match_indices("expected").filter(|s| {
+        s.0 > 0 && (msg.char_at_reverse(s.0) == ' ' ||
+                    msg.char_at_reverse(s.0) == '(')
+    }).map(|(a, b)| (a - 1, a + b.len()));
+    let second = msg.match_indices("found").filter(|s| {
+        msg.char_at_reverse(s.0) == ' '
+    }).map(|(a, b)| (a - 1, a + b.len()));
+
+    let mut new_msg = String::new();
+    let mut head = 0;
+
+    // Insert `\n` before expected and found.
+    for (pos1, pos2) in first.zip(second) {
+        new_msg = new_msg +
+        // A `(` may be preceded by a space and it should be trimmed
+                  msg[head..pos1.0].trim_right() + // prefix
+                  "\n" +                           // insert before first
+                  &msg[pos1.0..pos1.1] +           // insert what first matched
+                  &msg[pos1.1..pos2.0] +           // between matches
+                  "\n   " +                        // insert before second
+        //           123
+        // `expected` is 3 char longer than `found`. To align the types,
+        // `found` gets 3 spaces prepended.
+                  &msg[pos2.0..pos2.1];            // insert what second matched
+
+        head = pos2.1;
+    }
+
+    let mut tail = &msg[head..];
+    let third = tail.find("(values differ")
+                   .or(tail.find("(lifetime"))
+                   .or(tail.find("(cyclic type of infinite size"));
+    // Insert `\n` before any remaining messages which match.
+    if let Some(pos) = third {
+        // The end of the message may just be wrapped in `()` without
+        // `expected`/`found`.  Push this also to a new line and add the
+        // final tail after.
+        new_msg = new_msg +
+        // `(` is usually preceded by a space and should be trimmed.
+                  tail[..pos].trim_right() + // prefix
+                  "\n" +                     // insert before paren
+                  &tail[pos..];              // append the tail
+
+        tail = "";
+    }
+
+    new_msg.push_str(tail);
+    return Some(new_msg);
+}
 
 pub fn build_session(sopts: config::Options,
                      local_crate_source_file: Option<PathBuf>,

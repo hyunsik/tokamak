@@ -1,5 +1,6 @@
 
 #![feature(set_stdio)]
+#![feature(str_char)]
 #![feature(question_mark)]
 
 extern crate env_logger;

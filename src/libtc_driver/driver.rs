@@ -1,3 +1,6 @@
+use syntax::attr::AttrMetaMethods;
+use syntax::codemap::Span;
+
 use config::{self, Input};
 use metadata::cstore::CStore;
 use session::{Session, CompileResult, compile_result_from_err_count};
@@ -133,6 +136,79 @@ impl<'a> CompileState<'a> {
                          krate: &'a ast::Crate)
                          -> CompileState<'a> {
         CompileState { krate: Some(krate), ..CompileState::empty(input, session) }
+    }
+}
+
+pub fn find_pkg_name(sess: Option<&Session>,
+                       attrs: &[ast::Attribute],
+                       input: &Input) -> String {
+    let validate = |s: String, span: Option<Span>| {
+        validate_pkg_name(sess, &s[..], span);
+        s
+    };
+
+    // Look for the package name from attributes.
+    let attr_pkg_name = attrs.iter().find(|at| at.check_name("crate_name"))
+                               .and_then(|at| at.value_str().map(|s| (at, s)));
+
+    if let Some(sess) = sess {
+        if let Some(ref s) = sess.opts.crate_name {
+            if let Some((attr, ref name)) = attr_pkg_name {
+                if *s != &name[..] {
+                    let msg = format!("--crate-name and #[crate_name] are \
+                                       required to match, but `{}` != `{}`",
+                                      s, name);
+                    sess.span_err(attr.span, &msg[..]);
+                }
+            }
+            return validate(s.clone(), None);
+        }
+    }
+
+    if let Some((attr, s)) = attr_pkg_name {
+        return validate(s.to_string(), Some(attr.span));
+    }
+    if let Input::File(ref path) = *input {
+        if let Some(s) = path.file_stem().and_then(|s| s.to_str()) {
+            if s.starts_with("-") {
+                let msg = format!("crate names cannot start with a `-`, but \
+                                   `{}` has a leading hyphen", s);
+                if let Some(sess) = sess {
+                    sess.err(&msg);
+                }
+            } else {
+                return validate(s.replace("-", "_"), None);
+            }
+        }
+    }
+
+    "rust_out".to_string()
+
+}
+
+pub fn validate_pkg_name(sess: Option<&Session>, s: &str, sp: Option<Span>) {
+    let mut err_count = 0;
+    {
+        let mut say = |s: &str| {
+            match (sp, sess) {
+                (_, None) => bug!("{}", s),
+                (Some(sp), Some(sess)) => sess.span_err(sp, s),
+                (None, Some(sess)) => sess.err(s),
+            }
+            err_count += 1;
+        };
+        if s.is_empty() {
+            say("package name must not be empty");
+        }
+        for c in s.chars() {
+            if c.is_alphanumeric() { continue }
+            if c == '_'  { continue }
+            say(&format!("invalid character `{}` in package name: `{}`", c, s));
+        }
+    }
+
+    if err_count > 0 {
+        sess.unwrap().abort_if_errors();
     }
 }
 
