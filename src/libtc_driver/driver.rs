@@ -159,3 +159,38 @@ pub fn phase_1_parse_input<'a>(sess: &'a Session,
 
  Ok(krate)
 }
+
+// For continuing compilation after a parsed crate has been
+// modified
+
+/// Run the "early phases" of the compiler: initial `cfg` processing,
+/// loading compiler plugins (including those from `addl_plugins`),
+/// syntax expansion, secondary `cfg` expansion, synthesis of a test
+/// harness if one is to be provided and injection of a dependency on the
+/// standard library and prelude.
+///
+/// Returns `None` if we're aborting after handling -W help.
+pub fn phase_2_configure_and_expand(sess: &Session,
+                                    cstore: &CStore,
+                                    mut krate: ast::Crate,
+                                    crate_name: &str,
+                                    addl_plugins: Option<Vec<String>>)
+                                    -> Result<ast::Crate, usize> {
+  unimplemented!()
+}
+
+/*
+/// Run the resolution, typechecking, region checking and other
+/// miscellaneous analysis passes on the crate. Return various
+/// structures carrying the results of the analysis.
+pub fn phase_3_run_analysis_passes<'tcx, F, R>(sess: &'tcx Session,
+                                               cstore: &CStore,
+                                               hir_map: hir_map::Map<'tcx>,
+                                               arenas: &'tcx ty::CtxtArenas<'tcx>,
+                                               name: &str,
+                                               make_glob_map: resolve::MakeGlobMap,
+                                               f: F)
+                                               -> Result<R, usize> {
+  unimplemented!()
+}
+*/
