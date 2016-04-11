@@ -1,6 +1,6 @@
 use config::{self, Input};
 use metadata::cstore::CStore;
-use session::{Session, CompileResult};
+use session::{Session, CompileResult, compile_result_from_err_count};
 use util::common::time;
 
 
@@ -30,6 +30,19 @@ pub fn compile_input(sess: &Session,
           }
       }}
   }
+
+  let krate = match phase_1_parse_input(sess, cfg, input) {
+    Ok(krate) => krate,
+    Err(mut parse_error) => {
+      parse_error.emit();
+      return Err(1);
+    }
+  };
+
+  controller_entry_point!(after_parse,
+                          sess,
+                          CompileState::state_after_parse(input, sess, &krate),
+                          Ok(()));
   unimplemented!()
 }
 
@@ -94,8 +107,36 @@ impl<'a> PhaseController<'a> {
 /// State that is passed to a callback. What state is available depends on when
 /// during compilation the callback is made. See the various constructor methods
 /// (`state_*`) in the impl to see which data is provided for any given entry point.
-pub struct CompileState;
+pub struct CompileState<'a> {
+  pub input: &'a Input,
+  pub session: &'a Session,
+  pub cfg: Option<&'a ast::CrateConfig>,
+  pub krate: Option<&'a ast::Crate>,
+  pub crate_name: Option<&'a str>,
+}
 
+impl<'a> CompileState<'a> {
+    fn empty(input: &'a Input,
+             session: &'a Session)
+             -> CompileState<'a> {
+        CompileState {
+            input: input,
+            session: session,
+            cfg: None,
+            krate: None,
+            crate_name: None,
+        }
+    }
+
+    fn state_after_parse(input: &'a Input,
+                         session: &'a Session,
+                         krate: &'a ast::Crate)
+                         -> CompileState<'a> {
+        CompileState { krate: Some(krate), ..CompileState::empty(input, session) }
+    }
+}
+
+/// Input to AST
 pub fn phase_1_parse_input<'a>(sess: &'a Session,
                                cfg: ast::CrateConfig,
                                input: &Input)
@@ -113,7 +154,8 @@ pub fn phase_1_parse_input<'a>(sess: &'a Session,
                                             &sess.parse_sess)
       }
     }
- })?;
+ });
 
- unimplemented!()
+
+ Ok(krate)
 }
