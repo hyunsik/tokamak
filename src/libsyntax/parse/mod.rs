@@ -62,95 +62,97 @@ impl ParseSess {
 // uses a HOF to parse anything, and <source> includes file and
 // source_str.
 
-pub fn parse_crate_from_file(
-    input: &Path,
-    cfg: ast::CrateConfig,
-    sess: &ParseSess
-) -> ast::Crate {
+pub fn parse_crate_from_file<'a>(input: &Path,
+                                 cfg: ast::CrateConfig,
+                                 sess: &'a ParseSess)
+                                 -> PResult<'a, ast::Crate> {
     let mut parser = new_parser_from_file(sess, cfg, input);
-    abort_if_errors(parser.parse_crate_mod(), &parser)
+    parser.parse_crate_mod()
 }
 
-pub fn parse_crate_attrs_from_file(
-    input: &Path,
-    cfg: ast::CrateConfig,
-    sess: &ParseSess
-) -> Vec<ast::Attribute> {
+pub fn parse_crate_attrs_from_file<'a>(input: &Path,
+                                       cfg: ast::CrateConfig,
+                                       sess: &'a ParseSess)
+                                       -> PResult<'a, Vec<ast::Attribute>> {
     let mut parser = new_parser_from_file(sess, cfg, input);
-    abort_if_errors(parser.parse_inner_attributes(), &parser)
+    parser.parse_inner_attributes()
 }
 
-pub fn parse_crate_from_source_str(name: String,
-                                   source: String,
-                                   cfg: ast::CrateConfig,
-                                   sess: &ParseSess)
-                                   -> ast::Crate {
+pub fn parse_crate_from_source_str<'a>(name: String,
+                                       source: String,
+                                       cfg: ast::CrateConfig,
+                                       sess: &'a ParseSess)
+                                       -> PResult<'a, ast::Crate> {
     let mut p = new_parser_from_source_str(sess,
                                            cfg,
                                            name,
                                            source);
-    panictry!(p.parse_crate_mod())
+    p.parse_crate_mod()
 }
 
-pub fn parse_crate_attrs_from_source_str(name: String,
-                                         source: String,
-                                         cfg: ast::CrateConfig,
-                                         sess: &ParseSess)
-                                         -> Vec<ast::Attribute> {
+pub fn parse_crate_attrs_from_source_str<'a>(name: String,
+                                             source: String,
+                                             cfg: ast::CrateConfig,
+                                             sess: &'a ParseSess)
+                                             -> PResult<'a, Vec<ast::Attribute>> {
     let mut p = new_parser_from_source_str(sess,
                                            cfg,
                                            name,
                                            source);
-    panictry!(p.parse_inner_attributes())
+    p.parse_inner_attributes()
 }
 
-pub fn parse_expr_from_source_str(name: String,
-                                  source: String,
-                                  cfg: ast::CrateConfig,
-                                  sess: &ParseSess)
-                                  -> P<ast::Expr> {
+pub fn parse_expr_from_source_str<'a>(name: String,
+                                      source: String,
+                                      cfg: ast::CrateConfig,
+                                      sess: &'a ParseSess)
+                                      -> PResult<'a, P<ast::Expr>> {
     let mut p = new_parser_from_source_str(sess, cfg, name, source);
-    panictry!(p.parse_expr())
+    p.parse_expr()
 }
 
-pub fn parse_item_from_source_str(name: String,
-                                  source: String,
-                                  cfg: ast::CrateConfig,
-                                  sess: &ParseSess)
-                                  -> Option<P<ast::Item>> {
+/// Parses an item.
+///
+/// Returns `Ok(Some(item))` when successful, `Ok(None)` when no item was found, and`Err`
+/// when a syntax error occurred.
+pub fn parse_item_from_source_str<'a>(name: String,
+                                      source: String,
+                                      cfg: ast::CrateConfig,
+                                      sess: &'a ParseSess)
+                                      -> PResult<'a, Option<P<ast::Item>>> {
     let mut p = new_parser_from_source_str(sess, cfg, name, source);
-    panictry!(p.parse_item())
+    p.parse_item()
 }
 
-pub fn parse_meta_from_source_str(name: String,
-                                  source: String,
-                                  cfg: ast::CrateConfig,
-                                  sess: &ParseSess)
-                                  -> P<ast::MetaItem> {
+pub fn parse_meta_from_source_str<'a>(name: String,
+                                      source: String,
+                                      cfg: ast::CrateConfig,
+                                      sess: &'a ParseSess)
+                                      -> PResult<'a, P<ast::MetaItem>> {
     let mut p = new_parser_from_source_str(sess, cfg, name, source);
-    panictry!(p.parse_meta_item())
+    p.parse_meta_item()
 }
 
-pub fn parse_stmt_from_source_str(name: String,
-                                  source: String,
-                                  cfg: ast::CrateConfig,
-                                  sess: &ParseSess)
-                                  -> Option<ast::Stmt> {
+pub fn parse_stmt_from_source_str<'a>(name: String,
+                                      source: String,
+                                      cfg: ast::CrateConfig,
+                                      sess: &'a ParseSess)
+                                      -> PResult<'a, Option<ast::Stmt>> {
     let mut p = new_parser_from_source_str(
         sess,
         cfg,
         name,
         source
     );
-    panictry!(p.parse_stmt())
+    p.parse_stmt()
 }
 
 // Warning: This parses with quote_depth > 0, which is not the default.
-pub fn parse_tts_from_source_str(name: String,
-                                 source: String,
-                                 cfg: ast::CrateConfig,
-                                 sess: &ParseSess)
-                                 -> Vec<ast::TokenTree> {
+pub fn parse_tts_from_source_str<'a>(name: String,
+                                     source: String,
+                                     cfg: ast::CrateConfig,
+                                     sess: &'a ParseSess)
+                                     -> PResult<'a, Vec<ast::TokenTree>> {
     let mut p = new_parser_from_source_str(
         sess,
         cfg,
@@ -159,7 +161,7 @@ pub fn parse_tts_from_source_str(name: String,
     );
     p.quote_depth += 1;
     // right now this is re-creating the token trees from ... token trees.
-    panictry!(p.parse_all_token_trees())
+    p.parse_all_token_trees()
 }
 
 // Create a new parser from a source string

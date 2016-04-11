@@ -154,7 +154,7 @@ pub fn phase_1_parse_input<'a>(sess: &'a Session,
                                             &sess.parse_sess)
       }
     }
- });
+ })?;
 
 
  Ok(krate)

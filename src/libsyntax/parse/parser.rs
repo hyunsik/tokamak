@@ -3571,6 +3571,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_crate_mod(&mut self) -> PResult<'a, Crate> {
+      let lo = self.span.lo;
       unimplemented!()
     }
 }
