@@ -285,7 +285,7 @@ fragment QUESTION_IDENTIFIER : QUESTION? IDENT;
 
 LIFETIME : '\'' IDENT ;
 
-WHITESPACE : [ \r\n\t]+ ;
+WHITESPACE : [ \r\n\t]+ -> skip;
 
 UNDOC_COMMENT     : '////' ~[\n]* -> type(COMMENT) ;
 YESDOC_COMMENT    : '///' ~[\r\n]* -> type(DOC_COMMENT) ;

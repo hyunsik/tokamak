@@ -61,6 +61,7 @@ item_list
 
 item
   : item_mod
+  | item_import
   ;
 
 item_mod
