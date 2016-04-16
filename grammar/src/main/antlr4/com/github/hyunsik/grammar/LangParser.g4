@@ -49,6 +49,12 @@ pkg_attr
   ;
 */
 
+/*
+===============================================================================
+  Items (Top-level items in a source code)
+===============================================================================
+*/
+
 item_list
   : item*
   ;
@@ -68,4 +74,31 @@ item_mod_file
 item_mod_group
   : LBRACE item_list RBRACE
   ;
+
+
+item_import
+  : IMPORT view_path SEMI
+  ;
+/*
+===============================================================================
+  View Path
+===============================================================================
+*/
+
+view_path
+  : non_global_path MOD_SEP LBRACE ident_list (COMMA)? RBRACE
+  | non_global_path MOD_SEP STAR
+  | non_global_path
+  ;
+
+non_global_path : IDENT (MOD_SEP IDENT)* ;
+
+/*
+===============================================================================
+  Ident
+===============================================================================
+*/
+
+ident_list: IDENT (COMMA IDENT)*;
+
 

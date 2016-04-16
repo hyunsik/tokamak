@@ -126,8 +126,10 @@ fragment Z
 ===============================================================================
 */
 
+IMPORT: I M P O R T;
 MOD: M O D;
 PUB: P U B;
+SELF: S E L F;
 TYPE: T Y P E;
 
 /* Expression-operator symbols */
