@@ -54,17 +54,18 @@ item_list
   ;
 
 item
-  : mod_item
+  : item_mod
   ;
 
-mod_item
-  : (PUB)? MOD (mod_item_file | item_mod_group)
+item_mod
+  : (PUB)? MOD (item_mod_file | item_mod_group)
   ;
 
-mod_item_file
+item_mod_file
   : IDENT SEMI
   ;
 
 item_mod_group
   : LBRACE item_list RBRACE
   ;
+
