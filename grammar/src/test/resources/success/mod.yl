@@ -1,0 +1,16 @@
+pub mod abc;
+mod abc;
+
+pub mod abc {}
+mod abc {}
+
+pub mod abc {
+  pub mod xyz;
+  mod xyz;
+}
+
+pub mod abc {
+  pub mod xyz {
+    pub mod bbc;
+  }
+}

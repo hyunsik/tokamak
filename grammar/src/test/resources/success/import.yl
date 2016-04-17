@@ -1,0 +1,6 @@
+import x;
+import x::y::z;
+import x::y::*;
+import x::y::{a,b,c};
+import x::y::{self};
+import x::y::{self,a,b,c};

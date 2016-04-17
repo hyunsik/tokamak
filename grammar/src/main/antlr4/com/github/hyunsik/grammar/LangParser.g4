@@ -36,7 +36,7 @@ options {
 */
 
 pkg
-  : item_list EOF
+  : item_import_list item_list EOF
   ;
 
 /*
@@ -61,25 +61,22 @@ item_list
 
 item
   : item_mod
-  | item_import
   ;
 
 item_mod
-  : (PUB)? MOD (item_mod_file | item_mod_group)
+  : visibility MOD IDENT (SEMI | LBRACE item_list RBRACE)
   ;
 
-item_mod_file
-  : IDENT SEMI
+item_import_list
+  : item_import*
   ;
-
-item_mod_group
-  : LBRACE item_list RBRACE
-  ;
-
 
 item_import
   : IMPORT view_path SEMI
   ;
+
+visibility : PUB | PRIV | /*nothing*/ ;
+
 /*
 ===============================================================================
   View Path
@@ -92,7 +89,7 @@ view_path
   | non_global_path
   ;
 
-non_global_path : IDENT (MOD_SEP IDENT)* ;
+non_global_path : ident (MOD_SEP ident)* ;
 
 /*
 ===============================================================================
@@ -100,6 +97,11 @@ non_global_path : IDENT (MOD_SEP IDENT)* ;
 ===============================================================================
 */
 
-ident_list: IDENT (COMMA IDENT)*;
+ident_list: ident (COMMA ident)*;
+
+ident
+  : IDENT
+  | SELF
+  ;
 
 
