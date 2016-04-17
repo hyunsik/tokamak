@@ -36,7 +36,7 @@ options {
 */
 
 pkg
-  : item_import_list item_list EOF
+  : item_import* item_list EOF
   ;
 
 /*
@@ -67,10 +67,6 @@ item_mod
   : visibility MOD IDENT (SEMI | LBRACE item_list RBRACE)
   ;
 
-item_import_list
-  : item_import*
-  ;
-
 item_import
   : IMPORT view_path SEMI
   ;
@@ -90,6 +86,40 @@ view_path
   ;
 
 non_global_path : ident (MOD_SEP ident)* ;
+
+
+/*
+===============================================================================
+  Fn Decl
+===============================================================================
+*/
+item_fn_decl: FN ident LPAREN RPAREN ret_ty fun_body;
+
+ret_ty
+ : ty
+ | /* nothing */
+ ;
+
+fun_body : LBRACE item_import* block_element* (block_last_element)? RBRACE ;
+
+block_element
+  : LPAREN ty RPAREN
+  ;
+
+block_last_element
+  : LPAREN RPAREN
+  ;
+
+
+/*
+===============================================================================
+  Ty
+===============================================================================
+*/
+
+ty
+ : LPAREN RPAREN
+ ;
 
 /*
 ===============================================================================
