@@ -60,11 +60,12 @@ item_list
   ;
 
 item
-  : item_mod
+  : visibility mod_decl
+  | visibility type_decl
   ;
 
-item_mod
-  : visibility MOD IDENT (SEMI | LBRACE item_list RBRACE)
+mod_decl
+  : MOD IDENT (SEMI | LBRACE item_list RBRACE)
   ;
 
 item_import
@@ -85,8 +86,15 @@ view_path
   | non_global_path
   ;
 
+path : MOD_SEP? non_global_path;
 non_global_path : ident (MOD_SEP ident)* ;
 
+/*
+===============================================================================
+  Type Decl
+===============================================================================
+*/
+type_decl : TYPE ident (LT (generic_decls)? GT)? EQ ty SEMI ;
 
 /*
 ===============================================================================
@@ -118,7 +126,30 @@ block_last_element
 */
 
 ty
- : LPAREN RPAREN
+ : LPAREN RPAREN // empty
+ | LPAREN ty (COMMA)? RPAREN // tuple
+ | LPAREN tys RPAREN // tuple
+ | path (LT (generics)? GT)?
+ ;
+
+tys
+ : ty (COMMA tys)?
+ ;
+
+generic_decls
+ : type_params
+ ;
+
+generics
+  : tys
+  ;
+
+type_params
+ : type_param (COMMA type_param)*
+ ;
+
+type_param
+ : ident
  ;
 
 /*
