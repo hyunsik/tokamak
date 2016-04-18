@@ -2,12 +2,11 @@ package org.github.hyunsik.grammar;
 
 import com.github.hyunsik.grammar.LangLexer;
 import com.github.hyunsik.grammar.LangParser;
-import com.github.hyunsik.grammar.LangParser.PkgContext;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 
 public class Parser {
-  public static PkgContext parse(String sourceCode) {
+  public static LangParser.Package_contentsContext parse(String sourceCode) {
     final ANTLRInputStream input = new ANTLRInputStream(sourceCode);
     final LangLexer lexer = new LangLexer(input);
     lexer.removeErrorListeners();
@@ -21,6 +20,6 @@ public class Parser {
     parser.addErrorListener(new LangErrorListener());
     parser.setBuildParseTree(true);
 
-    return parser.pkg();
+    return parser.package_contents();
   }
 }

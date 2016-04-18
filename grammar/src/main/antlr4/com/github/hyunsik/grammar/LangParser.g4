@@ -35,8 +35,8 @@ options {
 ===============================================================================
 */
 
-pkg
-  : item_import* item_list EOF
+package_contents
+  : item* EOF
   ;
 
 /*
@@ -55,24 +55,22 @@ pkg_attr
 ===============================================================================
 */
 
-item_list
-  : item*
-  ;
-
 item
-  : visibility mod_decl
+  : visibility import_decl
+  | visibility mod_decl
   | visibility type_decl
   ;
 
-mod_decl
-  : MOD IDENT (SEMI | LBRACE item_list RBRACE)
-  ;
+visibility : PUB | PRIV | /*nothing*/ ;
 
-item_import
+import_decl
   : IMPORT view_path SEMI
   ;
 
-visibility : PUB | PRIV | /*nothing*/ ;
+mod_decl
+  : MOD IDENT (SEMI | LBRACE item* RBRACE)
+  ;
+
 
 /*
 ===============================================================================
@@ -81,13 +79,16 @@ visibility : PUB | PRIV | /*nothing*/ ;
 */
 
 view_path
-  : non_global_path MOD_SEP LBRACE ident_list (COMMA)? RBRACE
+  : non_global_path MOD_SEP LBRACE RBRACE
+  | non_global_path MOD_SEP LBRACE ident_list RBRACE
   | non_global_path MOD_SEP STAR
   | non_global_path
   ;
 
 path : MOD_SEP? non_global_path;
 non_global_path : ident (MOD_SEP ident)* ;
+
+path_with_colon_tps : path (MOD_SEP LT (generics)? GT )? ;
 
 /*
 ===============================================================================
@@ -108,7 +109,7 @@ ret_ty
  | /* nothing */
  ;
 
-fun_body : LBRACE item_import* block_element* (block_last_element)? RBRACE ;
+fun_body : LBRACE import_decl* block_element* (block_last_element)? RBRACE ;
 
 block_element
   : LPAREN ty RPAREN
@@ -127,13 +128,12 @@ block_last_element
 
 ty
  : LPAREN RPAREN // empty
- | LPAREN ty (COMMA)? RPAREN // tuple
  | LPAREN tys RPAREN // tuple
  | path (LT (generics)? GT)?
  ;
 
 tys
- : ty (COMMA tys)?
+ : ty (COMMA)? | ty (COMMA pats)
  ;
 
 generic_decls
@@ -154,6 +154,61 @@ type_param
 
 /*
 ===============================================================================
+  Pat (Pattern)
+===============================================================================
+*/
+
+pat
+ : LPAREN RPAREN
+ | LPAREN pats RPAREN
+ | ident
+ ;
+
+pats
+ : pat (COMMA)? | pat COMMA pats
+ ;
+
+/*
+===============================================================================
+  Expr
+===============================================================================
+*/
+
+exprs
+  : expr | expr COMMA exprs
+  ;
+
+expr
+  : expr_dot_or_call
+  ;
+
+expr_assoc
+  :
+  ;
+
+expr_prefix
+  : NOT expr_prefix
+  | MINUS expr_prefix
+  | expr_dot_or_call
+  ;
+
+expr_dot_or_call
+  : expr_dot_or_call DOT ident (MOD_SEP LT (generics)? GT)? (LPAREN (exprs)? RPAREN)?
+  | expr_dot_or_call LPAREN (exprs)? RPAREN
+  | expr_dot_or_call LBRACKET expr RBRACKET
+  | expr_bottom
+  ;
+
+expr_bottom
+  : LPAREN (exprs (COMMA)?)? RPAREN
+  | RETURN (expr)?
+  | BREAK (ident)?
+  | path_with_colon_tps
+  | lit
+  ;
+
+/*
+===============================================================================
   Ident
 ===============================================================================
 */
@@ -163,6 +218,26 @@ ident_list: ident (COMMA ident)*;
 ident
   : IDENT
   | SELF
+  | UNDERSCORE
   ;
 
+
+/*
+===============================================================================
+  Lit (Literal)
+===============================================================================
+*/
+
+lit
+  : TRUE
+  | FALSE
+  | LIT_BYTE
+  | LIT_INTEGER
+  | LIT_FLOAT
+  | LIT_STR
+  | LIT_BYTE_STR
+  | LIT_BYTE_STR_RAW
+  | LIT_STR_RAW
+  | LPAREN RPAREN
+  ;
 
