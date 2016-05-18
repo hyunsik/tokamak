@@ -1,0 +1,14 @@
+[package]
+name = "parser2"
+version = "0.0.1"
+authors = ["Hyunsik Choi <hyunsik@apache.org>"]
+
+[lib]
+name = "parser2"
+path = "lib.rs"
+
+[dependencies]
+regex = "0.1.47"
+
+[dependencies.common]
+path = "../common"
