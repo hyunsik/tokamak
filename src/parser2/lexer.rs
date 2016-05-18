@@ -1,8 +1,8 @@
 use std::char;
 use std::rc::Rc;
 
-use codemap::{BytePos, Span};
-use token;
+use codemap::{BytePos, CharPos, Span, Pos};
+use token::{self, str_to_ident};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TokenAndSpan {
@@ -175,7 +175,16 @@ impl StringReader {
       }
 
       return self.with_str_from(start, |string| {
-        token::Ident
+        if string == "_" {
+          token::Underscore
+        } else {
+          // FIXME: perform NFKC normalization here. (Issue #2253)
+          if self.curr_is(':') && self.nextch_is(':') {
+            token::Ident(str_to_ident(string), token::ModName)
+          } else {
+            token::Ident(str_to_ident(string), token::Plain)
+          }
+        }
       });
     }
 
@@ -331,8 +340,8 @@ impl StringReader {
   }
 
   fn bump(&mut self) {
-    let current_byte_offset = self.pos.to_usize();
-
+    self.last_pos = self.pos;
+    let current_byte_offset = self.byte_offset(self.pos).to_usize();
     if current_byte_offset < self.source_text.len() {
       let ch = char_at(&self.source_text, current_byte_offset);
       self.pos = self.pos + BytePos(1);
@@ -367,7 +376,7 @@ fn ident_continue(c: Option<char>) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use token;
+  use token::{self, str_to_ident};
   use std::rc::Rc;
   use super::{Reader, StringReader};
 
@@ -380,6 +389,10 @@ mod tests {
     }
 
     assert_eq!(&result[..], expected)
+  }
+
+  fn ident(name: &str) -> token::Token {
+    token::Ident(str_to_ident(name), token::Plain)
   }
 
   #[test]
@@ -418,7 +431,7 @@ mod tests {
 
   #[test]
   fn test_idents() {
-    assert_tokens("let;", &[token::Ident]);
+    assert_tokens("let", &[ident("let")]);
   }
 
   #[test]
