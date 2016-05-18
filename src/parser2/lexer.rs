@@ -1,7 +1,8 @@
 use std::char;
+use std::mem::replace;
 use std::rc::Rc;
 
-use codemap::{BytePos, CharPos, Span, Pos};
+use codemap::{self, BytePos, CharPos, Span, Pos};
 use token::{self, str_to_ident};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -45,16 +46,21 @@ pub struct StringReader {
   pub last_pos: BytePos,
   /// The last character to be read
   pub curr: Option<char>,
+
+  pub peek_tok: token::Token,
+  pub peek_span: Span
 }
 
 impl Reader for StringReader {
   fn is_eof(&self) -> bool { self.curr.is_none() }
 
   fn next_token(&mut self) -> TokenAndSpan {
-    TokenAndSpan {
-      tok: self.next_token_inner(),
-      sp: Span {lo: BytePos(0), hi: BytePos(0)}
-    }
+    let ret_val = TokenAndSpan {
+      tok: replace(&mut self.peek_tok, token::Underscore),
+      sp: self.peek_span,
+    };
+    self.advance_token();
+    ret_val
   }
   /// Report a fatal error with the current span.
   fn fatal(&self, m: &str) -> FatalError {
@@ -92,12 +98,15 @@ fn char_at(s: &str, byte: usize) -> char {
 impl StringReader {
   pub fn new(source: Rc<String>) -> StringReader {
     let mut sr = StringReader {
-      source_text: source,
       pos: BytePos(0),
       last_pos: BytePos(0),
-      curr: None
+      curr: Some('\n'),
+      peek_tok: token::Eof,
+      peek_span: codemap::DUMMY_SPAN,
+      source_text: source,
     };
     sr.bump();
+    sr.advance_token();
     sr
   }
 
@@ -339,15 +348,55 @@ impl StringReader {
     unimplemented!()
   }
 
+  fn advance_token(&mut self) {
+    match self.scan_whitespace_or_comment() {
+      Some(ws_or_comment) => {
+        self.peek_span = ws_or_comment.sp;
+        self.peek_tok = ws_or_comment.tok;
+      }
+      None => {
+        if self.is_eof() {
+          self.peek_tok = token::Eof;
+          self.peek_span = codemap::mk_span(self.last_pos, self.last_pos);
+        } else {
+          let start_bytespos = self.last_pos;
+          self.peek_tok = self.next_token_inner();
+          self.peek_span = codemap::mk_span(start_bytespos, self.last_pos)
+        }
+      }
+    }
+  }
+
   fn bump(&mut self) {
     self.last_pos = self.pos;
     let current_byte_offset = self.byte_offset(self.pos).to_usize();
     if current_byte_offset < self.source_text.len() {
       let ch = char_at(&self.source_text, current_byte_offset);
-      self.pos = self.pos + BytePos(1);
+      let next = current_byte_offset + ch.len_utf8();
+      let byte_offset_diff = next - current_byte_offset;
+      self.pos = self.pos + Pos::from_usize(byte_offset_diff);
       self.curr = Some(ch);
     } else {
       self.curr = None;
+    }
+  }
+
+  /// If there is whitespace or a comment, scan it. Otherwise, return None.
+  pub fn scan_whitespace_or_comment(&mut self) -> Option<TokenAndSpan> {
+    match self.curr.unwrap_or('\0') {
+      '/' | '#' => {
+        unimplemented!()
+      }
+      c if is_whitespace(Some(c)) => {
+        let start_bpos = self.last_pos;
+        while is_whitespace(self.curr) { self.bump(); }
+
+        Some(TokenAndSpan {
+          tok: token::Whitespace,
+          sp: codemap::mk_span(start_bpos, self.last_pos)
+        })
+      }
+      _ => None
     }
   }
 }
@@ -374,6 +423,13 @@ fn ident_continue(c: Option<char>) -> bool {
   || (c > '\x7f' && c.is_xid_continue())
 }
 
+pub fn is_whitespace(c: Option<char>) -> bool {
+  match c.unwrap_or('\x00') { // None can be null for now... it's not whitespace
+    ' ' | '\n' | '\t' | '\r' => true,
+    _ => false
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use token::{self, str_to_ident};
@@ -384,8 +440,11 @@ mod tests {
     let mut result: Vec<token::Token> = Vec::new();
 
     let mut sr = StringReader::new(Rc::new(source.to_string()));
-    while !sr.is_eof() {
-      result.push(sr.next_token().tok);
+
+    loop {
+      let tok = sr.next_token().tok;
+      if tok == token::Eof { break;}
+      result.push(tok.clone());
     }
 
     assert_eq!(&result[..], expected)
@@ -397,9 +456,9 @@ mod tests {
 
   #[test]
   fn test_tokens() {
-    assert_tokens("@:;,.$#?",
+    assert_tokens("@:;,.$?",
                   &[token::At, token::Colon, token::SemiColon, token::Comma, token::Dot,
-                  token::Dollar, token::Pound, token::Question]);
+                  token::Dollar, token::Question]);
     // start with .
     assert_tokens("....", &[token::DotDotDot, token::Dot]);
 
@@ -432,20 +491,6 @@ mod tests {
   #[test]
   fn test_idents() {
     assert_tokens("let", &[ident("let")]);
-  }
-
-  #[test]
-  fn test_bump() {
-    let src = "var x = 1;";
-    let src_str = src.to_string();
-    let mut sr = StringReader::new(Rc::new("var x = 1;".to_string()));
-    let mut pos = 0;
-    while !sr.is_eof() {
-      sr.bump();
-      pos += 1;
-    }
-
-    assert_eq!(pos, src.len());
   }
 }
 

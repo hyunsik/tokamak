@@ -66,4 +66,9 @@ pub struct Span {
   pub hi: BytePos
 }
 
-pub const DUMMY_SP: Span = Span { lo: BytePos(0), hi: BytePos(0) };
+pub const DUMMY_SPAN: Span = Span { lo: BytePos(0), hi: BytePos(0) };
+
+/* assuming that we're not in macro expansion */
+pub fn mk_span(lo: BytePos, hi: BytePos) -> Span {
+  Span {lo: lo, hi: hi}
+}

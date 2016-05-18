@@ -37,7 +37,7 @@ pub struct SyntaxContext(pub u32);
 /// An identifier contains a Name (index into the interner
 /// table) and a SyntaxContext to track renaming and
 /// macro expansion per Flatt et al., "Macros That Work Together"
-#[derive(Clone, Copy, Eq, Debug)]
+#[derive(Clone, Copy, Eq)]
 pub struct Ident {
   pub name: Name,
   pub ctxt: SyntaxContext
