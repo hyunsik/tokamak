@@ -1,5 +1,6 @@
 use std::fmt;
 
+use codemap::Span;
 use token;
 
 /// A name is a part of an identifier, representing a string or gensym. It's
@@ -93,4 +94,52 @@ impl fmt::Display for Ident {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     fmt::Display::fmt(&self.name, f)
   }
+}
+
+pub struct Package {
+  module: Module,
+  span: Span
+}
+
+pub struct Module {
+  pub span: Span,
+  pub items: Vec<Box<Item>>
+}
+
+pub struct Item {
+  pub node: ItemKind,
+  pub span: Span
+}
+
+pub enum ItemKind {
+  Import,
+
+  Const,
+  Static,
+
+  Ty,
+  Enum,
+  Struct,
+
+  Fn,
+}
+
+pub struct Expr {
+  pub node: ExprKind,
+  pub span: Span
+}
+
+pub enum ExprKind {
+  Call,
+  Unary,
+  Binary,
+  Literal,
+  Cast,
+  If,
+  While,
+  Match,
+  Block,
+  Assign,
+  Path,
+  Paren
 }
