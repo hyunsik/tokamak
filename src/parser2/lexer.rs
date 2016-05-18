@@ -192,6 +192,10 @@ impl StringReader {
         self.bump();
         return token::CloseDelim(token::Paren);
       }
+      '{' => {
+        self.bump();
+        return token::OpenDelim(token::Brace);
+      }
       '}' => {
         self.bump();
         return token::CloseDelim(token::Brace);
@@ -339,10 +343,17 @@ mod tests {
     assert_tokens("@:;,.$#?",
                   &[token::At, token::Colon, token::SemiColon, token::Comma, token::Dot,
                   token::Dollar, token::Pound, token::Question]);
-
-    // greedy match
+    // start with .
     assert_tokens("....", &[token::DotDotDot, token::Dot]);
 
+    assert_tokens("{([])}", &[
+      token::OpenDelim(token::Brace),
+      token::OpenDelim(token::Paren),
+      token::OpenDelim(token::Bracket),
+      token::CloseDelim(token::Bracket),
+      token::CloseDelim(token::Paren),
+      token::CloseDelim(token::Brace)
+    ]);
 
     // start with =
     assert_tokens("=>===",
