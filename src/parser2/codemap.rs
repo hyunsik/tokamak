@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
 /// A byte offset. Keep this small (currently 32-bits), as AST contains
 /// a lot of them.
@@ -15,6 +15,14 @@ impl Add for BytePos {
 
   fn add(self, rhs: BytePos) -> BytePos {
     BytePos((self.to_usize() + rhs.to_usize()) as u32)
+  }
+}
+
+impl Sub for BytePos {
+  type Output = BytePos;
+
+  fn sub(self, rhs: BytePos) -> BytePos {
+    BytePos((self.to_usize() - rhs.to_usize()) as u32)
   }
 }
 

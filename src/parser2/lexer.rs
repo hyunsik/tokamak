@@ -36,11 +36,13 @@ pub trait Reader {
 }
 
 pub struct StringReader {
-  /// source code contents
-  pub src: Rc<String>,
+  /// source text
+  pub source_text: Rc<String>,
 
-  /// current position
+  /// The absolute offset within the source text of the next character to read
   pub pos: BytePos,
+  /// The absolute offset within the source text of the last character read (curr)
+  pub last_pos: BytePos,
   /// The last character to be read
   pub curr: Option<char>,
 }
@@ -90,16 +92,51 @@ fn char_at(s: &str, byte: usize) -> char {
 impl StringReader {
   pub fn new(source: Rc<String>) -> StringReader {
     let mut sr = StringReader {
-      src: source,
+      source_text: source,
       pos: BytePos(0),
+      last_pos: BytePos(0),
       curr: None
     };
     sr.bump();
     sr
   }
 
+  fn byte_offset(&self, pos: BytePos) -> BytePos {
+    (pos - BytePos(0))
+  }
+
   pub fn curr_is(&self, c: char) -> bool {
     self.curr == Some(c)
+  }
+
+  pub fn nextch(&self) -> Option<char> {
+    let offset = self.byte_offset(self.pos).to_usize();
+    if offset < self.source_text.len() {
+      Some(char_at(&self.source_text, offset))
+    } else {
+      None
+    }
+  }
+
+  pub fn nextch_is(&self, c: char) -> bool {
+    self.nextch() == Some(c)
+  }
+
+  pub fn nextnextch(&self) -> Option<char> {
+    let offset = self.byte_offset(self.pos).to_usize();
+    let s = &self.source_text[..];
+
+    if offset >= s.len() { return None }
+    let next = offset + char_at(s, offset).len_utf8();
+    if next < s.len() {
+      Some(char_at(s, next))
+    } else {
+      None
+    }
+  }
+
+  pub fn nextnextch_is(&self, c: char) -> bool {
+    self.nextnextch() == Some(c)
   }
 
   fn binop(&mut self, op: token::BinOpToken) -> token::Token {
@@ -112,27 +149,34 @@ impl StringReader {
     }
   }
 
-  pub fn nextch(&self) -> Option<char> {
-    let offset = self.pos.to_usize();
-    if offset < self.src.len() {
-      Some(char_at(&self.src, offset))
-    } else {
-      None
-    }
+  /// Calls `f` with a string slice of the source text spanning from `start`
+  /// up to but excluding `end`.
+  fn with_str_from_to<T, F>(&self, start: BytePos, end: BytePos, f: F) -> T
+      where F: FnOnce(&str) -> T {
+    f(&self.source_text[self.byte_offset(start).to_usize()..self.byte_offset(end).to_usize()])
   }
 
-  pub fn nextch_is(&self, c: char) -> bool {
-    self.nextch() == Some(c)
+  /// Calls `f` with a string slice of the source text spanning from `start`
+  /// up to but excluding `self.last_pos`, meaning the slice does not include
+  /// the character `self.curr`.
+  pub fn with_str_from<T, F>(&self, start: BytePos, f: F) -> T
+      where F: FnOnce(&str) -> T {
+    self.with_str_from_to(start, self.last_pos, f)
   }
 
   fn next_token_inner(&mut self) -> token::Token {
     let c = self.curr;
 
     if ident_start(c) {
+      let start = self.last_pos;
       self.bump();
       while ident_continue(self.curr) {
         self.bump();
       }
+
+      return self.with_str_from(start, |string| {
+        token::Ident
+      });
     }
 
     match c.expect("next_token_inner called at EOF") {
@@ -289,8 +333,8 @@ impl StringReader {
   fn bump(&mut self) {
     let current_byte_offset = self.pos.to_usize();
 
-    if current_byte_offset < self.src.len() {
-      let ch = char_at(&self.src, current_byte_offset);
+    if current_byte_offset < self.source_text.len() {
+      let ch = char_at(&self.source_text, current_byte_offset);
       self.pos = self.pos + BytePos(1);
       self.curr = Some(ch);
     } else {
@@ -370,6 +414,11 @@ mod tests {
     // start with -
     assert_tokens("->-",
                   &[token::RArrow, token::BinOp(token::Minus)]);
+  }
+
+  #[test]
+  fn test_idents() {
+    assert_tokens("let;", &[token::Ident]);
   }
 
   #[test]
