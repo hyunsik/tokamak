@@ -90,6 +90,41 @@ type_decl : TYPE ident (LT (generic_decls)? GT)? EQ ty SEMI ;
 
 /*
 ===============================================================================
+  block
+===============================================================================
+*/
+
+block
+  : LBRACE import_decl* block_element* (block_last_element)? RBRACE
+  ;
+
+block_element
+  : expr SEMI+
+  | stmt_not_just_expr (SEMI)*
+  ;
+
+block_last_element
+  : expr
+  | expr_stmt
+  ;
+
+stmt_not_just_expr
+  : import_decl
+  | local_var
+  | expr_stmt
+  ;
+
+local_var
+  : (LET | VAR) local_var_decl (COMMA local_var_decl)* SEMI
+  ;
+
+local_var_decl
+  : pat (COLON ty)? (EQ expr)?
+  ;
+
+
+/*
+===============================================================================
   Fn Decl
 ===============================================================================
 */
@@ -105,42 +140,56 @@ ret_ty
  : ty
  ;
 
-fun_body : LBRACE import_decl* block_element* (block_last_element)? RBRACE ;
-
-block_element
-  : expr SEMI+
-  | stmt_not_just_expr (SEMI)*
-  ;
-
-block_last_element
-  : expr
-//  | expr_stmt
-  ;
-
-
-stmt_not_just_expr
-  : import_decl
-  | let_stmt
-//  | expr_stmt
-  ;
-
-let_stmt
-  : LET local_var_decl (COMMA local_var_decl)* SEMI
-  ;
-
-local_var_decl
-  : pat (COLON ty)? (EQ expr)?
-  ;
+fun_body : block;
 
 /*
 ===============================================================================
-  expr_stmt
+  exprs and statements
 ===============================================================================
 */
 
 expr_stmt
-  :
+  : expr_stmt_block
+  | expr_stmt_not_block
   ;
+expr_stmt_block : UNSAFE? block;
+
+expr_stmt_not_block
+  : expr_if
+  | expr_while
+  | expr_loop
+  | expr_match
+  ;
+
+/*
+===============================================================================
+  expr_(if, while)
+===============================================================================
+*/
+
+expr_if
+  : IF expr block (ELSE block_or_if)? ;
+
+block_or_if : block | expr_if ;
+
+expr_while : WHILE expr block ;
+
+expr_loop
+  : LOOP block
+  ;
+
+expr_match
+  : MATCH expr LBRACE (match_clauses)? RBRACE
+  ;
+
+match_clauses
+  : match_clause match_clauses*
+  ;
+
+match_clause
+  : pats_or (IF expr)? FAT_ARROW (expr) (COMMA)?
+  ;
+
 
 /*
 ===============================================================================
@@ -183,12 +232,16 @@ type_param
 pat
  : LPAREN RPAREN
  | LPAREN pats RPAREN
- | ident
+ | expr
  ;
 
 pats
  : pat (COMMA)? | pat COMMA pats
  ;
+
+pats_or
+  : pat
+  | pat OR pats_or ;
 
 /*
 ===============================================================================
@@ -278,6 +331,7 @@ expr_bottom
   | RETURN (expr)?
   | BREAK (ident)?
   | path_with_colon_tps
+  | expr_stmt
   | lit
   ;
 

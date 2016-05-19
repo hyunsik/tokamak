@@ -113,7 +113,17 @@ public class TestGrammar {
   }
 
   @Test
+  public void items() throws IOException, URISyntaxException {
+    verifySuccessAndFail();
+  }
+
+  @Test
   public void func() throws IOException, URISyntaxException {
+    verifySuccessAndFail();
+  }
+
+  @Test
+  public void match() throws IOException, URISyntaxException {
     verifySuccessAndFail();
   }
 }
