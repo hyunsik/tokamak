@@ -97,13 +97,18 @@ impl fmt::Display for Ident {
 }
 
 pub struct Package {
-  module: Module,
-  span: Span
+  pub module: Module,
+  pub span: Span
 }
 
 pub struct Module {
   pub span: Span,
   pub items: Vec<Box<Item>>
+}
+
+pub enum Visibility {
+  Public,
+  Inherited,
 }
 
 pub struct Item {

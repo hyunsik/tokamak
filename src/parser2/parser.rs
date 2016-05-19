@@ -1,9 +1,9 @@
 use std::mem;
 use std::result::Result;
 
-use ast::{self, Package, Module, Item, Expr};
-use codemap::{self, Span};
-use lexer::{self, Reader, StringReader, TokenAndSpan};
+use ast::{self, Package, Module, Visibility, Item, Expr};
+use codemap::{self, BytePos, mk_span, Span};
+use lexer::{Reader, TokenAndSpan};
 use token::{self, keywords, Token};
 
 pub struct Parser {
@@ -139,24 +139,67 @@ impl Parser {
     }
   }
 
-  pub fn parse_package(&self) -> PResult<P<Package>> {
+  pub fn parse_package(&mut self) -> PResult<Package> {
     let lo = self.span.lo;
+    Ok(ast::Package {
+      module: self.parse_module(&token::Eof, lo)?,
+      span: mk_span(lo, self.span.lo),
+    })
+  }
+
+  pub fn parse_module(&mut self, term: &token::Token, inner_lo: BytePos)
+      -> PResult<Module> {
     unimplemented!()
   }
 
-  pub fn parse_module(&mut self) -> PResult<P<Module>> {
+  pub fn parse_item(&mut self) -> PResult<Item> {
+    let lo = self.span.lo;
+    let visibility = self.parse_visibility()?;
+
+    if self.eat_keyword(keywords::Import) {
+      unimplemented!()
+    }
+
+    if self.eat_keyword(keywords::Const) {
+
+    }
+
+    if self.eat_keyword(keywords::Static) {
+
+    }
+
+    if self.eat_keyword(keywords::Type) {
+
+    }
+
+    if self.eat_keyword(keywords::Enum) {
+
+    }
+
+    if self.eat_keyword(keywords::Struct) {
+
+    }
+
+    if self.eat_keyword(keywords::Fn) {
+
+    }
+
+    unreachable!()
+  }
+
+  pub fn parse_visibility(&mut self) -> PResult<Visibility> {
+    if !self.eat_keyword(keywords::Pub) {
+      Ok(Visibility::Inherited)
+    } else {
+      Ok(Visibility::Public)
+    }
+  }
+
+  pub fn parse_expr(&mut self) -> PResult<Expr> {
     unimplemented!()
   }
 
-  pub fn parse_item(&mut self) -> PResult<P<Item>> {
-    unimplemented!()
-  }
-
-  pub fn parse_expr(&mut self) -> PResult<P<Expr>> {
-    unimplemented!()
-  }
-
-  pub fn parse_expr_bottom(&mut self) -> PResult<P<Expr>> {
+  pub fn parse_expr_bottom(&mut self) -> PResult<Expr> {
     unimplemented!()
   }
 }
