@@ -88,6 +88,25 @@ pub enum Token {
   Eof,
 }
 
+impl Token {
+  /// Returns `true` if the token is an identifier.
+  pub fn is_ident(&self) -> bool {
+    match *self {
+      Ident(_, _) => true,
+      _           => false,
+    }
+  }
+
+  /// Returns `true` if the token is a given keyword, `kw`.
+  #[allow(non_upper_case_globals)]
+  pub fn is_keyword(&self, kw: keywords::Keyword) -> bool {
+    match *self {
+      Ident(sid, Plain) => kw.to_name() == sid.name,
+      _                      => false,
+    }
+  }
+}
+
 // Get the first "argument"
 macro_rules! first {
     ( $first:expr, $( $remainder:expr, )* ) => ( $first )
