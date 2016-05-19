@@ -1,0 +1,19 @@
+import x;
+
+fn xyz() {
+}
+
+fn xyz(): i32 {
+}
+
+fn xyz(): (i32, i32) {
+}
+
+fn xyz(x: f32, y: f32) {
+}
+
+fn xyz(x: Set<Double>, y: List<Double>) {
+}
+
+fn xyz(x: Set<Double>, y: List<Double>): Set<Double> {
+}

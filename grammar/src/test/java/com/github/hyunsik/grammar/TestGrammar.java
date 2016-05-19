@@ -1,7 +1,9 @@
 package com.github.hyunsik.grammar;
 
 import org.github.hyunsik.grammar.Parser;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 import java.io.*;
 import java.net.URISyntaxException;
@@ -10,6 +12,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -18,13 +21,19 @@ import static org.junit.Assert.fail;
 
 public class TestGrammar {
 
-  public Collection<File> getResourceFiles(String subdir) throws URISyntaxException, IOException {
-    URL uri = ClassLoader.getSystemResource(subdir);
-    Path dir = FileSystems.getDefault().getPath(uri.getPath());
+  @Rule public TestName name = new TestName();
 
-    return StreamSupport.stream(Files.newDirectoryStream(dir).spliterator(), false)
-        .map(p -> new File(p.toUri()))
-        .collect(Collectors.toList());
+  public Optional<Collection<File>> getResourceFiles(String subdir) throws URISyntaxException, IOException {
+    URL uri = ClassLoader.getSystemResource(subdir);
+    if (uri == null) {
+      return Optional.empty();
+    } else {
+      Path dir = FileSystems.getDefault().getPath(uri.getPath());
+
+      return Optional.of(StreamSupport.stream(Files.newDirectoryStream(dir).spliterator(), false)
+          .map(p -> new File(p.toUri()))
+          .collect(Collectors.toList()));
+    }
   }
 
   public static String readTextFile(File file) {
@@ -63,21 +72,48 @@ public class TestGrammar {
    * @throws IOException
    * @throws URISyntaxException
    */
-  public Collection<Pair<String, String>> getFileContents(String subdir) throws IOException, URISyntaxException {
-    return getResourceFiles(subdir).stream()
-        .map(file -> new Pair<>(file.getName(), readTextFile(file)))
-        .collect(Collectors.toList());
+  public Optional<Collection<Pair<String, String>>> getFileContents(String subdir) throws IOException, URISyntaxException {
+    Optional<Collection<File>> files = getResourceFiles(subdir);
+
+    if (files.isPresent()) {
+      return Optional.of(files.get().stream()
+          .map(file -> new Pair<>(file.getName(), readTextFile(file)))
+          .collect(Collectors.toList()));
+    } else {
+      return Optional.empty();
+    }
+  }
+
+  public void verifySuccessAndFail() throws IOException, URISyntaxException {
+    Optional<Collection<Pair<String, String>>> s = getFileContents(name.getMethodName() + "/success");
+    if (s.isPresent()) {
+      for (Pair<String, String> source : s.get()) {
+        try {
+          assertNotNull(Parser.parse(source.getSecond()));
+          System.out.println(source.getFirst() + " test passed..");
+        } catch (Throwable t) {
+          fail("Positive test '" + source.getFirst() + "' failed..\n" + t.getMessage());
+        }
+      }
+    }
+
+    Optional<Collection<Pair<String, String>>> f = getFileContents(name.getMethodName() + "/fail");
+    if (f.isPresent()) {
+      for (Pair<String, String> source : f.get()) {
+        try {
+          assertNotNull(Parser.parse(source.getSecond()));
+          fail();
+        } catch (AssertionError ae) {
+          fail("Negative test '" + source.getFirst() + "' failed..\n");
+        } catch (Throwable t) {
+          System.out.println(source.getFirst() + " test passed..");
+        }
+      }
+    }
   }
 
   @Test
-  public void testOne() throws IOException, URISyntaxException {
-    for (Pair<String, String> source : getFileContents("success")) {
-      try {
-        assertNotNull(Parser.parse(source.getSecond()));
-        System.out.println(source.getFirst() + " test passed..");
-      } catch (Throwable t) {
-        fail(source.getFirst() + " test failed..\n" +t.getMessage());
-      }
-    }
+  public void func() throws IOException, URISyntaxException {
+    verifySuccessAndFail();
   }
 }

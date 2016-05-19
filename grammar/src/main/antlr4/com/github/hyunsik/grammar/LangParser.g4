@@ -93,11 +93,16 @@ type_decl : TYPE ident (LT (generic_decls)? GT)? EQ ty SEMI ;
   Fn Decl
 ===============================================================================
 */
-item_fn_decl: FN ident LPAREN RPAREN ret_ty? fun_body;
+item_fn_decl
+  : FN ident LPAREN args? RPAREN (COLON ret_ty)? fun_body
+  | FN ident LPAREN args? RPAREN COLON ret_ty EQ expr
+  ;
+
+args : arg | arg COMMA args ;
+arg : pat COLON ty ;
 
 ret_ty
  : ty
- | /* nothing */
  ;
 
 fun_body : LBRACE import_decl* block_element* (block_last_element)? RBRACE ;
@@ -178,7 +183,6 @@ type_param
 pat
  : LPAREN RPAREN
  | LPAREN pats RPAREN
- | expr
  | ident
  ;
 
