@@ -1,3 +1,5 @@
 fn xyz(): i32 = 1
 
+fn xyz(): i32 = { 1 }
+
 fn xyz(): i32 = if x > y { 1 } else { 2 }
