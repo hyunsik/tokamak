@@ -40,16 +40,6 @@ package_contents
   ;
 
 /*
-pkg_attr_list
-  :
-  ;
-
-pkg_attr
-  :
-  ;
-*/
-
-/*
 ===============================================================================
   Items (Top-level items in a source code)
 ===============================================================================
@@ -59,6 +49,7 @@ item
   : visibility import_decl
   | visibility mod_decl
   | visibility type_decl
+  | visibility item_fn_decl
   ;
 
 visibility : PUB | PRIV | /*nothing*/ ;
@@ -102,7 +93,7 @@ type_decl : TYPE ident (LT (generic_decls)? GT)? EQ ty SEMI ;
   Fn Decl
 ===============================================================================
 */
-item_fn_decl: FN ident LPAREN RPAREN ret_ty fun_body;
+item_fn_decl: FN ident LPAREN RPAREN ret_ty? fun_body;
 
 ret_ty
  : ty
@@ -112,13 +103,39 @@ ret_ty
 fun_body : LBRACE import_decl* block_element* (block_last_element)? RBRACE ;
 
 block_element
-  : LPAREN ty RPAREN
+  : expr SEMI+
+  | stmt_not_just_expr (SEMI)*
   ;
 
 block_last_element
-  : LPAREN RPAREN
+  : expr
+//  | expr_stmt
   ;
 
+
+stmt_not_just_expr
+  : import_decl
+  | let_stmt
+//  | expr_stmt
+  ;
+
+let_stmt
+  : LET local_var_decl (COMMA local_var_decl)* SEMI
+  ;
+
+local_var_decl
+  : pat (COLON ty)? (EQ expr)?
+  ;
+
+/*
+===============================================================================
+  expr_stmt
+===============================================================================
+*/
+
+expr_stmt
+  :
+  ;
 
 /*
 ===============================================================================
@@ -161,6 +178,7 @@ type_param
 pat
  : LPAREN RPAREN
  | LPAREN pats RPAREN
+ | expr
  | ident
  ;
 
@@ -178,12 +196,64 @@ exprs
   : expr | expr COMMA exprs
   ;
 
-expr
-  : expr_dot_or_call
+expr : expr_1 EQ expr
+  | expr_1 BINOPEQ expr
+  | expr_1
   ;
 
-expr_assoc
-  :
+expr_1 : expr_1 OR expr_2
+  | expr_2 ;
+expr_2 : expr_2 AND expr_3
+  | expr_3 ;
+
+expr_3 : expr_3 EQEQ expr_4
+  | expr_3 NE expr_4
+  | expr_4 ;
+
+expr_4 : expr_4 LT expr_5
+  | expr_4 LE expr_5
+  | expr_4 GE expr_5
+  | expr_4 GT expr_5
+  | expr_5
+  ;
+
+expr_5
+  : expr_6
+  ;
+
+expr_6
+  : expr_6 OR OR expr_7
+  | expr_7
+  ;
+
+expr_7
+  : expr_8 CARET expr_9
+  | expr_9
+  ;
+
+expr_8
+  : expr_8 AND expr_9
+  | expr_9
+  ;
+
+expr_9
+  : expr_9 (LT LT | GT GT) expr_10
+  | expr_10
+  ;
+
+expr_10
+  : expr_10 (PLUS | MINUS) expr_11
+  | expr_11
+  ;
+
+expr_11
+  : expr_11 AS ty
+  | expr_12
+  ;
+
+expr_12
+  : expr_12 (STAR | SLASH | PERCENT) expr_prefix
+  | expr_prefix
   ;
 
 expr_prefix

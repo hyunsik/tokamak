@@ -42,10 +42,12 @@ tokens {
 ===============================================================================
 */
 
+AS: 'as';
 BREAK: 'break';
 FALSE: 'false';
 FN :'fn';
 IMPORT: 'import';
+LET: 'let';
 MOD: 'mod';
 PUB: 'pub';
 PRIV: 'priv';
@@ -53,6 +55,7 @@ RETURN: 'return';
 SELF: 'self';
 TRUE: 'true';
 TYPE: 'type';
+VAR: 'var';
 
 /* Expression-operator symbols */
 

@@ -1,0 +1,5 @@
+import x;
+
+fn xyz() {
+  let x = 1;
+}
