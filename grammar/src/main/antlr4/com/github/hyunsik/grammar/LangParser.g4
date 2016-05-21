@@ -200,7 +200,7 @@ match_clause
   ;
 
 expr_for
-  : FOR pat IN expr block
+  : (label COLON)? FOR pat IN expr block
   ;
 /*
 ===============================================================================

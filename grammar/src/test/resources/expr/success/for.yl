@@ -4,4 +4,11 @@ fn test() {
   for (x, y) in z {}
 
   for (x, y) in iter() {}
+
+  label1:
+  for (x, y) in iter() {
+    label2:
+    for (a, b) in x {
+    }
+  }
 }
