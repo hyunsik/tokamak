@@ -1,11 +1,11 @@
-pub type ty= ();
+pub type t1= ();
 
-pub type ty = (i32);
-pub type ty = (i32,);
-pub type ty = (Double,Double);
+pub type t2 = (i32);
+pub type t3 = (i32,);
+pub type t4 = (Double,Double);
 
-pub type ty = Set<>;
-pub type ty = Set<()>;
-pub type ty = Set<(Float, Float)>;
+pub type t5 = Set<>;
+pub type t6 = Set<()>;
+pub type t7 = Set<(Float, Float)>;
 
-pub type ty = Set<(Float, Float)>;
+pub type t8 = Set<(Float, Float)>;

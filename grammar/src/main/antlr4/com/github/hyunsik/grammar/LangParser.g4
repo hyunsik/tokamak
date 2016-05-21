@@ -36,7 +36,11 @@ options {
 */
 
 package_contents
-  : item* EOF
+  : mod EOF
+  ;
+
+mod
+  : item*
   ;
 
 /*
@@ -156,9 +160,9 @@ expr_stmt_block : UNSAFE? block;
 
 expr_stmt_not_block
   : expr_if
-  | expr_while
-  | expr_loop
   | expr_match
+  | expr_loop
+  | expr_while
   ;
 
 /*
@@ -167,15 +171,19 @@ expr_stmt_not_block
 ===============================================================================
 */
 
+label
+  : ident
+  ;
+
 expr_if
   : IF expr block (ELSE block_or_if)? ;
 
 block_or_if : block | expr_if ;
 
-expr_while : WHILE expr block ;
+expr_while : (label COLON)? WHILE expr block ;
 
 expr_loop
-  : LOOP block
+  : (label COLON)? LOOP block
   ;
 
 expr_match
@@ -329,7 +337,7 @@ expr_dot_or_call
 expr_bottom
   : LPAREN (exprs (COMMA)?)? RPAREN
   | RETURN (expr)?
-  | BREAK (ident)?
+  | BREAK (label)?
   | path_with_colon_tps
   | expr_stmt
   | lit

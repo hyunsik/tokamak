@@ -126,4 +126,9 @@ public class TestGrammar {
   public void match() throws IOException, URISyntaxException {
     verifySuccessAndFail();
   }
+
+  @Test
+  public void expr() throws IOException, URISyntaxException {
+    verifySuccessAndFail();
+  }
 }
