@@ -1,0 +1,7 @@
+fn test() {
+  for x in y {}
+
+  for (x, y) in z {}
+
+  for (x, y) in iter() {}
+}

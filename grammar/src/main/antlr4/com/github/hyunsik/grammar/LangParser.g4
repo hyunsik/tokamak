@@ -163,11 +163,12 @@ expr_stmt_not_block
   | expr_match
   | expr_loop
   | expr_while
+  | expr_for
   ;
 
 /*
 ===============================================================================
-  expr_(if, while)
+  expr_(if, while, loop, for)
 ===============================================================================
 */
 
@@ -180,11 +181,11 @@ expr_if
 
 block_or_if : block | expr_if ;
 
-expr_while : (label COLON)? WHILE expr block ;
-
 expr_loop
   : (label COLON)? LOOP block
   ;
+
+expr_while : (label COLON)? WHILE expr block ;
 
 expr_match
   : MATCH expr LBRACE (match_clauses)? RBRACE
@@ -198,7 +199,9 @@ match_clause
   : pats_or (IF expr)? FAT_ARROW (expr) (COMMA)?
   ;
 
-
+expr_for
+  : FOR pat IN expr block
+  ;
 /*
 ===============================================================================
   Ty
