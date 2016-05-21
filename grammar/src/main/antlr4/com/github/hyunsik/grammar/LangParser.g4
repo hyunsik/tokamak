@@ -202,6 +202,8 @@ match_clause
 expr_for
   : (label COLON)? FOR pat IN expr block
   ;
+
+expr_lambda : LPAREN (maybetyped_args)? RPAREN RARROW expr ;
 /*
 ===============================================================================
   Ty
@@ -253,6 +255,9 @@ pats
 pats_or
   : pat
   | pat OR pats_or ;
+
+maybetyped_args : maybetyped_arg | maybetyped_arg COMMA maybetyped_args ;
+maybetyped_arg : pat (COLON ty)? ;
 
 /*
 ===============================================================================
@@ -339,6 +344,7 @@ expr_dot_or_call
 
 expr_bottom
   : LPAREN (exprs (COMMA)?)? RPAREN
+  | expr_lambda
   | RETURN (expr)?
   | BREAK (label)?
   | path_with_colon_tps
