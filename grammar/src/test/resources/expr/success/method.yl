@@ -1,0 +1,3 @@
+fn test() {
+  read_csv("xyz.csv").map(|x,y,z| -> x + y + z);
+}
