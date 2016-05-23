@@ -5,6 +5,7 @@
 #[macro_use] extern crate bitflags;
 
 pub mod ast;
+pub mod attr;
 pub mod codemap;
 pub mod interner;
 pub mod lexer;

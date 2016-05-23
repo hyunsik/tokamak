@@ -16,6 +16,10 @@ pub enum BinOpToken {
   Minus,
   Star,
   Slash,
+  Percent,
+  Caret,
+  And,
+  Or,
   LShift,
   RShift
 }

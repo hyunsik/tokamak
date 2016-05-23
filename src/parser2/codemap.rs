@@ -72,3 +72,9 @@ pub const DUMMY_SPAN: Span = Span { lo: BytePos(0), hi: BytePos(0) };
 pub fn mk_span(lo: BytePos, hi: BytePos) -> Span {
   Span {lo: lo, hi: hi}
 }
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub struct Spanned<T> {
+  pub node: T,
+  pub span: Span,
+}

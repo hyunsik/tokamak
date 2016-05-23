@@ -1,7 +1,8 @@
 use std::mem;
 use std::result::Result;
 
-use ast::{self, Package, Module, Visibility, Item, Expr};
+use attr::{ThinAttributes};
+use ast::{self, Package, Module, Visibility, Item, Expr, ExprKind, UnOp};
 use codemap::{self, BytePos, mk_span, Span};
 use lexer::{Reader, TokenAndSpan};
 use ptr::P;
@@ -17,7 +18,24 @@ bitflags! {
 
 pub enum LhsExpr {
   NotYetParsed,
+  AttributesParsed(ThinAttributes),
   AlreadyParsed(P<Expr>),
+}
+
+impl From<Option<ThinAttributes>> for LhsExpr {
+  fn from(o: Option<ThinAttributes>) -> Self {
+    if let Some(attrs) = o {
+      LhsExpr::AttributesParsed(attrs)
+    } else {
+      LhsExpr::NotYetParsed
+    }
+  }
+}
+
+impl From<P<Expr>> for LhsExpr {
+  fn from(expr: P<Expr>) -> Self {
+    LhsExpr::AlreadyParsed(expr)
+  }
 }
 
 pub struct Parser {
@@ -210,8 +228,15 @@ impl Parser {
     }
   }
 
+  /// Is this expression a successfully-parsed statement?
+  fn expr_is_complete(&mut self, e: &Expr) -> bool {
+    self.restrictions.contains(RESTRICTION_STMT_EXPR) &&
+      !expr_requires_semi_to_be_stmt(e)
+  }
+
+  /// Parse an expression
   pub fn parse_expr(&mut self) -> PResult<P<Expr>> {
-    self.parse_expr_res(Restrictions::empty())
+    self.parse_expr_res(Restrictions::empty(), None)
   }
 
   /// Evaluate the closure with restrictions in place.
@@ -229,26 +254,224 @@ impl Parser {
   }
 
   /// Parse an expression, subject to the given restrictions
-  pub fn parse_expr_res(&mut self, r: Restrictions)
-    -> PResult<P<Expr>> {
-    self.with_res(r, |this| this.parse_assoc_expr())
+  pub fn parse_expr_res(&mut self, r: Restrictions,
+                        already_parsed_attrs: Option<ThinAttributes>)
+                        -> PResult<P<Expr>> {
+    self.with_res(r, |this| this.parse_assoc_expr(already_parsed_attrs))
   }
 
   /// Parse an associative expression
   ///
   /// This parses an expression accounting for associativity and precedence of the operators in
   /// the expression.
-  pub fn parse_assoc_expr(&mut self) -> PResult<P<Expr>> {
-    self.parse_assoc_expr_with(0, LhsExpr::NotYetParsed)
+  pub fn parse_assoc_expr(&mut self,
+                          already_parsed_attrs: Option<ThinAttributes>)
+                          -> PResult<P<Expr>> {
+    self.parse_assoc_expr_with(0, already_parsed_attrs.into())
   }
 
   /// Parse an associative expression with operators of at least `min_prec` precedence
   pub fn parse_assoc_expr_with(&mut self, min_prec: usize, lhs: LhsExpr)
       -> PResult<P<Expr>> {
+    let mut lhs: P<Expr> = if let LhsExpr::AlreadyParsed(expr) = lhs {
+      expr
+    } else {
+      let attrs = match lhs {
+        LhsExpr::AttributesParsed(attrs) => Some(attrs),
+        _ => None,
+      };
+      if self.token == token::DotDot || self.token == token::DotDotDot {
+        return self.parse_prefix_range_expr(attrs);
+      } else {
+        self.parse_prefix_expr(attrs)?
+      }
+    };
+
     unimplemented!()
   }
 
-  pub fn parse_expr_bottom(&mut self) -> PResult<Expr> {
+  /// Parse a prefix-unary-operator expr
+  pub fn parse_prefix_expr(&mut self,
+                           already_parsed_attrs: Option<ThinAttributes>)
+                           -> PResult<P<Expr>> {
+    let lo = self.span.lo;
+    let hi;
+
+    // Note: when adding new unary operators, don't forget to adjust Token::can_begin_expr()
+    let ex = match self.token {
+      token::Not => {
+        self.bump();
+        let e = self.parse_prefix_expr(None).map(|e| e)?;
+        hi = self.last_span.hi;
+        self.mk_unary(UnOp::Not, e)
+      }
+      token::BinOp(token::Minus) => {
+        self.bump();
+        let e = self.parse_prefix_expr(None).map(|e| e)?;
+        hi = self.last_span.hi;
+        self.mk_unary(UnOp::Neg, e)
+      },
+      _ => return self.parse_dot_or_call_expr(None)
+    };
+    Ok(self.mk_expr(lo, hi, ex, None))
+  }
+
+  /// Parse prefix-forms of range notation: `..expr`, `..`, `...expr`
+  fn parse_prefix_range_expr(&mut self,
+                             already_parsed_attrs: Option<ThinAttributes>)
+                             -> PResult<P<Expr>> {
     unimplemented!()
+  }
+
+  /// parse a.b, a.1 or a(13) or a[4] or just a
+  pub fn parse_dot_or_call_expr(&mut self,
+                                already_parsed_attrs: Option<ThinAttributes>)
+                                -> PResult<P<Expr>> {
+    let lo = self.span.lo;
+    let b = self.parse_bottom_expr()?;
+    self.parse_dot_or_call_expr_with(b, lo, None)
+  }
+
+  pub fn parse_dot_or_call_expr_with(&mut self,
+                                     e0: P<Expr>,
+                                     lo: BytePos,
+                                     attrs: ThinAttributes)
+                                     -> PResult<P<Expr>> {
+    unimplemented!()
+  }
+
+  fn parse_dot_or_call_expr_with_(&mut self, e0: P<Expr>, lo: BytePos) -> PResult<P<Expr>> {
+    let mut e = e0;
+    //let mut hi;
+
+    loop {
+      // expr.f
+      if self.eat(&token::Dot) {
+        continue;
+      }
+      if self.expr_is_complete(&e) { break; }
+      match self.token {
+        // expr(...)
+        token::OpenDelim(token::Paren) => {
+
+        }
+        // expr[...]
+        // Could be either an index expression or a slicing expression.
+        token::OpenDelim(token::Bracket) => {
+
+        }
+        _ => return Ok(e)
+      }
+    }
+
+    return Ok(e);
+  }
+
+  /// At the bottom (top?) of the precedence hierarchy,
+  /// parse things like parenthesized exprs,
+  /// return, etc.
+  ///
+  /// NB: This does not parse outer attributes,
+  ///     and is private because it only works
+  ///     correctly if called from parse_dot_or_call_expr().
+  fn parse_bottom_expr(&mut self) -> PResult<P<Expr>> {
+
+    let lo = self.span.lo;
+    let mut hi = self.span.hi;
+
+    let ex: ExprKind;
+
+    // Note: when adding new syntax here, don't forget to adjust Token::can_begin_expr().
+    match self.token {
+      token::OpenDelim(token::Paren) => {
+
+      }
+      token::OpenDelim(token::Brace) => {
+
+      }
+      token::BinOp(token::Or) |  token::OrOr => {
+
+      }
+      token::OpenDelim(token::Bracket) => {
+
+      }
+      _ => {
+        if self.eat_keyword(keywords::If) {
+        }
+        if self.eat_keyword(keywords::For) {
+        }
+        if self.eat_keyword(keywords::While) {
+        }
+        if self.eat_keyword(keywords::Loop) {
+        }
+        if self.eat_keyword(keywords::Continue) {
+        }
+        if self.eat_keyword(keywords::Match) {
+        }
+        if self.eat_keyword(keywords::Unsafe) {
+        }
+        if self.eat_keyword(keywords::Return) {
+        } else if self.eat_keyword(keywords::Break) {
+        } else if self.token.is_keyword(keywords::Let) {
+        } else {
+        }
+      }
+    }
+    unimplemented!()
+  }
+
+  pub fn mk_expr(&mut self, lo: BytePos, hi: BytePos,
+                 node: ExprKind, attrs: ThinAttributes) -> P<Expr> {
+    P(Expr {
+      id: ast::DUMMY_NODE_ID,
+      node: node,
+      span: mk_span(lo, hi),
+      attrs: attrs,
+    })
+  }
+
+  pub fn mk_unary(&mut self, unop: ast::UnOp, expr: P<Expr>) -> ast::ExprKind {
+    ExprKind::Unary(unop, expr)
+  }
+
+  pub fn mk_binary(&mut self, binop: ast::BinOp, lhs: P<Expr>, rhs: P<Expr>) -> ast::ExprKind {
+    ExprKind::Binary(binop, lhs, rhs)
+  }
+}
+
+/// Does this expression require a semicolon to be treated
+/// as a statement? The negation of this: 'can this expression
+/// be used as a statement without a semicolon' -- is used
+/// as an early-bail-out in the parser so that, for instance,
+///     if true {...} else {...}
+///      |x| 5
+/// isn't parsed as (if true {...} else {...} | x) | 5
+pub fn expr_requires_semi_to_be_stmt(e: &ast::Expr) -> bool {
+  match e.node {
+    ast::ExprKind::If |
+    ast::ExprKind::Match |
+    ast::ExprKind::Block |
+    ast::ExprKind::While |
+    ast::ExprKind::Loop |
+    ast::ExprKind::ForLoop => false,
+    _ => true,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use token::{self, str_to_ident};
+  use std::rc::Rc;
+  use lexer::{Reader, StringReader};
+  use super::Parser;
+
+  fn reader(src: &str) -> Box<Reader> {
+    Box::new(StringReader::new(Rc::new(src.to_string())))
+  }
+  #[test]
+  fn test_expr() {
+    let mut r = reader("a + 2");
+    let mut p = Parser::new(r);
+    p.parse_expr();
   }
 }
