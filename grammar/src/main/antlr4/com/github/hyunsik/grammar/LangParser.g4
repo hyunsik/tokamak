@@ -336,7 +336,7 @@ expr_prefix
   ;
 
 expr_dot_or_call
-  : expr_dot_or_call DOT ident (MOD_SEP LT (generics)? GT)? (LPAREN (exprs)? RPAREN)?
+  : expr_dot_or_call DOT (ident | LIT_INTEGER) (MOD_SEP LT (generics)? GT)? (LPAREN (exprs)? RPAREN)?
   | expr_dot_or_call LPAREN (exprs)? RPAREN
   | expr_dot_or_call LBRACKET expr RBRACKET
   | expr_bottom
