@@ -203,7 +203,7 @@ expr_for
   : (label COLON)? FOR pat IN expr block
   ;
 
-expr_lambda : OR (maybetyped_args)? OR RARROW expr ;
+expr_lambda : OR (maybetyped_args)? OR RARROW ret_ty? expr ;
 /*
 ===============================================================================
   Ty

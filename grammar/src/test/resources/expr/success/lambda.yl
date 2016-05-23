@@ -1,3 +1,8 @@
 fn test() {
-  let lambda = |(x,z)| -> x + z;
+  let lambda1 = |()| -> 1;
+  let lambda2 = |x,y| -> x + y;
+  let lambda3 = |x,y| -> x + y;
+  let lambda4 = |x: Double, y: Double| -> x * y;
+  let lambda4 = |(x, y): (Double, Double)| -> x * y;
+  let lambda4 = |x: Double, y: Double| -> Double {x * y};
 }
