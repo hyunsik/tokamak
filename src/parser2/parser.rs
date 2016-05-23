@@ -4,7 +4,21 @@ use std::result::Result;
 use ast::{self, Package, Module, Visibility, Item, Expr};
 use codemap::{self, BytePos, mk_span, Span};
 use lexer::{Reader, TokenAndSpan};
+use ptr::P;
 use token::{self, keywords, Token};
+
+bitflags! {
+    pub flags Restrictions: u8 {
+        const RESTRICTION_STMT_EXPR         = 1 << 0,
+        const RESTRICTION_NO_STRUCT_LITERAL = 1 << 1,
+        const NO_NONINLINE_MOD  = 1 << 2,
+    }
+}
+
+pub enum LhsExpr {
+  NotYetParsed,
+  AlreadyParsed(P<Expr>),
+}
 
 pub struct Parser {
   pub reader: Box<Reader>,
@@ -19,6 +33,7 @@ pub struct Parser {
   pub last_span: Span,
 
   pub expected_tokens: Vec<TokenType>,
+  pub restrictions: Restrictions,
 
   // token buffer
   pub buffer: [TokenAndSpan; 4],
@@ -37,7 +52,6 @@ pub enum TokenType {
 }
 
 pub type PResult<T> = Result<T, ()>;
-pub type P<T> = Box<T>;
 
 impl Parser {
   pub fn new(mut r: Box<Reader>) -> Parser {
@@ -61,6 +75,7 @@ impl Parser {
         placeholder.clone(),
       ],
       expected_tokens: Vec::new(),
+      restrictions: Restrictions::empty(),
       buffer_start: 0,
       buffer_end: 0,
       tokens_consumed: 0
@@ -195,7 +210,41 @@ impl Parser {
     }
   }
 
-  pub fn parse_expr(&mut self) -> PResult<Expr> {
+  pub fn parse_expr(&mut self) -> PResult<P<Expr>> {
+    self.parse_expr_res(Restrictions::empty())
+  }
+
+  /// Evaluate the closure with restrictions in place.
+  ///
+  /// After the closure is evaluated, restrictions are reset.
+  pub fn with_res<F, T>(&mut self, r: Restrictions, f: F) -> T
+    where F: FnOnce(&mut Self) -> T
+  {
+    let old = self.restrictions;
+    self.restrictions = r;
+    let r = f(self);
+    self.restrictions = old;
+    return r;
+
+  }
+
+  /// Parse an expression, subject to the given restrictions
+  pub fn parse_expr_res(&mut self, r: Restrictions)
+    -> PResult<P<Expr>> {
+    self.with_res(r, |this| this.parse_assoc_expr())
+  }
+
+  /// Parse an associative expression
+  ///
+  /// This parses an expression accounting for associativity and precedence of the operators in
+  /// the expression.
+  pub fn parse_assoc_expr(&mut self) -> PResult<P<Expr>> {
+    self.parse_assoc_expr_with(0, LhsExpr::NotYetParsed)
+  }
+
+  /// Parse an associative expression with operators of at least `min_prec` precedence
+  pub fn parse_assoc_expr_with(&mut self, min_prec: usize, lhs: LhsExpr)
+      -> PResult<P<Expr>> {
     unimplemented!()
   }
 
