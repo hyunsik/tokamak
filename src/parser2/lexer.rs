@@ -709,7 +709,14 @@ mod tests {
   #[test]
   fn test_lit() {
     assert_lit_integer("1", None, "1");
-    assert_lit_integer("1", Some("b"), "1b");
+    assert_lit_integer("98_222", None, "98_222");
+    assert_lit_integer("0xff", None, "0xff");
+    assert_lit_integer("0b1111_0000",  None, "0b1111_0000");
+
+    // type suffix
+    assert_lit_integer("1", Some("u8"), "1u8");
+    assert_lit_integer("98_222",  Some("u32"), "98_222u32");
+    assert_lit_integer("0xff",  Some("u64"), "0xffu64");
   }
 }
 
