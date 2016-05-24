@@ -10,7 +10,9 @@ path = "lib.rs"
 [dependencies]
 common = { path = "../common" }
 
-regex = "0.1.47"
 bitflags = "0.7"
+env_logger = "0.3.2"
+log = "0.3.4"
+regex = "0.1.47"
 
 

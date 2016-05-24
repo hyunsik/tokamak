@@ -1,6 +1,7 @@
 pub use self::BinOpToken::*;
 pub use self::DelimToken::*;
 pub use self::IdentStyle::*;
+pub use self::Lit::*;
 pub use self::Token::*;
 
 use std::fmt;
@@ -41,6 +42,31 @@ pub enum IdentStyle {
   Plain,
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum Lit {
+  Byte(ast::Name),
+  Char(ast::Name),
+  Integer(ast::Name),
+  Float(ast::Name),
+  Str_(ast::Name),
+  StrRaw(ast::Name, usize), /* raw str delimited by n hash symbols */
+  ByteStr(ast::Name),
+  ByteStrRaw(ast::Name, usize), /* raw byte str delimited by n hash symbols */
+}
+
+impl Lit {
+  pub fn short_name(&self) -> &'static str {
+    match *self {
+      Byte(_) => "byte",
+      Char(_) => "char",
+      Integer(_) => "integer",
+      Float(_) => "float",
+      Str_(_) | StrRaw(..) => "string",
+      ByteStr(_) | ByteStrRaw(..) => "byte string"
+    }
+  }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Token {
   /* Expression-operator symbols. */
@@ -78,6 +104,9 @@ pub enum Token {
   OpenDelim(DelimToken),
   /// A closing delimiter, eg. `}`
   CloseDelim(DelimToken),
+
+  /* Literals */
+  Literal(Lit, Option<ast::Name>),
 
   /* Name components */
   Ident(ast::Ident, IdentStyle),
