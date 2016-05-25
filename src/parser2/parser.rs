@@ -2,7 +2,7 @@ use std::mem;
 use std::result::Result;
 
 use attr::{ThinAttributes};
-use ast::{self, Package, Module, Visibility, Item, Expr, ExprKind, UnOp};
+use ast::{self, Expr, ExprKind, Lit, LitKind, Module, Item, Package, UnOp, Visibility};
 use codemap::{self, BytePos, mk_span, Span};
 use lexer::{Reader, TokenAndSpan};
 use ptr::P;
@@ -418,6 +418,42 @@ impl Parser {
       }
     }
     unimplemented!()
+  }
+
+  /// Matches lit = true | false | token_lit
+  pub fn parse_lit(&mut self) -> PResult<Lit> {
+    let lo = self.span.lo;
+    let lit = if self.eat_keyword(keywords::True) {
+      LitKind::Bool(true)
+    } else if self.eat_keyword(keywords::False) {
+      LitKind::Bool(false)
+    } else {
+      let lit = self.parse_lit_token()?;
+      lit
+    };
+    Ok(codemap::Spanned { node: lit, span: mk_span(lo, self.last_span.hi) })
+  }
+
+  /// Matches token_lit = LIT_INTEGER | ...
+  pub fn parse_lit_token(&mut self) -> PResult<LitKind> {
+    unimplemented!()
+    /*let out = match self.token {
+      token::Literal(lit, suf) => {
+        let (suffix_illegal, out) = match lit {
+          token::Byte(i) => {}
+          token::Char(i) => {}
+          token::Integer(s) => {}
+          token::Float(s) => {}
+          token::Str_(s) => {}
+          token::StrRaw(s, n) => {}
+          token::ByteStr(i) => {}
+          token::ByteStrRaw(i, _) => {}
+        };
+      }
+    };
+
+    self.bump();
+    Ok(out);*/
   }
 
   pub fn mk_expr(&mut self, lo: BytePos, hi: BytePos,

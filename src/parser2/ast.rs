@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use ast;
 use attr::ThinAttributes;
@@ -186,6 +187,8 @@ impl UnOp {
   }
 }
 
+pub type BinOp = Spanned<BinOpKind>;
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
 pub enum BinOpKind {
   /// The `+` operator (addition)
@@ -226,7 +229,194 @@ pub enum BinOpKind {
   Gt,
 }
 
-pub type BinOp = Spanned<BinOpKind>;
+#[derive(Clone, PartialEq, Eq, Hash, Copy)]
+pub enum IntTy {
+  Is,
+  I8,
+  I16,
+  I32,
+  I64,
+}
+
+impl fmt::Debug for IntTy {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fmt::Display::fmt(self, f)
+  }
+}
+
+impl fmt::Display for IntTy {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.ty_to_string())
+  }
+}
+
+impl IntTy {
+  pub fn ty_to_string(&self) -> &'static str {
+    match *self {
+      IntTy::Is => "isize",
+      IntTy::I8 => "i8",
+      IntTy::I16 => "i16",
+      IntTy::I32 => "i32",
+      IntTy::I64 => "i64"
+    }
+  }
+
+  pub fn val_to_string(&self, val: i64) -> String {
+    // cast to a u64 so we can correctly print INT64_MIN. All integral types
+    // are parsed as u64, so we wouldn't want to print an extra negative
+    // sign.
+    format!("{}{}", val as u64, self.ty_to_string())
+  }
+
+  pub fn ty_max(&self) -> u64 {
+    match *self {
+      IntTy::I8 => 0x80,
+      IntTy::I16 => 0x8000,
+      IntTy::Is | IntTy::I32 => 0x80000000, // FIXME: actually ni about Is
+      IntTy::I64 => 0x8000000000000000
+    }
+  }
+
+  pub fn bit_width(&self) -> Option<usize> {
+    Some(match *self {
+      IntTy::Is => return None,
+      IntTy::I8 => 8,
+      IntTy::I16 => 16,
+      IntTy::I32 => 32,
+      IntTy::I64 => 64,
+    })
+  }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Copy)]
+pub enum UintTy {
+  Us,
+  U8,
+  U16,
+  U32,
+  U64,
+}
+
+impl UintTy {
+  pub fn ty_to_string(&self) -> &'static str {
+    match *self {
+      UintTy::Us => "usize",
+      UintTy::U8 => "u8",
+      UintTy::U16 => "u16",
+      UintTy::U32 => "u32",
+      UintTy::U64 => "u64"
+    }
+  }
+
+  pub fn val_to_string(&self, val: u64) -> String {
+    format!("{}{}", val, self.ty_to_string())
+  }
+
+  pub fn ty_max(&self) -> u64 {
+    match *self {
+      UintTy::U8 => 0xff,
+      UintTy::U16 => 0xffff,
+      UintTy::Us | UintTy::U32 => 0xffffffff, // FIXME: actually ni about Us
+      UintTy::U64 => 0xffffffffffffffff
+    }
+  }
+
+  pub fn bit_width(&self) -> Option<usize> {
+    Some(match *self {
+      UintTy::Us => return None,
+      UintTy::U8 => 8,
+      UintTy::U16 => 16,
+      UintTy::U32 => 32,
+      UintTy::U64 => 64,
+    })
+  }
+}
+
+impl fmt::Debug for UintTy {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fmt::Display::fmt(self, f)
+  }
+}
+
+impl fmt::Display for UintTy {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.ty_to_string())
+  }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Copy)]
+pub enum FloatTy {
+  F32,
+  F64,
+}
+
+impl fmt::Debug for FloatTy {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fmt::Display::fmt(self, f)
+  }
+}
+
+impl fmt::Display for FloatTy {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.ty_to_string())
+  }
+}
+
+impl FloatTy {
+  pub fn ty_to_string(&self) -> &'static str {
+    match *self {
+      FloatTy::F32 => "f32",
+      FloatTy::F64 => "f64",
+    }
+  }
+
+  pub fn bit_width(&self) -> usize {
+    match *self {
+      FloatTy::F32 => 32,
+      FloatTy::F64 => 64,
+    }
+  }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum StrStyle {
+  /// A regular string, like `"foo"`
+  Cooked,
+  /// A raw string, like `r##"foo"##`
+  ///
+  /// The uint is the number of `#` symbols used
+  Raw(usize)
+}
+
+/// A literal
+pub type Lit = Spanned<LitKind>;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum LitIntType {
+  Signed(IntTy),
+  Unsigned(UintTy),
+  Unsuffixed,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum LitKind {
+  /// A string literal (`"foo"`)
+  Str(InternedString, StrStyle),
+  /// A byte string (`b"foo"`)
+  ByteStr(Rc<Vec<u8>>),
+  /// A byte char (`b'f'`)
+  Byte(u8),
+  /// A character literal (`'a'`)
+  Char(char),
+  /// An integer literal (`1`)
+  Int(u64, LitIntType),
+  /// A float literal (`1f64` or `1E10f64`)
+  Float(InternedString, FloatTy),
+  /// A float literal without a suffix (`1.0 or 1.0E10`)
+  FloatUnsuffixed(InternedString),
+  /// A boolean literal
+  Bool(bool),
+}
 
 /// Meta-data associated with an item
 pub type Attribute = Spanned<Attribute_>;
