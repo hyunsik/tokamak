@@ -1,12 +1,15 @@
+use std::iter;
 use std::mem;
+use std::rc::Rc;
 use std::result::Result;
 
 use attr::{ThinAttributes};
 use ast::{self, Expr, ExprKind, Lit, LitKind, Module, Item, Package, UnOp, Visibility};
 use codemap::{self, BytePos, mk_span, Span};
-use lexer::{Reader, TokenAndSpan};
+use error_handler::Handler;
+use lexer::{char_at, Reader, TokenAndSpan};
 use ptr::P;
-use token::{self, keywords, Token};
+use token::{self, keywords, InternedString, Token};
 
 bitflags! {
     pub flags Restrictions: u8 {
@@ -491,6 +494,236 @@ pub fn expr_requires_semi_to_be_stmt(e: &ast::Expr) -> bool {
     ast::ExprKind::Loop |
     ast::ExprKind::ForLoop => false,
     _ => true,
+  }
+}
+
+// check if `s` looks like i32 or u1234 etc.
+fn looks_like_width_suffix(first_chars: &[char], s: &str) -> bool {
+  s.len() > 1 &&
+  first_chars.contains(&char_at(s, 0)) &&
+  s[1..].chars().all(|c| '0' <= c && c <= '9')
+}
+
+fn filtered_float_lit(data: token::InternedString, suffix: Option<&str>,
+  sd: &Handler, sp: Span) -> ast::LitKind {
+  debug!("filtered_float_lit: {}, {:?}", data, suffix);
+  match suffix.as_ref().map(|s| &**s) {
+    Some("f32") => ast::LitKind::Float(data, ast::FloatTy::F32),
+    Some("f64") => ast::LitKind::Float(data, ast::FloatTy::F64),
+    Some(suf) => {
+      if suf.len() >= 2 && looks_like_width_suffix(&['f'], suf) {
+        // if it looks like a width, lets try to be helpful.
+        sd.struct_span_err(sp, &format!("invalid width `{}` for float literal", &suf[1..]))
+        .help("valid widths are 32 and 64")
+        .emit();
+      } else {
+        sd.struct_span_err(sp, &format!("invalid suffix `{}` for float literal", suf))
+        .help("valid suffixes are `f32` and `f64`")
+        .emit();
+      }
+
+      ast::LitKind::FloatUnsuffixed(data)
+    }
+    None => ast::LitKind::FloatUnsuffixed(data)
+  }
+}
+
+pub fn float_lit(s: &str, suffix: Option<InternedString>,
+  sd: &Handler, sp: Span) -> ast::LitKind {
+  debug!("float_lit: {:?}, {:?}", s, suffix);
+  // FIXME #2252: bounds checking float literals is deferred until trans
+  let s = s.chars().filter(|&c| c != '_').collect::<String>();
+  let data = token::intern_and_get_ident(&s);
+  filtered_float_lit(data, suffix.as_ref().map(|s| &**s), sd, sp)
+}
+
+/// Parse a string representing a byte literal into its final form. Similar to `char_lit`
+pub fn byte_lit(lit: &str) -> (u8, usize) {
+  let err = |i| format!("lexer accepted invalid byte literal {} step {}", lit, i);
+
+  if lit.len() == 1 {
+    (lit.as_bytes()[0], 1)
+  } else {
+    assert!(lit.as_bytes()[0] == b'\\', err(0));
+    let b = match lit.as_bytes()[1] {
+      b'"' => b'"',
+      b'n' => b'\n',
+      b'r' => b'\r',
+      b't' => b'\t',
+      b'\\' => b'\\',
+      b'\'' => b'\'',
+      b'0' => b'\0',
+      _ => {
+        match u64::from_str_radix(&lit[2..4], 16).ok() {
+          Some(c) =>
+            if c > 0xFF {
+              panic!(err(2))
+            } else {
+              return (c as u8, 4)
+            },
+          None => panic!(err(3))
+        }
+      }
+    };
+    return (b, 2);
+  }
+}
+
+pub fn byte_str_lit(lit: &str) -> Rc<Vec<u8>> {
+  let mut res = Vec::with_capacity(lit.len());
+
+  // FIXME #8372: This could be a for-loop if it didn't borrow the iterator
+  let error = |i| format!("lexer should have rejected {} at {}", lit, i);
+
+  /// Eat everything up to a non-whitespace
+  fn eat<'a, I: Iterator<Item=(usize, u8)>>(it: &mut iter::Peekable<I>) {
+    loop {
+      match it.peek().map(|x| x.1) {
+        Some(b' ') | Some(b'\n') | Some(b'\r') | Some(b'\t') => {
+          it.next();
+        },
+        _ => { break; }
+      }
+    }
+  }
+
+  // byte string literals *must* be ASCII, but the escapes don't have to be
+  let mut chars = lit.bytes().enumerate().peekable();
+  loop {
+    match chars.next() {
+      Some((i, b'\\')) => {
+        let em = error(i);
+        match chars.peek().expect(&em).1 {
+          b'\n' => eat(&mut chars),
+          b'\r' => {
+            chars.next();
+            if chars.peek().expect(&em).1 != b'\n' {
+              panic!("lexer accepted bare CR");
+            }
+            eat(&mut chars);
+          }
+          _ => {
+            // otherwise, a normal escape
+            let (c, n) = byte_lit(&lit[i..]);
+            // we don't need to move past the first \
+            for _ in 0..n - 1 {
+              chars.next();
+            }
+            res.push(c);
+          }
+        }
+      },
+      Some((i, b'\r')) => {
+        let em = error(i);
+        if chars.peek().expect(&em).1 != b'\n' {
+          panic!("lexer accepted bare CR");
+        }
+        chars.next();
+        res.push(b'\n');
+      }
+      Some((_, c)) => res.push(c),
+      None => break,
+    }
+  }
+
+  Rc::new(res)
+}
+
+pub fn integer_lit(s: &str,
+  suffix: Option<InternedString>,
+  sd: &Handler,
+  sp: Span)
+  -> ast::LitKind {
+  // s can only be ascii, byte indexing is fine
+
+  let s2 = s.chars().filter(|&c| c != '_').collect::<String>();
+  let mut s = &s2[..];
+
+  debug!("integer_lit: {}, {:?}", s, suffix);
+
+  let mut base = 10;
+  let orig = s;
+  let mut ty = ast::LitIntType::Unsuffixed;
+
+  if char_at(s, 0) == '0' && s.len() > 1 {
+    match char_at(s, 1) {
+      'x' => base = 16,
+      'o' => base = 8,
+      'b' => base = 2,
+      _ => { }
+    }
+  }
+
+  // 1f64 and 2f32 etc. are valid float literals.
+  if let Some(ref suf) = suffix {
+    if looks_like_width_suffix(&['f'], suf) {
+      match base {
+        16 => sd.span_err(sp, "hexadecimal float literal is not supported"),
+        8 => sd.span_err(sp, "octal float literal is not supported"),
+        2 => sd.span_err(sp, "binary float literal is not supported"),
+        _ => ()
+      }
+      let ident = token::intern_and_get_ident(&s);
+      return filtered_float_lit(ident, Some(&suf), sd, sp)
+    }
+  }
+
+  if base != 10 {
+    s = &s[2..];
+  }
+
+  if let Some(ref suf) = suffix {
+    if suf.is_empty() { sd.span_bug(sp, "found empty literal suffix in Some")}
+    ty = match &**suf {
+      "isize" => ast::LitIntType::Signed(ast::IntTy::Is),
+      "i8"  => ast::LitIntType::Signed(ast::IntTy::I8),
+      "i16" => ast::LitIntType::Signed(ast::IntTy::I16),
+      "i32" => ast::LitIntType::Signed(ast::IntTy::I32),
+      "i64" => ast::LitIntType::Signed(ast::IntTy::I64),
+      "usize" => ast::LitIntType::Unsigned(ast::UintTy::Us),
+      "u8"  => ast::LitIntType::Unsigned(ast::UintTy::U8),
+      "u16" => ast::LitIntType::Unsigned(ast::UintTy::U16),
+      "u32" => ast::LitIntType::Unsigned(ast::UintTy::U32),
+      "u64" => ast::LitIntType::Unsigned(ast::UintTy::U64),
+      _ => {
+        // i<digits> and u<digits> look like widths, so lets
+        // give an error message along those lines
+        if looks_like_width_suffix(&['i', 'u'], suf) {
+          sd.struct_span_err(sp, &format!("invalid width `{}` for integer literal",
+          &suf[1..]))
+          .help("valid widths are 8, 16, 32 and 64")
+          .emit();
+        } else {
+          sd.struct_span_err(sp, &format!("invalid suffix `{}` for numeric literal", suf))
+          .help("the suffix must be one of the integral types \
+                             (`u32`, `isize`, etc)")
+          .emit();
+        }
+
+        ty
+      }
+    }
+  }
+
+  debug!("integer_lit: the type is {:?}, base {:?}, the new string is {:?}, the original \
+           string was {:?}, the original suffix was {:?}", ty, base, s, orig, suffix);
+
+  match u64::from_str_radix(s, base) {
+    Ok(r) => ast::LitKind::Int(r, ty),
+    Err(_) => {
+      // small bases are lexed as if they were base 10, e.g, the string
+      // might be `0b10201`. This will cause the conversion above to fail,
+      // but these cases have errors in the lexer: we don't want to emit
+      // two errors, and we especially don't want to emit this error since
+      // it isn't necessarily true.
+      let already_errored = base < 10 &&
+      s.chars().any(|c| c.to_digit(10).map_or(false, |d| d >= base));
+
+      if !already_errored {
+        sd.span_err(sp, "int literal is too large");
+      }
+      ast::LitKind::Int(0, ty)
+    }
   }
 }
 

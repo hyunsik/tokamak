@@ -91,7 +91,7 @@ impl Reader for StringReader {
   }
 }
 
-fn char_at(s: &str, byte: usize) -> char {
+pub fn char_at(s: &str, byte: usize) -> char {
   s[byte..].chars().next().unwrap()
 }
 

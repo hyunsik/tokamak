@@ -52,9 +52,28 @@ impl Level {
 #[derive(Clone)]
 pub struct DiagnosticBuilder;
 
+impl DiagnosticBuilder {
+  /// Emit the diagnostic.
+  pub fn emit(&mut self) {
+    unimplemented!()
+  }
+
+  pub fn help(&mut self , msg: &str) -> &mut DiagnosticBuilder {
+    unimplemented!()
+  }
+}
+
 pub struct Handler;
 
 impl Handler {
+  pub fn span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str) {
+    unimplemented!()
+  }
+
+  pub fn span_bug<S: Into<MultiSpan>>(&self, sp: S, msg: &str) -> ! {
+    unimplemented!()
+  }
+
   pub fn struct_span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
       -> DiagnosticBuilder {
     unimplemented!()
