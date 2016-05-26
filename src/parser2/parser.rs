@@ -1,12 +1,13 @@
 use std::iter;
 use std::mem;
+use std::str;
 use std::rc::Rc;
 use std::result::Result;
 
 use attr::{ThinAttributes};
 use ast::{self, Expr, ExprKind, Lit, LitKind, Module, Item, Package, UnOp, Visibility};
 use codemap::{self, BytePos, mk_span, Span};
-use error_handler::Handler;
+use error_handler::{DiagnosticBuilder, Handler};
 use lexer::{char_at, Reader, TokenAndSpan};
 use ptr::P;
 use token::{self, keywords, InternedString, Token};
@@ -17,6 +18,19 @@ bitflags! {
         const RESTRICTION_NO_STRUCT_LITERAL = 1 << 1,
         const NO_NONINLINE_MOD  = 1 << 2,
     }
+}
+
+/// Info about a parsing session.
+pub struct ParseSess {
+  pub span_diagnostic: Handler, // better be the same as the one in the reader!
+}
+
+impl ParseSess {
+  pub fn new() -> ParseSess {
+    ParseSess {
+      span_diagnostic: Handler
+    }
+  }
 }
 
 pub enum LhsExpr {
@@ -41,7 +55,8 @@ impl From<P<Expr>> for LhsExpr {
   }
 }
 
-pub struct Parser {
+pub struct Parser<'a> {
+  pub sess: &'a ParseSess,
   pub reader: Box<Reader>,
 
   /// the current token
@@ -74,8 +89,8 @@ pub enum TokenType {
 
 pub type PResult<T> = Result<T, ()>;
 
-impl Parser {
-  pub fn new(mut r: Box<Reader>) -> Parser {
+impl<'a> Parser<'a> {
+  pub fn new(sess: &'a ParseSess, mut r: Box<Reader>) -> Parser<'a> {
     let tok0 = r.real_token();
     let span = tok0.sp;
     let placeholder = TokenAndSpan {
@@ -84,6 +99,7 @@ impl Parser {
     };
 
     Parser {
+      sess: sess,
       reader: r,
       token: tok0.tok,
       span: span,
@@ -101,6 +117,18 @@ impl Parser {
       buffer_end: 0,
       tokens_consumed: 0
     }
+  }
+
+  pub fn span_fatal(&self, sp: Span, m: &str) -> DiagnosticBuilder {
+    unimplemented!()
+  }
+
+  pub fn unexpected_last<T>(&self, t: &token::Token) -> PResult<T> {
+    unimplemented!()
+  }
+
+  pub fn expect_no_suffix(&self, sp: Span, kind: &str, suffix: Option<ast::Name>) {
+    unimplemented!()
   }
 
   /// Advance the parser by one token
@@ -439,24 +467,58 @@ impl Parser {
 
   /// Matches token_lit = LIT_INTEGER | ...
   pub fn parse_lit_token(&mut self) -> PResult<LitKind> {
-    unimplemented!()
-    /*let out = match self.token {
+    let out = match self.token {
       token::Literal(lit, suf) => {
         let (suffix_illegal, out) = match lit {
-          token::Byte(i) => {}
-          token::Char(i) => {}
-          token::Integer(s) => {}
-          token::Float(s) => {}
-          token::Str_(s) => {}
-          token::StrRaw(s, n) => {}
-          token::ByteStr(i) => {}
-          token::ByteStrRaw(i, _) => {}
+          token::Byte(i) => (true, LitKind::Byte(byte_lit(&i.as_str()).0)),
+          token::Char(i) => (true, LitKind::Char(char_lit(&i.as_str()).0)),
+
+          // there are some valid suffixes for integer and
+          // float literals, so all the handling is done
+          // internally.
+          token::Integer(s) => {
+            (false, integer_lit(&s.as_str(),
+                                       suf.as_ref().map(|s| s.as_str()),
+                                       &self.sess.span_diagnostic,
+                                       self.span))
+          }
+          token::Float(s) => {
+            (false, float_lit(&s.as_str(),
+                                     suf.as_ref().map(|s| s.as_str()),
+                                     &self.sess.span_diagnostic,
+                                     self.span))
+          }
+
+          token::Str_(s) => {
+            (true,
+              LitKind::Str(token::intern_and_get_ident(&str_lit(&s.as_str())),
+                           ast::StrStyle::Cooked))
+          }
+          token::StrRaw(s, n) => {
+            (true,
+              LitKind::Str(
+                token::intern_and_get_ident(&raw_str_lit(&s.as_str())),
+                ast::StrStyle::Raw(n)))
+          }
+          token::ByteStr(i) =>
+            (true, LitKind::ByteStr(byte_str_lit(&i.as_str()))),
+          token::ByteStrRaw(i, _) =>
+            (true,
+              LitKind::ByteStr(Rc::new(i.to_string().into_bytes()))),
         };
+
+        if suffix_illegal {
+          let sp = self.span;
+          self.expect_no_suffix(sp, &format!("{} literal", lit.short_name()), suf)
+        }
+
+        out
       }
+      _ => { return self.unexpected_last(&self.token); }
     };
 
     self.bump();
-    Ok(out);*/
+    Ok(out)
   }
 
   pub fn mk_expr(&mut self, lo: BytePos, hi: BytePos,
@@ -495,6 +557,168 @@ pub fn expr_requires_semi_to_be_stmt(e: &ast::Expr) -> bool {
     ast::ExprKind::ForLoop => false,
     _ => true,
   }
+}
+
+/// Parse a string representing a character literal into its final form.
+/// Rather than just accepting/rejecting a given literal, unescapes it as
+/// well. Can take any slice prefixed by a character escape. Returns the
+/// character and the number of characters consumed.
+pub fn char_lit(lit: &str) -> (char, isize) {
+  use std::char;
+
+  let mut chars = lit.chars();
+  let c = match (chars.next(), chars.next()) {
+    (Some(c), None) if c != '\\' => return (c, 1),
+    (Some('\\'), Some(c)) => match c {
+      '"' => Some('"'),
+      'n' => Some('\n'),
+      'r' => Some('\r'),
+      't' => Some('\t'),
+      '\\' => Some('\\'),
+      '\'' => Some('\''),
+      '0' => Some('\0'),
+      _ => { None }
+    },
+    _ => panic!("lexer accepted invalid char escape `{}`", lit)
+  };
+
+  match c {
+    Some(x) => return (x, 2),
+    None => { }
+  }
+
+  let msg = format!("lexer should have rejected a bad character escape {}", lit);
+  let msg2 = &msg[..];
+
+  fn esc(len: usize, lit: &str) -> Option<(char, isize)> {
+    u32::from_str_radix(&lit[2..len], 16).ok()
+    .and_then(char::from_u32)
+    .map(|x| (x, len as isize))
+  }
+
+  let unicode_escape = || -> Option<(char, isize)> {
+    if lit.as_bytes()[2] == b'{' {
+      let idx = lit.find('}').expect(msg2);
+      let subslice = &lit[3..idx];
+      u32::from_str_radix(subslice, 16).ok()
+      .and_then(char::from_u32)
+      .map(|x| (x, subslice.chars().count() as isize + 4))
+    } else {
+      esc(6, lit)
+    }
+  };
+
+  // Unicode escapes
+  return match lit.as_bytes()[1] as char {
+    'x' | 'X' => esc(4, lit),
+    'u' => unicode_escape(),
+    'U' => esc(10, lit),
+    _ => None,
+  }.expect(msg2);
+}
+
+/// Parse a string representing a string literal into its final form. Does
+/// unescaping.
+pub fn str_lit(lit: &str) -> String {
+  debug!("parse_str_lit: given {}", lit.escape_default());
+  let mut res = String::with_capacity(lit.len());
+
+  // FIXME #8372: This could be a for-loop if it didn't borrow the iterator
+  let error = |i| format!("lexer should have rejected {} at {}", lit, i);
+
+  /// Eat everything up to a non-whitespace
+  fn eat<'a>(it: &mut iter::Peekable<str::CharIndices<'a>>) {
+    loop {
+      match it.peek().map(|x| x.1) {
+        Some(' ') | Some('\n') | Some('\r') | Some('\t') => {
+          it.next();
+        },
+        _ => { break; }
+      }
+    }
+  }
+
+  let mut chars = lit.char_indices().peekable();
+  loop {
+    match chars.next() {
+      Some((i, c)) => {
+        match c {
+          '\\' => {
+            let ch = chars.peek().unwrap_or_else(|| {
+              panic!("{}", error(i))
+            }).1;
+
+            if ch == '\n' {
+              eat(&mut chars);
+            } else if ch == '\r' {
+              chars.next();
+              let ch = chars.peek().unwrap_or_else(|| {
+                panic!("{}", error(i))
+              }).1;
+
+              if ch != '\n' {
+                panic!("lexer accepted bare CR");
+              }
+              eat(&mut chars);
+            } else {
+              // otherwise, a normal escape
+              let (c, n) = char_lit(&lit[i..]);
+              for _ in 0..n - 1 { // we don't need to move past the first \
+                chars.next();
+              }
+              res.push(c);
+            }
+          },
+          '\r' => {
+            let ch = chars.peek().unwrap_or_else(|| {
+              panic!("{}", error(i))
+            }).1;
+
+            if ch != '\n' {
+              panic!("lexer accepted bare CR");
+            }
+            chars.next();
+            res.push('\n');
+          }
+          c => res.push(c),
+        }
+      },
+      None => break
+    }
+  }
+
+  res.shrink_to_fit(); // probably not going to do anything, unless there was an escape.
+  debug!("parse_str_lit: returning {}", res);
+  res
+}
+
+/// Parse a string representing a raw string literal into its final form. The
+/// only operation this does is convert embedded CRLF into a single LF.
+pub fn raw_str_lit(lit: &str) -> String {
+  debug!("raw_str_lit: given {}", lit.escape_default());
+  let mut res = String::with_capacity(lit.len());
+
+  // FIXME #8372: This could be a for-loop if it didn't borrow the iterator
+  let mut chars = lit.chars().peekable();
+  loop {
+    match chars.next() {
+      Some(c) => {
+        if c == '\r' {
+          if *chars.peek().unwrap() != '\n' {
+            panic!("lexer accepted bare CR");
+          }
+          chars.next();
+          res.push('\n');
+        } else {
+          res.push(c);
+        }
+      },
+      None => break
+    }
+  }
+
+  res.shrink_to_fit();
+  res
 }
 
 // check if `s` looks like i32 or u1234 etc.
@@ -630,10 +854,10 @@ pub fn byte_str_lit(lit: &str) -> Rc<Vec<u8>> {
 }
 
 pub fn integer_lit(s: &str,
-  suffix: Option<InternedString>,
-  sd: &Handler,
-  sp: Span)
-  -> ast::LitKind {
+                   suffix: Option<InternedString>,
+                   sd: &Handler,
+                   sp: Span)
+                   -> ast::LitKind {
   // s can only be ascii, byte indexing is fine
 
   let s2 = s.chars().filter(|&c| c != '_').collect::<String>();
@@ -732,15 +956,16 @@ mod tests {
   use token::{self, str_to_ident};
   use std::rc::Rc;
   use lexer::{Reader, StringReader};
-  use super::Parser;
+  use super::{ParseSess, Parser};
 
   fn reader(src: &str) -> Box<Reader> {
     Box::new(StringReader::new(Rc::new(src.to_string())))
   }
   #[test]
   fn test_expr() {
+    let sess = ParseSess::new();
     let mut r = reader("a + 2");
-    let mut p = Parser::new(r);
+    let mut p = Parser::new(&sess, r);
     p.parse_expr();
   }
 }

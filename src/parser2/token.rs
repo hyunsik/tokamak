@@ -5,13 +5,14 @@ pub use self::Lit::*;
 pub use self::Token::*;
 
 use std::fmt;
+use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
 use ast;
 use interner::{self, StrInterner, RcStr};
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Copy)]
 pub enum BinOpToken {
   Plus,
   Minus,
@@ -426,4 +427,90 @@ pub fn str_to_ident(s: &str) -> ast::Ident {
 #[inline]
 pub fn gensym_ident(s: &str) -> ast::Ident {
   ast::Ident::with_empty_ctxt(gensym(s))
+}
+
+fn repeat(s: &str, n: usize) -> String { iter::repeat(s).take(n).collect() }
+
+pub fn binop_to_string(op: BinOpToken) -> &'static str {
+  match op {
+    Plus     => "+",
+    Minus    => "-",
+    Star     => "*",
+    Slash    => "/",
+    Percent  => "%",
+    Caret    => "^",
+    And      => "&",
+    Or       => "|",
+    LShift   => "<<",
+    RShift   => ">>",
+  }
+}
+
+pub fn token_to_string(tok: &Token) -> String {
+  match *tok {
+    Eq                   => "=".to_string(),
+    Lt                   => "<".to_string(),
+    Le                   => "<=".to_string(),
+    EqEq                 => "==".to_string(),
+    Ne                   => "!=".to_string(),
+    Ge                   => ">=".to_string(),
+    Gt                   => ">".to_string(),
+    Not                  => "!".to_string(),
+    Tilde                => "~".to_string(),
+    OrOr                 => "||".to_string(),
+    AndAnd               => "&&".to_string(),
+    BinOp(op)            => binop_to_string(op).to_string(),
+    BinOpEq(op)          => format!("{}=", binop_to_string(op)),
+
+    /* Structural symbols */
+    At                   => "@".to_string(),
+    Dot                  => ".".to_string(),
+    DotDot               => "..".to_string(),
+    DotDotDot            => "...".to_string(),
+    Comma                => ",".to_string(),
+    SemiColon            => ";".to_string(),
+    Colon                => ":".to_string(),
+    ModSep               => "::".to_string(),
+    RArrow               => "->".to_string(),
+    LArrow               => "<-".to_string(),
+    FatArrow             => "=>".to_string(),
+    OpenDelim(Paren)     => "(".to_string(),
+    CloseDelim(Paren)    => ")".to_string(),
+    OpenDelim(Bracket)   => "[".to_string(),
+    CloseDelim(Bracket)  => "]".to_string(),
+    OpenDelim(Brace)     => "{".to_string(),
+    CloseDelim(Brace)    => "}".to_string(),
+    Pound                => "#".to_string(),
+    Dollar               => "$".to_string(),
+    Question             => "?".to_string(),
+
+    /* Literals */
+    Literal(lit, suf) => {
+      let mut out = match lit {
+        Byte(b)           => format!("b'{}'", b),
+        Char(c)           => format!("'{}'", c),
+        Float(c)          => c.to_string(),
+        Integer(c)        => c.to_string(),
+        Str_(s)           => format!("\"{}\"", s),
+        StrRaw(s, n)      => format!("r{delim}\"{string}\"{delim}",  delim=repeat("#", n), string=s),
+        ByteStr(v)         => format!("b\"{}\"", v),
+        ByteStrRaw(s, n)   => format!("br{delim}\"{string}\"{delim}", delim=repeat("#", n), string=s),
+      };
+
+      if let Some(s) = suf {
+        out.push_str(&s.as_str())
+      }
+
+      out
+    }
+
+    /* Name components */
+    Ident(s, _)          => s.to_string(),
+    Underscore           => "_".to_string(),
+
+    /* Other */
+    Eof                  => "<eof>".to_string(),
+    Whitespace           => " ".to_string(),
+    Comment              => "/* */".to_string(),
+  }
 }

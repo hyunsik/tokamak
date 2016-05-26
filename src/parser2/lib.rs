@@ -1,6 +1,7 @@
 #![feature(filling_drop)]
 #![feature(unicode)]
 #![feature(question_mark)]
+#![feature(str_escape)]
 
 #[macro_use] extern crate bitflags;
 extern crate env_logger;
