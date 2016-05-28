@@ -64,7 +64,7 @@ impl Ident {
   pub fn new(name: Name, ctxt: SyntaxContext) -> Ident {
     Ident {name: name, ctxt: ctxt}
   }
-  pub fn with_empty_ctxt(name: Name) -> Ident {
+  pub const fn with_empty_ctxt(name: Name) -> Ident {
     Ident {name: name, ctxt: EMPTY_CTXT}
   }
 }
@@ -151,6 +151,15 @@ pub struct Expr {
   pub attrs: ThinAttributes
 }
 
+impl Expr {
+  pub fn attrs(&self) -> &[Attribute] {
+    match self.attrs {
+      Some(ref b) => b,
+      None => &[],
+    }
+  }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ExprKind {
   Call,
@@ -159,7 +168,13 @@ pub enum ExprKind {
   Binary(BinOp, P<Expr>, P<Expr>),
   Literal,
   Cast,
-  If,
+  If(P<Expr>),
+  /// An `if let` expression with an optional else block
+  ///
+  /// `if let pat = expr { block } else { expr }`
+  ///
+  /// This is desugared to a `match` expression.
+  IfLet(P<Expr>),
   While,
   Loop,
   ForLoop,
@@ -167,7 +182,9 @@ pub enum ExprKind {
   Block,
   Assign,
   Path,
-  Paren
+  Paren,
+  /// A literal (For example: `1`, `"foo"`)
+  Lit(P<Lit>),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
@@ -212,9 +229,9 @@ pub enum BinOpKind {
   /// The `|` operator (bitwise or)
   BitOr,
   /// The `<<` operator (shift left)
-  Shl,
+  LShift,
   /// The `>>` operator (shift right)
-  Shr,
+  RShift,
   /// The `==` operator (equality)
   Eq,
   /// The `<` operator (less than)
@@ -227,6 +244,59 @@ pub enum BinOpKind {
   Ge,
   /// The `>` operator (greater than)
   Gt,
+}
+
+impl BinOpKind {
+  pub fn to_string(&self) -> &'static str {
+    use self::BinOpKind::*;
+    match *self {
+      Add => "+",
+      Sub => "-",
+      Mul => "*",
+      Div => "/",
+      Rem => "%",
+      And => "&&",
+      Or => "||",
+      BitXor => "^",
+      BitAnd => "&",
+      BitOr => "|",
+      LShift => "<<",
+      RShift => ">>",
+      Eq => "==",
+      Lt => "<",
+      Le => "<=",
+      Ne => "!=",
+      Ge => ">=",
+      Gt => ">",
+    }
+  }
+  pub fn lazy(&self) -> bool {
+    match *self {
+      BinOpKind::And | BinOpKind::Or => true,
+      _ => false
+    }
+  }
+
+  pub fn is_shift(&self) -> bool {
+    match *self {
+      BinOpKind::LShift | BinOpKind::RShift => true,
+      _ => false
+    }
+  }
+  pub fn is_comparison(&self) -> bool {
+    use self::BinOpKind::*;
+    match *self {
+      Eq | Lt | Le | Ne | Gt | Ge =>
+        true,
+      And | Or | Add | Sub | Mul | Div | Rem |
+      BitXor | BitAnd | BitOr | LShift | RShift =>
+        false,
+    }
+  }
+  /// Returns `true` if the binary operator takes its arguments by value
+  pub fn is_by_value(&self) -> bool {
+    !self.is_comparison()
+  }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Copy)]

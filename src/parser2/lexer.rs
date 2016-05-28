@@ -217,12 +217,7 @@ impl StringReader {
         if string == "_" {
           token::Underscore
         } else {
-          // FIXME: perform NFKC normalization here. (Issue #2253)
-          if self.curr_is(':') && self.nextch_is(':') {
-            token::Ident(str_to_ident(string), token::ModName)
-          } else {
-            token::Ident(str_to_ident(string), token::Plain)
-          }
+          token::Ident(str_to_ident(string))
         }
       }));
     }
@@ -654,7 +649,7 @@ mod tests {
   }
 
   fn ident(name: &str) -> token::Token {
-    token::Ident(str_to_ident(name), token::Plain)
+    token::Ident(str_to_ident(name))
   }
 
   #[test]

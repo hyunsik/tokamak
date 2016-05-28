@@ -1,3 +1,4 @@
+#![feature(const_fn)]
 #![feature(filling_drop)]
 #![feature(unicode)]
 #![feature(question_mark)]
@@ -16,6 +17,7 @@ pub mod error_handler;
 pub mod interner;
 pub mod lexer;
 pub mod parser;
+pub mod precedence;
 pub mod ptr;
 pub mod token;
 

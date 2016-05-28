@@ -58,6 +58,15 @@ impl DiagnosticBuilder {
     unimplemented!()
   }
 
+  /// Cancel the diagnostic (a structured diagnostic must either be emitted or
+  /// cancelled or it will panic when dropped).
+  /// BEWARE: if this DiagnosticBuilder is an error, then creating it will
+  /// bump the error count on the Handler and cancelling it won't undo that.
+  /// If you want to decrement the error count you should use `Handler::cancel`.
+  pub fn cancel(&mut self) {
+    unimplemented!()
+  }
+
   pub fn help(&mut self , msg: &str) -> &mut DiagnosticBuilder {
     unimplemented!()
   }
@@ -66,6 +75,10 @@ impl DiagnosticBuilder {
 pub struct Handler;
 
 impl Handler {
+  pub fn cancel(&mut self, err: &mut DiagnosticBuilder) {
+    unimplemented!()
+  }
+
   pub fn span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str) {
     unimplemented!()
   }
@@ -75,6 +88,11 @@ impl Handler {
   }
 
   pub fn struct_span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
+      -> DiagnosticBuilder {
+    unimplemented!()
+  }
+
+  pub fn struct_span_fatal<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
       -> DiagnosticBuilder {
     unimplemented!()
   }

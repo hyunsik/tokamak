@@ -4,11 +4,12 @@ use std::str;
 use std::rc::Rc;
 use std::result::Result;
 
-use attr::{ThinAttributes};
-use ast::{self, Expr, ExprKind, Lit, LitKind, Module, Item, Package, UnOp, Visibility};
+use attr::{ThinAttributes, ThinAttributesExt};
+use ast::{self, BinOpKind, Expr, ExprKind, Lit, LitKind, Module, Item, Package, UnOp, Visibility};
 use codemap::{self, BytePos, mk_span, Span};
 use error_handler::{DiagnosticBuilder, Handler};
 use lexer::{char_at, Reader, TokenAndSpan};
+use precedence::AssocOp;
 use ptr::P;
 use token::{self, keywords, InternedString, Token};
 
@@ -87,7 +88,7 @@ pub enum TokenType {
   Operator,
 }
 
-pub type PResult<T> = Result<T, ()>;
+pub type PResult<T> = Result<T, DiagnosticBuilder>;
 
 impl<'a> Parser<'a> {
   pub fn new(sess: &'a ParseSess, mut r: Box<Reader>) -> Parser<'a> {
@@ -117,6 +118,18 @@ impl<'a> Parser<'a> {
       buffer_end: 0,
       tokens_consumed: 0
     }
+  }
+
+  pub fn diagnostic(&self) -> &'a Handler {
+    &self.sess.span_diagnostic
+  }
+
+  pub fn span_err(&self, sp: Span, m: &str) {
+    self.sess.span_diagnostic.span_err(sp, m)
+  }
+
+  pub fn fatal(&self, m: &str) -> DiagnosticBuilder {
+    self.sess.span_diagnostic.struct_span_fatal(self.span, m)
   }
 
   pub fn span_fatal(&self, sp: Span, m: &str) -> DiagnosticBuilder {
@@ -167,6 +180,22 @@ impl<'a> Parser<'a> {
     let old_token = mem::replace(&mut self.token, token::Underscore);
     self.bump();
     old_token
+  }
+
+  /// Convert the current token to a string using self's reader
+  pub fn this_token_to_string(&self) -> String {
+    token::token_to_string(&self.token)
+  }
+
+  pub fn this_token_descr(&self) -> String {
+    let s = self.this_token_to_string();
+    if self.token.is_strict_keyword() {
+      format!("keyword `{}`", s)
+    } else if self.token.is_reserved_keyword() {
+      format!("reserved keyword `{}`", s)
+    } else {
+      format!("`{}`", s)
+    }
   }
 
   /// Check if the next token is `tok`, and return `true` if so.
@@ -318,7 +347,50 @@ impl<'a> Parser<'a> {
       }
     };
 
+    if self.expr_is_complete(&lhs) {
+      // Semi-statement forms are odd. See https://github.com/rust-lang/rust/issues/29071
+      return Ok(lhs);
+    }
+
+    self.expected_tokens.push(TokenType::Operator);
+    while let Some(op) = AssocOp::from_token(&self.token) {
+      let cur_op_span = self.span;
+
+      let restrictions = if op.is_assign_like() {
+        self.restrictions & RESTRICTION_NO_STRUCT_LITERAL
+      } else {
+        self.restrictions
+      };
+      if op.precedence() < min_prec {
+        break;
+      }
+      self.bump();
+      if op.is_comparison() {
+        self.check_no_chained_comparison(&lhs, &op);
+      }
+    }
     unimplemented!()
+  }
+
+  /// Produce an error if comparison operators are chained (RFC #558).
+  /// We only need to check lhs, not rhs, because all comparison ops
+  /// have same precedence and are left-associative
+  fn check_no_chained_comparison(&mut self, lhs: &Expr, outer_op: &AssocOp) {
+    debug_assert!(outer_op.is_comparison());
+    match lhs.node {
+      ExprKind::Binary(op, _, _) if op.node.is_comparison() => {
+        // respan to include both operators
+        let op_span = mk_span(op.span.lo, self.span.hi);
+        let mut err = self.diagnostic().struct_span_err(op_span,
+                                                        "chained comparison operators require parentheses");
+        if op.node == BinOpKind::Lt && *outer_op == AssocOp::Greater {
+          err.help(
+            "use `::<...>` instead of `<...>` if you meant to specify type arguments");
+        }
+        err.emit();
+      }
+      _ => {}
+    }
   }
 
   /// Parse a prefix-unary-operator expr
@@ -368,7 +440,29 @@ impl<'a> Parser<'a> {
                                      lo: BytePos,
                                      attrs: ThinAttributes)
                                      -> PResult<P<Expr>> {
-    unimplemented!()
+    // Stitch the list of outer attributes onto the return value.
+    // A little bit ugly, but the best way given the current code
+    // structure
+    self.parse_dot_or_call_expr_with_(e0, lo)
+    .map(|expr|
+         expr.map(|mut expr| {
+           expr.attrs.update(|a| a.prepend(attrs));
+           match expr.node {
+             ExprKind::If(..) | ExprKind::IfLet(..) => {
+               if !expr.attrs.as_attr_slice().is_empty() {
+                 // Just point to the first attribute in there...
+                 let span = expr.attrs.as_attr_slice()[0].span;
+
+                 self.span_err(span,
+                               "attributes are not yet allowed on `if` \
+                               expressions");
+               }
+             }
+             _ => {}
+           }
+           expr
+         })
+    )
   }
 
   fn parse_dot_or_call_expr_with_(&mut self, e0: P<Expr>, lo: BytePos) -> PResult<P<Expr>> {
@@ -410,7 +504,7 @@ impl<'a> Parser<'a> {
     let lo = self.span.lo;
     let mut hi = self.span.hi;
 
-    let ex: ExprKind;
+    let mut ex: ExprKind = ExprKind::ForLoop;
 
     // Note: when adding new syntax here, don't forget to adjust Token::can_begin_expr().
     match self.token {
@@ -445,10 +539,24 @@ impl<'a> Parser<'a> {
         } else if self.eat_keyword(keywords::Break) {
         } else if self.token.is_keyword(keywords::Let) {
         } else {
+          debug!("reach parse_lit");
+          match self.parse_lit() {
+            Ok(lit) => {
+              hi = lit.span.hi;
+              ex = ExprKind::Lit(P(lit));
+            }
+            Err(mut err) => {
+              err.cancel();
+              let msg = format!("expected expression, found {}",
+              self.this_token_descr());
+              return Err(self.fatal(&msg));
+            }
+          }
         }
       }
     }
-    unimplemented!()
+
+    return Ok(self.mk_expr(lo, hi, ex, None));
   }
 
   /// Matches lit = true | false | token_lit
@@ -549,7 +657,8 @@ impl<'a> Parser<'a> {
 /// isn't parsed as (if true {...} else {...} | x) | 5
 pub fn expr_requires_semi_to_be_stmt(e: &ast::Expr) -> bool {
   match e.node {
-    ast::ExprKind::If |
+    ast::ExprKind::If(..) |
+    ast::ExprKind::IfLet(..) |
     ast::ExprKind::Match |
     ast::ExprKind::Block |
     ast::ExprKind::While |
@@ -953,10 +1062,9 @@ pub fn integer_lit(s: &str,
 
 #[cfg(test)]
 mod tests {
-  use token::{self, str_to_ident};
   use std::rc::Rc;
   use lexer::{Reader, StringReader};
-  use super::{ParseSess, Parser};
+  use super::{ParseSess, Parser, Restrictions};
 
   fn reader(src: &str) -> Box<Reader> {
     Box::new(StringReader::new(Rc::new(src.to_string())))
@@ -964,8 +1072,12 @@ mod tests {
   #[test]
   fn test_expr() {
     let sess = ParseSess::new();
-    let mut r = reader("a + 2");
+    let mut r = reader("2.3;");
     let mut p = Parser::new(&sess, r);
-    p.parse_expr();
+
+    match p.parse_assoc_expr(None) {
+      Ok(e) => println!("{:?}", e),
+      Err(e) => println!("Error")
+    };
   }
 }
