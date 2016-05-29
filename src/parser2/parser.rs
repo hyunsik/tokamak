@@ -5,7 +5,9 @@ use std::rc::Rc;
 use std::result::Result;
 
 use attr::{ThinAttributes, ThinAttributesExt};
-use ast::{self, BinOpKind, Expr, ExprKind, Lit, LitKind, Module, Item, Package, UnOp, Visibility};
+use ast::{self, Module, Item, Package, Visibility};
+use ast::{BinOpKind, Expr, ExprKind, Lit, LitKind, RangeLimits, UnOp};
+use ast::{Ty, TyKind};
 use codemap::{self, BytePos, mk_span, Span};
 use error_handler::{DiagnosticBuilder, Handler};
 use lexer::{char_at, Reader, TokenAndSpan};
@@ -136,6 +138,12 @@ impl<'a> Parser<'a> {
     unimplemented!()
   }
 
+  pub fn span_fatal_help(&self, sp: Span, m: &str, help: &str) -> DiagnosticBuilder {
+    let mut err = self.sess.span_diagnostic.struct_span_fatal(sp, m);
+    err.help(help);
+    err
+  }
+
   pub fn unexpected_last<T>(&self, t: &token::Token) -> PResult<T> {
     unimplemented!()
   }
@@ -182,6 +190,24 @@ impl<'a> Parser<'a> {
     old_token
   }
 
+  pub fn buffer_length(&mut self) -> isize {
+    if self.buffer_start <= self.buffer_end {
+      return self.buffer_end - self.buffer_start;
+    }
+    return (4 - self.buffer_start) + self.buffer_end;
+  }
+
+  pub fn look_ahead<R, F>(&mut self, distance: usize, f: F) -> R where
+  F: FnOnce(&token::Token) -> R,
+  {
+    let dist = distance as isize;
+    while self.buffer_length() < dist {
+      self.buffer[self.buffer_end as usize] = self.reader.real_token();
+      self.buffer_end = (self.buffer_end + 1) & 3;
+    }
+    f(&self.buffer[((self.buffer_start + dist - 1) & 3) as usize].tok)
+  }
+
   /// Convert the current token to a string using self's reader
   pub fn this_token_to_string(&self) -> String {
     token::token_to_string(&self.token)
@@ -221,6 +247,25 @@ impl<'a> Parser<'a> {
     self.token.is_keyword(kw)
   }
 
+  /// Signal an error if the given string is a strict keyword
+  pub fn check_strict_keywords(&mut self) {
+    if self.token.is_strict_keyword() {
+      let token_str = self.this_token_to_string();
+      let span = self.span;
+      self.span_err(span,
+                    &format!("expected identifier, found keyword `{}`",
+                    token_str));
+    }
+  }
+
+  /// Signal an error if the current token is a reserved keyword
+  pub fn check_reserved_keywords(&mut self) {
+    if self.token.is_reserved_keyword() {
+      let token_str = self.this_token_to_string();
+      self.fatal(&format!("`{}` is a reserved keyword", token_str)).emit()
+    }
+  }
+
   /// If the next token is the given keyword, eat it and return
   /// true. Otherwise, return false.
   pub fn eat_keyword(&mut self, kw: keywords::Keyword) -> bool {
@@ -229,6 +274,21 @@ impl<'a> Parser<'a> {
       true
     } else {
       false
+    }
+  }
+
+  pub fn mk_range(&mut self,
+                  start: Option<P<Expr>>,
+                  end: Option<P<Expr>>,
+                  limits: RangeLimits)
+                  -> PResult<ast::ExprKind> {
+    if end.is_none() && limits == RangeLimits::Closed {
+      Err(self.span_fatal_help(self.span,
+                               "inclusive range with no end",
+                               "inclusive ranges must be bounded at the end \
+                                (`...b` or `a...b`)"))
+    } else {
+      Ok(ExprKind::Range(start, end, limits))
     }
   }
 
@@ -353,9 +413,10 @@ impl<'a> Parser<'a> {
     }
 
     self.expected_tokens.push(TokenType::Operator);
-    while let Some(op) = AssocOp::from_token(&self.token) {
-      let cur_op_span = self.span;
 
+    while let Some(op) = AssocOp::from_token(&self.token) {
+
+      let cur_op_span = self.span;
       let restrictions = if op.is_assign_like() {
         self.restrictions & RESTRICTION_NO_STRUCT_LITERAL
       } else {
@@ -368,7 +429,47 @@ impl<'a> Parser<'a> {
       if op.is_comparison() {
         self.check_no_chained_comparison(&lhs, &op);
       }
+
+      // Special cases:
+      if op == AssocOp::As {
+        let rhs = self.parse_ty()?;
+        lhs = self.mk_expr(lhs.span.lo, rhs.span.hi,
+                           ExprKind::Cast(lhs, rhs), None);
+        continue
+      } else if op == AssocOp::Colon {
+        let rhs = self.parse_ty()?;
+        lhs = self.mk_expr(lhs.span.lo, rhs.span.hi,
+                           ExprKind::Type(lhs, rhs), None);
+        continue
+      } else if op == AssocOp::DotDot || op == AssocOp::DotDotDot {
+        // If we didn’t have to handle `x..`/`x...`, it would be pretty easy to
+        // generalise it to the Fixity::None code.
+        //
+        // We have 2 alternatives here: `x..y`/`x...y` and `x..`/`x...` The other
+        // two variants are handled with `parse_prefix_range_expr` call above.
+        let rhs = if self.is_at_start_of_range_notation_rhs() {
+          Some(self.parse_assoc_expr_with(op.precedence() + 1,
+                                          LhsExpr::NotYetParsed)?)
+        } else {
+          None
+        };
+        let (lhs_span, rhs_span) = (lhs.span, if let Some(ref x) = rhs {
+          x.span
+        } else {
+          cur_op_span
+        });
+        let limits = if op == AssocOp::DotDot {
+          RangeLimits::HalfOpen
+        } else {
+          RangeLimits::Closed
+        };
+
+        let r = try!(self.mk_range(Some(lhs), rhs, limits));
+        lhs = self.mk_expr(lhs_span.lo, rhs_span.hi, r, None);
+        break
+      }
     }
+
     unimplemented!()
   }
 
@@ -390,6 +491,18 @@ impl<'a> Parser<'a> {
         err.emit();
       }
       _ => {}
+    }
+  }
+
+  fn is_at_start_of_range_notation_rhs(&self) -> bool {
+    if self.token.can_begin_expr() {
+      // parse `for i in 1.. { }` as infinite loop, not as `for i in (1..{})`.
+      if self.token == token::OpenDelim(token::Brace) {
+        return !self.restrictions.contains(RESTRICTION_NO_STRUCT_LITERAL);
+      }
+      true
+    } else {
+      false
     }
   }
 
@@ -627,6 +740,109 @@ impl<'a> Parser<'a> {
 
     self.bump();
     Ok(out)
+  }
+
+  /// Parse a type.
+  pub fn parse_ty(&mut self) -> PResult<P<Ty>> {
+
+    let lo = self.span.lo;
+
+    let t = if self.check(&token::OpenDelim(token::Paren)) {
+      self.bump();
+      unimplemented!()
+    } else if self.token.is_path_start() {
+      let path = self.parse_path()?;
+      // NAMED TYPE
+      TyKind::Path(path)
+    } else if self.eat(&token::Underscore) {
+      // TYPE TO BE INFERRED
+      TyKind::Infer
+    } else {
+      let msg = format!("expected type, found {}", self.this_token_descr());
+      return Err(self.fatal(&msg));
+    };
+
+    let sp = mk_span(lo, self.last_span.hi);
+    Ok(P(Ty {id: ast::DUMMY_NODE_ID, node: t, span: sp}))
+  }
+
+  /// Parses a path and optional type parameter bounds, depending on the
+  /// mode. The `mode` parameter determines whether lifetimes, types, and/or
+  /// bounds are permitted and whether `::` must precede type parameter
+  /// groups.
+  pub fn parse_path(&mut self) -> PResult<ast::Path> {
+
+    let lo = self.span.lo;
+    let is_global = self.eat(&token::ModSep);
+
+
+    let segments = self.parse_path_segments_without_types()?;
+
+    // Assemble the span.
+    let span = mk_span(lo, self.last_span.hi);
+
+    // Assemble the result.
+    Ok(ast::Path {
+      span: span,
+      global: is_global,
+      segments: segments,
+    })
+  }
+
+  /// Examples:
+  /// - `a::b::c`
+  pub fn parse_path_segments_without_types(&mut self) -> PResult<Vec<ast::PathSegment>> {
+    let mut segments = Vec::new();
+    loop {
+      // First, parse an identifier.
+      let identifier = self.parse_path_segment_ident()?;
+
+      // Assemble and push the result.
+      segments.push(ast::PathSegment { identifier: identifier });
+
+      // If we do not see a `::` or see `::{`/`::*`, stop.
+      if !self.check(&token::ModSep) || self.is_import_coupler() {
+        return Ok(segments);
+      } else {
+        self.bump();
+      }
+    }
+  }
+
+  /// `::{` or `::*`
+  fn is_import_coupler(&mut self) -> bool {
+    self.check(&token::ModSep) &&
+      self.look_ahead(1, |t| *t == token::OpenDelim(token::Brace) ||
+    *t == token::BinOp(token::Star))
+  }
+
+  pub fn parse_path_segment_ident(&mut self) -> PResult<ast::Ident> {
+    match self.token {
+      token::Ident(sid) if self.token.is_path_segment_keyword() => {
+        self.bump();
+        Ok(sid)
+      }
+      _ => self.parse_ident(),
+    }
+  }
+
+  pub fn parse_ident(&mut self) -> PResult<ast::Ident> {
+    self.check_strict_keywords();
+    self.check_reserved_keywords();
+    match self.token {
+      token::Ident(i) => {
+        self.bump();
+        Ok(i)
+      }
+      _ => {
+        let mut err = self.fatal(&format!("expected identifier, found `{}`",
+                                 self.this_token_to_string()));
+        if self.token == token::Underscore {
+          err.note("`_` is a wildcard pattern, not an identifier");
+        }
+        Err(err)
+      }
+    }
   }
 
   pub fn mk_expr(&mut self, lo: BytePos, hi: BytePos,

@@ -12,6 +12,7 @@ common = { path = "../common" }
 
 bitflags = "0.7"
 env_logger = "0.3.2"
+itertools = "0.4.3"
 log = "0.3.4"
 regex = "0.1.47"
 term = "0.4.4"

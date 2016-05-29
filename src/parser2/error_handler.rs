@@ -67,6 +67,10 @@ impl DiagnosticBuilder {
     unimplemented!()
   }
 
+  pub fn note(&mut self, msg: &str) -> &mut DiagnosticBuilder {
+    unimplemented!()
+  }
+
   pub fn help(&mut self , msg: &str) -> &mut DiagnosticBuilder {
     unimplemented!()
   }

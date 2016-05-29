@@ -1,7 +1,9 @@
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use ast;
+use ast_print;
 use attr::ThinAttributes;
 use codemap::{Span, Spanned};
 use ptr::P;
@@ -97,6 +99,11 @@ impl PartialEq for Ident {
   }
 }
 
+impl Hash for Ident {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.name.hash(state)
+  }
+}
 
 impl fmt::Debug for Ident {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -107,6 +114,51 @@ impl fmt::Debug for Ident {
 impl fmt::Display for Ident {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     fmt::Display::fmt(&self.name, f)
+  }
+}
+
+/// A "Path" is essentially Rust's notion of a name; for instance:
+/// std::cmp::PartialEq  .  It's represented as a sequence of identifiers,
+/// along with a bunch of supporting information.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Path {
+  pub span: Span,
+  /// A `::foo` path, is relative to the crate root rather than current
+  /// module (like paths in an import).
+  pub global: bool,
+  /// The segments in the path: the things separated by `::`.
+  pub segments: Vec<PathSegment>,
+}
+
+impl fmt::Debug for Path {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "path({})", ast_print::path_to_string(self))
+  }
+}
+
+impl fmt::Display for Path {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", ast_print::path_to_string(self))
+  }
+}
+
+/// A segment of a path: an identifier, an optional lifetime, and a set of
+/// types.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct PathSegment {
+  /// The identifier portion of this path segment.
+  pub identifier: Ident
+}
+
+impl fmt::Debug for PathSegment {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "PathSegment({})", self.identifier.name)
+  }
+}
+
+impl fmt::Display for PathSegment {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "PathSegment({})", self.identifier.name)
   }
 }
 
@@ -144,6 +196,46 @@ pub enum ItemKind {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Ty {
+  pub id: NodeId,
+  pub node: TyKind,
+  pub span: Span,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// The different kinds of types recognized by the compiler
+pub enum TyKind {
+  Vec(P<Ty>),
+  /// A path (`module::module::...::Type`), optionally
+  /// "qualified", e.g. `<Vec<T> as SomeTrait>::SomeType`.
+  ///
+  /// Type parameters are stored in the Path itself
+  Path(Path),
+  Infer
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Unsafety {
+  Unsafe,
+  Normal,
+}
+
+impl fmt::Display for Unsafety {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fmt::Display::fmt(match *self {
+      Unsafety::Normal => "normal",
+      Unsafety::Unsafe => "unsafe",
+    }, f)
+  }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Constness {
+  Const,
+  NotConst,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Expr {
   pub id: NodeId,
   pub node: ExprKind,
@@ -160,6 +252,15 @@ impl Expr {
   }
 }
 
+/// Limit types of a range (inclusive or exclusive)
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RangeLimits {
+  /// Inclusive at the beginning, exclusive at the end
+  HalfOpen,
+  /// Inclusive at the beginning and end
+  Closed,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ExprKind {
   Call,
@@ -167,7 +268,9 @@ pub enum ExprKind {
   Unary(UnOp, P<Expr>),
   Binary(BinOp, P<Expr>, P<Expr>),
   Literal,
-  Cast,
+  /// A cast (`foo as f64`)
+  Cast(P<Expr>, P<Ty>),
+  Type(P<Expr>, P<Ty>),
   If(P<Expr>),
   /// An `if let` expression with an optional else block
   ///
@@ -183,6 +286,8 @@ pub enum ExprKind {
   Assign,
   Path,
   Paren,
+  /// A range (`1..2`, `1..`, `..2`, `1...2`, `1...`, `...2`)
+  Range(Option<P<Expr>>, Option<P<Expr>>, RangeLimits),
   /// A literal (For example: `1`, `"foo"`)
   Lit(P<Lit>),
 }

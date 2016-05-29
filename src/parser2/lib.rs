@@ -6,11 +6,12 @@
 
 #[macro_use] extern crate bitflags;
 extern crate env_logger;
-#[macro_use]
-extern crate log;
+#[macro_use ] extern crate itertools;
+#[macro_use] extern crate log;
 extern crate term;
 
 pub mod ast;
+pub mod ast_print;
 pub mod attr;
 pub mod codemap;
 pub mod error_handler;
