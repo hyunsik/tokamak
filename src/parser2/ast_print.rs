@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use ast::{self, Path, PathSegment};
+use ast::{self};
 
 pub fn path_to_string(p: &ast::Path) -> String {
   let path_str = p.segments.iter().join("::");

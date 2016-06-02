@@ -3,7 +3,8 @@ use std::mem::replace;
 use std::rc::Rc;
 
 use ast::{self};
-use codemap::{self, BytePos, CharPos, Span, Pos};
+use codemap::{self, BytePos, Span, Pos};
+use error_handler::{Handler};
 use token::{self, str_to_ident};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -16,31 +17,46 @@ pub struct FatalError;
 
 pub trait Reader {
   fn is_eof(&self) -> bool;
-  fn next_token(&mut self) -> TokenAndSpan;
+  fn try_next_token(&mut self) -> Result<TokenAndSpan, ()>;
+  fn next_token(&mut self) -> TokenAndSpan where Self: Sized {
+    let res = self.try_next_token();
+    self.unwrap_or_abort(res)
+  }
   /// Report a fatal error with the current span.
   fn fatal(&self, &str) -> FatalError;
   /// Report a non-fatal error with the current span.
   fn err(&self, &str);
-  fn peek(&self) -> TokenAndSpan;
-  /// Get a token the parser cares about.
-  fn real_token(&mut self) -> TokenAndSpan {
-    let mut t = self.next_token();
-    loop {
-      match t.tok {
-        token::Whitespace => {
-          t = self.next_token();
-        },
-        _ => break
+  fn emit_fatal_errors(&mut self);
+  fn unwrap_or_abort(&mut self, res: Result<TokenAndSpan, ()>) -> TokenAndSpan {
+    match res {
+      Ok(tok) => tok,
+      Err(_) => {
+        self.emit_fatal_errors();
+        panic!(FatalError);
       }
     }
-    t
+  }
+  fn peek(&self) -> TokenAndSpan;
+  /// Get a token the parser cares about.
+  fn try_real_token(&mut self) -> Result<TokenAndSpan, ()> {
+    let mut t = self.try_next_token()?;
+    loop {
+      match t.tok {
+        token::Whitespace | token::Comment => {
+          t = self.try_next_token()?;
+        }
+        _ => break,
+      }
+    }
+    Ok(t)
+  }
+  fn real_token(&mut self) -> TokenAndSpan {
+    let res = self.try_real_token();
+    self.unwrap_or_abort(res)
   }
 }
 
-pub struct StringReader {
-  /// source text
-  pub source_text: Rc<String>,
-
+pub struct StringReader<'a> {
   /// The absolute offset within the source text of the next character to read
   pub pos: BytePos,
   /// The absolute offset within the source text of the last character read (curr)
@@ -48,30 +64,42 @@ pub struct StringReader {
   /// The last character to be read
   pub curr: Option<char>,
 
+  /// cached token
   pub peek_tok: token::Token,
-  pub peek_span: Span
+  pub peek_span: Span,
+
+  /// source text
+  pub source_text: Rc<String>,
+  /// diagnostic handler
+  pub span_diagnostic: &'a Handler,
 }
 
-impl Reader for StringReader {
+impl<'a> Reader for StringReader<'a> {
   fn is_eof(&self) -> bool { self.curr.is_none() }
 
-  fn next_token(&mut self) -> TokenAndSpan {
+  /// Return the next token. EFFECT: advances the string_reader.
+  fn try_next_token(&mut self) -> Result<TokenAndSpan, ()> {
     let ret_val = TokenAndSpan {
       tok: replace(&mut self.peek_tok, token::Underscore),
       sp: self.peek_span,
     };
-    self.advance_token();
-    ret_val
+    self.advance_token()?;
+    Ok(ret_val)
   }
+
   /// Report a fatal error with the current span.
+  #[allow(unused_variables)]
   fn fatal(&self, m: &str) -> FatalError {
     unimplemented!()
   }
   /// Report a non-fatal error with the current span.
+  #[allow(unused_variables)]
   fn err(&self, m: &str) {
     unimplemented!()
   }
-
+  fn emit_fatal_errors(&mut self) {
+    unimplemented!()
+  }
   fn peek(&self) -> TokenAndSpan {
     unimplemented!()
   }
@@ -96,8 +124,8 @@ pub fn char_at(s: &str, byte: usize) -> char {
 }
 
 
-impl StringReader {
-  pub fn new(source: Rc<String>) -> StringReader {
+impl<'a> StringReader<'a> {
+  pub fn new(source: Rc<String>, handler: &'a Handler) -> StringReader<'a> {
     let mut sr = StringReader {
       pos: BytePos(0),
       last_pos: BytePos(0),
@@ -105,13 +133,18 @@ impl StringReader {
       peek_tok: token::Eof,
       peek_span: codemap::DUMMY_SPAN,
       source_text: source,
+      span_diagnostic: handler,
     };
     sr.bump();
-    sr.advance_token();
+    if let Err(_) = sr.advance_token() {
+      sr.emit_fatal_errors();
+      panic!(FatalError);
+    }
     sr
   }
 
   /// Report a lexical error with a given span.
+  #[allow(unused_variables)]
   pub fn err_span(&self, sp: Span, m: &str) {
     unimplemented!()
   }
@@ -372,12 +405,46 @@ impl StringReader {
           return Ok(self.binop(token::Minus));
         }
       }
+      '|' => {
+        match self.nextch() {
+          Some('|') => {
+            self.bump();
+            self.bump();
+            return Ok(token::OrOr);
+          }
+          _ => {
+            return Ok(self.binop(token::Or));
+          }
+        }
+      }
+      '&' => {
+        if self.nextch_is('&') {
+          self.bump();
+          self.bump();
+          return Ok(token::AndAnd);
+        } else {
+          return Ok(self.binop(token::And));
+        }
+      }
+      '+' => {
+        return Ok(self.binop(token::Plus));
+      }
+      '*' => {
+        return Ok(self.binop(token::Star));
+      }
+      '/' => {
+        return Ok(self.binop(token::Slash));
+      }
+      '^' => {
+        return Ok(self.binop(token::Caret));
+      }
+      '%' => {
+        return Ok(self.binop(token::Percent));
+      }
       c => {
-
+        return Err(());
       }
     }
-
-    unimplemented!()
   }
 
   fn advance_token(&mut self) -> Result<(), ()> {
@@ -426,7 +493,9 @@ impl StringReader {
   pub fn scan_whitespace_or_comment(&mut self) -> Option<TokenAndSpan> {
     match self.curr.unwrap_or('\0') {
       '/' | '#' => {
-        unimplemented!()
+        let c = self.scan_comment();
+        debug!("scanning a comment {:?}", c);
+        c
       }
       c if is_whitespace(Some(c)) => {
         let start_bpos = self.last_pos;
@@ -439,6 +508,23 @@ impl StringReader {
       }
       _ => None
     }
+  }
+
+  /// PRECONDITION: self.curr is not whitespace
+  /// Eats any kind of comment.
+  fn scan_comment(&mut self) -> Option<TokenAndSpan> {
+    match self.curr {
+      Some(c) => {
+        if c.is_whitespace() {
+          self.span_diagnostic.span_err(codemap::mk_span(self.last_pos, self.last_pos),
+                                        "called consume_any_line_comment, but there \
+                                         was whitespace");
+        }
+      }
+      None => {}
+    }
+
+    unimplemented!()
   }
 
   /// Lex a LIT_INTEGER or a LIT_FLOAT
@@ -630,6 +716,7 @@ pub fn is_whitespace(c: Option<char>) -> bool {
 #[cfg(test)]
 mod tests {
   use ast;
+  use error_handler::Handler;
   use token::{self, str_to_ident};
   use std::rc::Rc;
   use super::{Reader, StringReader};
@@ -637,7 +724,8 @@ mod tests {
   fn assert_tokens(source: &str, expected: &[token::Token]) {
     let mut result: Vec<token::Token> = Vec::new();
 
-    let mut sr = StringReader::new(Rc::new(source.to_string()));
+    let handler = Handler;
+    let mut sr = StringReader::new(Rc::new(source.to_string()), &handler);
 
     loop {
       let tok = sr.next_token().tok;
@@ -684,6 +772,20 @@ mod tests {
     // start with -
     assert_tokens("->-",
                   &[token::RArrow, token::BinOp(token::Minus)]);
+    // start with |
+    assert_tokens("|||",
+                  &[token::OrOr, token::BinOp(token::Or)]);
+    // start with &
+    assert_tokens("&&&",
+                  &[token::AndAnd, token::BinOp(token::And)]);
+    // Other symbols
+    assert_tokens("+*/^%",
+                  &[token::BinOp(token::Plus),
+                    token::BinOp(token::Star),
+                    token::BinOp(token::Slash),
+                    token::BinOp(token::Caret),
+                    token::BinOp(token::Percent)
+                  ]);
   }
 
   #[test]

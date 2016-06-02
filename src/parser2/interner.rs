@@ -8,7 +8,6 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use ast::Name;
-use token;
 
 
 pub struct Interner<T> {

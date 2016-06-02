@@ -4,7 +4,7 @@ pub use self::Level::*;
 
 use std::fmt;
 
-use codemap::{MultiSpan, Span};
+use codemap::{MultiSpan};
 
 #[derive(Copy, PartialEq, Clone, Debug)]
 pub enum Level {
@@ -27,6 +27,7 @@ impl fmt::Display for Level {
 }
 
 impl Level {
+  #[allow(dead_code)]
   fn color(self) -> term::color::Color {
     match self {
       Bug | Fatal | PhaseFatal | Error => term::color::BRIGHT_RED,
@@ -37,6 +38,7 @@ impl Level {
     }
   }
 
+  #[allow(dead_code)]
   fn to_str(self) -> &'static str {
     match self {
       Bug => "error: internal compiler error",
@@ -67,10 +69,12 @@ impl DiagnosticBuilder {
     unimplemented!()
   }
 
+  #[allow(unused_variables)]
   pub fn note(&mut self, msg: &str) -> &mut DiagnosticBuilder {
     unimplemented!()
   }
 
+  #[allow(unused_variables)]
   pub fn help(&mut self , msg: &str) -> &mut DiagnosticBuilder {
     unimplemented!()
   }
@@ -79,23 +83,28 @@ impl DiagnosticBuilder {
 pub struct Handler;
 
 impl Handler {
+  #[allow(unused_variables)]
   pub fn cancel(&mut self, err: &mut DiagnosticBuilder) {
     unimplemented!()
   }
 
+  #[allow(unused_variables)]
   pub fn span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str) {
     unimplemented!()
   }
 
+  #[allow(unused_variables)]
   pub fn span_bug<S: Into<MultiSpan>>(&self, sp: S, msg: &str) -> ! {
     unimplemented!()
   }
 
+  #[allow(unused_variables)]
   pub fn struct_span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
       -> DiagnosticBuilder {
     unimplemented!()
   }
 
+  #[allow(unused_variables)]
   pub fn struct_span_fatal<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
       -> DiagnosticBuilder {
     unimplemented!()

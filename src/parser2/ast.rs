@@ -2,7 +2,6 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-use ast;
 use ast_print;
 use attr::ThinAttributes;
 use codemap::{Span, Spanned};

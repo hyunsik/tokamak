@@ -134,6 +134,7 @@ impl<'a> Parser<'a> {
     self.sess.span_diagnostic.struct_span_fatal(self.span, m)
   }
 
+  #[allow(unused_variables)]
   pub fn span_fatal(&self, sp: Span, m: &str) -> DiagnosticBuilder {
     unimplemented!()
   }
@@ -148,10 +149,12 @@ impl<'a> Parser<'a> {
     self.sess.span_diagnostic.span_bug(self.span, m)
   }
 
+  #[allow(unused_variables)]
   pub fn unexpected_last<T>(&self, t: &token::Token) -> PResult<T> {
     unimplemented!()
   }
 
+  #[allow(unused_variables)]
   pub fn expect_no_suffix(&self, sp: Span, kind: &str, suffix: Option<ast::Name>) {
     unimplemented!()
   }
@@ -304,11 +307,13 @@ impl<'a> Parser<'a> {
     })
   }
 
+  #[allow(unused_variables)]
   pub fn parse_module(&mut self, term: &token::Token, inner_lo: BytePos)
       -> PResult<Module> {
     unimplemented!()
   }
 
+  #[allow(unused_variables)]
   pub fn parse_item(&mut self) -> PResult<Item> {
     let lo = self.span.lo;
     let visibility = self.parse_visibility()?;
@@ -573,6 +578,7 @@ impl<'a> Parser<'a> {
   }
 
   /// Parse a prefix-unary-operator expr
+  #[allow(unused_variables)]
   pub fn parse_prefix_expr(&mut self,
                            already_parsed_attrs: Option<ThinAttributes>)
                            -> PResult<P<Expr>> {
@@ -599,6 +605,7 @@ impl<'a> Parser<'a> {
   }
 
   /// Parse prefix-forms of range notation: `..expr`, `..`, `...expr`
+  #[allow(unused_variables)]
   fn parse_prefix_range_expr(&mut self,
                              already_parsed_attrs: Option<ThinAttributes>)
                              -> PResult<P<Expr>> {
@@ -606,6 +613,7 @@ impl<'a> Parser<'a> {
   }
 
   /// parse a.b, a.1 or a(13) or a[4] or just a
+  #[allow(unused_variables)]
   pub fn parse_dot_or_call_expr(&mut self,
                                 already_parsed_attrs: Option<ThinAttributes>)
                                 -> PResult<P<Expr>> {
@@ -644,6 +652,7 @@ impl<'a> Parser<'a> {
     )
   }
 
+  #[allow(unused_variables)]
   fn parse_dot_or_call_expr_with_(&mut self, e0: P<Expr>, lo: BytePos) -> PResult<P<Expr>> {
     let mut e = e0;
     //let mut hi;
@@ -1352,16 +1361,17 @@ mod tests {
   use lexer::{Reader, StringReader};
   use super::{ParseSess, Parser, Restrictions};
 
-  fn reader(src: &str) -> Box<Reader> {
-    Box::new(StringReader::new(Rc::new(src.to_string())))
+  fn reader<'a, 'b>(src: &'a str, sess: &'b ParseSess) -> Parser<'b> {
+    let r = StringReader::new(Rc::new(src.to_string()), &sess.span_diagnostic);
+    Parser::new(&sess, Box::new(r))
   }
+
   #[test]
   fn test_expr() {
-    let sess = ParseSess::new();
-    let mut r = reader("2.3;");
-    let mut p = Parser::new(&sess, r);
+    let sess: &ParseSess = &ParseSess::new();
+    let mut p = reader("2.3 + 4", sess);
 
-    match p.parse_assoc_expr(None) {
+    match p.parse_expr() {
       Ok(e) => println!("{:?}", e),
       Err(e) => println!("Error")
     };
