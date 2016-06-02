@@ -283,7 +283,14 @@ pub enum ExprKind {
   ForLoop,
   Match,
   Block,
-  Assign,
+  /// First expr is the place; second expr is the value.
+  InPlace(P<Expr>, P<Expr>),
+  /// An assignment (`a = foo()`)
+  Assign(P<Expr>, P<Expr>),
+  /// An assignment with an operator
+  ///
+  /// For example, `a += 1`.
+  AssignOp(BinOp, P<Expr>, P<Expr>),
   Path,
   Paren,
   /// A range (`1..2`, `1..`, `..2`, `1...2`, `1...`, `...2`)

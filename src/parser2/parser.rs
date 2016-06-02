@@ -11,7 +11,7 @@ use ast::{Ty, TyKind};
 use codemap::{self, BytePos, mk_span, Span};
 use error_handler::{DiagnosticBuilder, Handler};
 use lexer::{char_at, Reader, TokenAndSpan};
-use precedence::AssocOp;
+use precedence::{AssocOp, Fixity};
 use ptr::P;
 use token::{self, keywords, InternedString, Token};
 
@@ -142,6 +142,10 @@ impl<'a> Parser<'a> {
     let mut err = self.sess.span_diagnostic.struct_span_fatal(sp, m);
     err.help(help);
     err
+  }
+
+  pub fn bug(&self, m: &str) -> ! {
+    self.sess.span_diagnostic.span_bug(self.span, m)
   }
 
   pub fn unexpected_last<T>(&self, t: &token::Token) -> PResult<T> {
@@ -468,9 +472,71 @@ impl<'a> Parser<'a> {
         lhs = self.mk_expr(lhs_span.lo, rhs_span.hi, r, None);
         break
       }
+
+      let rhs = match op.fixity() {
+        Fixity::Right => self.with_res(
+          restrictions - RESTRICTION_STMT_EXPR,
+          |this| {
+            this.parse_assoc_expr_with(op.precedence(),
+                                       LhsExpr::NotYetParsed)
+          }),
+        Fixity::Left => self.with_res(
+          restrictions - RESTRICTION_STMT_EXPR,
+          |this| {
+            this.parse_assoc_expr_with(op.precedence() + 1,
+                                       LhsExpr::NotYetParsed)
+          }),
+        // We currently have no non-associative operators that are not handled above by
+        // the special cases. The code is here only for future convenience.
+        Fixity::None => self.with_res(
+          restrictions - RESTRICTION_STMT_EXPR,
+          |this| {
+            this.parse_assoc_expr_with(op.precedence() + 1,
+                                       LhsExpr::NotYetParsed)
+          }),
+      }?;
+
+      lhs = match op {
+        AssocOp::Add | AssocOp::Subtract | AssocOp::Multiply | AssocOp::Divide |
+        AssocOp::Modulus | AssocOp::LAnd | AssocOp::LOr | AssocOp::BitXor |
+        AssocOp::BitAnd | AssocOp::BitOr | AssocOp::ShiftLeft | AssocOp::ShiftRight |
+        AssocOp::Equal | AssocOp::Less | AssocOp::LessEqual | AssocOp::NotEqual |
+        AssocOp::Greater | AssocOp::GreaterEqual => {
+          let ast_op = op.to_ast_binop().unwrap();
+          let (lhs_span, rhs_span) = (lhs.span, rhs.span);
+          let binary = self.mk_binary(codemap::respan(cur_op_span, ast_op), lhs, rhs);
+          self.mk_expr(lhs_span.lo, rhs_span.hi, binary, None)
+        }
+        AssocOp::Assign =>
+          self.mk_expr(lhs.span.lo, rhs.span.hi, ExprKind::Assign(lhs, rhs), None),
+        AssocOp::Inplace =>
+          self.mk_expr(lhs.span.lo, rhs.span.hi, ExprKind::InPlace(lhs, rhs), None),
+        AssocOp::AssignOp(k) => {
+          let aop = match k {
+            token::Plus =>    BinOpKind::Add,
+            token::Minus =>   BinOpKind::Sub,
+            token::Star =>    BinOpKind::Mul,
+            token::Slash =>   BinOpKind::Div,
+            token::Percent => BinOpKind::Rem,
+            token::Caret =>   BinOpKind::BitXor,
+            token::And =>     BinOpKind::BitAnd,
+            token::Or =>      BinOpKind::BitOr,
+            token::LShift =>  BinOpKind::LShift,
+            token::RShift =>  BinOpKind::RShift,
+          };
+          let (lhs_span, rhs_span) = (lhs.span, rhs.span);
+          let aopexpr = self.mk_assign_op(codemap::respan(cur_op_span, aop), lhs, rhs);
+          self.mk_expr(lhs_span.lo, rhs_span.hi, aopexpr, None)
+        }
+        AssocOp::As | AssocOp::Colon | AssocOp::DotDot | AssocOp::DotDotDot => {
+          self.bug("As, Colon, DotDot or DotDotDot branch reached")
+        }
+      };
+
+      if op.fixity() == Fixity::None { break }
     }
 
-    unimplemented!()
+    Ok(lhs)
   }
 
   /// Produce an error if comparison operators are chained (RFC #558).
@@ -861,6 +927,10 @@ impl<'a> Parser<'a> {
 
   pub fn mk_binary(&mut self, binop: ast::BinOp, lhs: P<Expr>, rhs: P<Expr>) -> ast::ExprKind {
     ExprKind::Binary(binop, lhs, rhs)
+  }
+
+  pub fn mk_assign_op(&mut self, binop: ast::BinOp, lhs: P<Expr>, rhs: P<Expr>) -> ast::ExprKind {
+    ExprKind::AssignOp(binop, lhs, rhs)
   }
 }
 
