@@ -1374,7 +1374,7 @@ mod tests {
 
   /// Given tts and cfg, produce a parser
   fn str_to_parser(sess: &ParseSess, src: Rc<String>) -> Parser {
-    let r = StringReader::new(src, sess);
+    let r = StringReader::new(src, &sess.span_diagnostic);
     Parser::new(sess, Box::new(r))
   }
 

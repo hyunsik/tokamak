@@ -107,6 +107,9 @@ pub enum Token {
 
   /// Whitespace
   Whitespace,
+  // Can be expanded into several tokens.
+  /// Doc comment
+  DocComment(ast::Name),
   /// Comment
   Comment,
 
@@ -512,8 +515,8 @@ pub fn token_to_string(tok: &Token) -> String {
         Integer(c)        => c.to_string(),
         Str_(s)           => format!("\"{}\"", s),
         StrRaw(s, n)      => format!("r{delim}\"{string}\"{delim}",  delim=repeat("#", n), string=s),
-        ByteStr(v)         => format!("b\"{}\"", v),
-        ByteStrRaw(s, n)   => format!("br{delim}\"{string}\"{delim}", delim=repeat("#", n), string=s),
+        ByteStr(v)        => format!("b\"{}\"", v),
+        ByteStrRaw(s, n)  => format!("br{delim}\"{string}\"{delim}", delim=repeat("#", n), string=s),
       };
 
       if let Some(s) = suf {
@@ -528,8 +531,9 @@ pub fn token_to_string(tok: &Token) -> String {
     Underscore           => "_".to_string(),
 
     /* Other */
-    Eof                  => "<eof>".to_string(),
-    Whitespace           => " ".to_string(),
+    DocComment(s)        => s.to_string(),
     Comment              => "/* */".to_string(),
+    Whitespace           => " ".to_string(),
+    Eof                  => "<eof>".to_string(),
   }
 }

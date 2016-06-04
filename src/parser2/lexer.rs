@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::char;
 use std::mem::replace;
 use std::rc::Rc;
@@ -72,7 +73,7 @@ pub struct StringReader<'a> {
   /// source text
   pub source_text: Rc<String>,
   /// diagnostic handler
-  pub sess: &'a ParseSess,
+  span_diagnostic: &'a Handler,
 }
 
 impl<'a> Reader for StringReader<'a> {
@@ -126,7 +127,7 @@ pub fn char_at(s: &str, byte: usize) -> char {
 
 
 impl<'a> StringReader<'a> {
-  pub fn new(source: Rc<String>, sess: &'a ParseSess) -> StringReader<'a> {
+  pub fn new(source: Rc<String>, span_diagnostic: &'a Handler) -> StringReader<'a> {
     let mut sr = StringReader {
       pos: BytePos(0),
       last_pos: BytePos(0),
@@ -134,7 +135,7 @@ impl<'a> StringReader<'a> {
       peek_tok: token::Eof,
       peek_span: codemap::DUMMY_SPAN,
       source_text: source,
-      sess: sess,
+      span_diagnostic: span_diagnostic,
     };
     sr.bump();
     if let Err(_) = sr.advance_token() {
@@ -144,19 +145,24 @@ impl<'a> StringReader<'a> {
     sr
   }
 
-  fn dianostic(&self) -> &Handler {
-    &self.sess.span_diagnostic
-  }
-
   /// Report a lexical error with a given span.
-  #[allow(unused_variables)]
   pub fn err_span(&self, sp: Span, m: &str) {
-    unimplemented!()
+    self.span_diagnostic.span_err(sp, m)
   }
 
   /// Report a lexical error spanning [`from_pos`, `to_pos`).
   fn err_span_(&self, from_pos: BytePos, to_pos: BytePos, m: &str) {
     self.err_span(codemap::mk_span(from_pos, to_pos), m)
+  }
+
+  /// Report a fatal lexical error with a given span.
+  pub fn fatal_span(&self, sp: Span, m: &str) -> FatalError {
+    unimplemented!()
+  }
+
+  /// Report a fatal error spanning [`from_pos`, `to_pos`).
+  fn fatal_span_(&self, from_pos: BytePos, to_pos: BytePos, m: &str) -> FatalError {
+    self.fatal_span(codemap::mk_span(from_pos, to_pos), m)
   }
 
   pub fn curr_is(&self, c: char) -> bool {
@@ -494,6 +500,55 @@ impl<'a> StringReader<'a> {
     self.with_str_from(start, token::intern)
   }
 
+  /// Converts CRLF to LF in the given string, raising an error on bare CR.
+  fn translate_crlf<'b>(&self, start: BytePos, s: &'b str, errmsg: &'b str) -> Cow<'b, str> {
+    let mut i = 0;
+    while i < s.len() {
+      let ch = char_at(s, i);
+      let next = i + ch.len_utf8();
+      if ch == '\r' {
+        if next < s.len() && char_at(s, next) == '\n' {
+          return translate_crlf_(self, start, s, errmsg, i).into();
+        }
+        let pos = start + BytePos(i as u32);
+        let end_pos = start + BytePos(next as u32);
+        self.err_span_(pos, end_pos, errmsg);
+      }
+      i = next;
+    }
+    return s.into();
+
+    fn translate_crlf_(rdr: &StringReader,
+      start: BytePos,
+      s: &str,
+      errmsg: &str,
+      mut i: usize)
+      -> String {
+      let mut buf = String::with_capacity(s.len());
+      let mut j = 0;
+      while i < s.len() {
+        let ch = char_at(s, i);
+        let next = i + ch.len_utf8();
+        if ch == '\r' {
+          if j < i {
+            buf.push_str(&s[j..i]);
+          }
+          j = next;
+          if next >= s.len() || char_at(s, next) != '\n' {
+            let pos = start + BytePos(i as u32);
+            let end_pos = start + BytePos(next as u32);
+            rdr.err_span_(pos, end_pos, errmsg);
+          }
+        }
+        i = next;
+      }
+      if j < s.len() {
+        buf.push_str(&s[j..]);
+      }
+      buf
+    }
+  }
+
   /// If there is whitespace or a comment, scan it. Otherwise, return None.
   pub fn scan_whitespace_or_comment(&mut self) -> Option<TokenAndSpan> {
     match self.curr.unwrap_or('\0') {
@@ -521,7 +576,7 @@ impl<'a> StringReader<'a> {
     match self.curr {
       Some(c) => {
         if c.is_whitespace() {
-          self.dianostic().span_err(codemap::mk_span(self.last_pos, self.last_pos),
+          self.span_diagnostic.span_err(codemap::mk_span(self.last_pos, self.last_pos),
                                         "called consume_any_line_comment, but there \
                                          was whitespace");
         }
@@ -529,7 +584,129 @@ impl<'a> StringReader<'a> {
       None => {}
     }
 
-    unimplemented!()
+    if self.curr_is('/') {
+      match self.nextch() {
+        Some('/') => {
+          self.bump();
+          self.bump();
+
+          // line comments starting with "///" or "//!" are doc-comments
+          let doc_comment = self.curr_is('/') || self.curr_is('!');
+          let start_bpos = if doc_comment {
+            self.pos - BytePos(3)
+          } else {
+            self.last_pos - BytePos(2)
+          };
+
+          while !self.is_eof() {
+            match self.curr.unwrap() {
+              '\n' => break,
+              '\r' => {
+                if self.nextch_is('\n') {
+                  // CRLF
+                  break;
+                } else if doc_comment {
+                  self.err_span_(self.last_pos,
+                                 self.pos,
+                                 "bare CR not allowed in doc-comment");
+                }
+              }
+              _ => (),
+            }
+            self.bump();
+          }
+
+          return if doc_comment {
+            self.with_str_from(start_bpos, |string| {
+              // comments with only more "/"s are not doc comments
+              let tok = if is_doc_comment(string) {
+                token::DocComment(token::intern(string))
+              } else {
+                token::Comment
+              };
+
+              Some(TokenAndSpan {
+                tok: tok,
+                sp: codemap::mk_span(start_bpos, self.last_pos),
+              })
+            })
+          } else {
+            Some(TokenAndSpan {
+              tok: token::Comment,
+              sp: codemap::mk_span(start_bpos, self.last_pos),
+            })
+          };
+        }
+        Some('*') => {
+          self.bump();
+          self.bump();
+          self.scan_block_comment()
+        }
+        _ => None,
+      }
+    } else {
+      None
+    }
+  }
+
+  /// Might return a sugared-doc-attr
+  fn scan_block_comment(&mut self) -> Option<TokenAndSpan> {
+
+    // block comments starting with "/**" or "/*!" are doc-comments
+    let is_doc_comment = self.curr_is('*') || self.curr_is('!');
+
+    let start_bpos = self.last_pos - BytePos(2);
+    let mut level: isize = 1;
+    let mut has_cr = false;
+
+    while level > 0 {
+      if self.is_eof() {
+        let msg = if is_doc_comment {
+          "unterminated block doc-comment"
+        } else {
+          "unterminated block comment"
+        };
+        let last_bpos = self.last_pos;
+        panic!(self.fatal_span_(start_bpos, last_bpos, msg));
+      }
+      let n = self.curr.unwrap();
+      match n {
+        '/' if self.nextch_is('*') => {
+          level += 1;
+          self.bump();
+        }
+        '*' if self.nextch_is('/') => {
+          level -= 1;
+          self.bump();
+        }
+        '\r' => {
+          has_cr = true;
+        }
+        _ => (),
+      }
+      self.bump();
+    }
+
+    self.with_str_from(start_bpos, |string| {
+      // but comments with only "*"s between two "/"s are not
+      let tok = if is_block_doc_comment(string) {
+        let string = if has_cr {
+          self.translate_crlf(start_bpos,
+                              string,
+                              "bare CR not allowed in block doc-comment")
+        } else {
+          string.into()
+        };
+        token::DocComment(token::intern(&string[..]))
+      } else {
+        token::Comment
+      };
+
+      Some(TokenAndSpan {
+        tok: tok,
+        sp: codemap::mk_span(start_bpos, self.last_pos),
+      })
+    })
   }
 
   /// Lex a LIT_INTEGER or a LIT_FLOAT
@@ -690,6 +867,21 @@ fn is_dec_digit(c: Option<char>) -> bool {
   return in_range(c, '0', '9');
 }
 
+pub fn is_doc_comment(s: &str) -> bool {
+  let res = (s.starts_with("///") && *s.as_bytes().get(3).unwrap_or(&b' ') != b'/') ||
+  s.starts_with("//!");
+  debug!("is {:?} a doc comment? {}", s, res);
+  res
+}
+
+pub fn is_block_doc_comment(s: &str) -> bool {
+  // Prevent `/**/` from being parsed as a doc comment
+  let res = ((s.starts_with("/**") && *s.as_bytes().get(3).unwrap_or(&b' ') != b'*') ||
+  s.starts_with("/*!")) && s.len() >= 5;
+  debug!("is {:?} a doc comment? {}", s, res);
+  res
+}
+
 // The first character of identifiers should start with one of [a-zA-Z_\x??].
 fn ident_start(c: Option<char>) -> bool {
   let c = match c { Some(c) => c, None => return false };
@@ -730,7 +922,7 @@ mod tests {
     let mut result: Vec<token::Token> = Vec::new();
 
     let sess = ParseSess::new();
-    let mut sr = StringReader::new(Rc::new(source.to_string()), &sess);
+    let mut sr = StringReader::new(Rc::new(source.to_string()), &sess.span_diagnostic);
 
     loop {
       let tok = sr.next_token().tok;
