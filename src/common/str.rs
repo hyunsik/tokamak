@@ -22,7 +22,7 @@ use std::cmp;
 use std::cmp::Ordering;
 use std::fmt::{Display, Error, Formatter};
 use std::mem;
-use std::raw::Slice;
+use std::slice::{from_raw_parts, from_raw_parts_mut};
 use std::result::Result;
 use std::str;
 
@@ -73,19 +73,13 @@ impl StrSlice {
 
   #[inline]
   pub fn as_slice<'a>(&'a self) -> &'a [u8] {
-    let slice = Slice {
-      data: self.ptr,
-      len: (self.len as usize),
-    };
+    let slice = unsafe { from_raw_parts(self.ptr, self.len as usize) };
     unsafe { mem::transmute(slice) }
   }
 
   #[inline]
   pub fn as_slice_mut<'a>(&'a self) -> &'a mut [u8] {
-    let slice = Slice {
-      data: self.ptr,
-      len: (self.len as usize),
-    };
+    let mut slice = unsafe { from_raw_parts_mut(self.ptr as *mut u8, self.len as usize) };
     unsafe { mem::transmute(slice) }
   }
 

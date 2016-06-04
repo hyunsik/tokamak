@@ -6,6 +6,7 @@ use ast::{self};
 use codemap::{self, BytePos, Span, Pos};
 use error_handler::{Handler};
 use token::{self, str_to_ident};
+use parser::{ParseSess};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TokenAndSpan {
@@ -71,7 +72,7 @@ pub struct StringReader<'a> {
   /// source text
   pub source_text: Rc<String>,
   /// diagnostic handler
-  pub span_diagnostic: &'a Handler,
+  pub sess: &'a ParseSess,
 }
 
 impl<'a> Reader for StringReader<'a> {
@@ -125,7 +126,7 @@ pub fn char_at(s: &str, byte: usize) -> char {
 
 
 impl<'a> StringReader<'a> {
-  pub fn new(source: Rc<String>, handler: &'a Handler) -> StringReader<'a> {
+  pub fn new(source: Rc<String>, sess: &'a ParseSess) -> StringReader<'a> {
     let mut sr = StringReader {
       pos: BytePos(0),
       last_pos: BytePos(0),
@@ -133,7 +134,7 @@ impl<'a> StringReader<'a> {
       peek_tok: token::Eof,
       peek_span: codemap::DUMMY_SPAN,
       source_text: source,
-      span_diagnostic: handler,
+      sess: sess,
     };
     sr.bump();
     if let Err(_) = sr.advance_token() {
@@ -141,6 +142,10 @@ impl<'a> StringReader<'a> {
       panic!(FatalError);
     }
     sr
+  }
+
+  fn dianostic(&self) -> &Handler {
+    &self.sess.span_diagnostic
   }
 
   /// Report a lexical error with a given span.
@@ -516,7 +521,7 @@ impl<'a> StringReader<'a> {
     match self.curr {
       Some(c) => {
         if c.is_whitespace() {
-          self.span_diagnostic.span_err(codemap::mk_span(self.last_pos, self.last_pos),
+          self.dianostic().span_err(codemap::mk_span(self.last_pos, self.last_pos),
                                         "called consume_any_line_comment, but there \
                                          was whitespace");
         }
@@ -716,7 +721,7 @@ pub fn is_whitespace(c: Option<char>) -> bool {
 #[cfg(test)]
 mod tests {
   use ast;
-  use error_handler::Handler;
+  use parser::ParseSess;
   use token::{self, str_to_ident};
   use std::rc::Rc;
   use super::{Reader, StringReader};
@@ -724,8 +729,8 @@ mod tests {
   fn assert_tokens(source: &str, expected: &[token::Token]) {
     let mut result: Vec<token::Token> = Vec::new();
 
-    let handler = Handler;
-    let mut sr = StringReader::new(Rc::new(source.to_string()), &handler);
+    let sess = ParseSess::new();
+    let mut sr = StringReader::new(Rc::new(source.to_string()), &sess);
 
     loop {
       let tok = sr.next_token().tok;

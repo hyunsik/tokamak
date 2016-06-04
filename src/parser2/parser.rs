@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::iter;
 use std::mem;
 use std::str;
@@ -30,9 +31,14 @@ pub struct ParseSess {
 
 impl ParseSess {
   pub fn new() -> ParseSess {
+    let handler = Handler { err_count: Cell::new(0) };
     ParseSess {
-      span_diagnostic: Handler
+      span_diagnostic: handler
     }
+  }
+
+  pub fn span_diagnostic<'a>(&'a self) -> &'a Handler {
+    &self.span_diagnostic
   }
 }
 
@@ -60,7 +66,7 @@ impl From<P<Expr>> for LhsExpr {
 
 pub struct Parser<'a> {
   pub sess: &'a ParseSess,
-  pub reader: Box<Reader>,
+  pub reader: Box<Reader + 'a>,
 
   /// the current token
   pub token: token::Token,
@@ -93,7 +99,7 @@ pub enum TokenType {
 pub type PResult<T> = Result<T, DiagnosticBuilder>;
 
 impl<'a> Parser<'a> {
-  pub fn new(sess: &'a ParseSess, mut r: Box<Reader>) -> Parser<'a> {
+  pub fn new(sess: &'a ParseSess, mut r: Box<Reader + 'a>) -> Parser<'a> {
     let tok0 = r.real_token();
     let span = tok0.sp;
     let placeholder = TokenAndSpan {
@@ -1357,21 +1363,34 @@ pub fn integer_lit(s: &str,
 
 #[cfg(test)]
 mod tests {
+  use std::ops::FnOnce;
   use std::rc::Rc;
-  use lexer::{Reader, StringReader};
-  use super::{ParseSess, Parser, Restrictions};
 
-  fn reader<'a, 'b>(src: &'a str, sess: &'b ParseSess) -> Parser<'b> {
-    let r = StringReader::new(Rc::new(src.to_string()), &sess.span_diagnostic);
-    Parser::new(&sess, Box::new(r))
+  use ast::Expr;
+  use lexer::{StringReader};
+  use ptr::P;
+  use super::{ParseSess, Parser, PResult};
+
+
+  /// Given tts and cfg, produce a parser
+  fn str_to_parser(sess: &ParseSess, src: Rc<String>) -> Parser {
+    let r = StringReader::new(src, sess);
+    Parser::new(sess, Box::new(r))
+  }
+
+  fn str_to<F, T>(src: &str, f: F) -> T where F: FnOnce(&mut Parser) -> T {
+    let sess: ParseSess = ParseSess::new();
+    let mut parser = str_to_parser(&sess, Rc::new(src.to_string()));
+    f(&mut parser)
+  }
+
+  fn str_to_expr(src: &str) -> PResult<P<Expr>> {
+    str_to(src, |p| p.parse_expr())
   }
 
   #[test]
   fn test_expr() {
-    let sess: &ParseSess = &ParseSess::new();
-    let mut p = reader("2.3 + 4", sess);
-
-    match p.parse_expr() {
+    match str_to_expr("2.3 + 4") {
       Ok(e) => println!("{:?}", e),
       Err(e) => println!("Error")
     };

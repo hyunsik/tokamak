@@ -2,6 +2,7 @@ extern crate term;
 
 pub use self::Level::*;
 
+use std::cell::Cell;
 use std::fmt;
 
 use codemap::{MultiSpan};
@@ -80,7 +81,9 @@ impl DiagnosticBuilder {
   }
 }
 
-pub struct Handler;
+pub struct Handler {
+  pub err_count: Cell<usize>,
+}
 
 impl Handler {
   #[allow(unused_variables)]
