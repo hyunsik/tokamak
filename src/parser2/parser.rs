@@ -9,7 +9,8 @@ use attr::{ThinAttributes, ThinAttributesExt};
 use ast::{self, Module, Item, Package, Visibility};
 use ast::{BinOpKind, Expr, ExprKind, Lit, LitKind, RangeLimits, UnOp};
 use ast::{Ty, TyKind};
-use codemap::{self, BytePos, mk_span, Span};
+use ast::{Field};
+use codemap::{self, BytePos, mk_span, Span, spanned};
 use error_handler::{DiagnosticBuilder, Handler};
 use lexer::{char_at, Reader, TokenAndSpan};
 use precedence::{AssocOp, Fixity};
@@ -128,6 +129,10 @@ impl<'a> Parser<'a> {
     }
   }
 
+  //----------------------------------------------------
+  // Error Handling Section
+  //----------------------------------------------------
+
   pub fn diagnostic(&self) -> &'a Handler {
     &self.sess.span_diagnostic
   }
@@ -162,6 +167,20 @@ impl<'a> Parser<'a> {
 
   #[allow(unused_variables)]
   pub fn expect_no_suffix(&self, sp: Span, kind: &str, suffix: Option<ast::Name>) {
+    unimplemented!()
+  }
+
+  /// Expect and consume the token t. Signal an error if
+  /// the next token is not t.
+  pub fn expect(&mut self, t: &token::Token) -> PResult<()> {
+    unimplemented!()
+  }
+
+  /// Commit to parsing a complete expression `e` expected to be
+  /// followed by some token from the set edible + inedible.  Recover
+  /// from anticipated input errors, discarding erroneous characters.
+  pub fn commit_expr(&mut self, e: &Expr, edible: &[token::Token],
+    inedible: &[token::Token]) -> PResult<()> {
     unimplemented!()
   }
 
@@ -361,6 +380,14 @@ impl<'a> Parser<'a> {
     } else {
       Ok(Visibility::Public)
     }
+  }
+
+  // Eat tokens until we can be relatively sure we reached the end of the
+  // statement. This is something of a best-effort heuristic.
+  //
+  // We terminate when we find an unmatched `}` (without consuming it).
+  fn recover_stmt(&mut self) {
+    unimplemented!()
   }
 
   /// Is this expression a successfully-parsed statement?
@@ -732,6 +759,65 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(keywords::Return) {
         } else if self.eat_keyword(keywords::Break) {
         } else if self.token.is_keyword(keywords::Let) {
+        } else if self.token.is_keyword(keywords::Var) {
+        } else if self.token.is_path_start() {
+          let path = self.parse_path()?;
+
+          if self.check(&token::OpenDelim(token::Brace)) {
+            // This is a struct literal, unless we're prohibited
+            // from parsing struct literals here.
+            let prohibited = self.restrictions.contains(RESTRICTION_NO_STRUCT_LITERAL);
+
+            if !prohibited {
+              // It's a struct literal.
+              self.bump();
+              let mut fields = Vec::new();
+              let mut base = None;
+
+              while self.token != token::CloseDelim(token::Brace) {
+                if self.eat(&token::DotDot) {
+                  match self.parse_expr() {
+                    Ok(e) => {
+                      base = Some(e);
+                    }
+                    Err(mut e) => {
+                      e.emit();
+                      self.recover_stmt();
+                    }
+                  }
+                  break;
+                }
+
+                match self.parse_field() {
+                  Ok(f) => fields.push(f),
+                  Err(mut e) => {
+                    e.emit();
+                    self.recover_stmt();
+                    break;
+                  }
+                }
+
+                match self.commit_expr(&fields.last().unwrap().expr,
+                                       &[token::Comma],
+                                       &[token::CloseDelim(token::Brace)]) {
+                  Ok(()) => {}
+                  Err(mut e) => {
+                    e.emit();
+                    self.recover_stmt();
+                    break;
+                  }
+                }
+              }
+
+              hi = self.span.hi;
+              self.expect(&token::CloseDelim(token::Brace))?;
+              ex = ExprKind::Struct(path, fields, base);
+              return Ok(self.mk_expr(lo, hi, ex, None));
+            }
+          }
+
+          hi = path.span.hi;
+          ex = ExprKind::Path(None, path);
         } else {
           debug!("reach parse_lit");
           match self.parse_lit() {
@@ -924,6 +1010,20 @@ impl<'a> Parser<'a> {
         Err(err)
       }
     }
+  }
+
+  /// Parse ident COLON expr
+  pub fn parse_field(&mut self) -> PResult<Field> {
+    let lo = self.span.lo;
+    let i = self.parse_ident()?;
+    let hi = self.last_span.hi;
+    self.expect(&token::Colon)?;
+    let e = self.parse_expr()?;
+    Ok(ast::Field {
+      ident: spanned(lo, hi, i),
+      span: mk_span(lo, e.span.hi),
+      expr: e,
+    })
   }
 
   pub fn mk_expr(&mut self, lo: BytePos, hi: BytePos,

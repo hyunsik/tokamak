@@ -251,6 +251,15 @@ impl Expr {
   }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Field {
+  pub ident: SpannedIdent,
+  pub expr: P<Expr>,
+  pub span: Span,
+}
+
+pub type SpannedIdent = Spanned<Ident>;
+
 /// Limit types of a range (inclusive or exclusive)
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RangeLimits {
@@ -290,7 +299,20 @@ pub enum ExprKind {
   ///
   /// For example, `a += 1`.
   AssignOp(BinOp, P<Expr>, P<Expr>),
-  Path,
+
+  /// Variable reference, possibly containing `::` and/or type
+  /// parameters, e.g. foo::bar::<baz>.
+  ///
+  /// Optionally "qualified",
+  /// e.g. `<Vec<T> as SomeTrait>::SomeType`.
+  Path(Option<QSelf>, Path),
+
+  /// A struct literal expression.
+  ///
+  /// For example, `Foo {x: 1, y: 2}`, or
+  /// `Foo {x: 1, .. base}`, where `base` is the `Option<Expr>`.
+  Struct(Path, Vec<Field>, Option<P<Expr>>),
+
   Paren,
   /// A range (`1..2`, `1..`, `..2`, `1...2`, `1...`, `...2`)
   Range(Option<P<Expr>>, Option<P<Expr>>, RangeLimits),
@@ -557,6 +579,26 @@ impl FloatTy {
       FloatTy::F64 => 64,
     }
   }
+}
+
+/// The explicit Self type in a "qualified path". The actual
+/// path, including the trait and the associated item, is stored
+/// separately. `position` represents the index of the associated
+/// item qualified with this Self type.
+///
+/// ```ignore
+/// <Vec<T> as a::b::Trait>::AssociatedItem
+///  ^~~~~     ~~~~~~~~~~~~~~^
+///  ty        position = 3
+///
+/// <Vec<T>>::AssociatedItem
+///  ^~~~~    ^
+///  ty       position = 0
+/// ```
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct QSelf {
+  pub ty: P<Ty>,
+  pub position: usize
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
