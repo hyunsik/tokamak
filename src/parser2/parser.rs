@@ -1,6 +1,7 @@
 use std::cell::Cell;
 use std::iter;
 use std::mem;
+use std::slice;
 use std::str;
 use std::rc::Rc;
 use std::result::Result;
@@ -97,6 +98,16 @@ pub enum TokenType {
   Operator,
 }
 
+impl TokenType {
+  fn to_string(&self) -> String {
+    match *self {
+      TokenType::Token(ref t) => format!("`{}`", token::token_to_string(t)),
+      TokenType::Operator => "an operator".to_string(),
+      TokenType::Keyword(kw) => format!("`{}`", kw.name()),
+    }
+  }
+}
+
 pub type PResult<T> = Result<T, DiagnosticBuilder>;
 
 impl<'a> Parser<'a> {
@@ -129,9 +140,9 @@ impl<'a> Parser<'a> {
     }
   }
 
-  //----------------------------------------------------
-  // Error Handling Section
-  //----------------------------------------------------
+  //-------------------------------------------------------------------------
+  // Error Handler API Section
+  //-------------------------------------------------------------------------
 
   pub fn diagnostic(&self) -> &'a Handler {
     &self.sess.span_diagnostic
@@ -165,6 +176,10 @@ impl<'a> Parser<'a> {
     unimplemented!()
   }
 
+  //---------------------------------------------------------------------------
+  // Assertion API Section
+  //---------------------------------------------------------------------------
+
   #[allow(unused_variables)]
   pub fn expect_no_suffix(&self, sp: Span, kind: &str, suffix: Option<ast::Name>) {
     unimplemented!()
@@ -173,16 +188,119 @@ impl<'a> Parser<'a> {
   /// Expect and consume the token t. Signal an error if
   /// the next token is not t.
   pub fn expect(&mut self, t: &token::Token) -> PResult<()> {
-    unimplemented!()
+    if self.expected_tokens.is_empty() {
+      if self.token == *t {
+        self.bump();
+        Ok(())
+      } else {
+        let token_str = token::token_to_string(t);
+        let this_token_str = self.this_token_to_string();
+        Err(self.fatal(&format!("expected `{}`, found `{}`", token_str, this_token_str)))
+      }
+    } else {
+      self.expect_one_of(unsafe { slice::from_raw_parts(t, 1) }, &[])
+    }
+  }
+
+  /// Expect next token to be edible or inedible token.  If edible,
+  /// then consume it; if inedible, then return without consuming
+  /// anything.  Signal a fatal error if next token is unexpected.
+  pub fn expect_one_of(&mut self,
+                       edible: &[token::Token],
+                       inedible: &[token::Token]) -> PResult<()>{
+
+    fn tokens_to_string(tokens: &[TokenType]) -> String {
+      let mut i = tokens.iter();
+      // This might be a sign we need a connect method on Iterator.
+      let b = i.next()
+               .map_or("".to_string(), |t| t.to_string());
+
+      i.enumerate().fold(b, |mut b, (i, ref a)| {
+        if tokens.len() > 2 && i == tokens.len() - 2 {
+          b.push_str(", or ");
+        } else if tokens.len() == 2 && i == tokens.len() - 2 {
+          b.push_str(" or ");
+        } else {
+          b.push_str(", ");
+        }
+        b.push_str(&a.to_string());
+        b
+      })
+    }
+
+    if edible.contains(&self.token) {
+      self.bump();
+      Ok(())
+    } else if inedible.contains(&self.token) {
+      // leave it in the input
+      Ok(())
+    } else {
+      let mut expected = edible.iter()
+                               .map(|x| TokenType::Token(x.clone()))
+                               .chain(inedible.iter().map(|x| TokenType::Token(x.clone())))
+                               .chain(self.expected_tokens.iter().cloned())
+                               .collect::<Vec<_>>();
+      expected.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+      expected.dedup();
+      let expect = tokens_to_string(&expected[..]);
+      let actual = self.this_token_to_string();
+      Err(self.fatal(
+        &(if expected.len() > 1 {
+          (format!("expected one of {}, found `{}`",
+          expect,
+          actual))
+        } else if expected.is_empty() {
+          (format!("unexpected token: `{}`",
+          actual))
+        } else {
+          (format!("expected {}, found `{}`",
+          expect,
+          actual))
+        })[..]
+      ))
+    }
   }
 
   /// Commit to parsing a complete expression `e` expected to be
   /// followed by some token from the set edible + inedible.  Recover
   /// from anticipated input errors, discarding erroneous characters.
   pub fn commit_expr(&mut self, e: &Expr, edible: &[token::Token],
-    inedible: &[token::Token]) -> PResult<()> {
-    unimplemented!()
+                     inedible: &[token::Token]) -> PResult<()> {
+    debug!("commit_expr {:?}", e);
+    if let ExprKind::Path(..) = e.node {
+      // might be unit-struct construction; check for recoverableinput error.
+      let expected = edible.iter()
+      .cloned()
+      .chain(inedible.iter().cloned())
+      .collect::<Vec<_>>();
+      self.check_for_erroneous_unit_struct_expecting(&expected[..]);
+    }
+    self.expect_one_of(edible, inedible)
   }
+
+  /// Check for erroneous `ident { }`; if matches, signal error and
+  /// recover (without consuming any expected input token).  Returns
+  /// true if and only if input was consumed for recovery.
+  pub fn check_for_erroneous_unit_struct_expecting(&mut self,
+                                                   expected: &[token::Token])
+                                                   -> bool {
+    if self.token == token::OpenDelim(token::Brace)
+        && expected.iter().all(|t| *t != token::OpenDelim(token::Brace))
+        && self.look_ahead(1, |t| *t == token::CloseDelim(token::Brace)) {
+      // matched; signal non-fatal error and recover.
+      let span = self.span;
+      self.span_err(span, "unit-like struct construction is written with no trailing `{ }`");
+      self.eat(&token::OpenDelim(token::Brace));
+      self.eat(&token::CloseDelim(token::Brace));
+      true
+    } else {
+      false
+    }
+  }
+
+  //-------------------------------------------------------------------------
+  // Token Handling API Section
+  //-------------------------------------------------------------------------
 
   /// Advance the parser by one token
   pub fn bump(&mut self) {
@@ -256,6 +374,25 @@ impl<'a> Parser<'a> {
     }
   }
 
+  /// Consume token 'tok' if it exists. Returns true if the given
+  /// token was present, false otherwise.
+  pub fn eat(&mut self, tok: &token::Token) -> bool {
+    let is_present = self.check(tok);
+    if is_present { self.bump() }
+    is_present
+  }
+
+  /// If the next token is the given keyword, eat it and return
+  /// true. Otherwise, return false.
+  pub fn eat_keyword(&mut self, kw: keywords::Keyword) -> bool {
+    if self.check_keyword(kw) {
+      self.bump();
+      true
+    } else {
+      false
+    }
+  }
+
   /// Check if the next token is `tok`, and return `true` if so.
   ///
   /// This method is will automatically add `tok` to `expected_tokens` if `tok` is not
@@ -263,14 +400,6 @@ impl<'a> Parser<'a> {
   pub fn check(&mut self, tok: &token::Token) -> bool {
     let is_present = self.token == *tok;
     if !is_present { self.expected_tokens.push(TokenType::Token(tok.clone())); }
-    is_present
-  }
-
-  /// Consume token 'tok' if it exists. Returns true if the given
-  /// token was present, false otherwise.
-  pub fn eat(&mut self, tok: &token::Token) -> bool {
-    let is_present = self.check(tok);
-    if is_present { self.bump() }
     is_present
   }
 
@@ -295,32 +424,6 @@ impl<'a> Parser<'a> {
     if self.token.is_reserved_keyword() {
       let token_str = self.this_token_to_string();
       self.fatal(&format!("`{}` is a reserved keyword", token_str)).emit()
-    }
-  }
-
-  /// If the next token is the given keyword, eat it and return
-  /// true. Otherwise, return false.
-  pub fn eat_keyword(&mut self, kw: keywords::Keyword) -> bool {
-    if self.check_keyword(kw) {
-      self.bump();
-      true
-    } else {
-      false
-    }
-  }
-
-  pub fn mk_range(&mut self,
-                  start: Option<P<Expr>>,
-                  end: Option<P<Expr>>,
-                  limits: RangeLimits)
-                  -> PResult<ast::ExprKind> {
-    if end.is_none() && limits == RangeLimits::Closed {
-      Err(self.span_fatal_help(self.span,
-                               "inclusive range with no end",
-                               "inclusive ranges must be bounded at the end \
-                                (`...b` or `a...b`)"))
-    } else {
-      Ok(ExprKind::Range(start, end, limits))
     }
   }
 
@@ -760,6 +863,7 @@ impl<'a> Parser<'a> {
         } else if self.eat_keyword(keywords::Break) {
         } else if self.token.is_keyword(keywords::Let) {
         } else if self.token.is_keyword(keywords::Var) {
+
         } else if self.token.is_path_start() {
           let path = self.parse_path()?;
 
@@ -1024,6 +1128,25 @@ impl<'a> Parser<'a> {
       span: mk_span(lo, e.span.hi),
       expr: e,
     })
+  }
+
+  //-------------------------------------------------------------------------
+  // AST Builder API Section
+  //-------------------------------------------------------------------------
+
+  pub fn mk_range(&mut self,
+    start: Option<P<Expr>>,
+    end: Option<P<Expr>>,
+    limits: RangeLimits)
+    -> PResult<ast::ExprKind> {
+    if end.is_none() && limits == RangeLimits::Closed {
+      Err(self.span_fatal_help(self.span,
+                               "inclusive range with no end",
+                               "inclusive ranges must be bounded at the end \
+                                (`...b` or `a...b`)"))
+    } else {
+      Ok(ExprKind::Range(start, end, limits))
+    }
   }
 
   pub fn mk_expr(&mut self, lo: BytePos, hi: BytePos,
@@ -1491,6 +1614,14 @@ mod tests {
   #[test]
   fn test_expr() {
     match str_to_expr("2.3 + 4") {
+      Ok(e) => println!("{:?}", e),
+      Err(e) => println!("Error")
+    };
+  }
+
+  #[test]
+  fn test_struct() {
+    match str_to_expr("xyz {x: 1, y: 1, z:1}") {
       Ok(e) => println!("{:?}", e),
       Err(e) => println!("Error")
     };
