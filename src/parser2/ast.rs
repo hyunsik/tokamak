@@ -271,7 +271,6 @@ pub enum RangeLimits {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ExprKind {
-  Call,
   /// A unary operation (For example: `!x`, `*x`)
   Unary(UnOp, P<Expr>),
   Binary(BinOp, P<Expr>, P<Expr>),
@@ -300,6 +299,8 @@ pub enum ExprKind {
   /// For example, `a += 1`.
   AssignOp(BinOp, P<Expr>, P<Expr>),
 
+  Paren(P<Expr>),
+
   /// Variable reference, possibly containing `::` and/or type
   /// parameters, e.g. foo::bar::<baz>.
   ///
@@ -313,9 +314,43 @@ pub enum ExprKind {
   /// `Foo {x: 1, .. base}`, where `base` is the `Option<Expr>`.
   Struct(Path, Vec<Field>, Option<P<Expr>>),
 
-  Paren,
+  /// A tuple (`(a, b, c ,d)`)
+  Tup(Vec<P<Expr>>),
+
+  /// Access of a named struct field (`obj.foo`)
+  Field(P<Expr>, SpannedIdent),
+
+  /// Access of an unnamed field of a struct or tuple-struct
+  ///
+  /// For example, `foo.0`.
+  TupField(P<Expr>, Spanned<usize>),
+
   /// A range (`1..2`, `1..`, `..2`, `1...2`, `1...`, `...2`)
   Range(Option<P<Expr>>, Option<P<Expr>>, RangeLimits),
+
+  /// An indexing operation (`foo[2]`)
+  Index(P<Expr>, P<Expr>),
+
+  /// A function call
+  ///
+  /// The first field resolves to the function itself,
+  /// and the second field is the list of arguments
+  Call(P<Expr>, Vec<P<Expr>>),
+
+  /// A method call (`x.foo::<Bar, Baz>(a, b, c, d)`)
+  ///
+  /// The `SpannedIdent` is the identifier for the method name.
+  /// The vector of `Ty`s are the ascripted type parameters for the method
+  /// (within the angle brackets).
+  ///
+  /// The first element of the vector of `Expr`s is the expression that evaluates
+  /// to the object on which the method is being called on (the receiver),
+  /// and the remaining elements are the rest of the arguments.
+  ///
+  /// Thus, `x.foo::<Bar, Baz>(a, b, c, d)` is represented as
+  /// `ExprKind::MethodCall(foo, [Bar, Baz], [x, a, b, c, d])`.
+  MethodCall(SpannedIdent, Vec<P<Ty>>, Vec<P<Expr>>),
+
   /// A literal (For example: `1`, `"foo"`)
   Lit(P<Lit>),
 }

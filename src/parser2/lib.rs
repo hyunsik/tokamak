@@ -21,5 +21,6 @@ pub mod parser;
 pub mod precedence;
 pub mod ptr;
 pub mod token;
+pub mod unicode_chars;
 
 

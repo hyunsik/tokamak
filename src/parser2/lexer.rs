@@ -5,9 +5,9 @@ use std::rc::Rc;
 
 use ast::{self};
 use codemap::{self, BytePos, Span, Pos};
-use error_handler::{Handler};
+use error_handler::{Handler, DiagnosticBuilder};
+use unicode_chars;
 use token::{self, str_to_ident};
-use parser::{ParseSess};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TokenAndSpan {
@@ -69,11 +69,12 @@ pub struct StringReader<'a> {
   /// cached token
   pub peek_tok: token::Token,
   pub peek_span: Span,
+  pub fatal_errs: Vec<DiagnosticBuilder>,
 
   /// source text
   pub source_text: Rc<String>,
   /// diagnostic handler
-  span_diagnostic: &'a Handler,
+  pub span_diagnostic: &'a Handler,
 }
 
 impl<'a> Reader for StringReader<'a> {
@@ -132,8 +133,11 @@ impl<'a> StringReader<'a> {
       pos: BytePos(0),
       last_pos: BytePos(0),
       curr: Some('\n'),
+
       peek_tok: token::Eof,
       peek_span: codemap::DUMMY_SPAN,
+      fatal_errs: Vec::new(),
+
       source_text: source,
       span_diagnostic: span_diagnostic,
     };
@@ -145,16 +149,19 @@ impl<'a> StringReader<'a> {
     sr
   }
 
+  #[allow(unused_variables)]
   /// Report a lexical error with a given span.
   pub fn err_span(&self, sp: Span, m: &str) {
     self.span_diagnostic.span_err(sp, m)
   }
 
+  #[allow(unused_variables)]
   /// Report a lexical error spanning [`from_pos`, `to_pos`).
   fn err_span_(&self, from_pos: BytePos, to_pos: BytePos, m: &str) {
     self.err_span(codemap::mk_span(from_pos, to_pos), m)
   }
 
+  #[allow(unused_variables)]
   /// Report a fatal lexical error with a given span.
   pub fn fatal_span(&self, sp: Span, m: &str) -> FatalError {
     unimplemented!()
@@ -163,6 +170,20 @@ impl<'a> StringReader<'a> {
   /// Report a fatal error spanning [`from_pos`, `to_pos`).
   fn fatal_span_(&self, from_pos: BytePos, to_pos: BytePos, m: &str) -> FatalError {
     self.fatal_span(codemap::mk_span(from_pos, to_pos), m)
+  }
+
+  fn struct_fatal_span_char(&self,
+                            from_pos: BytePos,
+                            to_pos: BytePos,
+                            m: &str,
+                            c: char)
+                            -> DiagnosticBuilder {
+    let mut m = m.to_string();
+    m.push_str(": ");
+    for c in c.escape_default() {
+      m.push(c)
+    }
+    self.span_diagnostic.struct_span_fatal(codemap::mk_span(from_pos, to_pos), &m[..])
   }
 
   pub fn curr_is(&self, c: char) -> bool {
@@ -453,7 +474,15 @@ impl<'a> StringReader<'a> {
         return Ok(self.binop(token::Percent));
       }
       c => {
-        return Err(());
+        let last_bpos = self.last_pos;
+        let bpos = self.pos;
+        let mut err = self.struct_fatal_span_char(last_bpos,
+                                                  bpos,
+                                                  "unknown start of token",
+                                                  c);
+        unicode_chars::check_for_substitution(&self, c, &mut err);
+        self.fatal_errs.push(err);
+        Err(())
       }
     }
   }

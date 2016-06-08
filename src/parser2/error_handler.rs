@@ -79,6 +79,14 @@ impl DiagnosticBuilder {
   pub fn help(&mut self , msg: &str) -> &mut DiagnosticBuilder {
     unimplemented!()
   }
+
+  #[allow(unused_variables)]
+  pub fn span_help<S: Into<MultiSpan>>(&mut self,
+                                       sp: S,
+                                       msg: &str)
+                                       -> &mut DiagnosticBuilder {
+    unimplemented!()
+  }
 }
 
 pub struct Handler {
@@ -98,6 +106,11 @@ impl Handler {
 
   #[allow(unused_variables)]
   pub fn span_bug<S: Into<MultiSpan>>(&self, sp: S, msg: &str) -> ! {
+    unimplemented!()
+  }
+
+  #[allow(unused_variables)]
+  pub fn span_bug_no_panic<S: Into<MultiSpan>>(&self, sp: S, msg: &str) {
     unimplemented!()
   }
 

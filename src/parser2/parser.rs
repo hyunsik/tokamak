@@ -66,6 +66,29 @@ impl From<P<Expr>> for LhsExpr {
   }
 }
 
+/// SeqSep : a sequence separator (token)
+/// and whether a trailing separator is allowed.
+pub struct SeqSep {
+  pub sep: Option<token::Token>,
+  pub trailing_sep_allowed: bool,
+}
+
+impl SeqSep {
+  pub fn trailing_allowed(t: token::Token) -> SeqSep {
+    SeqSep {
+      sep: Some(t),
+      trailing_sep_allowed: true,
+    }
+  }
+
+  pub fn none() -> SeqSep {
+    SeqSep {
+      sep: None,
+      trailing_sep_allowed: false,
+    }
+  }
+}
+
 pub struct Parser<'a> {
   pub sess: &'a ParseSess,
   pub reader: Box<Reader + 'a>,
@@ -171,6 +194,10 @@ impl<'a> Parser<'a> {
     self.sess.span_diagnostic.span_bug(self.span, m)
   }
 
+  pub fn span_bug(&self, sp: Span, m: &str) -> ! {
+    self.sess.span_diagnostic.span_bug(sp, m)
+  }
+
   #[allow(unused_variables)]
   pub fn unexpected_last<T>(&self, t: &token::Token) -> PResult<T> {
     unimplemented!()
@@ -180,9 +207,52 @@ impl<'a> Parser<'a> {
   // Assertion API Section
   //---------------------------------------------------------------------------
 
+  /// Check if the next token is `tok`, and return `true` if so.
+  ///
+  /// This method is will automatically add `tok` to `expected_tokens` if `tok` is not
+  /// encountered.
+  pub fn check(&mut self, tok: &token::Token) -> bool {
+    let is_present = self.token == *tok;
+    if !is_present { self.expected_tokens.push(TokenType::Token(tok.clone())); }
+    is_present
+  }
+
+  pub fn check_keyword(&mut self, kw: keywords::Keyword) -> bool {
+    self.expected_tokens.push(TokenType::Keyword(kw));
+    self.token.is_keyword(kw)
+  }
+
+  /// Signal an error if the given string is a strict keyword
+  pub fn check_strict_keywords(&mut self) {
+    if self.token.is_strict_keyword() {
+      let token_str = self.this_token_to_string();
+      let span = self.span;
+      self.span_err(span,
+                    &format!("expected identifier, found keyword `{}`",
+                    token_str));
+    }
+  }
+
+  /// Signal an error if the current token is a reserved keyword
+  pub fn check_reserved_keywords(&mut self) {
+    if self.token.is_reserved_keyword() {
+      let token_str = self.this_token_to_string();
+      self.fatal(&format!("`{}` is a reserved keyword", token_str)).emit()
+    }
+  }
+
   #[allow(unused_variables)]
   pub fn expect_no_suffix(&self, sp: Span, kind: &str, suffix: Option<ast::Name>) {
-    unimplemented!()
+    match suffix {
+      None => {/* everything ok */}
+      Some(suf) => {
+        let text = suf.as_str();
+        if text.is_empty() {
+          self.span_bug(sp, "found empty literal suffix in Some")
+        }
+        self.span_err(sp, &format!("{} with a suffix is invalid", kind));
+      }
+    }
   }
 
   /// Expect and consume the token t. Signal an error if
@@ -276,6 +346,10 @@ impl<'a> Parser<'a> {
       self.check_for_erroneous_unit_struct_expecting(&expected[..]);
     }
     self.expect_one_of(edible, inedible)
+  }
+
+  pub fn commit_expr_expecting(&mut self, e: &Expr, edible: token::Token) -> PResult<()> {
+    self.commit_expr(e, &[edible], &[])
   }
 
   /// Check for erroneous `ident { }`; if matches, signal error and
@@ -393,39 +467,87 @@ impl<'a> Parser<'a> {
     }
   }
 
-  /// Check if the next token is `tok`, and return `true` if so.
-  ///
-  /// This method is will automatically add `tok` to `expected_tokens` if `tok` is not
-  /// encountered.
-  pub fn check(&mut self, tok: &token::Token) -> bool {
-    let is_present = self.token == *tok;
-    if !is_present { self.expected_tokens.push(TokenType::Token(tok.clone())); }
-    is_present
-  }
+  //-------------------------------------------------------------------------
+  // Common Parsing API Section
+  //-------------------------------------------------------------------------
 
-  pub fn check_keyword(&mut self, kw: keywords::Keyword) -> bool {
-    self.expected_tokens.push(TokenType::Keyword(kw));
-    self.token.is_keyword(kw)
-  }
+  // `fe` is an error handler.
+  fn parse_seq_to_before_tokens<T, F, Fe>(&mut self,
+                                          kets: &[&token::Token],
+                                          sep: SeqSep,
+                                          mut f: F,
+                                          mut fe: Fe)
+                                          -> Vec<T>
+    where F: FnMut(&mut Parser<'a>) -> PResult<T>,
+    Fe: FnMut(DiagnosticBuilder)
+  {
+    let mut first: bool = true;
+    let mut v = vec!();
+    while !kets.contains(&&self.token) {
+      match sep.sep {
+        Some(ref t) => {
+          if first {
+            first = false;
+          } else {
+            if let Err(e) = self.expect(t) {
+              fe(e);
+              break;
+            }
+          }
+        }
+        _ => ()
+      }
+      if sep.trailing_sep_allowed && kets.iter().any(|k| self.check(k)) {
+        break;
+      }
 
-  /// Signal an error if the given string is a strict keyword
-  pub fn check_strict_keywords(&mut self) {
-    if self.token.is_strict_keyword() {
-      let token_str = self.this_token_to_string();
-      let span = self.span;
-      self.span_err(span,
-                    &format!("expected identifier, found keyword `{}`",
-                    token_str));
+      match f(self) {
+        Ok(t) => v.push(t),
+        Err(e) => {
+          fe(e);
+          break;
+        }
+      }
     }
+
+    v
   }
 
-  /// Signal an error if the current token is a reserved keyword
-  pub fn check_reserved_keywords(&mut self) {
-    if self.token.is_reserved_keyword() {
-      let token_str = self.this_token_to_string();
-      self.fatal(&format!("`{}` is a reserved keyword", token_str)).emit()
-    }
+  /// Parse a sequence, not including the closing delimiter. The function
+  /// f must consume tokens until reaching the next separator or
+  /// closing bracket.
+  pub fn parse_seq_to_before_end<T, F>(&mut self,
+                                       ket: &token::Token,
+                                       sep: SeqSep,
+                                       f: F)
+                                       -> Vec<T>
+    where F: FnMut(&mut Parser<'a>) -> PResult<T>
+  {
+    self.parse_seq_to_before_tokens(&[ket], sep, f, |mut e| e.emit())
   }
+
+  /// Parse a sequence, including the closing delimiter. The function
+  /// f must consume tokens until reaching the next separator or
+  /// closing bracket.
+  pub fn parse_unspanned_seq<T, F>(&mut self,
+                                   bra: &token::Token,
+                                   ket: &token::Token,
+                                   sep: SeqSep,
+                                   f: F)
+                                   -> PResult<Vec<T>>
+    where F: FnMut(&mut Parser<'a>) -> PResult<T>
+  {
+    self.expect(bra)?;
+    let result = self.parse_seq_to_before_end(ket, sep, f);
+    if self.token == *ket {
+      self.bump();
+    }
+    Ok(result)
+  }
+
+  //-------------------------------------------------------------------------
+  // Grammar Section
+  //-------------------------------------------------------------------------
 
   pub fn parse_package(&mut self) -> PResult<Package> {
     let lo = self.span.lo;
@@ -515,7 +637,6 @@ impl<'a> Parser<'a> {
     let r = f(self);
     self.restrictions = old;
     return r;
-
   }
 
   /// Parse an expression, subject to the given restrictions
@@ -788,26 +909,134 @@ impl<'a> Parser<'a> {
     )
   }
 
-  #[allow(unused_variables)]
+  // Assuming we have just parsed `.foo` (i.e., a dot and an ident), continue
+  // parsing into an expression.
+  fn parse_dot_suffix(&mut self,
+                      ident: ast::Ident,
+                      ident_span: Span,
+                      self_value: P<Expr>,
+                      lo: BytePos)
+                      -> PResult<P<Expr>> {
+    Ok(match self.token {
+      // expr.f() method call.
+      token::OpenDelim(token::Paren) => {
+        let mut es = self.parse_unspanned_seq(
+          &token::OpenDelim(token::Paren),
+          &token::CloseDelim(token::Paren),
+          SeqSep::trailing_allowed(token::Comma),
+          |p| Ok(p.parse_expr()?)
+        )?;
+        let hi = self.last_span.hi;
+
+        es.insert(0, self_value);
+        let id = spanned(ident_span.lo, ident_span.hi, ident);
+        let nd = self.mk_method_call(id, Vec::new(), es);
+        self.mk_expr(lo, hi, nd, None)
+      }
+      // Field access.
+      _ => {
+        let id = spanned(ident_span.lo, ident_span.hi, ident);
+        let field = self.mk_field(self_value, id);
+        self.mk_expr(lo, ident_span.hi, field, None)
+      }
+    })
+  }
+
   fn parse_dot_or_call_expr_with_(&mut self, e0: P<Expr>, lo: BytePos) -> PResult<P<Expr>> {
     let mut e = e0;
-    //let mut hi;
+    let mut hi;
 
     loop {
       // expr.f
       if self.eat(&token::Dot) {
+        match self.token {
+          token::Ident(i) => {
+            let dot_pos = self.last_span.hi;
+            hi = self.span.hi;
+            self.bump();
+
+            e = self.parse_dot_suffix(i, mk_span(dot_pos, hi), e, lo)?;
+          }
+          token::Literal(token::Integer(n), suf) => {
+            let sp = self.span;
+
+            // A tuple index may not have a suffix
+            self.expect_no_suffix(sp, "tuple index", suf);
+
+            let dot = self.last_span.hi;
+            hi = self.span.hi;
+            self.bump();
+
+            let index = n.as_str().parse::<usize>().ok();
+            match index {
+              Some(n) => {
+                let id = spanned(dot, hi, n);
+                let field = self.mk_tup_field(e, id);
+                e = self.mk_expr(lo, hi, field, None);
+              }
+              None => {
+                let last_span = self.last_span;
+                self.span_err(last_span, "invalid tuple or tuple struct index");
+              }
+            }
+          }
+          token::Literal(token::Float(n), _suf) => {
+            self.bump();
+            let last_span = self.last_span;
+            let fstr = n.as_str();
+            let mut err = self.diagnostic().struct_span_err(last_span,
+                                                            &format!("unexpected token: `{}`", n.as_str()));
+            if fstr.chars().all(|x| "0123456789.".contains(x)) {
+              let float = match fstr.parse::<f64>().ok() {
+                Some(f) => f,
+                None => continue,
+              };
+              err.help(&format!("try parenthesizing the first index; e.g., `(foo.{}){}`",
+              float.trunc() as usize,
+              format!(".{}", fstr.splitn(2, ".").last().unwrap())));
+            }
+            return Err(err);
+
+          }
+          _ => {
+            // FIXME Could factor this out into non_fatal_unexpected or something.
+            let actual = self.this_token_to_string();
+            self.span_err(self.span, &format!("unexpected token: `{}`", actual));
+
+            let dot_pos = self.last_span.hi;
+            e = self.parse_dot_suffix(keywords::Invalid.ident(),
+                                      mk_span(dot_pos, dot_pos),
+                                      e, lo)?;
+          }
+        }
+
         continue;
       }
       if self.expr_is_complete(&e) { break; }
       match self.token {
         // expr(...)
         token::OpenDelim(token::Paren) => {
+          let es = self.parse_unspanned_seq(
+            &token::OpenDelim(token::Paren),
+            &token::CloseDelim(token::Paren),
+            SeqSep::trailing_allowed(token::Comma),
+            |p| Ok(p.parse_expr()?)
+          )?;
+          hi = self.last_span.hi;
 
+          let nd = self.mk_call(e, es);
+          e = self.mk_expr(lo, hi, nd, None);
         }
+
         // expr[...]
         // Could be either an index expression or a slicing expression.
         token::OpenDelim(token::Bracket) => {
-
+          self.bump();
+          let ix = self.parse_expr()?;
+          hi = self.span.hi;
+          self.commit_expr_expecting(&ix, token::CloseDelim(token::Bracket))?;
+          let index = self.mk_index(e, ix);
+          e = self.mk_expr(lo, hi, index, None)
         }
         _ => return Ok(e)
       }
@@ -833,7 +1062,33 @@ impl<'a> Parser<'a> {
     // Note: when adding new syntax here, don't forget to adjust Token::can_begin_expr().
     match self.token {
       token::OpenDelim(token::Paren) => {
+        self.bump();
 
+        // (e) is parenthesized e
+        // (e,) is a tuple with only one field, e
+        let mut es = vec![];
+        let mut trailing_comma = false;
+        while self.token != token::CloseDelim(token::Paren) {
+          es.push(self.parse_expr()?);
+          self.commit_expr(&es.last().unwrap(), &[],
+                           &[token::Comma, token::CloseDelim(token::Paren)])?;
+          if self.check(&token::Comma) {
+            trailing_comma = true;
+
+            self.bump();
+          } else {
+            trailing_comma = false;
+            break;
+          }
+        }
+        self.bump();
+
+        hi = self.last_span.hi;
+        return if es.len() == 1 && !trailing_comma {
+          Ok(self.mk_expr(lo, hi, ExprKind::Paren(es.into_iter().nth(0).unwrap()), None))
+        } else {
+          Ok(self.mk_expr(lo, hi, ExprKind::Tup(es), None))
+        }
       }
       token::OpenDelim(token::Brace) => {
 
@@ -1134,21 +1389,6 @@ impl<'a> Parser<'a> {
   // AST Builder API Section
   //-------------------------------------------------------------------------
 
-  pub fn mk_range(&mut self,
-    start: Option<P<Expr>>,
-    end: Option<P<Expr>>,
-    limits: RangeLimits)
-    -> PResult<ast::ExprKind> {
-    if end.is_none() && limits == RangeLimits::Closed {
-      Err(self.span_fatal_help(self.span,
-                               "inclusive range with no end",
-                               "inclusive ranges must be bounded at the end \
-                                (`...b` or `a...b`)"))
-    } else {
-      Ok(ExprKind::Range(start, end, limits))
-    }
-  }
-
   pub fn mk_expr(&mut self, lo: BytePos, hi: BytePos,
                  node: ExprKind, attrs: ThinAttributes) -> P<Expr> {
     P(Expr {
@@ -1169,6 +1409,45 @@ impl<'a> Parser<'a> {
 
   pub fn mk_assign_op(&mut self, binop: ast::BinOp, lhs: P<Expr>, rhs: P<Expr>) -> ast::ExprKind {
     ExprKind::AssignOp(binop, lhs, rhs)
+  }
+
+  pub fn mk_range(&mut self,
+    start: Option<P<Expr>>,
+    end: Option<P<Expr>>,
+    limits: RangeLimits)
+    -> PResult<ast::ExprKind> {
+    if end.is_none() && limits == RangeLimits::Closed {
+      Err(self.span_fatal_help(self.span,
+                               "inclusive range with no end",
+                               "inclusive ranges must be bounded at the end \
+                                (`...b` or `a...b`)"))
+    } else {
+      Ok(ExprKind::Range(start, end, limits))
+    }
+  }
+
+  pub fn mk_field(&mut self, expr: P<Expr>, ident: ast::SpannedIdent) -> ast::ExprKind {
+    ExprKind::Field(expr, ident)
+  }
+
+  pub fn mk_tup_field(&mut self, expr: P<Expr>, idx: codemap::Spanned<usize>) -> ast::ExprKind {
+    ExprKind::TupField(expr, idx)
+  }
+
+  pub fn mk_index(&mut self, expr: P<Expr>, idx: P<Expr>) -> ast::ExprKind {
+    ExprKind::Index(expr, idx)
+  }
+
+  pub fn mk_call(&mut self, f: P<Expr>, args: Vec<P<Expr>>) -> ast::ExprKind {
+    ExprKind::Call(f, args)
+  }
+
+  fn mk_method_call(&mut self,
+                    ident: ast::SpannedIdent,
+                    tps: Vec<P<Ty>>,
+                    args: Vec<P<Expr>>)
+                    -> ast::ExprKind {
+    ExprKind::MethodCall(ident, tps, args)
   }
 }
 
@@ -1612,7 +1891,39 @@ mod tests {
   }
 
   #[test]
-  fn test_expr() {
+  fn test_expr_tuple_field() {
+    match str_to_expr("xyz.1") {
+      Ok(e) => println!("{:?}", e),
+      Err(e) => println!("Error")
+    };
+  }
+
+  #[test]
+  fn test_expr_index() {
+    match str_to_expr("xyz[9]") {
+      Ok(e) => println!("{:?}", e),
+      Err(e) => println!("Error")
+    };
+  }
+
+  #[test]
+  fn test_expr_method_call() {
+    match str_to_expr("x.y()") {
+      Ok(e) => println!("{:?}", e),
+      Err(e) => println!("Error")
+    };
+  }
+
+  #[test]
+  fn test_expr_call() {
+    match str_to_expr("xyz(1,2,3)") {
+      Ok(e) => println!("{:?}", e),
+      Err(e) => println!("Error")
+    };
+  }
+
+  #[test]
+  fn test_expr_plus() {
     match str_to_expr("2.3 + 4") {
       Ok(e) => println!("{:?}", e),
       Err(e) => println!("Error")
@@ -1620,7 +1931,23 @@ mod tests {
   }
 
   #[test]
-  fn test_struct() {
+  fn test_expr_tuple() {
+    match str_to_expr("(1,2,3)") {
+      Ok(e) => println!("{:?}", e),
+      Err(e) => println!("Error")
+    };
+  }
+
+  #[test]
+  fn test_expr_paren() {
+    match str_to_expr("((1+2))") {
+      Ok(e) => println!("{:?}", e),
+      Err(e) => println!("Error")
+    };
+  }
+
+  #[test]
+  fn test_expr_struct() {
     match str_to_expr("xyz {x: 1, y: 1, z:1}") {
       Ok(e) => println!("{:?}", e),
       Err(e) => println!("Error")
