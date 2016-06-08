@@ -2,6 +2,8 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+pub use self::ViewPath_::*;
+
 use ast_print;
 use attr::ThinAttributes;
 use codemap::{Span, Spanned};
@@ -116,6 +118,63 @@ impl fmt::Display for Ident {
   }
 }
 
+pub type ViewPath = Spanned<ViewPath_>;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ViewPath_ {
+
+  /// `foo::bar::baz as quux`
+  ///
+  /// or just
+  ///
+  /// `foo::bar::baz` (with `as baz` implicitly on the right)
+  ViewPathSimple(Ident, Path),
+
+  /// `foo::bar::*`
+  ViewPathGlob(Path),
+
+  /// `foo::bar::{a,b,c}`
+  ViewPathList(Path, Vec<PathListItem>)
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum PathListItemKind {
+  Ident {
+    name: Ident,
+    /// renamed in list, eg `use foo::{bar as baz};`
+    rename: Option<Ident>,
+    id: NodeId
+  },
+  Mod {
+    /// renamed in list, eg `use foo::{self as baz};`
+    rename: Option<Ident>,
+    id: NodeId
+  }
+}
+
+impl PathListItemKind {
+  pub fn id(&self) -> NodeId {
+    match *self {
+      PathListItemKind::Ident { id, .. } | PathListItemKind::Mod { id, .. } => id
+    }
+  }
+
+  pub fn name(&self) -> Option<Ident> {
+    match *self {
+      PathListItemKind::Ident { name, .. } => Some(name),
+      PathListItemKind::Mod { .. } => None,
+    }
+  }
+
+  pub fn rename(&self) -> Option<Ident> {
+    match *self {
+      PathListItemKind::Ident { rename, .. } | PathListItemKind::Mod { rename, .. } => rename
+    }
+  }
+}
+
+pub type PathListItem = Spanned<PathListItemKind>;
+
 /// A "Path" is essentially Rust's notion of a name; for instance:
 /// std::cmp::PartialEq  .  It's represented as a sequence of identifiers,
 /// along with a bunch of supporting information.
@@ -177,12 +236,23 @@ pub enum Visibility {
 }
 
 pub struct Item {
+  pub ident: Ident,
+  pub attrs: Vec<Attribute>,
+  pub id: NodeId,
   pub node: ItemKind,
-  pub span: Span
+  pub vis: Visibility,
+  pub span: Span,
+}
+
+impl Item {
+  pub fn attrs(&self) -> &[Attribute] {
+    &self.attrs
+  }
 }
 
 pub enum ItemKind {
-  Import,
+  /// A `use` or `pub use` item
+  Import(P<ViewPath>),
 
   Const,
   Static,

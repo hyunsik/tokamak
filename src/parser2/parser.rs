@@ -7,8 +7,10 @@ use std::rc::Rc;
 use std::result::Result;
 
 use attr::{ThinAttributes, ThinAttributesExt};
-use ast::{self, Module, Item, Package, Visibility};
-use ast::{BinOpKind, Expr, ExprKind, Lit, LitKind, RangeLimits, UnOp};
+use ast::{self, Attribute, Module, Item, Package, Visibility};
+use ast::{BinOpKind, Expr, ExprKind, Lit, LitKind, Ident, RangeLimits, UnOp};
+use ast::{ItemKind};
+use ast::{ViewPath, ViewPathList, ViewPathGlob, ViewPathSimple};
 use ast::{Ty, TyKind};
 use ast::{Field};
 use codemap::{self, BytePos, mk_span, Span, spanned};
@@ -564,12 +566,22 @@ impl<'a> Parser<'a> {
   }
 
   #[allow(unused_variables)]
-  pub fn parse_item(&mut self) -> PResult<Item> {
+  pub fn parse_item(&mut self) -> PResult<Option<P<Item>>> {
     let lo = self.span.lo;
     let visibility = self.parse_visibility()?;
 
     if self.eat_keyword(keywords::Import) {
-      unimplemented!()
+      let item_ = ItemKind::Import(self.parse_view_path()?);
+      self.expect(&token::SemiColon)?;
+
+      let last_span = self.last_span;
+      let item = self.mk_item(lo,
+                              last_span.hi,
+                              keywords::Invalid.ident(),
+                              item_,
+                              visibility,
+                              Vec::new());
+      return Ok(Some(item));
     }
 
     if self.eat_keyword(keywords::Const) {
@@ -593,7 +605,18 @@ impl<'a> Parser<'a> {
     }
 
     if self.eat_keyword(keywords::Fn) {
-
+      // FUNCTION ITEM
+      self.bump();
+      let (ident, item_, extra_attrs) =
+      self.parse_item_fn(Unsafety::Normal, Constness::NotConst, Abi::Rust)?;
+      let last_span = self.last_span;
+      let item = self.mk_item(lo,
+                              last_span.hi,
+                              ident,
+                              item_,
+                              visibility,
+                              maybe_append(attrs, extra_attrs));
+      return Ok(Some(item));
     }
 
     unreachable!()
@@ -605,6 +628,79 @@ impl<'a> Parser<'a> {
     } else {
       Ok(Visibility::Public)
     }
+  }
+
+  /// Matches ViewPath:
+  /// MOD_SEP? non_global_path
+  /// MOD_SEP? non_global_path as IDENT
+  /// MOD_SEP? non_global_path MOD_SEP STAR
+  /// MOD_SEP? non_global_path MOD_SEP LBRACE item_seq RBRACE
+  /// MOD_SEP? LBRACE item_seq RBRACE
+  fn parse_view_path(&mut self) -> PResult<P<ViewPath>> {
+    let lo = self.span.lo;
+    if self.check(&token::OpenDelim(token::Brace)) || self.is_import_coupler() {
+      // `{foo, bar}` or `::{foo, bar}`
+      let prefix = ast::Path {
+        global: self.eat(&token::ModSep),
+        segments: Vec::new(),
+        span: mk_span(lo, self.span.hi),
+      };
+      let items = self.parse_path_list_items()?;
+      Ok(P(spanned(lo, self.span.hi, ViewPathList(prefix, items))))
+    } else {
+      let prefix = self.parse_path()?;
+      if self.is_import_coupler() {
+        // `foo::bar::{a, b}` or `foo::bar::*`
+        self.bump();
+        if self.check(&token::BinOp(token::Star)) {
+          self.bump();
+          Ok(P(spanned(lo, self.span.hi, ViewPathGlob(prefix))))
+        } else {
+          let items = self.parse_path_list_items()?;
+          Ok(P(spanned(lo, self.span.hi, ViewPathList(prefix, items))))
+        }
+      } else {
+        // `foo::bar` or `foo::bar as baz`
+        let rename = self.parse_rename()?.
+        unwrap_or(prefix.segments.last().unwrap().identifier);
+        Ok(P(spanned(lo, self.last_span.hi, ViewPathSimple(rename, prefix))))
+      }
+    }
+  }
+
+  fn parse_path_list_items(&mut self) -> PResult<Vec<ast::PathListItem>> {
+    self.parse_unspanned_seq(&token::OpenDelim(token::Brace),
+                             &token::CloseDelim(token::Brace),
+                             SeqSep::trailing_allowed(token::Comma), |this| {
+        let lo = this.span.lo;
+        let node = if this.eat_keyword(keywords::SelfValue) {
+          let rename = this.parse_rename()?;
+          ast::PathListItemKind::Mod { id: ast::DUMMY_NODE_ID, rename: rename }
+        } else {
+          let ident = this.parse_ident()?;
+          let rename = this.parse_rename()?;
+          ast::PathListItemKind::Ident { name: ident, rename: rename, id: ast::DUMMY_NODE_ID }
+        };
+        let hi = this.last_span.hi;
+        Ok(spanned(lo, hi, node))
+      })
+  }
+
+  fn parse_rename(&mut self) -> PResult<Option<Ident>> {
+    if self.eat_keyword(keywords::As) {
+      self.parse_ident().map(Some)
+    } else {
+      Ok(None)
+    }
+  }
+
+  /// Parse an item-position function declaration.
+  fn parse_item_fn(&mut self,
+                   unsafety: Unsafety,
+                   constness: Constness,
+                   abi: abi::Abi)
+                   -> PResult<ItemInfo> {
+    unimplemented!()
   }
 
   // Eat tokens until we can be relatively sure we reached the end of the
@@ -1388,6 +1484,19 @@ impl<'a> Parser<'a> {
   //-------------------------------------------------------------------------
   // AST Builder API Section
   //-------------------------------------------------------------------------
+
+  fn mk_item(&mut self, lo: BytePos, hi: BytePos, ident: Ident,
+    node: ItemKind, vis: Visibility,
+    attrs: Vec<Attribute>) -> P<Item> {
+    P(Item {
+      ident: ident,
+      attrs: attrs,
+      id: ast::DUMMY_NODE_ID,
+      node: node,
+      vis: vis,
+      span: mk_span(lo, hi)
+    })
+  }
 
   pub fn mk_expr(&mut self, lo: BytePos, hi: BytePos,
                  node: ExprKind, attrs: ThinAttributes) -> P<Expr> {
