@@ -11,7 +11,7 @@ use std::rc::Rc;
 use ast;
 use interner::{self, StrInterner, RcStr};
 
-#[derive(Clone, PartialEq, Eq, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
 pub enum BinOpToken {
   Plus,
   Minus,
@@ -25,7 +25,8 @@ pub enum BinOpToken {
   RShift
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+/// A delimiter token
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
 pub enum DelimToken {
   /// A round parenthesis: `(` or `)`
   Paren,
@@ -60,7 +61,7 @@ impl Lit {
   }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Token {
   /* Expression-operator symbols. */
   Eq,
@@ -154,6 +155,14 @@ impl Token {
     match *self {
       Ident(_)    => true,
       _           => false,
+    }
+  }
+
+  /// Returns `true` if the token is an interpolated path.
+  pub fn is_path(&self) -> bool {
+    match *self {
+      //Interpolated(NtPath(..))    => true,
+      _                           => false,
     }
   }
 

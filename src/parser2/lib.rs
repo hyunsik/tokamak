@@ -10,10 +10,12 @@ extern crate env_logger;
 #[macro_use] extern crate log;
 extern crate term;
 
+pub mod abi;
 pub mod ast;
 pub mod ast_print;
 pub mod attr;
 pub mod codemap;
+pub mod comments;
 pub mod error_handler;
 pub mod interner;
 pub mod lexer;

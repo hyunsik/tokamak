@@ -76,6 +76,14 @@ impl DiagnosticBuilder {
   }
 
   #[allow(unused_variables)]
+  pub fn span_note<S: Into<MultiSpan>>(&mut self,
+                                       sp: S,
+                                       msg: &str)
+                                       -> &mut DiagnosticBuilder {
+    unimplemented!()
+  }
+
+  #[allow(unused_variables)]
   pub fn help(&mut self , msg: &str) -> &mut DiagnosticBuilder {
     unimplemented!()
   }

@@ -3,10 +3,13 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 pub use self::ViewPath_::*;
+pub use self::Mutability::*;
 
+use abi::Abi;
 use ast_print;
 use attr::ThinAttributes;
 use codemap::{Span, Spanned};
+use comments::{doc_comment_style, strip_doc_comment_decoration};
 use ptr::P;
 use token::{self, InternedString};
 
@@ -226,15 +229,20 @@ pub struct Package {
 }
 
 pub struct Module {
-  pub span: Span,
-  pub items: Vec<Box<Item>>
+  /// A span from the first token past `{` to the last token until `}`.
+  /// For `mod foo;`, the inner span ranges from the first token
+  /// to the last token in the external file.
+  pub inner: Span,
+  pub items: Vec<P<Item>>
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Visibility {
   Public,
   Inherited,
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Item {
   pub ident: Ident,
   pub attrs: Vec<Attribute>,
@@ -250,6 +258,7 @@ impl Item {
   }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ItemKind {
   /// A `use` or `pub use` item
   Import(P<ViewPath>),
@@ -261,26 +270,7 @@ pub enum ItemKind {
   Enum,
   Struct,
 
-  Fn,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Ty {
-  pub id: NodeId,
-  pub node: TyKind,
-  pub span: Span,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-/// The different kinds of types recognized by the compiler
-pub enum TyKind {
-  Vec(P<Ty>),
-  /// A path (`module::module::...::Type`), optionally
-  /// "qualified", e.g. `<Vec<T> as SomeTrait>::SomeType`.
-  ///
-  /// Type parameters are stored in the Path itself
-  Path(Path),
-  Infer
+  Fn(P<FnDecl>, Unsafety, Constness, Abi, P<Block>),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -302,6 +292,204 @@ impl fmt::Display for Unsafety {
 pub enum Constness {
   Const,
   NotConst,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Ty {
+  pub id: NodeId,
+  pub node: TyKind,
+  pub span: Span,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// The different kinds of types recognized by the compiler
+pub enum TyKind {
+  Vec(P<Ty>),
+  /// A path (`module::module::...::Type`), optionally
+  /// "qualified", e.g. `<Vec<T> as SomeTrait>::SomeType`.
+  ///
+  /// Type parameters are stored in the Path itself
+  Path(Path),
+  Infer
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum BlockCheckMode {
+  Default,
+  Unsafe(UnsafeSource),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum UnsafeSource {
+  CompilerGenerated,
+  UserProvided,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Block {
+  /// Statements in a block
+  pub stmts: Vec<Stmt>,
+  /// An expression at the end of the block
+  /// without a semicolon, if any
+  pub expr: Option<P<Expr>>,
+  pub id: NodeId,
+  /// Distinguishes between `unsafe { ... }` and `{ ... }`
+  pub rules: BlockCheckMode,
+  pub span: Span,
+}
+
+/// A statement
+pub type Stmt = Spanned<StmtKind>;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum StmtKind {
+  /// Could be an item or a local (let) binding:
+  Decl(P<Decl>, NodeId),
+
+  /// Expr without trailing semi-colon (must have unit type):
+  Expr(P<Expr>, NodeId),
+
+  /// Expr with trailing semi-colon (may have any type):
+  Semi(P<Expr>, NodeId),
+}
+
+impl StmtKind {
+  pub fn id(&self) -> Option<NodeId> {
+    match *self {
+      StmtKind::Decl(_, id) => Some(id),
+      StmtKind::Expr(_, id) => Some(id),
+      StmtKind::Semi(_, id) => Some(id),
+    }
+  }
+
+  pub fn attrs(&self) -> &[Attribute] {
+    match *self {
+      StmtKind::Decl(ref d, _) => d.attrs(),
+      StmtKind::Expr(ref e, _) |
+      StmtKind::Semi(ref e, _) => e.attrs(),
+    }
+  }
+}
+
+pub type Decl = Spanned<DeclKind>;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum DeclKind {
+  /// A local (let) binding:
+  Local(P<Local>),
+  /// An item binding:
+  Item(P<Item>),
+}
+
+impl Decl {
+  pub fn attrs(&self) -> &[Attribute] {
+    match self.node {
+      DeclKind::Local(ref l) => l.attrs(),
+      DeclKind::Item(ref i) => i.attrs(),
+    }
+  }
+}
+
+/// Local represents a `let` or 'var' statement, e.g., `let <pat>:<ty> = <expr>;`,
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Local {
+  pub pat: P<Pat>,
+  pub ty: Option<P<Ty>>,
+  pub mutbl: Mutability,
+  /// Initializer expression to set the value, if any
+  pub init: Option<P<Expr>>,
+  pub id: NodeId,
+  pub span: Span,
+  pub attrs: ThinAttributes,
+}
+
+impl Local {
+  pub fn attrs(&self) -> &[Attribute] {
+    match self.attrs {
+      Some(ref b) => b,
+      None => &[],
+    }
+  }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Pat {
+  pub id: NodeId,
+  pub node: PatKind,
+  pub span: Span,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum PatKind {
+  /// Represents a wildcard pattern (`_`)
+  Wild,
+
+  /// A `PatKind::Ident` may either be a new bound variable,
+  /// or a unit struct/variant pattern, or a const pattern (in the last two cases
+  /// the third field must be `None`).
+  ///
+  /// In the unit or const pattern case, the parser can't determine
+  /// which it is. The resolver determines this, and
+  /// records this pattern's `NodeId` in an auxiliary
+  /// set (of "PatIdents that refer to unit patterns or constants").
+  Ident(BindingMode, SpannedIdent, Option<P<Pat>>),
+
+  /// An associated const named using the qualified path `<T>::CONST` or
+  /// `<T as Trait>::CONST`. Associated consts from inherent impls can be
+  /// referred to as simply `T::CONST`, in which case they will end up as
+  /// PatKind::Path, and the resolver will have to sort that out.
+  QPath(QSelf, Path),
+
+  /// A path pattern.
+  /// Such pattern can be resolved to a unit struct/variant or a constant.
+  Path(Path),
+
+  /// A struct or struct variant pattern, e.g. `Variant {x, y, ..}`.
+  /// The `bool` is `true` in the presence of a `..`.
+  Struct(Path, Vec<Spanned<FieldPat>>, bool),
+
+  /// A tuple struct/variant pattern `Variant(x, y, z)`.
+  /// "None" means a `Variant(..)` pattern where we don't bind the fields to names.
+  TupleStruct(Path, Option<Vec<P<Pat>>>),
+
+  /// A tuple pattern `(a, b)`
+  Tup(Vec<P<Pat>>),
+
+  /// `[a, b, ..i, y, z]` is represented as:
+  ///     `PatKind::Vec(box [a, b], Some(i), box [y, z])`
+  Vec(Vec<P<Pat>>, Option<P<Pat>>, Vec<P<Pat>>),
+
+  /// A range pattern, e.g. `1...2`
+  Range(P<Expr>, P<Expr>),
+
+  /// A literal
+  Lit(P<Expr>),
+}
+
+/// A single field in a struct pattern
+///
+/// Patterns like the fields of Foo `{ x, ref y, ref mut z }`
+/// are treated the same as` x: x, y: ref y, z: ref mut z`,
+/// except is_shorthand is true
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FieldPat {
+  /// The identifier for the field
+  pub ident: Ident,
+  /// The pattern the field is destructured to
+  pub pat: P<Pat>,
+  pub is_shorthand: bool,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum Mutability {
+  Mutable,
+  Immutable,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum BindingMode {
+  ByRef,
+  ByValue,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -749,6 +937,15 @@ pub enum LitKind {
 /// Meta-data associated with an item
 pub type Attribute = Spanned<Attribute_>;
 
+/// Distinguishes between Attributes that decorate items and Attributes that
+/// are contained as statements within items. These two cases need to be
+/// distinguished for pretty-printing.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum AttrStyle {
+  Outer,
+  Inner,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
 pub struct AttrId(pub usize);
 
@@ -784,6 +981,175 @@ impl PartialEq for MetaItemKind {
         }
         _ => false
       }
+    }
+  }
+}
+
+/// Represents the header (not the body) of a function declaration
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FnDecl {
+  pub inputs: Vec<Arg>,
+  pub output: FunctionRetTy,
+  pub variadic: bool
+}
+
+/// represents an argument in a function header
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Arg {
+  pub ty: P<Ty>,
+  pub pat: P<Pat>,
+  pub id: NodeId,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FunctionRetTy {
+  /// Functions with return type `!`that always
+  /// raise an error or exit (i.e. never return to the caller)
+  None(Span),
+  /// Return type is not specified.
+  ///
+  /// Functions default to `()` and
+  /// closures default to inference. Span points to where return
+  /// type would be inserted.
+  Default(Span),
+  /// Everything else
+  Ty(P<Ty>),
+}
+
+impl FunctionRetTy {
+  pub fn span(&self) -> Span {
+    match *self {
+      FunctionRetTy::None(span) => span,
+      FunctionRetTy::Default(span) => span,
+      FunctionRetTy::Ty(ref ty) => ty.span,
+    }
+  }
+}
+
+/// A delimited sequence of token trees
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Delimited {
+  /// The type of delimiter
+  pub delim: token::DelimToken,
+  /// The span covering the opening delimiter
+  pub open_span: Span,
+  /// The delimited sequence of token trees
+  pub tts: Vec<TokenTree>,
+  /// The span covering the closing delimiter
+  pub close_span: Span,
+}
+
+impl Delimited {
+  /// Returns the opening delimiter as a token.
+  pub fn open_token(&self) -> token::Token {
+    token::OpenDelim(self.delim)
+  }
+
+  /// Returns the closing delimiter as a token.
+  pub fn close_token(&self) -> token::Token {
+    token::CloseDelim(self.delim)
+  }
+
+  /// Returns the opening delimiter as a token tree.
+  pub fn open_tt(&self) -> TokenTree {
+    TokenTree::Token(self.open_span, self.open_token())
+  }
+
+  /// Returns the closing delimiter as a token tree.
+  pub fn close_tt(&self) -> TokenTree {
+    TokenTree::Token(self.close_span, self.close_token())
+  }
+}
+
+/// When the main rust parser encounters a syntax-extension invocation, it
+/// parses the arguments to the invocation as a token-tree. This is a very
+/// loose structure, such that all sorts of different AST-fragments can
+/// be passed to syntax extensions using a uniform type.
+///
+/// If the syntax extension is an MBE macro, it will attempt to match its
+/// LHS token tree against the provided token tree, and if it finds a
+/// match, will transcribe the RHS token tree, splicing in any captured
+/// macro_parser::matched_nonterminals into the `SubstNt`s it finds.
+///
+/// The RHS of an MBE macro is the only place `SubstNt`s are substituted.
+/// Nothing special happens to misnamed or misplaced `SubstNt`s.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum TokenTree {
+  /// A single token
+  Token(Span, token::Token),
+  /// A delimited sequence of token trees
+  Delimited(Span, Rc<Delimited>),
+}
+
+impl TokenTree {
+  pub fn len(&self) -> usize {
+    match *self {
+      TokenTree::Token(_, token::DocComment(name)) => {
+        match doc_comment_style(&name.as_str()) {
+          AttrStyle::Outer => 2,
+          AttrStyle::Inner => 3
+        }
+      }
+      TokenTree::Delimited(_, ref delimed) => {
+        delimed.tts.len() + 2
+      }
+      TokenTree::Token(..) => 0
+    }
+  }
+
+  pub fn get_tt(&self, index: usize) -> TokenTree {
+    match (self, index) {
+      (&TokenTree::Token(sp, token::DocComment(_)), 0) => {
+        TokenTree::Token(sp, token::Pound)
+      }
+      (&TokenTree::Token(sp, token::DocComment(name)), 1)
+      if doc_comment_style(&name.as_str()) == AttrStyle::Inner => {
+        TokenTree::Token(sp, token::Not)
+      }
+      (&TokenTree::Token(sp, token::DocComment(name)), _) => {
+        let stripped = strip_doc_comment_decoration(&name.as_str());
+
+        // Searches for the occurrences of `"#*` and returns the minimum number of `#`s
+        // required to wrap the text.
+        let num_of_hashes = stripped.chars().scan(0, |cnt, x| {
+          *cnt = if x == '"' {
+            1
+          } else if *cnt != 0 && x == '#' {
+            *cnt + 1
+          } else {
+            0
+          };
+          Some(*cnt)
+        }).max().unwrap_or(0);
+
+        TokenTree::Delimited(sp, Rc::new(Delimited {
+          delim: token::Bracket,
+          open_span: sp,
+          tts: vec![TokenTree::Token(sp, token::Ident(token::str_to_ident("doc"))),
+                              TokenTree::Token(sp, token::Eq),
+                              TokenTree::Token(sp, token::Literal(
+                                  token::StrRaw(token::intern(&stripped), num_of_hashes), None))],
+          close_span: sp,
+        }))
+      }
+      (&TokenTree::Delimited(_, ref delimed), _) => {
+        if index == 0 {
+          return delimed.open_tt();
+        }
+        if index == delimed.tts.len() + 1 {
+          return delimed.close_tt();
+        }
+        delimed.tts[index - 1].clone()
+      }
+      _ => panic!("Cannot expand a token tree")
+    }
+  }
+
+  /// Returns the `Span` corresponding to this token tree.
+  pub fn get_span(&self) -> Span {
+    match *self {
+      TokenTree::Token(span, _)     => span,
+      TokenTree::Delimited(span, _) => span,
     }
   }
 }
