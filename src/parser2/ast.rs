@@ -268,12 +268,41 @@ pub enum ItemKind {
   Const,
   Static,
 
+  /// An external module
+  ForeignMod(ForeignMod),
+
   /// A type alias, e.g. `type Foo = Bar`
   Ty(P<Ty>),
   Enum,
   Struct,
 
   Fn(P<FnDecl>, Unsafety, Constness, Abi, P<Block>),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ForeignMod {
+  pub abi: Abi,
+  pub items: Vec<ForeignItem>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ForeignItem {
+  pub ident: Ident,
+  pub attrs: Vec<Attribute>,
+  pub node: ForeignItemKind,
+  pub id: NodeId,
+  pub span: Span,
+  pub vis: Visibility,
+}
+
+/// An item within an `extern` block
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ForeignItemKind {
+  /// A foreign function
+  Fn(P<FnDecl>),
+  /// A foreign static item (`static ext: u8`), with optional mutability
+  /// (the boolean is true when mutable)
+  Static(P<Ty>, bool),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -313,6 +342,15 @@ pub enum TyKind {
   ///
   /// Type parameters are stored in the Path itself
   Path(Path),
+
+  /// A tuple (`(A, B, C, D,...)`)
+  Tup(Vec<P<Ty>> ),
+
+  /// No-op; kept solely so that we can pretty-print faithfully
+  Paren(P<Ty>),
+
+  /// TyKind::Infer means the type should be inferred instead of it having been
+  /// specified. This can appear anywhere in a type.
   Infer
 }
 

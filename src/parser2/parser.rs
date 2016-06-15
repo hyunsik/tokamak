@@ -10,7 +10,7 @@ use abi::{self, Abi};
 use attr::{AttributesExt, ThinAttributes, ThinAttributesExt};
 use ast::{self, Attribute, Module, Item, Package, Constness, Unsafety, Visibility};
 use ast::{BinOpKind, Expr, ExprKind, Lit, LitKind, Ident, RangeLimits, UnOp};
-use ast::{ItemKind};
+use ast::{ItemKind, ForeignItem, ForeignItemKind};
 use ast::{ViewPath, ViewPathList, ViewPathGlob, ViewPathSimple};
 use ast::{Ty, TyKind};
 use ast::{Block, BlockCheckMode, Stmt, StmtKind, Decl, DeclKind, Local, Mutability};
@@ -698,6 +698,29 @@ impl<'a> Parser<'a> {
       return Ok(Some(item));
     }
 
+    if self.eat_keyword(keywords::Extern) {
+      let opt_abi = self.parse_opt_abi()?;
+
+      if self.eat_keyword(keywords::Fn) {
+        // EXTERN FUNCTION ITEM
+        let abi = opt_abi.unwrap_or(Abi::C);
+        let (ident, item_, extra_attrs) =
+        self.parse_item_fn(Unsafety::Normal, Constness::NotConst, abi)?;
+        let last_span = self.last_span;
+        let item = self.mk_item(lo,
+                                last_span.hi,
+                                ident,
+                                item_,
+                                visibility,
+                                maybe_append(attrs, extra_attrs));
+        return Ok(Some(item));
+      } else if self.check(&token::OpenDelim(token::Brace)) {
+        return Ok(Some(self.parse_item_foreign_mod(lo, opt_abi, visibility, attrs)?));
+      }
+
+      self.unexpected()?;
+    }
+
     if self.eat_keyword(keywords::Const) {
 
     }
@@ -817,6 +840,104 @@ impl<'a> Parser<'a> {
     }
   }
 
+  /// Parse `extern` for foreign ABIs
+  /// modules.
+  ///
+  /// `extern` is expected to have been
+  /// consumed before calling this method
+  ///
+  /// # Examples:
+  ///
+  /// extern "C" {}
+  /// extern {}
+  #[allow(unused_mut)]
+  fn parse_item_foreign_mod(&mut self,
+                            lo: BytePos,
+                            opt_abi: Option<abi::Abi>,
+                            visibility: Visibility,
+                            mut attrs: Vec<Attribute>)
+                            -> PResult<P<Item>> {
+    self.expect(&token::OpenDelim(token::Brace))?;
+
+    let abi = opt_abi.unwrap_or(Abi::C);
+
+    let mut foreign_items = vec![];
+    while let Some(item) = self.parse_foreign_item()? {
+      foreign_items.push(item);
+    }
+    self.expect(&token::CloseDelim(token::Brace))?;
+
+    let last_span = self.last_span;
+    let m = ast::ForeignMod {
+      abi: abi,
+      items: foreign_items
+    };
+    Ok(self.mk_item(lo,
+                    last_span.hi,
+                    keywords::Invalid.ident(),
+                    ItemKind::ForeignMod(m),
+                    visibility,
+                    attrs))
+  }
+
+  /// Parse a foreign item.
+  fn parse_foreign_item(&mut self) -> PResult<Option<ForeignItem>> {
+    let lo = self.span.lo;
+    let visibility = self.parse_visibility()?;
+
+    if self.check_keyword(keywords::Static) {
+      // FOREIGN STATIC ITEM
+      return Ok(Some(self.parse_item_foreign_static(visibility, lo, Vec::new())?));
+    }
+    if self.check_keyword(keywords::Fn) {
+      // FOREIGN FUNCTION ITEM
+      return Ok(Some(self.parse_item_foreign_fn(visibility, lo, Vec::new())?));
+    }
+
+    Ok(None)
+  }
+
+  /// Parse a function declaration from a foreign module
+  fn parse_item_foreign_fn(&mut self, vis: ast::Visibility, lo: BytePos,
+                           attrs: Vec<Attribute>) -> PResult<ForeignItem> {
+    self.expect_keyword(keywords::Fn)?;
+
+    let ident = self.parse_fn_header()?;
+    let decl = self.parse_fn_decl(true)?;
+    let hi = self.span.hi;
+    self.expect(&token::SemiColon)?;
+
+    Ok(ast::ForeignItem {
+      ident: ident,
+      attrs: attrs,
+      node: ForeignItemKind::Fn(decl),
+      id: ast::DUMMY_NODE_ID,
+      span: mk_span(lo, hi),
+      vis: vis
+    })
+  }
+
+  /// Parse a static item from a foreign module
+  fn parse_item_foreign_static(&mut self, vis: ast::Visibility, lo: BytePos,
+                               attrs: Vec<Attribute>) -> PResult<ForeignItem> {
+    self.expect_keyword(keywords::Static)?;
+    let mutbl = self.eat_keyword(keywords::Var);
+
+    let ident = self.parse_ident()?;
+    self.expect(&token::Colon)?;
+    let ty = self.parse_ty()?;
+    let hi = self.span.hi;
+    self.expect(&token::SemiColon)?;
+    Ok(ForeignItem {
+      ident: ident,
+      attrs: attrs,
+      node: ForeignItemKind::Static(ty, mutbl),
+      id: ast::DUMMY_NODE_ID,
+      span: mk_span(lo, hi),
+      vis: vis
+    })
+  }
+
   /// Parse type Foo = Bar;
   fn parse_item_type(&mut self) -> PResult<ItemInfo> {
     let ident = self.parse_ident()?;
@@ -824,6 +945,34 @@ impl<'a> Parser<'a> {
     let ty = self.parse_ty()?;
     self.expect(&token::SemiColon)?;
     Ok((ident, ItemKind::Ty(ty), None))
+  }
+
+  /// Parses a string as an ABI spec on an extern type or module. Consumes
+  /// the `extern` keyword, if one is found.
+  fn parse_opt_abi(&mut self) -> PResult<Option<abi::Abi>> {
+    match self.token {
+      token::Literal(token::Str_(s), suf) | token::Literal(token::StrRaw(s, _), suf) => {
+        let sp = self.span;
+        self.expect_no_suffix(sp, "ABI spec", suf);
+        self.bump();
+
+        match abi::lookup(&s.as_str()) {
+          Some(abi) => Ok(Some(abi)),
+          None => {
+            let last_span = self.last_span;
+            self.span_err(
+              last_span,
+              &format!("invalid ABI: expected one of [{}], found `{}`",
+                abi::all_names().join(", "), s)
+            );
+
+            Ok(None)
+          }
+        }
+      }
+
+      _ => Ok(None),
+    }
   }
 
   /// Parse an item-position function declaration.
@@ -1908,7 +2057,29 @@ impl<'a> Parser<'a> {
 
     let t = if self.check(&token::OpenDelim(token::Paren)) {
       self.bump();
-      unimplemented!()
+
+      // (t) is a parenthesized ty
+      // (t,) is the type of a tuple with only one field,
+      // of type t
+      let mut ts = vec![];
+      let mut last_comma = false;
+      while self.token != token::CloseDelim(token::Paren) {
+        ts.push(self.parse_ty()?);
+        if self.check(&token::Comma) {
+          last_comma = true;
+          self.bump();
+        } else {
+          last_comma = false;
+          break;
+        }
+      }
+
+      self.expect(&token::CloseDelim(token::Paren))?;
+      if ts.len() == 1 && !last_comma {
+        TyKind::Paren(ts.into_iter().nth(0).unwrap())
+      } else {
+        TyKind::Tup(ts)
+      }
     } else if self.token.is_path_start() {
       let path = self.parse_path()?;
       // NAMED TYPE
@@ -2959,6 +3130,20 @@ mod tests {
   }
 
   #[test]
+  fn test_extern_mod() {
+    match str_to_package(r#"
+      extern {
+        static x: Int;
+        static var y: Int;
+        fn sqar(x: double) -> x;
+      }
+    "#) {
+      Ok(p) => println!("{:?}", p),
+      Err(_) => println!("Error")
+    }
+  }
+
+  #[test]
   fn test_fn() {
     match str_to_package("fn abc(aaa: Int) {}") {
       Ok(p) => println!("{:?}", p),
@@ -2967,8 +3152,16 @@ mod tests {
   }
 
   #[test]
+  fn test_extern_fn() {
+    match str_to_package("extern fn abc(aaa: Int) {}") {
+      Ok(p) => println!("{:?}", p),
+      Err(_) => println!("Error")
+    }
+  }
+
+  #[test]
   fn test_type() {
-    match str_to_package("pub type Double = f64;") {
+    match str_to_package("pub type Point = (Double, Double);") {
       Ok(p) => println!("{:?}", p),
       Err(_) => println!("Error")
     }
