@@ -121,6 +121,7 @@ pub struct Parser<'a> {
   pub span: Span,
   /// the previous token or None (only stashed sometimes).
   pub last_token: Option<Box<token::Token>>,
+  last_token_eof: bool,
   /// the span of the prior token
   pub last_span: Span,
 
@@ -173,6 +174,7 @@ impl<'a> Parser<'a> {
       token: tok0.tok,
       span: span,
       last_token: None,
+      last_token_eof: false,
       last_span: span,
       buffer: [
         placeholder.clone(),
@@ -445,10 +447,21 @@ impl<'a> Parser<'a> {
 
   /// Advance the parser by one token
   pub fn bump(&mut self) {
+    debug!("called bump - token: {}", &token::token_to_string(&self.token));
+    if self.last_token_eof {
+      // Bumping after EOF is a bad sign, usually an infinite loop.
+      self.bug("attempted to bump the parser past EOF (may be stuck in a loop)");
+    }
+
+    if self.token == token::Eof {
+      self.last_token_eof = true;
+    }
+
     self.last_span = self.span;
     // Stash token for error recovery (sometimes; clone is not necessarily cheap).
     self.last_token = if self.token.is_ident() ||
-    self.token == token::Comma {
+                         self.token.is_path() ||
+                         self.token == token::Comma {
       Some(Box::new(self.token.clone()))
     } else {
       None
@@ -684,7 +697,7 @@ impl<'a> Parser<'a> {
                               Vec::new());
       return Ok(Some(item));
     }
-
+    /*
     if self.eat_keyword(keywords::Const) {
 
     }
@@ -704,8 +717,8 @@ impl<'a> Parser<'a> {
     if self.eat_keyword(keywords::Struct) {
 
     }
-
-    if self.eat_keyword(keywords::Fn) {
+    */
+    if self.check_keyword(keywords::Fn) {
       // FUNCTION ITEM
       self.bump();
       let (ident, item_, extra_attrs) =
@@ -720,7 +733,7 @@ impl<'a> Parser<'a> {
       return Ok(Some(item));
     }
 
-    unreachable!()
+    Ok(None)
   }
 
   pub fn parse_visibility(&mut self) -> PResult<Visibility> {
@@ -2813,9 +2826,10 @@ mod tests {
   use std::ops::FnOnce;
   use std::rc::Rc;
 
-  use ast::Expr;
+  use ast::{Expr, Package};
   use lexer::{StringReader};
   use ptr::P;
+  use token;
   use super::{ParseSess, Parser, PResult};
 
 
@@ -2831,8 +2845,28 @@ mod tests {
     f(&mut parser)
   }
 
+  fn str_to_package(src: &str) -> PResult<Package> {
+    str_to(src, |p| p.parse_package())
+  }
+
   fn str_to_expr(src: &str) -> PResult<P<Expr>> {
     str_to(src, |p| p.parse_expr())
+  }
+
+  #[test]
+  fn test_parser_bump() {
+    let src = "fn abc(aaa: Int) {}";
+    let sess: ParseSess = ParseSess::new();
+    let mut parser = str_to_parser(&sess, Rc::new(src.to_string()));
+
+    loop {
+      let t = parser.token.clone();
+      println!("{:?}", t);
+      if t == token::Eof {
+        return break;
+      }
+      parser.bump();
+    }
   }
 
   #[test]
@@ -2897,5 +2931,21 @@ mod tests {
       Ok(e) => println!("{:?}", e),
       Err(_) => println!("Error")
     };
+  }
+
+  #[test]
+  fn test_import() {
+    match str_to_package("import x;") {
+      Ok(p) => println!("{:?}", p),
+      Err(_) => println!("Error")
+    }
+  }
+
+  #[test]
+  fn test_fn() {
+    match str_to_package("fn abc(aaa: Int) {}") {
+      Ok(p) => println!("{:?}", p),
+      Err(_) => println!("Error")
+    }
   }
 }

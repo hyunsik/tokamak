@@ -223,11 +223,13 @@ impl fmt::Display for PathSegment {
   }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Package {
   pub module: Module,
   pub span: Span
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Module {
   /// A span from the first token past `{` to the last token until `}`.
   /// For `mod foo;`, the inner span ranges from the first token

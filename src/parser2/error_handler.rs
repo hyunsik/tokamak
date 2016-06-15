@@ -131,6 +131,7 @@ impl Handler {
   #[allow(unused_variables)]
   pub fn struct_span_fatal<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
       -> DiagnosticBuilder {
+    println!("{}", msg);
     unimplemented!()
   }
 }
