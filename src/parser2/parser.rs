@@ -33,7 +33,7 @@ bitflags! {
     }
 }
 
-type ItemInfo = (Ident, ItemKind, Option<Vec<Attribute> >);
+type ItemInfo = (Ident, ItemKind, Option<Vec<Attribute>>);
 
 /// Info about a parsing session.
 pub struct ParseSess {
@@ -697,7 +697,7 @@ impl<'a> Parser<'a> {
                               Vec::new());
       return Ok(Some(item));
     }
-    /*
+
     if self.eat_keyword(keywords::Const) {
 
     }
@@ -707,7 +707,16 @@ impl<'a> Parser<'a> {
     }
 
     if self.eat_keyword(keywords::Type) {
-
+      // TYPE ITEM
+      let (ident, item_, extra_attrs) = self.parse_item_type()?;
+      let last_span = self.last_span;
+      let item = self.mk_item(lo,
+                              last_span.hi,
+                              ident,
+                              item_,
+                              visibility,
+                              maybe_append(attrs, extra_attrs));
+      return Ok(Some(item));
     }
 
     if self.eat_keyword(keywords::Enum) {
@@ -717,7 +726,7 @@ impl<'a> Parser<'a> {
     if self.eat_keyword(keywords::Struct) {
 
     }
-    */
+
     if self.check_keyword(keywords::Fn) {
       // FUNCTION ITEM
       self.bump();
@@ -808,7 +817,15 @@ impl<'a> Parser<'a> {
     }
   }
 
-  #[allow(unused_variables)]
+  /// Parse type Foo = Bar;
+  fn parse_item_type(&mut self) -> PResult<ItemInfo> {
+    let ident = self.parse_ident()?;
+    self.expect(&token::Eq)?;
+    let ty = self.parse_ty()?;
+    self.expect(&token::SemiColon)?;
+    Ok((ident, ItemKind::Ty(ty), None))
+  }
+
   /// Parse an item-position function declaration.
   fn parse_item_fn(&mut self,
                    unsafety: Unsafety,
@@ -2944,6 +2961,14 @@ mod tests {
   #[test]
   fn test_fn() {
     match str_to_package("fn abc(aaa: Int) {}") {
+      Ok(p) => println!("{:?}", p),
+      Err(_) => println!("Error")
+    }
+  }
+
+  #[test]
+  fn test_type() {
+    match str_to_package("pub type Double = f64;") {
       Ok(p) => println!("{:?}", p),
       Err(_) => println!("Error")
     }

@@ -268,7 +268,8 @@ pub enum ItemKind {
   Const,
   Static,
 
-  Ty,
+  /// A type alias, e.g. `type Foo = Bar`
+  Ty(P<Ty>),
   Enum,
   Struct,
 
