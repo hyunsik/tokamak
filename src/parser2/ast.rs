@@ -264,19 +264,18 @@ impl Item {
 pub enum ItemKind {
   /// A `use` or `pub use` item
   Import(P<ViewPath>),
-
-  Const,
-  Static,
-
   /// An external module
   ForeignMod(ForeignMod),
-
+  /// A `static` item
+  Static(P<Ty>, Mutability, P<Expr>),
+  /// A `const` item
+  Const(P<Ty>, P<Expr>),
+  /// A function declaration
+  Fn(P<FnDecl>, Unsafety, Constness, Abi, P<Block>),
   /// A type alias, e.g. `type Foo = Bar`
   Ty(P<Ty>),
   Enum,
   Struct,
-
-  Fn(P<FnDecl>, Unsafety, Constness, Abi, P<Block>),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

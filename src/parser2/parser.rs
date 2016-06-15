@@ -721,12 +721,65 @@ impl<'a> Parser<'a> {
       self.unexpected()?;
     }
 
-    if self.eat_keyword(keywords::Const) {
-
+    if self.eat_keyword(keywords::Static) {
+      // STATIC ITEM
+      let m = if self.eat_keyword(keywords::Var) {
+        Mutability::Mutable
+      } else {
+        Mutability::Immutable
+      };
+      let (ident, item_, extra_attrs) = self.parse_item_const(Some(m))?;
+      let last_span = self.last_span;
+      let item = self.mk_item(lo,
+                              last_span.hi,
+                              ident,
+                              item_,
+                              visibility,
+                              maybe_append(attrs, extra_attrs));
+      return Ok(Some(item));
     }
 
-    if self.eat_keyword(keywords::Static) {
+    if self.eat_keyword(keywords::Const) {
+      if self.check_keyword(keywords::Fn)
+          || (self.check_keyword(keywords::Unsafe) &&
+              self.look_ahead(1, |t| t.is_keyword(keywords::Fn))) {
 
+        // CONST FUNCTION ITEM
+        let unsafety = if self.eat_keyword(keywords::Unsafe) {
+          Unsafety::Unsafe
+        } else {
+          Unsafety::Normal
+        };
+
+        self.bump();
+        let (ident, item_, extra_attrs) =
+        self.parse_item_fn(unsafety, Constness::Const, Abi::Rust)?;
+        let last_span = self.last_span;
+        let item = self.mk_item(lo,
+                                last_span.hi,
+                                ident,
+                                item_,
+                                visibility,
+                                maybe_append(attrs, extra_attrs));
+        return Ok(Some(item));
+      }
+
+      // CONST ITEM
+      if self.eat_keyword(keywords::Var) {
+        let last_span = self.last_span;
+        self.diagnostic().struct_span_err(last_span, "const globals cannot be mutable")
+            .help("did you mean to declare a static?")
+            .emit();
+      }
+      let (ident, item_, extra_attrs) = self.parse_item_const(None)?;
+      let last_span = self.last_span;
+      let item = self.mk_item(lo,
+                              last_span.hi,
+                              ident,
+                              item_,
+                              visibility,
+                              maybe_append(attrs, extra_attrs));
+      return Ok(Some(item));
     }
 
     if self.eat_keyword(keywords::Type) {
@@ -936,6 +989,20 @@ impl<'a> Parser<'a> {
       span: mk_span(lo, hi),
       vis: vis
     })
+  }
+
+  fn parse_item_const(&mut self, m: Option<Mutability>) -> PResult<ItemInfo> {
+    let id = self.parse_ident()?;
+    self.expect(&token::Colon)?;
+    let ty = self.parse_ty()?;
+    self.expect(&token::Eq)?;
+    let e = self.parse_expr()?;
+    self.commit_expr_expecting(&e, token::SemiColon)?;
+    let item = match m {
+      Some(m) => ItemKind::Static(ty, m, e),
+      None => ItemKind::Const(ty, e),
+    };
+    Ok((id, item, None))
   }
 
   /// Parse type Foo = Bar;
@@ -3138,6 +3205,31 @@ mod tests {
         fn sqar(x: double) -> x;
       }
     "#) {
+      Ok(p) => println!("{:?}", p),
+      Err(_) => println!("Error")
+    }
+  }
+
+  #[test]
+  fn test_static() {
+    match str_to_package(r#"
+        static x:Int = 1;
+        pub static x:Int = 1;
+        pub static var x:Int = 1;
+      "#) {
+      Ok(p) => println!("{:?}", p),
+      Err(_) => println!("Error")
+    }
+  }
+
+  #[test]
+  fn test_const() {
+    match str_to_package(r#"
+        const x:Int = 1;
+        pub const x:Int = 1;
+        pub const fn xyz(x: Int) -> Int { x }
+        pub const unsafe fn xyz(x: Int) -> Int { x }
+      "#) {
       Ok(p) => println!("{:?}", p),
       Err(_) => println!("Error")
     }
