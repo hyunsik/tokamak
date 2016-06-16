@@ -12,7 +12,7 @@ extern crate term;
 
 pub mod abi;
 pub mod ast;
-pub mod ast_print;
+pub mod ast_printer;
 pub mod attr;
 pub mod codemap;
 pub mod comments;

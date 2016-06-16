@@ -6,7 +6,7 @@ pub use self::ViewPath_::*;
 pub use self::Mutability::*;
 
 use abi::Abi;
-use ast_print;
+use ast_printer as printer;
 use attr::ThinAttributes;
 use codemap::{Span, Spanned};
 use comments::{doc_comment_style, strip_doc_comment_decoration};
@@ -193,13 +193,13 @@ pub struct Path {
 
 impl fmt::Debug for Path {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "path({})", ast_print::path_to_string(self))
+    write!(f, "path({})", printer::path_to_string(self))
   }
 }
 
 impl fmt::Display for Path {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", ast_print::path_to_string(self))
+    write!(f, "{}", printer::path_to_string(self))
   }
 }
 
