@@ -226,7 +226,8 @@ impl fmt::Display for PathSegment {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Package {
   pub module: Module,
-  pub span: Span
+  pub span: Span,
+  pub attrs: Vec<Attribute>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

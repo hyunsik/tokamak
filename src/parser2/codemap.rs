@@ -1,5 +1,12 @@
+use std::cell::RefCell;
 use std::cmp;
+use std::{fmt, fs};
+use std::io::{self, Read};
 use std::ops::{Add, Sub};
+use std::path::Path;
+use std::rc::Rc;
+
+use ast::Name;
 
 pub trait Pos {
   fn from_usize(n: usize) -> Self;
@@ -231,5 +238,141 @@ impl MultiSpan {
 impl From<Span> for MultiSpan {
   fn from(span: Span) -> MultiSpan {
     MultiSpan::from_span(span)
+  }
+}
+
+// _____________________________________________________________________________
+// ExpnFormat, NameAndSpan, ExpnInfo, ExpnId
+//
+
+/// The source of expansion.
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+pub enum ExpnFormat {
+  /// e.g. #[derive(...)] <item>
+  MacroAttribute(Name),
+  /// e.g. `format!()`
+  MacroBang(Name),
+}
+
+#[derive(Clone, Hash, Debug)]
+pub struct NameAndSpan {
+  /// The format with which the macro was invoked.
+  pub format: ExpnFormat,
+  /// Whether the macro is allowed to use #[unstable]/feature-gated
+  /// features internally without forcing the whole crate to opt-in
+  /// to them.
+  pub allow_internal_unstable: bool,
+  /// The span of the macro definition itself. The macro may not
+  /// have a sensible definition span (e.g. something defined
+  /// completely inside libsyntax) in which case this is None.
+  pub span: Option<Span>
+}
+
+impl NameAndSpan {
+  pub fn name(&self) -> Name {
+    match self.format {
+      ExpnFormat::MacroAttribute(s) => s,
+      ExpnFormat::MacroBang(s) => s,
+    }
+  }
+}
+
+/// Extra information for tracking spans of macro and syntax sugar expansion
+#[derive(Hash, Debug)]
+pub struct ExpnInfo {
+  /// The location of the actual macro invocation or syntax sugar , e.g.
+  /// `let x = foo!();` or `if let Some(y) = x {}`
+  ///
+  /// This may recursively refer to other macro invocations, e.g. if
+  /// `foo!()` invoked `bar!()` internally, and there was an
+  /// expression inside `bar!`; the call_site of the expression in
+  /// the expansion would point to the `bar!` invocation; that
+  /// call_site span would have its own ExpnInfo, with the call_site
+  /// pointing to the `foo!` invocation.
+  pub call_site: Span,
+  /// Information about the expansion.
+  pub callee: NameAndSpan
+}
+
+// _____________________________________________________________________________
+// FileMap, MultiByteChar, FileName, FileLines
+//
+
+pub type FileName = String;
+
+/// Identifies an offset of a multi-byte character in a FileMap
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct MultiByteChar {
+  /// The absolute offset of the character in the CodeMap
+  pub pos: BytePos,
+  /// The number of bytes, >=2
+  pub bytes: usize,
+}
+
+/// A single source in the CodeMap.
+pub struct FileMap {
+  /// The name of the file that the source came from, source that doesn't
+  /// originate from files has names between angle brackets by convention,
+  /// e.g. `<anon>`
+  pub name: FileName,
+  /// The complete source code
+  pub src: Option<Rc<String>>,
+  /// The start position of this source in the CodeMap
+  pub start_pos: BytePos,
+  /// The end position of this source in the CodeMap
+  pub end_pos: BytePos,
+  /// Locations of lines beginnings in the source code
+  pub lines: RefCell<Vec<BytePos>>,
+  /// Locations of multi-byte characters in the source code
+  pub multibyte_chars: RefCell<Vec<MultiByteChar>>,
+}
+
+impl fmt::Debug for FileMap {
+  fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    write!(fmt, "FileMap({})", self.name)
+  }
+}
+
+/// An abstraction over the fs operations used by the Parser.
+pub trait FileLoader {
+  /// Query the existence of a file.
+  fn file_exists(&self, path: &Path) -> bool;
+
+  /// Read the contents of an UTF-8 file into memory.
+  fn read_file(&self, path: &Path) -> io::Result<String>;
+}
+
+/// A FileLoader that uses std::fs to load real files.
+pub struct RealFileLoader;
+
+impl FileLoader for RealFileLoader {
+  fn file_exists(&self, path: &Path) -> bool {
+    fs::metadata(path).is_ok()
+  }
+
+  fn read_file(&self, path: &Path) -> io::Result<String> {
+    let mut src = String::new();
+    fs::File::open(path)?.read_to_string(&mut src)?;
+    Ok(src)
+  }
+}
+
+// _____________________________________________________________________________
+// CodeMap
+//
+
+pub struct CodeMap {
+  pub files: RefCell<Vec<Rc<FileMap>>>,
+  expansions: RefCell<Vec<ExpnInfo>>,
+  file_loader: Box<FileLoader>
+}
+
+impl CodeMap {
+  pub fn new() -> CodeMap {
+    CodeMap {
+      files: RefCell::new(Vec::new()),
+      expansions: RefCell::new(Vec::new()),
+      file_loader: Box::new(RealFileLoader)
+    }
   }
 }

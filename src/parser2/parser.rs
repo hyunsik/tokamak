@@ -643,6 +643,7 @@ impl<'a> Parser<'a> {
     Ok(ast::Package {
       module: self.parse_module(&token::Eof, lo)?,
       span: mk_span(lo, self.span.lo),
+      attrs: Vec::new(), // TODO - to be filled
     })
   }
 

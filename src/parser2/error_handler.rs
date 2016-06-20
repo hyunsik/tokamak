@@ -134,4 +134,8 @@ impl Handler {
     println!("{}", msg);
     unimplemented!()
   }
+
+  pub fn bug(&self, msg: &str) -> ! {
+    unimplemented!()
+  }
 }

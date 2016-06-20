@@ -4,7 +4,7 @@ use std::mem::replace;
 use std::rc::Rc;
 
 use ast::{self};
-use codemap::{self, BytePos, Span, Pos};
+use codemap::{self, BytePos, CharPos, Span, Pos};
 use error_handler::{Handler, DiagnosticBuilder};
 use unicode_chars;
 use token::{self, str_to_ident};
@@ -63,6 +63,8 @@ pub struct StringReader<'a> {
   pub pos: BytePos,
   /// The absolute offset within the source text of the last character read (curr)
   pub last_pos: BytePos,
+  /// The column of the next character to read
+  pub col: CharPos,
   /// The last character to be read
   pub curr: Option<char>,
 
@@ -128,20 +130,37 @@ pub fn char_at(s: &str, byte: usize) -> char {
 
 
 impl<'a> StringReader<'a> {
-  pub fn new(source: Rc<String>, span_diagnostic: &'a Handler) -> StringReader<'a> {
+  /// For comments.rs, which hackily pokes into pos and curr
+  pub fn new_raw<'b>(span_diagnostic: &'b Handler,
+                     filemap: Rc<codemap::FileMap>)
+                     -> StringReader<'b> {
+    if filemap.src.is_none() {
+      span_diagnostic.bug(&format!("Cannot lex filemap \
+                                          without source: {}",
+                                   filemap.name)[..]);
+    }
+
+    let source_text = (*filemap.src.as_ref().unwrap()).clone();
+
     let mut sr = StringReader {
       pos: BytePos(0),
       last_pos: BytePos(0),
+      col: CharPos(0),
       curr: Some('\n'),
 
       peek_tok: token::Eof,
       peek_span: codemap::DUMMY_SPAN,
       fatal_errs: Vec::new(),
 
-      source_text: source,
+      source_text: source_text,
       span_diagnostic: span_diagnostic,
     };
     sr.bump();
+    sr
+  }
+
+  pub fn new(source: Rc<String>, span_diagnostic: &'a Handler) -> StringReader<'a> {
+    let mut sr = StringReader::new_raw(span_diagnostic, filemap);
     if let Err(_) = sr.advance_token() {
       sr.emit_fatal_errors();
       panic!(FatalError);
@@ -507,7 +526,7 @@ impl<'a> StringReader<'a> {
     Ok(())
   }
 
-  fn bump(&mut self) {
+  pub fn bump(&mut self) {
     self.last_pos = self.pos;
     let current_byte_offset = self.byte_offset(self.pos).to_usize();
     if current_byte_offset < self.source_text.len() {
@@ -736,6 +755,37 @@ impl<'a> StringReader<'a> {
         sp: codemap::mk_span(start_bpos, self.last_pos),
       })
     })
+  }
+
+  fn read_to_eol(&mut self) -> String {
+    let mut val = String::new();
+    while !self.curr_is('\n') && !self.is_eof() {
+      val.push(self.curr.unwrap());
+      self.bump();
+    }
+    if self.curr_is('\n') {
+      self.bump();
+    }
+    return val;
+  }
+
+  pub fn read_one_line_comment(&mut self) -> String {
+    let val = self.read_to_eol();
+    assert!((val.as_bytes()[0] == b'/' && val.as_bytes()[1] == b'/') ||
+                (val.as_bytes()[0] == b'#' && val.as_bytes()[1] == b'!'));
+    return val;
+  }
+
+  pub fn consume_non_eol_whitespace(&mut self) {
+    while is_whitespace(self.curr) && !self.curr_is('\n') && !self.is_eof() {
+      self.bump();
+    }
+  }
+
+  pub fn peeking_at_comment(&self) -> bool {
+    (self.curr_is('/') && self.nextch_is('/')) || (self.curr_is('/') && self.nextch_is('*')) ||
+        // consider shebangs comments, but not inner attributes
+        (self.curr_is('#') && self.nextch_is('!') && !self.nextnextch_is('['))
   }
 
   /// Lex a LIT_INTEGER or a LIT_FLOAT
