@@ -1,0 +1,35 @@
+fn xyz(): i32 = match x {
+  /// empty pattern
+}
+
+fn xyz(): i32 = match x {
+  1 | 2 => 1 // without trailing comma
+}
+
+fn xyz(): i32 = match x {
+  1 | 2 => 1, // trailing comma
+}
+
+// pattern or
+fn xyz(): i32 = match x {
+  1 | 2 => 1,
+  3 | 4 => 2
+}
+
+// pattern or
+fn xyz(): i32 = match x {
+  "abc" | "def" => 1,
+}
+
+// path pattern
+fn xyz(): i32 = match x {
+  Addr::Name => 1,
+  Addr::Name(first, last) => 2,
+  _ => 3
+}
+
+// tuple pattern
+fn xyz(x: i32, y: i32): i32 = match (x, y) {
+  (1, 2) => 1,
+  _ => 3
+}

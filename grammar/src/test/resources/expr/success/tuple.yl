@@ -1,0 +1,4 @@
+fn test() {
+  let t = (1, 2);
+  let x = (t.0, t.1);
+}

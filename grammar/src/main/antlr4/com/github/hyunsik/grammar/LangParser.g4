@@ -36,18 +36,12 @@ options {
 */
 
 package_contents
-  : item* EOF
+  : mod EOF
   ;
 
-/*
-pkg_attr_list
-  :
+mod
+  : item*
   ;
-
-pkg_attr
-  :
-  ;
-*/
 
 /*
 ===============================================================================
@@ -59,6 +53,7 @@ item
   : visibility import_decl
   | visibility mod_decl
   | visibility type_decl
+  | visibility item_fn_decl
   ;
 
 visibility : PUB | PRIV | /*nothing*/ ;
@@ -99,27 +94,116 @@ type_decl : TYPE ident (LT (generic_decls)? GT)? EQ ty SEMI ;
 
 /*
 ===============================================================================
-  Fn Decl
+  block
 ===============================================================================
 */
-item_fn_decl: FN ident LPAREN RPAREN ret_ty fun_body;
 
-ret_ty
- : ty
- | /* nothing */
- ;
-
-fun_body : LBRACE import_decl* block_element* (block_last_element)? RBRACE ;
+block
+  : LBRACE import_decl* block_element* (block_last_element)? RBRACE
+  ;
 
 block_element
-  : LPAREN ty RPAREN
+  : expr SEMI+
+  | stmt_not_just_expr (SEMI)*
   ;
 
 block_last_element
-  : LPAREN RPAREN
+  : expr
+  | expr_stmt
+  ;
+
+stmt_not_just_expr
+  : import_decl
+  | local_var
+  | expr_stmt
+  ;
+
+local_var
+  : (LET | VAR) local_var_decl (COMMA local_var_decl)* SEMI
+  ;
+
+local_var_decl
+  : pat (COLON ty)? (EQ expr)?
   ;
 
 
+/*
+===============================================================================
+  Fn Decl
+===============================================================================
+*/
+item_fn_decl
+  : FN ident LPAREN args? RPAREN (COLON ret_ty)? fun_body
+  | FN ident LPAREN args? RPAREN COLON ret_ty EQ expr
+  ;
+
+args : arg | arg COMMA args ;
+arg : pat COLON ty ;
+
+ret_ty
+ : ty
+ ;
+
+fun_body : block;
+
+/*
+===============================================================================
+  exprs and statements
+===============================================================================
+*/
+
+expr_stmt
+  : expr_stmt_block
+  | expr_stmt_not_block
+  ;
+expr_stmt_block : UNSAFE? block;
+
+expr_stmt_not_block
+  : expr_if
+  | expr_match
+  | expr_loop
+  | expr_while
+  | expr_for
+  ;
+
+/*
+===============================================================================
+  expr_(if, while, loop, for)
+===============================================================================
+*/
+
+label
+  : ident
+  ;
+
+expr_if
+  : IF expr block (ELSE block_or_if)? ;
+
+block_or_if : block | expr_if ;
+
+expr_loop
+  : (label COLON)? LOOP block
+  ;
+
+expr_while : (label COLON)? WHILE expr block ;
+
+expr_match
+  : MATCH expr LBRACE (match_clauses)? RBRACE
+  ;
+
+match_clauses
+  : match_clause match_clauses*
+  ;
+
+match_clause
+  : pats_or (IF expr)? FAT_ARROW (expr) (COMMA)?
+  ;
+
+expr_for
+  : (label COLON)? FOR pat IN expr block
+  ;
+
+expr_lambda : OR (maybetyped_args)? OR RARROW ret_ty? expr ;
 /*
 ===============================================================================
   Ty
@@ -161,12 +245,19 @@ type_param
 pat
  : LPAREN RPAREN
  | LPAREN pats RPAREN
- | ident
+ | expr
  ;
 
 pats
  : pat (COMMA)? | pat COMMA pats
  ;
+
+pats_or
+  : pat
+  | pat OR pats_or ;
+
+maybetyped_args : maybetyped_arg | maybetyped_arg COMMA maybetyped_args ;
+maybetyped_arg : pat (COLON ty)? ;
 
 /*
 ===============================================================================
@@ -178,12 +269,64 @@ exprs
   : expr | expr COMMA exprs
   ;
 
-expr
-  : expr_dot_or_call
+expr : expr_1 EQ expr
+  | expr_1 BINOPEQ expr
+  | expr_1
   ;
 
-expr_assoc
-  :
+expr_1 : expr_1 OR expr_2
+  | expr_2 ;
+expr_2 : expr_2 AND expr_3
+  | expr_3 ;
+
+expr_3 : expr_3 EQEQ expr_4
+  | expr_3 NE expr_4
+  | expr_4 ;
+
+expr_4 : expr_4 LT expr_5
+  | expr_4 LE expr_5
+  | expr_4 GE expr_5
+  | expr_4 GT expr_5
+  | expr_5
+  ;
+
+expr_5
+  : expr_6
+  ;
+
+expr_6
+  : expr_6 OR OR expr_7
+  | expr_7
+  ;
+
+expr_7
+  : expr_8 CARET expr_9
+  | expr_9
+  ;
+
+expr_8
+  : expr_8 AND expr_9
+  | expr_9
+  ;
+
+expr_9
+  : expr_9 (LT LT | GT GT) expr_10
+  | expr_10
+  ;
+
+expr_10
+  : expr_10 (PLUS | MINUS) expr_11
+  | expr_11
+  ;
+
+expr_11
+  : expr_11 AS ty
+  | expr_12
+  ;
+
+expr_12
+  : expr_12 (STAR | SLASH | PERCENT) expr_prefix
+  | expr_prefix
   ;
 
 expr_prefix
@@ -193,7 +336,7 @@ expr_prefix
   ;
 
 expr_dot_or_call
-  : expr_dot_or_call DOT ident (MOD_SEP LT (generics)? GT)? (LPAREN (exprs)? RPAREN)?
+  : expr_dot_or_call DOT (ident | LIT_INTEGER) (MOD_SEP LT (generics)? GT)? (LPAREN (exprs)? RPAREN)?
   | expr_dot_or_call LPAREN (exprs)? RPAREN
   | expr_dot_or_call LBRACKET expr RBRACKET
   | expr_bottom
@@ -201,9 +344,11 @@ expr_dot_or_call
 
 expr_bottom
   : LPAREN (exprs (COMMA)?)? RPAREN
+  | expr_lambda
   | RETURN (expr)?
-  | BREAK (ident)?
+  | BREAK (label)?
   | path_with_colon_tps
+  | expr_stmt
   | lit
   ;
 

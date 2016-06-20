@@ -42,10 +42,18 @@ tokens {
 ===============================================================================
 */
 
+AS: 'as';
 BREAK: 'break';
+ELSE: 'else';
 FALSE: 'false';
 FN :'fn';
+FOR: 'for';
+IF: 'if';
 IMPORT: 'import';
+IN: 'in';
+LET: 'let';
+LOOP: 'loop';
+MATCH: 'match';
 MOD: 'mod';
 PUB: 'pub';
 PRIV: 'priv';
@@ -53,6 +61,9 @@ RETURN: 'return';
 SELF: 'self';
 TRUE: 'true';
 TYPE: 'type';
+UNSAFE: 'unsafe';
+VAR: 'var';
+WHILE: 'while';
 
 /* Expression-operator symbols */
 
@@ -209,20 +220,19 @@ LIFETIME : '\'' IDENT ;
 
 WHITESPACE : [ \r\n\t]+ -> skip;
 
-UNDOC_COMMENT     : '////' ~[\n]* -> type(COMMENT) ;
-YESDOC_COMMENT    : '///' ~[\r\n]* -> type(DOC_COMMENT) ;
-OUTER_DOC_COMMENT : '//!' ~[\r\n]* -> type(DOC_COMMENT) ;
-LINE_COMMENT      : '//' ( ~[/\n] ~[\n]* )? -> type(COMMENT) ;
+UNDOC_COMMENT     : '////' ~[\n]* -> skip;
+YESDOC_COMMENT    : '///' ~[\r\n]* -> skip;
+OUTER_DOC_COMMENT : '//!' ~[\r\n]* -> skip;
+LINE_COMMENT      : '//' ( ~[/\n] ~[\n]* )? -> skip;
 
 DOC_BLOCK_COMMENT
-  : ('/**' ~[*] | '/*!') (DOC_BLOCK_COMMENT | .)*? '*/' -> type(DOC_COMMENT)
-  ;
+  : ('/**' ~[*] | '/*!') (DOC_BLOCK_COMMENT | .)*? '*/' -> skip;
 
-BLOCK_COMMENT : '/*' (BLOCK_COMMENT | .)*? '*/' -> type(COMMENT) ;
+BLOCK_COMMENT : '/*' (BLOCK_COMMENT | .)*? '*/' -> skip;
 
 /* these appear at the beginning of a file */
 
-SHEBANG : '#!' { is_at(2) && _input.LA(1) != '[' }? ~[\r\n]* -> type(SHEBANG) ;
+SHEBANG : '#!' { is_at(2) && _input.LA(1) != '[' }? ~[\r\n]* -> skip;
 
 UTF8_BOM : '\ufeff' { is_at(1) }? -> skip ;
 

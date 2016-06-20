@@ -1,0 +1,23 @@
+fn test() {
+  loop {}
+}
+
+fn test() {
+  while true {}
+}
+
+fn test() {
+  var x = 0;
+  var y = 0;
+
+  loop {
+    if x > 10 { break; }
+    x += 1;
+  }
+
+  label1: loop {
+    if y > 10 { break label1; }
+    y += 1;
+  }
+}
+
