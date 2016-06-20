@@ -375,4 +375,41 @@ impl CodeMap {
       file_loader: Box::new(RealFileLoader)
     }
   }
+
+  fn next_start_pos(&self) -> usize {
+    let files = self.files.borrow();
+    match files.last() {
+      None => 0,
+      // Add one so there is some space between files. This lets us distinguish
+      // positions in the codemap, even in the presence of zero-length files.
+      Some(last) => last.end_pos.to_usize() + 1,
+    }
+  }
+
+  /// Creates a new filemap without setting its line information. If you don't
+  /// intend to set the line information yourself, you should use new_filemap_and_lines.
+  pub fn new_filemap(&self, filename: FileName, mut src: String) -> Rc<FileMap> {
+    let start_pos = self.next_start_pos();
+    let mut files = self.files.borrow_mut();
+
+    // Remove utf-8 BOM if any.
+    if src.starts_with("\u{feff}") {
+      src.drain(..3);
+    }
+
+    let end_pos = start_pos + src.len();
+
+    let filemap = Rc::new(FileMap {
+      name: filename,
+      src: Some(Rc::new(src)),
+      start_pos: Pos::from_usize(start_pos),
+      end_pos: Pos::from_usize(end_pos),
+      lines: RefCell::new(Vec::new()),
+      multibyte_chars: RefCell::new(Vec::new()),
+    });
+
+    files.push(filemap.clone());
+
+    filemap
+  }
 }

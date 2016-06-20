@@ -4,7 +4,7 @@ use std::mem::replace;
 use std::rc::Rc;
 
 use ast::{self};
-use codemap::{self, BytePos, CharPos, Span, Pos};
+use codemap::{self, BytePos, CharPos, CodeMap, Span, Pos};
 use error_handler::{Handler, DiagnosticBuilder};
 use unicode_chars;
 use token::{self, str_to_ident};
@@ -159,13 +159,22 @@ impl<'a> StringReader<'a> {
     sr
   }
 
-  pub fn new(source: Rc<String>, span_diagnostic: &'a Handler) -> StringReader<'a> {
+  pub fn new(span_diagnostic: &'a Handler,
+             filemap: Rc<codemap::FileMap>)
+             -> StringReader<'a> {
     let mut sr = StringReader::new_raw(span_diagnostic, filemap);
     if let Err(_) = sr.advance_token() {
       sr.emit_fatal_errors();
       panic!(FatalError);
     }
     sr
+  }
+
+  pub fn new_from_str(source: String, span_diagnostic: &'a Handler) -> StringReader<'a> {
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.new_filemap("".to_string(), source);
+
+    StringReader::new(span_diagnostic, filemap)
   }
 
   #[allow(unused_variables)]
@@ -1001,7 +1010,7 @@ mod tests {
     let mut result: Vec<token::Token> = Vec::new();
 
     let sess = ParseSess::new();
-    let mut sr = StringReader::new(Rc::new(source.to_string()), &sess.span_diagnostic);
+    let mut sr = StringReader::new_from_str(source.to_string(), &sess.span_diagnostic);
 
     loop {
       let tok = sr.next_token().tok;

@@ -3090,14 +3090,14 @@ mod tests {
 
 
   /// Given tts and cfg, produce a parser
-  fn str_to_parser(sess: &ParseSess, src: Rc<String>) -> Parser {
-    let r = StringReader::new(src, &sess.span_diagnostic);
+  fn str_to_parser(sess: &ParseSess, src: String) -> Parser {
+    let r = StringReader::new_from_str(src, &sess.span_diagnostic);
     Parser::new(sess, Box::new(r))
   }
 
   fn str_to<F, T>(src: &str, f: F) -> T where F: FnOnce(&mut Parser) -> T {
     let sess: ParseSess = ParseSess::new();
-    let mut parser = str_to_parser(&sess, Rc::new(src.to_string()));
+    let mut parser = str_to_parser(&sess, src.to_string());
     f(&mut parser)
   }
 
@@ -3113,7 +3113,7 @@ mod tests {
   fn test_parser_bump() {
     let src = "fn abc(aaa: Int) {}";
     let sess: ParseSess = ParseSess::new();
-    let mut parser = str_to_parser(&sess, Rc::new(src.to_string()));
+    let mut parser = str_to_parser(&sess, src.to_string());
 
     loop {
       let t = parser.token.clone();
