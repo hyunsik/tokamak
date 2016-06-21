@@ -61,6 +61,7 @@ use itertools::Itertools;
 use self::AnnNode::*;
 use self::Breaks::*;
 
+use abi::Abi;
 use ast::{self};
 use codemap::{self, CodeMap, BytePos};
 use comments;
@@ -917,6 +918,46 @@ impl<'a> State<'a> {
     Ok(())
   }
 
+  pub fn break_offset_if_not_bol(&mut self, n: usize,
+                                 off: isize) -> io::Result<()> {
+    if !self.is_bol() {
+      break_offset(&mut self.s, n, off)
+    } else {
+      if off != 0 && self.s.last_token().is_hardbreak_tok() {
+        // We do something pretty sketchy here: tuck the nonzero
+        // offset-adjustment we were going to deposit along with the
+        // break into the previous hardbreak.
+        self.s.replace_last_token(hardbreak_tok_offset(off));
+      }
+      Ok(())
+    }
+  }
+
+  pub fn bopen(&mut self) -> io::Result<()> {
+    try!(word(&mut self.s, "{"));
+    self.end() // close the head-box
+  }
+
+  pub fn bclose_(&mut self, span: codemap::Span,
+                 indented: usize) -> io::Result<()> {
+    self.bclose_maybe_open(span, indented, true)
+  }
+
+  pub fn bclose(&mut self, span: codemap::Span) -> io::Result<()> {
+    self.bclose_(span, INDENT_UNIT)
+  }
+
+  pub fn bclose_maybe_open(&mut self, span: codemap::Span,
+                           indented: usize, close_box: bool) -> io::Result<()> {
+    //try!(self.maybe_print_comment(span.hi));
+    self.break_offset_if_not_bol(1, -(indented as isize))?;
+    word(&mut self.s, "}")?;
+    if close_box {
+      self.end()?; // close the outer-box
+    }
+    Ok(())
+  }
+
   pub fn print_ident(&mut self, ident: ast::Ident) -> io::Result<()> {
     word(&mut self.s, &ident.name.as_str())?;
     self.ann.post(self, NodeIdent(&ident))
@@ -943,6 +984,13 @@ impl<'a> State<'a> {
         word(&mut self.s, ";")?;
         self.end()?; // end inner head-block
         self.end()?; // end outer head-block
+      }
+      ast::ItemKind::ForeignMod(ref nmod) => {
+        self.head("extern")?;
+        self.word_nbsp(&nmod.abi.to_string())?;
+        self.bopen()?;
+        self.print_foreign_mod(nmod, &item.attrs)?;
+        self.bclose(item.span)?;
       }
       _ => {
         unimplemented!()
@@ -1022,6 +1070,62 @@ impl<'a> State<'a> {
     }
 
     Ok(())
+  }
+
+  pub fn print_foreign_mod(&mut self, nmod: &ast::ForeignMod,
+                           attrs: &[ast::Attribute]) -> io::Result<()> {
+    //self.print_inner_attributes(attrs)?;
+    for item in &nmod.items {
+      self.print_foreign_item(item)?;
+    }
+    Ok(())
+  }
+
+  pub fn print_foreign_item(&mut self,
+                            item: &ast::ForeignItem) -> io::Result<()> {
+    self.hardbreak_if_not_bol()?;
+    //self.maybe_print_comment(item.span.lo)?;
+    //self.print_outer_attributes(&item.attrs)?;
+    match item.node {
+      ast::ForeignItemKind::Fn(ref decl) => {
+        self.head("")?;
+        self.print_fn(decl,
+                      ast::Unsafety::Normal,
+                      ast::Constness::NotConst,
+                      Abi::Rust,
+                      Some(item.ident),
+                      &item.vis)?;
+        self.end()?; // end head-ibox
+        word(&mut self.s, ";")?;
+        self.end() // end the outer fn box
+      }
+      ast::ForeignItemKind::Static(ref t, m) => {
+        self.head(&visibility_qualified(&item.vis, "static"))?;
+        if m {
+          self.word_space("mut")?;
+        }
+        self.print_ident(item.ident)?;
+        self.word_space(":")?;
+        self.print_type(&t)?;
+        word(&mut self.s, ";")?;
+        self.end()?; // end the head-ibox
+        self.end() // end the outer cbox
+      }
+    }
+  }
+
+  pub fn print_fn(&mut self,
+                  decl: &ast::FnDecl,
+                  unsafety: ast::Unsafety,
+                  constness: ast::Constness,
+                  abi: Abi,
+                  name: Option<ast::Ident>,
+                  vis: &ast::Visibility) -> io::Result<()> {
+    unimplemented!()
+  }
+
+  pub fn print_type(&mut self, ty: &ast::Ty) -> io::Result<()> {
+    unimplemented!()
   }
 }
 
