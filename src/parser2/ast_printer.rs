@@ -786,6 +786,10 @@ pub trait PrintState<'a> {
     try!(word(self.writer(), w));
     space(self.writer())
   }
+
+  fn popen(&mut self) -> io::Result<()> { word(self.writer(), "(") }
+
+  fn pclose(&mut self) -> io::Result<()> { word(self.writer(), ")") }
 }
 
 impl<'a> PrintState<'a> for State<'a> {
@@ -1125,7 +1129,42 @@ impl<'a> State<'a> {
   }
 
   pub fn print_type(&mut self, ty: &ast::Ty) -> io::Result<()> {
-    unimplemented!()
+    //self.maybe_print_comment(ty.span.lo)?;
+    self.ibox(0)?;
+
+    match ty.node {
+      ast::TyKind::Vec(ref ty) => {
+        word(&mut self.s, "[")?;
+        self.print_type(&ty)?;
+        word(&mut self.s, "]")?;
+      }
+
+      ast::TyKind::Path(ref path) => {
+        self.print_path(path, false, 0)?;
+      }
+
+      ast::TyKind::Tup(ref elts) => {
+        self.popen()?;
+        self.commasep(Inconsistent, &elts[..],
+                           |s, ty| s.print_type(&ty))?;
+        if elts.len() == 1 {
+          word(&mut self.s, ",")?;
+        }
+        self.pclose()?;
+      }
+
+      ast::TyKind::Paren(ref typ) => {
+        self.popen()?;
+        self.print_type(&typ)?;
+        self.pclose()?;
+      }
+
+      ast::TyKind::Infer => {
+        word(&mut self.s, "_")?;
+      }
+    }
+
+    self.end()
   }
 }
 
