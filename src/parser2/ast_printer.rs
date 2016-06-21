@@ -58,6 +58,9 @@ use std::string;
 
 use itertools::Itertools;
 
+use self::AnnNode::*;
+use self::Breaks::*;
+
 use ast::{self};
 use codemap::{self, CodeMap, BytePos};
 use comments;
@@ -784,6 +787,28 @@ pub trait PrintState<'a> {
   }
 }
 
+impl<'a> PrintState<'a> for State<'a> {
+  fn writer(&mut self) -> &mut Printer<'a> {
+    &mut self.s
+  }
+
+  fn boxes(&mut self) -> &mut Vec<Breaks> {
+    &mut self.boxes
+  }
+
+  fn comments(&mut self) -> &mut Option<Vec<comments::Comment>> {
+    &mut self.comments
+  }
+
+  fn cur_cmnt_and_lit(&mut self) -> &mut CurrentCommentAndLiteral {
+    &mut self.cur_cmnt_and_lit
+  }
+
+  fn literals(&self) -> &Option<Vec<comments::Literal>> {
+    &self.literals
+  }
+}
+
 impl<'a> State<'a> {
 
   pub fn new_from_input(cm: &'a CodeMap,
@@ -828,6 +853,75 @@ impl<'a> State<'a> {
     }
   }
 
+  pub fn cbox(&mut self, u: usize) -> io::Result<()> {
+    self.boxes.push(Breaks::Consistent);
+    cbox(&mut self.s, u)
+  }
+
+  // "raw box"
+  fn rbox(&mut self, u: usize, b: Breaks) -> io::Result<()> {
+    self.boxes().push(b);
+    rbox(self.writer(), u, b)
+  }
+
+  fn ibox(&mut self, u: usize) -> io::Result<()> {
+    self.boxes().push(Breaks::Inconsistent);
+    ibox(self.writer(), u)
+  }
+
+  pub fn word_nbsp(&mut self, w: &str) -> io::Result<()> {
+    word(&mut self.s, w)?;
+    self.nbsp()
+  }
+
+  fn nbsp(&mut self) -> io::Result<()> { word(self.writer(), " ") }
+
+  pub fn head(&mut self, w: &str) -> io::Result<()> {
+    // outer-box is consistent
+    self.cbox(INDENT_UNIT)?;
+    // head-box is inconsistent
+    self.ibox(w.len() + 1)?;
+    // keyword that starts the head
+    if !w.is_empty() {
+      self.word_nbsp(w)?;
+    }
+    Ok(())
+  }
+
+  fn end(&mut self) -> io::Result<()> {
+    self.boxes().pop().unwrap();
+    end(self.writer())
+  }
+
+  fn commasep<T, F>(&mut self, b: Breaks, elts: &[T], mut op: F) -> io::Result<()>
+    where F: FnMut(&mut Self, &T) -> io::Result<()>,
+  {
+    try!(self.rbox(0, b));
+    let mut first = true;
+    for elt in elts {
+      if first { first = false; } else { try!(self.word_space(",")); }
+      try!(op(self, elt));
+    }
+    self.end()
+  }
+
+  // is this the beginning of a line?
+  fn is_bol(&mut self) -> bool {
+    self.writer().last_token().is_eof() || self.writer().last_token().is_hardbreak_tok()
+  }
+
+  fn hardbreak_if_not_bol(&mut self) -> io::Result<()> {
+    if !self.is_bol() {
+      hardbreak(self.writer())?
+    }
+    Ok(())
+  }
+
+  pub fn print_ident(&mut self, ident: ast::Ident) -> io::Result<()> {
+    word(&mut self.s, &ident.name.as_str())?;
+    self.ann.post(self, NodeIdent(&ident))
+  }
+
   pub fn print_mod(&mut self, _mod: &ast::Module,
                    attrs: &[ast::Attribute]) -> io::Result<()> {
     for item in &_mod.items {
@@ -838,10 +932,105 @@ impl<'a> State<'a> {
 
   /// Pretty-print an item
   pub fn print_item(&mut self, item: &ast::Item) -> io::Result<()> {
+    self.hardbreak_if_not_bol()?;
+    // self.maybe_print_comment(item.span.lo)?; TODO
+    self.ann.pre(self, NodeItem(item))?;
+
+    match item.node {
+      ast::ItemKind::Import(ref vp) => {
+        self.head(&visibility_qualified(&item.vis, "use"))?;
+        self.print_view_path(&vp)?;
+        word(&mut self.s, ";")?;
+        self.end()?; // end inner head-block
+        self.end()?; // end outer head-block
+      }
+      _ => {
+        unimplemented!()
+      }
+    }
     unimplemented!()
+  }
+
+  pub fn print_view_path(&mut self, vp: &ast::ViewPath) -> io::Result<()> {
+    match vp.node {
+      ast::ViewPathSimple(ident, ref path) => {
+        self.print_path(path, false, 0)?;
+
+        if path.segments.last().unwrap().identifier.name != ident.name {
+          space(&mut self.s)?;
+          self.word_space("as")?;
+          self.print_ident(ident)?;
+        }
+
+        Ok(())
+      }
+      ast::ViewPathGlob(ref path) => {
+        self.print_path(path, false, 0)?;
+        word(&mut self.s, "::*")
+      }
+      ast::ViewPathList(ref path, ref idents) => {
+        if path.segments.is_empty() {
+          word(&mut self.s, "{")?;
+        } else {
+          self.print_path(path, false, 0)?;
+          word(&mut self.s, "::{")?;
+        }
+        self.commasep(Inconsistent, &idents[..], |s, w| {
+          match w.node {
+            ast::PathListItemKind::Ident { name, rename, .. } => {
+              s.print_ident(name)?;
+              if let Some(ident) = rename {
+                space(&mut s.s)?;
+                s.word_space("as")?;
+                s.print_ident(ident)?;
+              }
+              Ok(())
+            },
+            ast::PathListItemKind::Mod { rename, .. } => {
+              word(&mut s.s, "self")?;
+              if let Some(ident) = rename {
+                space(&mut s.s)?;
+                s.word_space("as")?;
+                s.print_ident(ident)?;
+              }
+              Ok(())
+            }
+          }
+        })?;
+        word(&mut self.s, "}")
+      }
+    }
+  }
+
+  fn print_path(&mut self,
+                path: &ast::Path,
+                colons_before_params: bool,
+                depth: usize)
+                -> io::Result<()>
+  {
+    //self.maybe_print_comment(path.span.lo)?;
+
+    let mut first = !path.global;
+    for segment in &path.segments[..path.segments.len()-depth] {
+      if first {
+        first = false
+      } else {
+        word(&mut self.s, "::")?
+      }
+
+      self.print_ident(segment.identifier)?;
+    }
+
+    Ok(())
   }
 }
 
+pub fn visibility_qualified(vis: &ast::Visibility, s: &str) -> String {
+  match *vis {
+    ast::Visibility::Public => format!("pub {}", s),
+    ast::Visibility::Inherited => s.to_string()
+  }
+}
 
 
 pub fn path_to_string(p: &ast::Path) -> String {
