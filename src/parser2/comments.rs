@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::usize;
 
-use self::CommentStyle::*;
+pub use self::CommentStyle::*;
 
 use ast;
 use codemap::{BytePos, CharPos, CodeMap, FileMap, Pos};

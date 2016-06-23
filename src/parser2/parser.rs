@@ -2271,9 +2271,9 @@ impl<'a> Parser<'a> {
       token::OpenDelim(token::Paren) => {
         // Parse (pat,pat,pat,...) as tuple pattern
         self.bump();
-        let fields = self.parse_pat_tuple_elements()?;
+        let (fields, ddpos) = self.parse_pat_tuple_elements(false)?;
         self.expect(&token::CloseDelim(token::Paren))?;
-        pat = PatKind::Tup(fields);
+        pat = PatKind::Tuple(fields, ddpos);
       }
       token::OpenDelim(token::Bracket) => {
         // Parse [pat,pat,...] as slice pattern
@@ -2314,21 +2314,14 @@ impl<'a> Parser<'a> {
                 pat = PatKind::Struct(path, fields, etc);
               }
               token::OpenDelim(token::Paren) => {
-                // Parse tuple struct or enum pattern
-                if self.look_ahead(1, |t| *t == token::DotDot) {
-                  // This is a "top constructor only" pat
-                  self.bump();
-                  self.bump();
-                  self.expect(&token::CloseDelim(token::Paren))?;
-                  pat = PatKind::TupleStruct(path, None);
-                } else {
-                  let args = self.parse_enum_variant_seq(
-                    &token::OpenDelim(token::Paren),
-                    &token::CloseDelim(token::Paren),
-                    SeqSep::trailing_allowed(token::Comma),
-                    |p| p.parse_pat())?;
-                  pat = PatKind::TupleStruct(path, Some(args));
+                if qself.is_some() {
+                  return Err(self.fatal("unexpected `(` after qualified path"));
                 }
+                // Parse tuple struct or enum pattern
+                self.bump();
+                let (fields, ddpos) = self.parse_pat_tuple_elements(false)?;
+                self.expect(&token::CloseDelim(token::Paren))?;
+                pat = PatKind::TupleStruct(path, fields, ddpos)
               }
               _ => {
                 pat = match qself {
@@ -2355,21 +2348,34 @@ impl<'a> Parser<'a> {
     }))
   }
 
-  fn parse_pat_tuple_elements(&mut self) -> PResult<Vec<P<Pat>>> {
+  fn parse_pat_tuple_elements(&mut self, unary_needs_comma: bool)
+      -> PResult<(Vec<P<Pat>>, Option<usize>)> {
+
     let mut fields = vec![];
-    if !self.check(&token::CloseDelim(token::Paren)) {
-      fields.push(self.parse_pat()?);
-      if self.look_ahead(1, |t| *t != token::CloseDelim(token::Paren)) {
-        while self.eat(&token::Comma) &&
-        !self.check(&token::CloseDelim(token::Paren)) {
+    let mut ddpos = None;
+
+    while !self.check(&token::CloseDelim(token::Paren)) {
+      if ddpos.is_none() && self.eat(&token::DotDot) {
+        ddpos = Some(fields.len());
+        if self.eat(&token::Comma) {
+          // `..` needs to be followed by `)` or `, pat`, `..,)` is disallowed.
           fields.push(self.parse_pat()?);
         }
+      } else if ddpos.is_some() && self.eat(&token::DotDot) {
+        // Emit a friendly error, ignore `..` and continue parsing
+        self.span_err(self.last_span, "`..` can only be used once per \
+                                               tuple or tuple struct pattern");
+      } else {
+        fields.push(self.parse_pat()?);
       }
-      if fields.len() == 1 {
+
+      if !self.check(&token::CloseDelim(token::Paren)) ||
+          (unary_needs_comma && fields.len() == 1 && ddpos.is_none()) {
         self.expect(&token::Comma)?;
       }
     }
-    Ok(fields)
+
+    Ok((fields, ddpos))
   }
 
   fn parse_pat_vec_elements(&mut self) -> PResult<(Vec<P<Pat>>, Option<P<Pat>>, Vec<P<Pat>>)> {

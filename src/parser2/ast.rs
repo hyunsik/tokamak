@@ -475,26 +475,29 @@ pub enum PatKind {
   /// set (of "PatIdents that refer to unit patterns or constants").
   Ident(BindingMode, SpannedIdent, Option<P<Pat>>),
 
+  /// A path pattern.
+  /// Such pattern can be resolved to a unit struct/variant or a constant.
+  Path(Path),
+
   /// An associated const named using the qualified path `<T>::CONST` or
   /// `<T as Trait>::CONST`. Associated consts from inherent impls can be
   /// referred to as simply `T::CONST`, in which case they will end up as
   /// PatKind::Path, and the resolver will have to sort that out.
   QPath(QSelf, Path),
 
-  /// A path pattern.
-  /// Such pattern can be resolved to a unit struct/variant or a constant.
-  Path(Path),
-
   /// A struct or struct variant pattern, e.g. `Variant {x, y, ..}`.
   /// The `bool` is `true` in the presence of a `..`.
   Struct(Path, Vec<Spanned<FieldPat>>, bool),
 
-  /// A tuple struct/variant pattern `Variant(x, y, z)`.
-  /// "None" means a `Variant(..)` pattern where we don't bind the fields to names.
-  TupleStruct(Path, Option<Vec<P<Pat>>>),
+  /// A tuple pattern `(a, b)`.
+  /// If the `..` pattern fragment is present, then `Option<usize>` denotes its position.
+  /// 0 <= position <= subpats.len()
+  Tuple(Vec<P<Pat>>, Option<usize>),
 
-  /// A tuple pattern `(a, b)`
-  Tup(Vec<P<Pat>>),
+  /// A tuple struct/variant pattern `Variant(x, y, .., z)`.
+  /// If the `..` pattern fragment is present, then `Option<usize>` denotes its position.
+  /// 0 <= position <= subpats.len()
+  TupleStruct(Path, Vec<P<Pat>>, Option<usize>),
 
   /// `[a, b, ..i, y, z]` is represented as:
   ///     `PatKind::Vec(box [a, b], Some(i), box [y, z])`

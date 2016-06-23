@@ -62,10 +62,11 @@ use self::AnnNode::*;
 use self::Breaks::*;
 
 use abi::Abi;
-use ast::{self};
+use ast::{self, PatKind};
 use codemap::{self, CodeMap, BytePos};
 use comments;
 use error_handler as errors;
+use token::keywords;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Breaks {
@@ -881,6 +882,11 @@ impl<'a> State<'a> {
 
   fn nbsp(&mut self) -> io::Result<()> { word(self.writer(), " ") }
 
+  fn space_if_not_bol(&mut self) -> io::Result<()> {
+    if !self.is_bol() { try!(space(self.writer())); }
+    Ok(())
+  }
+
   pub fn head(&mut self, w: &str) -> io::Result<()> {
     // outer-box is consistent
     self.cbox(INDENT_UNIT)?;
@@ -908,6 +914,20 @@ impl<'a> State<'a> {
       try!(op(self, elt));
     }
     self.end()
+  }
+
+  fn is_begin(&mut self) -> bool {
+    match self.writer().last_token() {
+      Token::Begin(_) => true,
+      _ => false,
+    }
+  }
+
+  fn is_end(&mut self) -> bool {
+    match self.writer().last_token() {
+      Token::End => true,
+      _ => false,
+    }
   }
 
   // is this the beginning of a line?
@@ -953,13 +973,135 @@ impl<'a> State<'a> {
 
   pub fn bclose_maybe_open(&mut self, span: codemap::Span,
                            indented: usize, close_box: bool) -> io::Result<()> {
-    //try!(self.maybe_print_comment(span.hi));
+    self.maybe_print_comment(span.hi)?;
     self.break_offset_if_not_bol(1, -(indented as isize))?;
     word(&mut self.s, "}")?;
     if close_box {
       self.end()?; // close the outer-box
     }
     Ok(())
+  }
+
+  // Synthesizes a comment that was not textually present in the original source
+  // file.
+  pub fn synth_comment(&mut self, text: String) -> io::Result<()> {
+    word(&mut self.s, "/*")?;
+    space(&mut self.s)?;
+    word(&mut self.s, &text[..])?;
+    space(&mut self.s)?;
+    word(&mut self.s, "*/")
+  }
+
+  pub fn commasep_cmnt<T, F, G>(&mut self,
+                                b: Breaks,
+                                elts: &[T],
+                                mut op: F,
+                                mut get_span: G) -> io::Result<()> where
+                                    F: FnMut(&mut State, &T) -> io::Result<()>,
+                                    G: FnMut(&T) -> codemap::Span,
+  {
+    self.rbox(0, b)?;
+    let len = elts.len();
+    let mut i = 0;
+    for elt in elts {
+      self.maybe_print_comment(get_span(elt).hi)?;
+      op(self, elt)?;
+      i += 1;
+      if i < len {
+        word(&mut self.s, ",")?;
+        self.maybe_print_trailing_comment(get_span(elt),
+                                          Some(get_span(&elts[i]).hi))?;
+        self.space_if_not_bol()?;
+      }
+    }
+    self.end()
+  }
+
+  fn maybe_print_comment(&mut self, pos: BytePos) -> io::Result<()> {
+    loop {
+      match self.next_comment() {
+        Some(ref cmnt) => {
+          if (*cmnt).pos < pos {
+            try!(self.print_comment(cmnt));
+            self.cur_cmnt_and_lit().cur_cmnt += 1;
+          } else { break; }
+        }
+        _ => break
+      }
+    }
+    Ok(())
+  }
+
+  fn next_comment(&mut self) -> Option<comments::Comment> {
+    let cur_cmnt = self.cur_cmnt_and_lit().cur_cmnt;
+    match *self.comments() {
+      Some(ref cmnts) => {
+        if cur_cmnt < cmnts.len() {
+          Some(cmnts[cur_cmnt].clone())
+        } else {
+          None
+        }
+      }
+      _ => None
+    }
+  }
+
+  pub fn maybe_print_trailing_comment(&mut self, span: codemap::Span,
+                                      next_pos: Option<BytePos>)
+                                      -> io::Result<()> {
+    unimplemented!()
+  }
+
+
+  fn print_comment(&mut self,
+                   cmnt: &comments::Comment) -> io::Result<()> {
+    match cmnt.style {
+      comments::Mixed => {
+        assert_eq!(cmnt.lines.len(), 1);
+        try!(zerobreak(self.writer()));
+        try!(word(self.writer(), &cmnt.lines[0]));
+        zerobreak(self.writer())
+      }
+      comments::Isolated => {
+        try!(self.hardbreak_if_not_bol());
+        for line in &cmnt.lines {
+          // Don't print empty lines because they will end up as trailing
+          // whitespace
+          if !line.is_empty() {
+            try!(word(self.writer(), &line[..]));
+          }
+          try!(hardbreak(self.writer()));
+        }
+        Ok(())
+      }
+      comments::Trailing => {
+        try!(word(self.writer(), " "));
+        if cmnt.lines.len() == 1 {
+          try!(word(self.writer(), &cmnt.lines[0]));
+          hardbreak(self.writer())
+        } else {
+          try!(self.ibox(0));
+          for line in &cmnt.lines {
+            if !line.is_empty() {
+              try!(word(self.writer(), &line[..]));
+            }
+            try!(hardbreak(self.writer()));
+          }
+          self.end()
+        }
+      }
+      comments::BlankLine => {
+        // We need to do at least one, possibly two hardbreaks.
+        let is_semi = match self.writer().last_token() {
+          Token::String(s, _) => ";" == s,
+          _ => false
+        };
+        if is_semi || self.is_begin() || self.is_end() {
+          try!(hardbreak(self.writer()));
+        }
+        hardbreak(self.writer())
+      }
+    }
   }
 
   pub fn print_ident(&mut self, ident: ast::Ident) -> io::Result<()> {
@@ -978,7 +1120,7 @@ impl<'a> State<'a> {
   /// Pretty-print an item
   pub fn print_item(&mut self, item: &ast::Item) -> io::Result<()> {
     self.hardbreak_if_not_bol()?;
-    // self.maybe_print_comment(item.span.lo)?; TODO
+    self.maybe_print_comment(item.span.lo)?;
     self.ann.pre(self, NodeItem(item))?;
 
     match item.node {
@@ -1060,7 +1202,7 @@ impl<'a> State<'a> {
                 depth: usize)
                 -> io::Result<()>
   {
-    //self.maybe_print_comment(path.span.lo)?;
+    self.maybe_print_comment(path.span.lo)?;
 
     let mut first = !path.global;
     for segment in &path.segments[..path.segments.len()-depth] {
@@ -1076,6 +1218,14 @@ impl<'a> State<'a> {
     Ok(())
   }
 
+  fn print_qpath(&mut self,
+                 path: &ast::Path,
+                 qself: &ast::QSelf,
+                 colons_before_params: bool)
+                 -> io::Result<()> {
+    unimplemented!()
+  }
+
   pub fn print_foreign_mod(&mut self, nmod: &ast::ForeignMod,
                            attrs: &[ast::Attribute]) -> io::Result<()> {
     //self.print_inner_attributes(attrs)?;
@@ -1088,7 +1238,7 @@ impl<'a> State<'a> {
   pub fn print_foreign_item(&mut self,
                             item: &ast::ForeignItem) -> io::Result<()> {
     self.hardbreak_if_not_bol()?;
-    //self.maybe_print_comment(item.span.lo)?;
+    self.maybe_print_comment(item.span.lo)?;
     //self.print_outer_attributes(&item.attrs)?;
     match item.node {
       ast::ForeignItemKind::Fn(ref decl) => {
@@ -1128,8 +1278,92 @@ impl<'a> State<'a> {
     unimplemented!()
   }
 
+  pub fn print_fn_header_info(&mut self,
+                              unsafety: ast::Unsafety,
+                              constness: ast::Constness,
+                              abi: Abi,
+                              vis: &ast::Visibility) -> io::Result<()> {
+    word(&mut self.s, &visibility_qualified(vis, ""))?;
+
+    match constness {
+      ast::Constness::NotConst => {}
+      ast::Constness::Const => try!(self.word_nbsp("const"))
+    }
+
+    self.print_unsafety(unsafety)?;
+
+    if abi != Abi::Rust {
+      self.word_nbsp("extern")?;
+      self.word_nbsp(&abi.to_string())?;
+    }
+
+    word(&mut self.s, "fn")
+  }
+
+  pub fn print_unsafety(&mut self, s: ast::Unsafety) -> io::Result<()> {
+    match s {
+      ast::Unsafety::Normal => Ok(()),
+      ast::Unsafety::Unsafe => self.word_nbsp("unsafe"),
+    }
+  }
+
+  pub fn print_fn_args_and_ret(&mut self, decl: &ast::FnDecl) -> io::Result<()> {
+    self.popen()?;
+    self.commasep(Inconsistent, &decl.inputs, |s, arg| s.print_arg(arg, false))?;
+    if decl.variadic {
+      word(&mut self.s, ", ...")?;
+    }
+    self.pclose()?;
+
+    self.print_fn_output(decl)
+  }
+
+  pub fn print_arg(&mut self, input: &ast::Arg, is_closure: bool) -> io::Result<()> {
+    self.ibox(INDENT_UNIT)?;
+    match input.ty.node {
+      ast::TyKind::Infer if is_closure => self.print_pat(&input.pat)?,
+      _ => {
+        let invalid = if let PatKind::Ident(_, ident, _) = input.pat.node {
+          ident.node.name == keywords::Invalid.name()
+        } else {
+          false
+        };
+        if !invalid {
+          self.print_pat(&input.pat)?;
+          word(&mut self.s, ":")?;
+          space(&mut self.s)?;
+        }
+        self.print_type(&input.ty)?;
+      }
+    }
+    self.end()
+  }
+
+  pub fn print_fn_output(&mut self, decl: &ast::FnDecl) -> io::Result<()> {
+    if let ast::FunctionRetTy::Default(..) = decl.output {
+      return Ok(());
+    }
+
+    self.space_if_not_bol()?;
+    self.ibox(INDENT_UNIT)?;
+    self.word_space("->")?;
+    match decl.output {
+      ast::FunctionRetTy::None(_) =>
+        self.word_nbsp("!")?,
+      ast::FunctionRetTy::Default(..) => unreachable!(),
+      ast::FunctionRetTy::Ty(ref ty) =>
+        self.print_type(&ty)?
+    }
+    self.end()?;
+
+    match decl.output {
+      ast::FunctionRetTy::Ty(ref output) => self.maybe_print_comment(output.span.lo),
+      _ => Ok(())
+    }
+  }
+
   pub fn print_type(&mut self, ty: &ast::Ty) -> io::Result<()> {
-    //self.maybe_print_comment(ty.span.lo)?;
+    self.maybe_print_comment(ty.span.lo)?;
     self.ibox(0)?;
 
     match ty.node {
@@ -1165,6 +1399,138 @@ impl<'a> State<'a> {
     }
 
     self.end()
+  }
+
+  pub fn print_pat(&mut self, pat: &ast::Pat) -> io::Result<()> {
+    self.maybe_print_comment(pat.span.lo)?;
+    self.ann.pre(self, NodePat(pat))?;
+
+    match pat.node {
+      PatKind::Wild => {
+        word(&mut self.s, "_");
+      },
+
+      PatKind::Ident(binding_mode, ref path1, ref sub) => {
+        match binding_mode {
+          ast::BindingMode::ByRef => {
+            self.word_nbsp("ref")?;
+          }
+          ast::BindingMode::ByValue => {}
+        }
+
+        self.print_ident(path1.node)?;
+        if let Some(ref p) = *sub {
+          word(&mut self.s, "@")?;
+          self.print_pat(&p)?;
+        }
+      }
+
+      PatKind::Path(ref path) => {
+        self.print_path(path, true, 0)?
+      },
+
+      PatKind::QPath(ref qself, ref path) => {
+        self.print_qpath(path, qself, false)?
+      },
+
+      PatKind::Struct(ref path, ref fields, etc) => {
+        self.print_path(path, true, 0)?;
+        self.nbsp()?;
+        self.word_space("{")?;
+        self.commasep_cmnt(
+          Consistent, &fields[..],
+          |s, f| {
+            s.cbox(INDENT_UNIT)?;
+            if !f.node.is_shorthand {
+              s.print_ident(f.node.ident)?;
+              s.word_nbsp(":")?;
+            }
+            s.print_pat(&f.node.pat)?;
+            s.end()
+          },
+          |f| f.node.pat.span)?;
+        if etc {
+          if !fields.is_empty() { self.word_space(",")?; }
+          word(&mut self.s, "..")?;
+        }
+        space(&mut self.s)?;
+        word(&mut self.s, "}")?;
+      }
+
+      PatKind::Tuple(ref elts, ddpos) => {
+        self.popen()?;
+        if let Some(ddpos) = ddpos {
+          self.commasep(Inconsistent, &elts[..ddpos], |s, p| s.print_pat(&p))?;
+          if ddpos != 0 {
+            self.word_space(",")?;
+          }
+          word(&mut self.s, "..")?;
+          if ddpos != elts.len() {
+            word(&mut self.s, ",")?;
+            self.commasep(Inconsistent, &elts[ddpos..], |s, p| s.print_pat(&p))?;
+          }
+        } else {
+          self.commasep(Inconsistent, &elts[..], |s, p| s.print_pat(&p))?;
+          if elts.len() == 1 {
+            word(&mut self.s, ",")?;
+          }
+        }
+        self.pclose()?;
+      }
+
+      PatKind::TupleStruct(ref path, ref elts, ddpos) => {
+        self.print_path(path, true, 0)?;
+        self.popen()?;
+        if let Some(ddpos) = ddpos {
+          self.commasep(Inconsistent, &elts[..ddpos], |s, p| s.print_pat(&p))?;
+          if ddpos != 0 {
+            self.word_space(",")?;
+          }
+          word(&mut self.s, "..")?;
+          if ddpos != elts.len() {
+            word(&mut self.s, ",")?;
+            self.commasep(Inconsistent, &elts[ddpos..], |s, p| s.print_pat(&p))?;
+          }
+        } else {
+          self.commasep(Inconsistent, &elts[..], |s, p| s.print_pat(&p))?;
+        }
+        self.pclose()?;
+      }
+
+      PatKind::Vec(ref before, ref slice, ref after) => {
+        word(&mut self.s, "[")?;
+        self.commasep(Inconsistent,
+                      &before[..],
+                      |s, p| s.print_pat(&p))?;
+        if let Some(ref p) = *slice {
+          if !before.is_empty() { self.word_space(",")?; }
+          if p.node != PatKind::Wild {
+            self.print_pat(&p)?;
+          }
+          word(&mut self.s, "..")?;
+          if !after.is_empty() { self.word_space(",")?; }
+        }
+        self.commasep(Inconsistent,
+                      &after[..],
+                      |s, p| s.print_pat(&p))?;
+        word(&mut self.s, "]")?;
+      }
+
+      PatKind::Range(ref begin, ref end) => {
+        self.print_expr(&begin)?;
+        space(&mut self.s)?;
+        word(&mut self.s, "...")?;
+        self.print_expr(&end)?;
+      }
+
+      PatKind::Lit(ref e) => { self.print_expr(&**e)?; },
+    }
+
+    self.ann.post(self, NodePat(pat))
+  }
+
+  pub fn print_expr(&mut self, expr: &ast::Expr) -> io::Result<()> {
+    unimplemented!()
   }
 }
 
