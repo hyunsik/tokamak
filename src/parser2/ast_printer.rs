@@ -66,6 +66,7 @@ use ast::{self, PatKind};
 use codemap::{self, CodeMap, BytePos};
 use comments;
 use error_handler as errors;
+use precedence::AssocOp;
 use token::keywords;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -816,12 +817,11 @@ impl<'a> PrintState<'a> for State<'a> {
 }
 
 impl<'a> State<'a> {
-
   pub fn new_from_input(cm: &'a CodeMap,
                         span_diagnostic: &errors::Handler,
                         filename: String,
                         input: &mut Read,
-                        out: Box<Write+'a>,
+                        out: Box<Write + 'a>,
                         ann: &'a PpAnn,
                         is_expanded: bool) -> State<'a> {
     let (cmnts, lits) = comments::gather_comments_and_literals(
@@ -841,7 +841,7 @@ impl<'a> State<'a> {
   }
 
   pub fn new(cm: &'a CodeMap,
-             out: Box<Write+'a>,
+             out: Box<Write + 'a>,
              ann: &'a PpAnn,
              comments: Option<Vec<comments::Comment>>,
              literals: Option<Vec<comments::Literal>>) -> State<'a> {
@@ -1049,7 +1049,27 @@ impl<'a> State<'a> {
   pub fn maybe_print_trailing_comment(&mut self, span: codemap::Span,
                                       next_pos: Option<BytePos>)
                                       -> io::Result<()> {
-    unimplemented!()
+    let cm = match self.cm {
+      Some(cm) => cm,
+      _ => return Ok(())
+    };
+    match self.next_comment() {
+      Some(ref cmnt) => {
+        if (*cmnt).style != comments::Trailing { return Ok(()) }
+        let span_line = cm.lookup_char_pos(span.hi);
+        let comment_line = cm.lookup_char_pos((*cmnt).pos);
+        let mut next = (*cmnt).pos + BytePos(1);
+        match next_pos { None => (),
+          Some(p) => next = p }
+        if span.hi < (*cmnt).pos && (*cmnt).pos < next &&
+            span_line.line == comment_line.line {
+          try!(self.print_comment(cmnt));
+          self.cur_cmnt_and_lit.cur_cmnt += 1;
+        }
+      }
+      _ => ()
+    }
+    Ok(())
   }
 
 
@@ -1109,6 +1129,22 @@ impl<'a> State<'a> {
     self.ann.post(self, NodeIdent(&ident))
   }
 
+  pub fn print_usize(&mut self, i: usize) -> io::Result<()> {
+    word(&mut self.s, &i.to_string())
+  }
+
+  pub fn print_expr_maybe_paren(&mut self, expr: &ast::Expr) -> io::Result<()> {
+    let needs_par = needs_parentheses(expr);
+    if needs_par {
+      self.popen()?;
+    }
+    self.print_expr(expr)?;
+    if needs_par {
+      self.pclose()?;
+    }
+    Ok(())
+  }
+
   pub fn print_mod(&mut self, _mod: &ast::Module,
                    attrs: &[ast::Attribute]) -> io::Result<()> {
     for item in &_mod.items {
@@ -1125,7 +1161,7 @@ impl<'a> State<'a> {
 
     match item.node {
       ast::ItemKind::Import(ref vp) => {
-        self.head(&visibility_qualified(&item.vis, "use"))?;
+        self.head(&visibility_qualified(&item.vis, "import"))?;
         self.print_view_path(&vp)?;
         word(&mut self.s, ";")?;
         self.end()?; // end inner head-block
@@ -1142,7 +1178,7 @@ impl<'a> State<'a> {
         unimplemented!()
       }
     }
-    unimplemented!()
+    self.ann.post(self, NodeItem(item))
   }
 
   pub fn print_view_path(&mut self, vp: &ast::ViewPath) -> io::Result<()> {
@@ -1205,7 +1241,7 @@ impl<'a> State<'a> {
     self.maybe_print_comment(path.span.lo)?;
 
     let mut first = !path.global;
-    for segment in &path.segments[..path.segments.len()-depth] {
+    for segment in &path.segments[..path.segments.len() - depth] {
       if first {
         first = false
       } else {
@@ -1223,7 +1259,18 @@ impl<'a> State<'a> {
                  qself: &ast::QSelf,
                  colons_before_params: bool)
                  -> io::Result<()> {
-    unimplemented!()
+    word(&mut self.s, "<")?;
+    self.print_type(&qself.ty)?;
+    if qself.position > 0 {
+      space(&mut self.s)?;
+      self.word_space("as")?;
+      let depth = path.segments.len() - qself.position;
+      self.print_path(&path, false, depth)?;
+    }
+    word(&mut self.s, ">")?;
+    word(&mut self.s, "::")?;
+    let item_segment = path.segments.last().unwrap();
+    self.print_ident(item_segment.identifier)
   }
 
   pub fn print_foreign_mod(&mut self, nmod: &ast::ForeignMod,
@@ -1275,7 +1322,15 @@ impl<'a> State<'a> {
                   abi: Abi,
                   name: Option<ast::Ident>,
                   vis: &ast::Visibility) -> io::Result<()> {
-    unimplemented!()
+
+    self.print_fn_header_info(unsafety, constness, abi, vis)?;
+
+    if let Some(name) = name {
+      self.nbsp()?;
+      self.print_ident(name)?;
+    }
+
+    self.print_fn_args_and_ret(decl)
   }
 
   pub fn print_fn_header_info(&mut self,
@@ -1307,15 +1362,27 @@ impl<'a> State<'a> {
     }
   }
 
-  pub fn print_fn_args_and_ret(&mut self, decl: &ast::FnDecl) -> io::Result<()> {
+  pub fn print_fn_args_and_ret(&mut self, decl: &ast::FnDecl)
+                               -> io::Result<()> {
     self.popen()?;
-    self.commasep(Inconsistent, &decl.inputs, |s, arg| s.print_arg(arg, false))?;
+    self.print_fn_args(decl, false)?;
     if decl.variadic {
       word(&mut self.s, ", ...")?;
     }
     self.pclose()?;
 
     self.print_fn_output(decl)
+  }
+
+  pub fn print_fn_args(&mut self, decl: &ast::FnDecl,
+                       is_closure: bool) -> io::Result<()> {
+    self.rbox(0, Inconsistent)?;
+    let mut first = true;
+    for arg in &decl.inputs[..] {
+      if first { first = false; } else { self.word_space(",")?; }
+      self.print_arg(arg, is_closure)?;
+    }
+    self.end()
   }
 
   pub fn print_arg(&mut self, input: &ast::Arg, is_closure: bool) -> io::Result<()> {
@@ -1530,7 +1597,308 @@ impl<'a> State<'a> {
   }
 
   pub fn print_expr(&mut self, expr: &ast::Expr) -> io::Result<()> {
-    unimplemented!()
+    self.print_expr_outer_attr_style(expr, true)
+  }
+
+  fn print_expr_outer_attr_style(&mut self,
+                                 expr: &ast::Expr,
+                                 is_inline: bool) -> io::Result<()> {
+    try!(self.maybe_print_comment(expr.span.lo));
+
+    /*
+    let attrs = expr.attrs.as_attr_slice();
+    if is_inline {
+      try!(self.print_outer_attributes_inline(attrs));
+    } else {
+      try!(self.print_outer_attributes(attrs));
+    }*/
+
+    try!(self.ibox(INDENT_UNIT));
+    try!(self.ann.pre(self, NodeExpr(expr)));
+
+    match expr.node {
+
+      ast::ExprKind::Unary(op, ref expr) => {
+        self.print_expr_unary(op, &expr)?;
+      }
+
+      ast::ExprKind::Binary(op, ref lhs, ref rhs) => {
+        self.print_expr_binary(op, &lhs, &rhs)?;
+      }
+
+      ast::ExprKind::Cast(ref expr, ref ty) => {
+        if let ast::ExprKind::Cast(..) = expr.node {
+          self.print_expr(&expr)?;
+        } else {
+          self.print_expr_maybe_paren(&expr)?;
+        }
+        space(&mut self.s)?;
+        self.word_space("as")?;
+        self.print_type(&ty)?;
+      }
+
+      ast::ExprKind::Type(ref expr, ref ty) => {
+        self.print_expr(&expr)?;
+        self.word_space(":")?;
+        self.print_type(&ty)?;
+      }
+
+      ast::ExprKind::If(ref test, ref blk, ref elseopt) => {
+        unimplemented!()
+      }
+      ast::ExprKind::IfLet(ref pat, ref expr, ref blk, ref elseopt) => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::Closure => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::While => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::Loop => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::ForLoop => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::Match => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::Block => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::InPlace(ref place, ref expr) => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::Assign(ref lhs, ref rhs) => {
+        self.print_expr(&lhs)?;
+        space(&mut self.s)?;
+        self.word_space("=")?;
+        self.print_expr(&rhs)?;
+      }
+
+      ast::ExprKind::AssignOp(op, ref lhs, ref rhs) => {
+        self.print_expr(&lhs)?;
+        space(&mut self.s)?;
+        word(&mut self.s, op.node.to_string())?;
+        self.word_space("=")?;
+        self.print_expr(&rhs)?;
+      }
+
+      ast::ExprKind::Paren(ref e) => {
+        self.popen()?;
+//        try!(self.print_inner_attributes_inline(attrs));
+        self.print_expr(&e)?;
+        self.pclose()?;
+      }
+
+      ast::ExprKind::Path(None, ref path) => {
+        self.print_path(path, true, 0)?;
+      }
+
+      ast::ExprKind::Path(Some(ref qself), ref path) => {
+        self.print_qpath(path, qself, true)?;
+      }
+
+      ast::ExprKind::Struct(ref path, ref fields, ref wth) => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::Tup(ref exprs) => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::Field(ref expr, id) => {
+        self.print_expr(&expr)?;
+        word(&mut self.s, ".")?;
+        self.print_ident(id.node)?;
+      }
+
+      ast::ExprKind::TupField(ref expr, id) => {
+        self.print_expr(&expr)?;
+        word(&mut self.s, ".")?;
+        self.print_usize(id.node)?;
+      }
+
+      ast::ExprKind::Index(ref expr, ref index) => {
+        self.print_expr(&expr)?;
+        word(&mut self.s, "[")?;
+        self.print_expr(&index)?;
+        word(&mut self.s, "]")?;
+      }
+
+      ast::ExprKind::Range(ref start, ref end, limits) => {
+        if let &Some(ref e) = start {
+          self.print_expr(&e)?;
+        }
+        if limits == ast::RangeLimits::HalfOpen {
+          word(&mut self.s, "..")?;
+        } else {
+          word(&mut self.s, "...")?;
+        }
+        if let &Some(ref e) = end {
+          self.print_expr(&e)?;
+        }
+      }
+
+      ast::ExprKind::Call(ref func, ref args) => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::MethodCall(ident, ref tys, ref args) => {
+        unimplemented!()
+      }
+
+      ast::ExprKind::Lit(ref lit) => {
+        self.print_literal(&lit)?;
+      }
+    }
+
+    self.ann.post(self, NodeExpr(expr))?;
+    self.end()
+  }
+
+  fn print_expr_unary(&mut self,
+                      op: ast::UnOp,
+                      expr: &ast::Expr) -> io::Result<()> {
+    word(&mut self.s, ast::UnOp::to_string(op))?;
+    self.print_expr_maybe_paren(expr)
+  }
+
+  fn print_expr_binary(&mut self,
+                       op: ast::BinOp,
+                       lhs: &ast::Expr,
+                       rhs: &ast::Expr) -> io::Result<()> {
+    if self.check_expr_bin_needs_paren(lhs, op) {
+      self.print_expr_maybe_paren(lhs)?;
+    } else {
+      self.print_expr(lhs)?;
+    }
+    space(&mut self.s)?;
+    self.word_space(op.node.to_string())?;
+    if self.check_expr_bin_needs_paren(rhs, op) {
+      self.print_expr_maybe_paren(rhs)
+    } else {
+      self.print_expr(rhs)
+    }
+  }
+
+  pub fn check_expr_bin_needs_paren(&mut self, sub_expr: &ast::Expr,
+                                    binop: ast::BinOp) -> bool {
+    match sub_expr.node {
+      ast::ExprKind::Binary(ref sub_op, _, _) => {
+        if AssocOp::from_ast_binop(sub_op.node).precedence() <
+            AssocOp::from_ast_binop(binop.node).precedence() {
+          true
+        } else {
+          false
+        }
+      }
+      _ => true
+    }
+  }
+
+  fn print_literal(&mut self, lit: &ast::Lit) -> io::Result<()> {
+    try!(self.maybe_print_comment(lit.span.lo));
+    match self.next_lit(lit.span.lo) {
+      Some(ref ltrl) => {
+        return word(self.writer(), &(*ltrl).lit);
+      }
+      _ => ()
+    }
+    match lit.node {
+      ast::LitKind::Str(ref st, style) => self.print_string(&st, style),
+      ast::LitKind::Byte(byte) => {
+        let mut res = String::from("b'");
+        res.extend(ascii::escape_default(byte).map(|c| c as char));
+        res.push('\'');
+        word(self.writer(), &res[..])
+      }
+      ast::LitKind::Char(ch) => {
+        let mut res = String::from("'");
+        res.extend(ch.escape_default());
+        res.push('\'');
+        word(self.writer(), &res[..])
+      }
+      ast::LitKind::Int(i, t) => {
+        match t {
+          ast::LitIntType::Signed(st) => {
+            word(self.writer(),
+                 &st.val_to_string(i as i64))
+          }
+          ast::LitIntType::Unsigned(ut) => {
+            word(self.writer(), &ut.val_to_string(i))
+          }
+          ast::LitIntType::Unsuffixed => {
+            word(self.writer(), &format!("{}", i))
+          }
+        }
+      }
+      ast::LitKind::Float(ref f, t) => {
+        word(self.writer(),
+             &format!(
+               "{}{}",
+               &f,
+               t.ty_to_string()))
+      }
+      ast::LitKind::FloatUnsuffixed(ref f) => word(self.writer(), &f[..]),
+      ast::LitKind::Bool(val) => {
+        if val { word(self.writer(), "true") } else { word(self.writer(), "false") }
+      }
+      ast::LitKind::ByteStr(ref v) => {
+        let mut escaped: String = String::new();
+        for &ch in v.iter() {
+          escaped.extend(ascii::escape_default(ch)
+                             .map(|c| c as char));
+        }
+        word(self.writer(), &format!("b\"{}\"", escaped))
+      }
+    }
+  }
+
+  fn next_lit(&mut self, pos: BytePos) -> Option<comments::Literal> {
+    let mut cur_lit = self.cur_cmnt_and_lit().cur_lit;
+
+    let mut result = None;
+
+    if let &Some(ref lits) = self.literals()
+        {
+          while cur_lit < lits.len() {
+            let ltrl = (*lits)[cur_lit].clone();
+            if ltrl.pos > pos { break; }
+            cur_lit += 1;
+            if ltrl.pos == pos {
+              result = Some(ltrl);
+              break;
+            }
+          }
+        }
+
+    self.cur_cmnt_and_lit().cur_lit = cur_lit;
+    result
+  }
+
+  fn print_string(&mut self, st: &str,
+                  style: ast::StrStyle) -> io::Result<()> {
+    let st = match style {
+      ast::StrStyle::Cooked => {
+        (format!("\"{}\"", st.escape_default()))
+      }
+      ast::StrStyle::Raw(n) => {
+        (format!("r{delim}\"{string}\"{delim}",
+                 delim=repeat("#", n),
+                 string=st))
+      }
+    };
+    word(self.writer(), &st[..])
   }
 }
 
@@ -1541,6 +1909,15 @@ pub fn visibility_qualified(vis: &ast::Visibility, s: &str) -> String {
   }
 }
 
+fn needs_parentheses(expr: &ast::Expr) -> bool {
+  match expr.node {
+    ast::ExprKind::Assign(..) | ast::ExprKind::Binary(..) |
+    ast::ExprKind::Closure |
+    ast::ExprKind::AssignOp(..) | ast::ExprKind::Cast(..) |
+    ast::ExprKind::InPlace(..) | ast::ExprKind::Type(..) => true,
+    _ => false,
+  }
+}
 
 pub fn path_to_string(p: &ast::Path) -> String {
   let path_str = p.segments.iter().join("::");
@@ -1551,3 +1928,5 @@ pub fn path_to_string(p: &ast::Path) -> String {
     path_str
   }
 }
+
+fn repeat(s: &str, n: usize) -> String { iter::repeat(s).take(n).collect() }

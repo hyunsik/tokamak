@@ -242,6 +242,38 @@ impl From<Span> for MultiSpan {
 }
 
 // _____________________________________________________________________________
+// Loc, LocWithOpt, FileMapAndLine, FileMapAndBytePos
+//
+
+/// A source code location used for error reporting
+#[derive(Debug)]
+pub struct Loc {
+  /// Information about the original source
+  pub file: Rc<FileMap>,
+  /// The (1-based) line number
+  pub line: usize,
+  /// The (0-based) column offset
+  pub col: CharPos
+}
+
+/// A source code location used as the result of lookup_char_pos_adj
+// Actually, *none* of the clients use the filename *or* file field;
+// perhaps they should just be removed.
+#[derive(Debug)]
+pub struct LocWithOpt {
+  pub filename: FileName,
+  pub line: usize,
+  pub col: CharPos,
+  pub file: Option<Rc<FileMap>>,
+}
+
+// used to be structural records. Better names, anyone?
+#[derive(Debug)]
+pub struct FileMapAndLine { pub fm: Rc<FileMap>, pub line: usize }
+#[derive(Debug)]
+pub struct FileMapAndBytePos { pub fm: Rc<FileMap>, pub pos: BytePos }
+
+// _____________________________________________________________________________
 // ExpnFormat, NameAndSpan, ExpnInfo, ExpnId
 //
 
@@ -411,5 +443,114 @@ impl CodeMap {
     files.push(filemap.clone());
 
     filemap
+  }
+
+  /// Lookup source information about a BytePos
+  pub fn lookup_char_pos(&self, pos: BytePos) -> Loc {
+    let chpos = self.bytepos_to_file_charpos(pos);
+    match self.lookup_line(pos) {
+      Ok(FileMapAndLine { fm: f, line: a }) => {
+        let line = a + 1; // Line numbers start at 1
+        let linebpos = (*f.lines.borrow())[a];
+        let linechpos = self.bytepos_to_file_charpos(linebpos);
+        debug!("byte pos {:?} is on the line at byte pos {:?}",
+               pos, linebpos);
+        debug!("char pos {:?} is on the line at char pos {:?}",
+               chpos, linechpos);
+        debug!("byte is on line: {}", line);
+        assert!(chpos >= linechpos);
+        Loc {
+          file: f,
+          line: line,
+          col: chpos - linechpos,
+        }
+      }
+      Err(f) => {
+        Loc {
+          file: f,
+          line: 0,
+          col: chpos,
+        }
+      }
+    }
+  }
+
+  // If the relevant filemap is empty, we don't return a line number.
+  fn lookup_line(&self, pos: BytePos) -> Result<FileMapAndLine, Rc<FileMap>> {
+    let idx = self.lookup_filemap_idx(pos);
+
+    let files = self.files.borrow();
+    let f = (*files)[idx].clone();
+
+    let len = f.lines.borrow().len();
+    if len == 0 {
+      return Err(f);
+    }
+
+    let mut a = 0;
+    {
+      let lines = f.lines.borrow();
+      let mut b = lines.len();
+      while b - a > 1 {
+        let m = (a + b) / 2;
+        if (*lines)[m] > pos {
+          b = m;
+        } else {
+          a = m;
+        }
+      }
+      assert!(a <= lines.len());
+    }
+    Ok(FileMapAndLine { fm: f, line: a })
+  }
+
+  /// Converts an absolute BytePos to a CharPos relative to the filemap.
+  pub fn bytepos_to_file_charpos(&self, bpos: BytePos) -> CharPos {
+    let idx = self.lookup_filemap_idx(bpos);
+    let files = self.files.borrow();
+    let map = &(*files)[idx];
+
+    // The number of extra bytes due to multibyte chars in the FileMap
+    let mut total_extra_bytes = 0;
+
+    for mbc in map.multibyte_chars.borrow().iter() {
+      debug!("{}-byte char at {:?}", mbc.bytes, mbc.pos);
+      if mbc.pos < bpos {
+        // every character is at least one byte, so we only
+        // count the actual extra bytes.
+        total_extra_bytes += mbc.bytes - 1;
+        // We should never see a byte position in the middle of a
+        // character
+        assert!(bpos.to_usize() >= mbc.pos.to_usize() + mbc.bytes);
+      } else {
+        break;
+      }
+    }
+
+    assert!(map.start_pos.to_usize() + total_extra_bytes <= bpos.to_usize());
+    CharPos(bpos.to_usize() - map.start_pos.to_usize() - total_extra_bytes)
+  }
+
+  // Return the index of the filemap (in self.files) which contains pos.
+  fn lookup_filemap_idx(&self, pos: BytePos) -> usize {
+    let files = self.files.borrow();
+    let files = &*files;
+    let count = files.len();
+
+    // Binary search for the filemap.
+    let mut a = 0;
+    let mut b = count;
+    while b - a > 1 {
+      let m = (a + b) / 2;
+      if files[m].start_pos > pos {
+        b = m;
+      } else {
+        a = m;
+      }
+    }
+
+    assert!(a < count, "position {} does not resolve to a source location", pos.to_usize());
+
+    return a;
   }
 }

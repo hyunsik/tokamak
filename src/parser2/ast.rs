@@ -576,17 +576,23 @@ pub enum ExprKind {
   /// A unary operation (For example: `!x`, `*x`)
   Unary(UnOp, P<Expr>),
   Binary(BinOp, P<Expr>, P<Expr>),
-  Literal,
   /// A cast (`foo as f64`)
   Cast(P<Expr>, P<Ty>),
   Type(P<Expr>, P<Ty>),
-  If(P<Expr>),
+
+  /// An `if` block, with an optional else block
+  ///
+  /// `if expr { block } else { expr }`
+  If(P<Expr>, P<Block>, Option<P<Expr>>),
+
   /// An `if let` expression with an optional else block
   ///
   /// `if let pat = expr { block } else { expr }`
   ///
   /// This is desugared to a `match` expression.
-  IfLet(P<Expr>),
+  IfLet(P<Pat>, P<Expr>, P<Block>, Option<P<Expr>>),
+
+  Closure,
   While,
   Loop,
   ForLoop,
@@ -627,11 +633,11 @@ pub enum ExprKind {
   /// For example, `foo.0`.
   TupField(P<Expr>, Spanned<usize>),
 
-  /// A range (`1..2`, `1..`, `..2`, `1...2`, `1...`, `...2`)
-  Range(Option<P<Expr>>, Option<P<Expr>>, RangeLimits),
-
   /// An indexing operation (`foo[2]`)
   Index(P<Expr>, P<Expr>),
+
+  /// A range (`1..2`, `1..`, `..2`, `1...2`, `1...`, `...2`)
+  Range(Option<P<Expr>>, Option<P<Expr>>, RangeLimits),
 
   /// A function call
   ///

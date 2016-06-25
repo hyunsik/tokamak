@@ -106,7 +106,11 @@ impl<'a> Reader for StringReader<'a> {
     unimplemented!()
   }
   fn peek(&self) -> TokenAndSpan {
-    unimplemented!()
+    // FIXME(pcwalton): Bad copy!
+    TokenAndSpan {
+      tok: self.peek_tok.clone(),
+      sp: self.peek_span,
+    }
   }
 
   /// Get a token the parser cares about.
@@ -171,9 +175,7 @@ impl<'a> StringReader<'a> {
   }
 
   pub fn new_from_str(source: String, span_diagnostic: &'a Handler) -> StringReader<'a> {
-    let mut codemap = CodeMap::new();
-    let filemap = codemap.new_filemap("".to_string(), source);
-
+    let filemap = CodeMap::new().new_filemap("".to_string(), source);
     StringReader::new(span_diagnostic, filemap)
   }
 

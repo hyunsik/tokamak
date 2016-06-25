@@ -3085,10 +3085,13 @@ pub fn integer_lit(s: &str,
 
 #[cfg(test)]
 mod tests {
+  use std::io::{Read, Write};
   use std::ops::FnOnce;
   use std::rc::Rc;
 
   use ast::{Expr, Package};
+  use ast_printer::{self, NoAnn};
+  use codemap::CodeMap;
   use lexer::{StringReader};
   use ptr::P;
   use token;
@@ -3107,12 +3110,49 @@ mod tests {
     f(&mut parser)
   }
 
+  fn str_to_pp(src: &str) -> String {
+    let sess: ParseSess = ParseSess::new();
+    let mut codemap = CodeMap::new();
+    let filemap = codemap.new_filemap("".to_string(), src.to_string());
+    let reader = StringReader::new(&sess.span_diagnostic, filemap);
+    let mut parser = Parser::new(&sess, Box::new(reader));
+
+    let package = parser.parse_package().ok().unwrap();
+
+    let rdr: Vec<u8> = src.to_string().into();
+    let mut rdr = &*rdr;
+
+    let mut out = Vec::new();
+    {
+      let writer: &mut Write = &mut out;
+      let noAnn = NoAnn;
+
+      ast_printer::print_package(&codemap,
+                                 &sess.span_diagnostic,
+                                 &package,
+                                 "test".to_string(),
+                                 &mut rdr,
+                                 Box::new(writer),
+                                 &noAnn,
+                                 false);
+    }
+
+    String::from_utf8(out).expect("from_utf8 conversion error...")
+  }
+
   fn str_to_package(src: &str) -> PResult<Package> {
     str_to(src, |p| p.parse_package())
   }
 
   fn str_to_expr(src: &str) -> PResult<P<Expr>> {
     str_to(src, |p| p.parse_expr())
+  }
+
+  #[test]
+  fn test_ast_to_str() {
+    let src = "import x::y;";
+    let from_ast = str_to_pp(src);
+    println!("{}", from_ast);
   }
 
   #[test]
@@ -3264,5 +3304,9 @@ mod tests {
       Ok(p) => println!("{:?}", p),
       Err(_) => println!("Error")
     }
+  }
+
+  fn test_pp() {
+
   }
 }
