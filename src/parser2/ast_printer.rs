@@ -62,10 +62,11 @@ use self::AnnNode::*;
 use self::Breaks::*;
 
 use abi::Abi;
-use ast::{self, PatKind};
+use ast::{self, BlockCheckMode, Mutability, PatKind};
 use codemap::{self, CodeMap, BytePos};
 use comments;
 use error_handler as errors;
+use parser;
 use precedence::AssocOp;
 use token::keywords;
 
@@ -1174,6 +1175,63 @@ impl<'a> State<'a> {
         self.print_foreign_mod(nmod, &item.attrs)?;
         self.bclose(item.span)?;
       }
+      ast::ItemKind::Static(ref ty, m, ref expr) => {
+        self.head(&visibility_qualified(&item.vis,
+                                        "static"))?;
+        if m == ast::Mutability::Mutable {
+          self.word_space("var")?;
+        }
+        self.print_ident(item.ident)?;
+        self.word_space(":")?;
+        self.print_type(&ty)?;
+        space(&mut self.s)?;
+        self.end()?; // end the head-ibox
+
+        self.word_space("=")?;
+        self.print_expr(&expr)?;
+        word(&mut self.s, ";")?;
+        self.end()?; // end the outer cbox
+      }
+      ast::ItemKind::Const(ref ty, ref expr) => {
+        self.head(&visibility_qualified(&item.vis,
+                                        "const"))?;
+        self.print_ident(item.ident)?;
+        self.word_space(":")?;
+        self.print_type(&ty)?;
+        space(&mut self.s)?;
+        self.end()?; // end the head-ibox
+
+        self.word_space("=")?;
+        self.print_expr(&expr)?;
+        word(&mut self.s, ";")?;
+        self.end()?; // end the outer cbox
+      }
+      ast::ItemKind::Fn(ref decl, unsafety, constness, abi, ref body) => {
+        self.head("")?;
+        self.print_fn(
+          decl,
+          unsafety,
+          constness,
+          abi,
+          Some(item.ident),
+          &item.vis
+        )?;
+        word(&mut self.s, " ")?;
+        self.print_block_with_attrs(&body, &item.attrs)?;
+      }
+      ast::ItemKind::Ty(ref ty) => {
+        self.ibox(INDENT_UNIT)?;
+        self.ibox(0)?;
+        self.word_nbsp(&visibility_qualified(item.vis, "type"))?;
+        self.print_ident(item.ident)?;
+        self.end()?; // end the inner ibox
+
+        space(&mut self.s)?;
+        self.word_space("=")?;
+        self.print_type(&ty)?;
+        word(&mut self.s, ";")?;
+        self.end()?; // end the outer ibox
+      }
       _ => {
         unimplemented!()
       }
@@ -1427,6 +1485,104 @@ impl<'a> State<'a> {
       ast::FunctionRetTy::Ty(ref output) => self.maybe_print_comment(output.span.lo),
       _ => Ok(())
     }
+  }
+
+  pub fn print_block_with_attrs(&mut self,
+                                blk: &ast::Block,
+                                attrs: &[ast::Attribute]) -> io::Result<()> {
+    self.print_block_maybe_unclosed(blk, INDENT_UNIT, attrs, true)
+  }
+
+  pub fn print_block_maybe_unclosed(&mut self,
+                                    blk: &ast::Block,
+                                    indented: usize,
+                                    attrs: &[ast::Attribute],
+                                    close_box: bool) -> io::Result<()> {
+    match blk.rules {
+      BlockCheckMode::Unsafe(..) => try!(self.word_space("unsafe")),
+      BlockCheckMode::Default => ()
+    }
+    self.maybe_print_comment(blk.span.lo)?;
+    self.ann.pre(self, NodeBlock(blk))?;
+    self.bopen()?;
+
+    //self.print_inner_attributes(attrs)?;
+
+    for st in &blk.stmts {
+      self.print_stmt(st)?;
+    }
+    match blk.expr {
+      Some(ref expr) => {
+        self.space_if_not_bol()?;
+        self.print_expr_outer_attr_style(&expr, false)?;
+        self.maybe_print_trailing_comment(expr.span, Some(blk.span.hi))?;
+      }
+      _ => ()
+    }
+    self.bclose_maybe_open(blk.span, indented, close_box)?;
+    self.ann.post(self, NodeBlock(blk))
+  }
+
+  pub fn print_stmt(&mut self, st: &ast::Stmt) -> io::Result<()> {
+    self.maybe_print_comment(st.span.lo)?;
+    match st.node {
+      ast::StmtKind::Decl(ref decl, _) => {
+        try!(self.print_decl(&decl));
+      }
+      ast::StmtKind::Expr(ref expr, _) => {
+        try!(self.space_if_not_bol());
+        try!(self.print_expr_outer_attr_style(&expr, false));
+      }
+      ast::StmtKind::Semi(ref expr, _) => {
+        try!(self.space_if_not_bol());
+        try!(self.print_expr_outer_attr_style(&expr, false));
+        try!(word(&mut self.s, ";"));
+      }
+    }
+
+    if parser::stmt_ends_with_semi(&st.node) {
+      word(&mut self.s, ";")?;
+    }
+    self.maybe_print_trailing_comment(st.span, None)
+  }
+
+  pub fn print_decl(&mut self, decl: &ast::Decl) -> io::Result<()> {
+    try!(self.maybe_print_comment(decl.span.lo));
+    match decl.node {
+      ast::DeclKind::Local(ref loc) => {
+
+        let decl = match loc.mutbl {
+          Mutability::Immutable => "let",
+          Mutability::Mutable => "var"
+        };
+
+        //self.print_outer_attributes(loc.attrs.as_attr_slice())?;
+        try!(self.space_if_not_bol());
+        try!(self.ibox(INDENT_UNIT));
+        try!(self.word_nbsp(decl));
+
+        try!(self.ibox(INDENT_UNIT));
+        try!(self.print_local_decl(&loc));
+        try!(self.end());
+        if let Some(ref init) = loc.init {
+          try!(self.nbsp());
+          try!(self.word_space("="));
+          try!(self.print_expr(&init));
+        }
+        self.end()
+      }
+
+      ast::DeclKind::Item(ref item) => self.print_item(&item)
+    }
+  }
+
+  pub fn print_local_decl(&mut self, loc: &ast::Local) -> io::Result<()> {
+    try!(self.print_pat(&loc.pat));
+    if let Some(ref ty) = loc.ty {
+      try!(self.word_space(":"));
+      try!(self.print_type(&ty));
+    }
+    Ok(())
   }
 
   pub fn print_type(&mut self, ty: &ast::Ty) -> io::Result<()> {
