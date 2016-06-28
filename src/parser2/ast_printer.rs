@@ -1222,7 +1222,7 @@ impl<'a> State<'a> {
       ast::ItemKind::Ty(ref ty) => {
         self.ibox(INDENT_UNIT)?;
         self.ibox(0)?;
-        self.word_nbsp(&visibility_qualified(item.vis, "type"))?;
+        self.word_nbsp(&visibility_qualified(&item.vis, "type"))?;
         self.print_ident(item.ident)?;
         self.end()?; // end the inner ibox
 

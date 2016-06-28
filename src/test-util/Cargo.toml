@@ -1,10 +1,10 @@
 [package]
-name = "tests"
+name = "test-util"
 version = "0.0.1"
 authors = ["Hyunsik Choi <hyunsik@apache.org>"]
 
 [lib]
-name = "tests"
+name = "test_util"
 path = "lib.rs"
 
 bitflags = "0.7"

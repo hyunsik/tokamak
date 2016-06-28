@@ -7,11 +7,17 @@ authors = ["Hyunsik Choi <hyunsik@apache.org>"]
 name = "parser2"
 path = "lib.rs"
 
+[[bin]]
+name = "parser-tests"
+path = "parser-tests.rs"
+
 [dependencies]
 common = { path = "../common" }
+test-util = { path = "../test-util" }
 
 bitflags = "0.7"
 env_logger = "0.3.2"
+getopts = "0.2.14"
 itertools = "0.4.3"
 log = "0.3.4"
 regex = "0.1.47"
