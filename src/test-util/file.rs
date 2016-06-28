@@ -12,6 +12,21 @@ impl From<io::Error> for TestError {
   }
 }
 
+pub fn list_files(dir: &Path) -> io::Result<fs::ReadDir> {
+  // for each file, it compiles and checks if the file causes error or not.
+  //pub fn dir_iter()
+
+  if !dir.exists() {
+    panic!("{} does not exists", dir.to_str().unwrap());
+  }
+
+  if !fs::metadata(dir)?.is_dir() {
+    panic!("{} must be a directory");
+  }
+
+  read_dir(dir)
+}
+
 pub fn for_each<F>(dir: &Path, f: F) -> Result<(), TestError>
       where F: Fn(&Path) -> Result<(), TestError> {
   // for each file, it compiles and checks if the file causes error or not.

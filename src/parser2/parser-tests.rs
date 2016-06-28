@@ -1,26 +1,40 @@
+#![feature(question_mark)]
+
 extern crate getopts;
 extern crate test_util;
 
 use std::env;
 use std::path::{Path, PathBuf};
 use getopts::{Matches, Options};
+use test_util::file as test;
 
 fn print_usage(program: &str, opts: &Options) {
   let brief = format!("Usage: {} TEST_DIR [options]", program);
   print!("{}", opts.usage(&brief));
 }
 
-fn test_parser_succ() {
+fn test_parser_succ(basedir: &Path) {
   // for each file in dir
   //   parser source file into AST
   //   transform AST to source via pretty printer
   //   read a expected result from a file
   //   compare a pretty printed result with a expected result
   // end for
-  println!("test_parser_success!")
+
+  let mut succ_dir = PathBuf::from(basedir);
+  succ_dir.push("success");
+
+  let list = match test::list_files(succ_dir.as_path()) {
+    Ok(list) => list,
+    Err(e) => panic!("e")
+  };
+
+  for f in list {
+    println!("{}", f.unwrap().path().to_str().unwrap());
+  }
 }
 
-fn test_parser_fail() {
+fn test_parser_fail(basedir: &Path) {
   println!("test_parser_fail!")
 }
 
@@ -72,17 +86,17 @@ fn ensure_basedir_or_exit(m: &Matches, opts: &Options) -> PathBuf {
   }
 }
 
-fn setup_phases() -> Vec<(&'static str, Box<Fn()>)> {
+fn setup_phases() -> Vec<(&'static str, Box<Fn(&Path)>)> {
   vec![
     ("parser-success", Box::new(test_parser_succ)),
     ("parser-fail",    Box::new(test_parser_fail))
   ]
 }
 
-fn run_phases(path: &Path, m: &Matches, phases: &Vec<(&'static str, Box<Fn()>)>) {
+fn run_phases(path: &Path, m: &Matches, phases: &Vec<(&'static str, Box<Fn(&Path)>)>) {
   for p in phases.iter() {
     if m.opt_present(p.0) {
-      p.1()
+      p.1(path)
     }
   }
 }
