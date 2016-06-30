@@ -3113,7 +3113,7 @@ mod tests {
   fn str_to_pp(src: &str) -> String {
     let sess: ParseSess = ParseSess::new();
     let mut codemap = CodeMap::new();
-    let filemap = codemap.new_filemap("".to_string(), src.to_string());
+    let filemap = codemap.new_filemap("".to_string(), None, src.to_string());
     let reader = StringReader::new(&sess.span_diagnostic, filemap);
     let mut parser = Parser::new(&sess, Box::new(reader));
 

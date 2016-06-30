@@ -175,7 +175,7 @@ impl<'a> StringReader<'a> {
   }
 
   pub fn new_from_str(source: String, span_diagnostic: &'a Handler) -> StringReader<'a> {
-    let filemap = CodeMap::new().new_filemap("".to_string(), source);
+    let filemap = CodeMap::new().new_filemap("".to_string(), None, source);
     StringReader::new(span_diagnostic, filemap)
   }
 
