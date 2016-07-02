@@ -53,13 +53,14 @@ fn display<'a>(s: Option<&'a OsStr>) -> OsStrDisplay {
   OsStrDisplay {s: s}
 }
 
-fn test_parser_succ(basedir: &Path, tmpdir: &Path, stop_if_error: bool) -> PResult<()> {
-  // for each file in dir
-  //   parser source file into AST
-  //   transform AST to source via pretty printer
-  //   read a expected result from a file
-  //   compare a pretty printed result with a expected result
-  // end for
+pub type AssertFn = Fn(i32, &str, &str, bool) -> TResult<()>;
+
+pub type ExecFn = Fn(&Path) -> TResult<String>;
+
+fn test_base(basedir: &Path, tmpdir: &Path,
+             stop_if_err: bool,
+             exec_fn: &ExecFn, assert_fn: &AssertFn)
+             -> TResult<()> {
 
   let mut succ_dir = PathBuf::from(basedir);
   succ_dir.push("success");
@@ -70,17 +71,16 @@ fn test_parser_succ(basedir: &Path, tmpdir: &Path, stop_if_error: bool) -> PResu
   let succ_res_dir = succ_res_dir.as_path();
 
   for p in list_files(succ_dir, "fl")? {
-
     let fpath = p.as_path();
     let test_name = extract_test_name(fpath);
 
     // convert source into ast, and then generates a source code from ast.
-    let pp = src_to_pp(fpath).ok().unwrap();
+    let result = exec_fn(fpath)?;
 
     let mut res_path = PathBuf::from(succ_res_dir);
     res_path.push(format!("{}.{}", test_name, "result"));
     let mut result_file = File::create(&res_path)?;
-    result_file.write_all(pp.as_bytes())?;
+    result_file.write_all(result.as_bytes())?;
     result_file.sync_all()?;
 
     let mut expected_path = PathBuf::from(succ_dir);
@@ -89,24 +89,34 @@ fn test_parser_succ(basedir: &Path, tmpdir: &Path, stop_if_error: bool) -> PResu
 
     print!("Testing {} ... ", display(fpath.file_name()));
 
-    let (dist, _) = diff(&pp, &expected, "");
+    let (dist, _) = diff(&result, &expected, "");
+    assert_fn(dist, &expected, &result, stop_if_err)?
+  }
 
-    if dist > 0 {
+  Ok(())
+}
+
+fn test_parser_succ(basedir: &Path, tmpdir: &Path, stop_if_err: bool) -> TResult<()> {
+
+  let succ_fn = |edit_dist: i32, expected: &str, result: &str, stop_if_err: bool|
+    -> TResult<()> {
+
+    if edit_dist > 0 {
       println!(" Failed, difference:");
-      print_diff(&expected, &pp, "");
-      if stop_if_error {
+      print_diff(expected, result, "");
+      if stop_if_err {
         return Err(PTestError::TestFailure);
       }
       println!("");
     } else {
       println!(" Ok")
     }
-  }
 
-  Ok(())
+    Ok(())
+  };
+
+  test_base(basedir, tmpdir, stop_if_err, &src_to_pp, &succ_fn)
 }
-
-pub type PResult<T> = Result<T, PTestError>;
 
 pub enum PTestError {
   ParseError(DiagnosticBuilder),
@@ -162,7 +172,7 @@ fn src_to_pp(src_path: &Path) -> TResult<String> {
 }
 
 #[allow(unused_variables)]
-fn test_parser_fail(basedir: &Path, tmpdir: &Path, stop_if_err: bool) -> PResult<()> {
+fn test_parser_fail(basedir: &Path, tmpdir: &Path, stop_if_err: bool) -> TResult<()> {
   println!("test_parser_fail!");
 
   Ok(())
@@ -246,7 +256,7 @@ fn mkdir(path: &Path) {
   }
 }
 
-pub type Phase = Box<Fn(&Path, &Path, bool) -> PResult<()>>;
+pub type Phase = Box<Fn(&Path, &Path, bool) -> TResult<()>>;
 
 fn setup_phases() -> Vec<(&'static str, Phase)> {
   vec![
@@ -258,7 +268,7 @@ fn setup_phases() -> Vec<(&'static str, Phase)> {
 fn run_phases(data_dir: &Path, tmp_dir: &Path,
               m: &Matches,
               phases: &Vec<(&'static str, Phase)>)
-              -> PResult<()> {
+              -> TResult<()> {
 
   for p in phases.iter() {
     if m.opt_present(p.0) {
