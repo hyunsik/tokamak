@@ -12,6 +12,14 @@ impl From<io::Error> for TestError {
   }
 }
 
+pub fn mkdir(path: &Path) -> io::Result<()> {
+  if !path.exists() {
+    fs::create_dir(path)?
+  }
+
+  Ok(())
+}
+
 pub fn list_files(dir: &Path) -> io::Result<fs::ReadDir> {
   // for each file, it compiles and checks if the file causes error or not.
   //pub fn dir_iter()

@@ -20,7 +20,7 @@ use parser2::error_handler::{DiagnosticBuilder};
 use parser2::lexer::{StringReader};
 use parser2::parser::{ParseSess, Parser};
 
-use test_util::file as test;
+use test_util::util as test;
 
 fn print_usage(program: &str, opts: &Options) {
   let brief = format!("Usage: {} TEST_DIR [options]", program);
