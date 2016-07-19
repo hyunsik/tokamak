@@ -169,6 +169,11 @@ pub struct PrintStackElem {
 
 const SIZE_INFINITY: isize = 0xffff;
 
+//-------------------------------------
+//   Keywords
+//-------------------------------------
+pub static VAR: &'static str = "var";
+
 pub fn mk_printer<'a>(out: Box<io::Write+'a>, linewidth: usize) -> Printer<'a> {
   // Yes 3, it makes the ring buffers big enough to never
   // fall behind.
@@ -1179,7 +1184,7 @@ impl<'a> State<'a> {
         self.head(&visibility_qualified(&item.vis,
                                         "static"))?;
         if m == ast::Mutability::Mutable {
-          self.word_space("var")?;
+          self.word_space(VAR)?;
         }
         self.print_ident(item.ident)?;
         self.word_space(":")?;
@@ -1361,7 +1366,7 @@ impl<'a> State<'a> {
       ast::ForeignItemKind::Static(ref t, m) => {
         self.head(&visibility_qualified(&item.vis, "static"))?;
         if m {
-          self.word_space("mut")?;
+          self.word_space(VAR)?;
         }
         self.print_ident(item.ident)?;
         self.word_space(":")?;

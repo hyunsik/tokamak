@@ -10,6 +10,7 @@ path = "lib.rs"
 [dependencies]
 difference = "0.4.1"
 env_logger = "0.3.2"
+getopts = "0.2.14"
 itertools = "0.4.3"
 log = "0.3.4"
 

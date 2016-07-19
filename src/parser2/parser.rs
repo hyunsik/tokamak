@@ -3244,45 +3244,6 @@ mod tests {
   }
 
   #[test]
-  fn test_extern_mod() {
-    match str_to_package(r#"
-      extern {
-        static x: Int;
-        static var y: Int;
-        fn sqar(x: double) -> x;
-      }
-    "#) {
-      Ok(p) => println!("{:?}", p),
-      Err(_) => println!("Error")
-    }
-  }
-
-  #[test]
-  fn test_static() {
-    match str_to_package(r#"
-        static x:Int = 1;
-        pub static x:Int = 1;
-        pub static var x:Int = 1;
-      "#) {
-      Ok(p) => println!("{:?}", p),
-      Err(_) => println!("Error")
-    }
-  }
-
-  #[test]
-  fn test_const() {
-    match str_to_package(r#"
-        const x:Int = 1;
-        pub const x:Int = 1;
-        pub const fn xyz(x: Int) -> Int { x }
-        pub const unsafe fn xyz(x: Int) -> Int { x }
-      "#) {
-      Ok(p) => println!("{:?}", p),
-      Err(_) => println!("Error")
-    }
-  }
-
-  #[test]
   fn test_fn() {
     match str_to_package("fn abc(aaa: Int) {}") {
       Ok(p) => println!("{:?}", p),
@@ -3296,17 +3257,5 @@ mod tests {
       Ok(p) => println!("{:?}", p),
       Err(_) => println!("Error")
     }
-  }
-
-  #[test]
-  fn test_type() {
-    match str_to_package("pub type Point = (Double, Double);") {
-      Ok(p) => println!("{:?}", p),
-      Err(_) => println!("Error")
-    }
-  }
-
-  fn test_pp() {
-
   }
 }

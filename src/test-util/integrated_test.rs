@@ -7,6 +7,18 @@ use difference::diff;
 
 use util::{self, mkdir};
 
+use getopts::Matches;
+
+pub trait TestUnit {
+  fn file_name(&self) -> &Path;
+
+  fn name(&self) -> &str {
+    self.file_name().file_stem().unwrap().to_str().unwrap()
+  }
+
+  fn run(&self);
+}
+
 pub fn list_files(dir: &Path, extention: &str) -> io::Result<Vec<PathBuf>> {
   Ok(util::list_files(dir)?
        .map(|e| e.ok().unwrap().path())
@@ -90,7 +102,7 @@ impl From<io::Error> for PTestError {
 
 pub type TResult<T> = Result<T, PTestError>;
 
-fn setup_tmpdir(tmpdir: &Path) {
+pub fn setup_tmpdir(tmpdir: &Path) {
   mkdir(tmpdir);
 
   let mut succ_result = PathBuf::from(tmpdir);
@@ -99,3 +111,17 @@ fn setup_tmpdir(tmpdir: &Path) {
 }
 
 pub type Phase = Box<Fn(&Path, &Path, bool) -> TResult<()>>;
+
+pub fn run_phases(data_dir: &Path, tmp_dir: &Path,
+              m: &Matches,
+              phases: &Vec<(&'static str, Phase)>)
+              -> TResult<()> {
+
+  for p in phases.iter() {
+    if m.opt_present(p.0) {
+      p.1(data_dir, tmp_dir, false)?
+    }
+  }
+
+  Ok(())
+}
