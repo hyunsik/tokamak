@@ -1,0 +1,5 @@
+static x: Int = 1;
+
+pub static x: Int = 1;
+
+pub static var x: Int = 1;
