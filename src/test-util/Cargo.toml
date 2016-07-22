@@ -8,10 +8,10 @@ name = "test_util"
 path = "lib.rs"
 
 [dependencies]
-difference = "0.4.1"
+diff = "0.1.9"
 env_logger = "0.3.2"
 getopts = "0.2.14"
 itertools = "0.4.3"
 log = "0.3.4"
-
+term = "0.2"
 

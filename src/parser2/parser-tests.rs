@@ -1,6 +1,5 @@
 #![feature(question_mark)]
 
-extern crate difference;
 extern crate getopts;
 extern crate test_util;
 extern crate parser2;

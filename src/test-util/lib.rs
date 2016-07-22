@@ -20,8 +20,9 @@
 /// how to handle input data. In most cases, an input data is a source code.
 /// A file name in a test set is used as a test name.
 
-extern crate difference;
+extern crate diff;
 extern crate getopts;
+extern crate term;
 
 pub mod util;
 
@@ -30,7 +31,6 @@ use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use difference::{diff, print_diff};
 use getopts::{Matches, Options};
 
 pub struct RunEnv {
@@ -198,16 +198,16 @@ pub fn display<'a>(s: Option<&'a OsStr>) -> OsStrDisplay {
 pub trait TestSet<'a> {
   fn name(&self) -> &str;
 
-  fn assert(&self, edit_dist: i32, expected: &str, result: &str) -> DriverResult<()> {
-    if edit_dist > 0 {
+  fn assert(&self, expected: &str, result: &str) -> DriverResult<()> {
+    if expected != result {
       println!(" Failed, difference:");
-      print_diff(expected, result, "");
+      print_diff(expected, result);
       println!("");
+      Err(DriverErr::TestFailure)
     } else {
-      println!(" Ok")
+      println!(" Ok");
+      Ok(())
     }
-
-    Ok(())
   }
 
   fn transform(&self, &Path) -> DriverResult<String>;
@@ -225,9 +225,25 @@ pub trait TestSet<'a> {
   }
 
   fn run_all(&self, driver: &TestDriver) -> DriverResult<()> {
-    for p in list_files(self.in_dir(driver).as_path(), "fl")? {
-      self.run_unit(driver, p.as_path())?;
+    let files = list_files(self.in_dir(driver).as_path(), "fl")?;
+
+    let total_num = files.len();
+    let mut fail_num = 0usize;
+
+    println!("Testing {} units in {} ... ", files.len(), self.name());
+
+    for p in files {
+      match self.run_unit(driver, p.as_path()) {
+        Ok(_) => {}
+        Err(e) => {
+          match e {
+            DriverErr::TestFailure => fail_num+=1,
+            _ => return Err(e)
+          }
+        }
+      }
     }
+    println!("Total runs {}, Failures: {}", total_num, fail_num);
     Ok(())
   }
 
@@ -235,15 +251,12 @@ pub trait TestSet<'a> {
     let test_name = extract_test_name(input);
 
     // transform an input into a string generated from an output.
-    print!("Testing {}::{} ... ", self.name(), display(input.file_name()));
+    print!("  {} ... ", display(input.file_name()));
     let result = self.transform(input)?;
 
     self.save_result(driver, test_name, &result)?;
     let expected = self.expected_result(driver, test_name)?;
-
-    let (dist, _) = diff(&result, &expected, "");
-
-    self.assert(dist, &expected, &result)
+    self.assert(&expected, &result)
   }
 
   fn save_result(&self, driver: &TestDriver, test_name: &str, result: &str) -> DriverResult<()> {
@@ -257,5 +270,28 @@ pub trait TestSet<'a> {
     let mut expected_path = self.in_dir(driver);
     expected_path.push(format!("{}.{}", test_name, "result"));
     Ok(util::file_to_string(expected_path.as_path())?)
+  }
+}
+
+fn print_diff(left: &str, right: &str) {
+  let mut terminal = term::stdout().unwrap();
+
+  for diff in diff::lines(left, right) {
+
+    match diff {
+      diff::Result::Left(l) => {
+        terminal.fg(term::color::RED).unwrap();
+        println!("-{}", l);
+      },
+
+      diff::Result::Both(l, _) => println!(" {}", l),
+
+      diff::Result::Right(r)   => {
+        terminal.fg(term::color::GREEN).unwrap();
+        println!("+{}", r);
+      }
+    }
+
+    terminal.reset().unwrap();
   }
 }
