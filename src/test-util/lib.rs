@@ -92,6 +92,7 @@ pub type DriverResult<T> = Result<T, DriverErr>;
 
 pub struct TestDriver<'a> {
   env: &'a RunEnv,
+  test_all: bool,
   matches: Matches,
   in_base_path: PathBuf,
   out_base_path: PathBuf,
@@ -107,6 +108,7 @@ impl<'a> TestDriver<'a> {
       return Err(DriverErr::Help);
     }
     Self::check_requred_params(&matches)?;
+    let test_all = matches.opt_present("a");
 
     let (in_base_path, out_base_path) = Self::check_and_get_dirs(env.cwd(), &matches)?;
     // create the output base dir if not exists
@@ -114,6 +116,7 @@ impl<'a> TestDriver<'a> {
 
     Ok(TestDriver {
       env: env,
+      test_all: test_all,
       matches: matches,
       in_base_path: in_base_path,
       out_base_path: out_base_path,
@@ -160,7 +163,7 @@ impl<'a> TestDriver<'a> {
 
   pub fn run(&self) -> DriverResult<()> {
     for p in self.test_sets.iter() {
-      if self.matches.opt_present(p.name()) {
+      if self.test_all || self.matches.opt_present(p.name()) {
         p.run_all(self)?
       }
     }

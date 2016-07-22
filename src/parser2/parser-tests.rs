@@ -86,9 +86,10 @@ fn print_usage(program: &str, opts: &Options) {
 fn setup_opts<'a>(test_sets: &Vec<Box<TestSet<'a>>>) -> Options {
   let mut opts = Options::new();
   opts.optflag("h", "help", "print this help menu");
+  opts.optflag("a", "all", "test all sets");
 
   for test_set in test_sets {
-    opts.optflag("", test_set.name(), &format!("Test the {} test set", test_set.name()));
+    opts.optflag("", test_set.name(), &format!("test the '{}' set", test_set.name()));
   }
 
   opts
@@ -96,7 +97,7 @@ fn setup_opts<'a>(test_sets: &Vec<Box<TestSet<'a>>>) -> Options {
 
 fn setup_phases<'a>() -> Vec<Box<TestSet<'a>>> {
   vec![
-    Box::new(ParserTestSet::new("success"))
+    Box::new(ParserTestSet::new("items"))
   ]
 }
 

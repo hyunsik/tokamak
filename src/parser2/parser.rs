@@ -3149,13 +3149,6 @@ mod tests {
   }
 
   #[test]
-  fn test_ast_to_str() {
-    let src = "import x::y;";
-    let from_ast = str_to_pp(src);
-    println!("{}", from_ast);
-  }
-
-  #[test]
   fn test_parser_bump() {
     let src = "fn abc(aaa: Int) {}";
     let sess: ParseSess = ParseSess::new();
@@ -3233,29 +3226,5 @@ mod tests {
       Ok(e) => println!("{:?}", e),
       Err(_) => println!("Error")
     };
-  }
-
-  #[test]
-  fn test_import() {
-    match str_to_package("import x;") {
-      Ok(p) => println!("{:?}", p),
-      Err(_) => println!("Error")
-    }
-  }
-
-  #[test]
-  fn test_fn() {
-    match str_to_package("fn abc(aaa: Int) {}") {
-      Ok(p) => println!("{:?}", p),
-      Err(_) => println!("Error")
-    }
-  }
-
-  #[test]
-  fn test_extern_fn() {
-    match str_to_package("extern fn abc(aaa: Int) {}") {
-      Ok(p) => println!("{:?}", p),
-      Err(_) => println!("Error")
-    }
   }
 }

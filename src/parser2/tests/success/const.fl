@@ -1,4 +1,0 @@
-const x:Int = 1;
-pub const x:Int = 1;
-pub const fn xyz(x: Int) -> Int { x }
-pub const unsafe fn xyz(x: Int) -> Int { x }
