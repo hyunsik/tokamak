@@ -20,8 +20,7 @@
 
 use std::fmt;
 use std::ffi::OsStr;
-use std::fs::{File};
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use difference::{diff, print_diff};
@@ -91,11 +90,11 @@ pub struct TestDriver<'a> {
   matches: Matches,
   in_base_path: PathBuf,
   out_base_path: PathBuf,
-  test_sets: Vec<(&'static str, TestSet)>
+  test_sets: Vec<(Box<TestSet<'a>>)>
 }
 
 impl<'a> TestDriver<'a> {
-  pub fn new(env: &'a RunEnv, opts: Options, phases: Vec<(&'static str, TestSet)>)
+  pub fn new(env: &'a RunEnv, opts: Options, sets: Vec<Box<TestSet<'a>>>)
       -> DriverResult<TestDriver<'a>> {
 
     let matches = opts.parse(&env.args()[1..])?;
@@ -111,8 +110,12 @@ impl<'a> TestDriver<'a> {
       matches: matches,
       in_base_path: in_base_path,
       out_base_path: out_base_path,
-      test_sets: phases
+      test_sets: sets
     })
+  }
+
+  pub fn add_testset(&mut self, set: Box<TestSet<'a>>) {
+    self.test_sets.push(set);
   }
 
   pub fn env(&self) -> &RunEnv {
@@ -150,9 +153,9 @@ impl<'a> TestDriver<'a> {
 
   pub fn run(&self) -> DriverResult<()> {
     for p in self.test_sets.iter() {
-      println!("{}", p.0);
-      if self.matches.opt_present(p.0) {
-        p.1(&self.in_base_path, &self.out_base_path, false)?
+      println!("{}", p.name());
+      if self.matches.opt_present(p.name()) {
+        p.run_all(self)?
       }
     }
 
@@ -160,7 +163,7 @@ impl<'a> TestDriver<'a> {
   }
 }
 
-pub fn list_files(dir: &Path, extention: &str) -> io::Result<Vec<PathBuf>> {
+fn list_files(dir: &Path, extention: &str) -> io::Result<Vec<PathBuf>> {
   Ok(util::list_files(dir)?
        .map(|e| e.ok().unwrap().path())
        .filter(|p| p.extension().unwrap().to_str().unwrap() == extention)
@@ -168,7 +171,7 @@ pub fn list_files(dir: &Path, extention: &str) -> io::Result<Vec<PathBuf>> {
 
 }
 
-pub fn extract_test_name<'a>(file_name: &'a Path) -> &'a str{
+fn extract_test_name<'a>(file_name: &'a Path) -> &'a str{
   file_name.file_stem().unwrap().to_str().unwrap()
 }
 
@@ -186,63 +189,7 @@ pub fn display<'a>(s: Option<&'a OsStr>) -> OsStrDisplay {
   OsStrDisplay {s: s}
 }
 
-pub type AssertFn = Fn(i32, &str, &str, bool) -> DriverResult<()>;
-
-pub type ExecFn = Fn(&Path) -> DriverResult<String>;
-
-pub fn test_base(basedir: &Path, tmpdir: &Path,
-             stop_if_err: bool,
-             exec_fn: &ExecFn, assert_fn: &AssertFn)
-             -> DriverResult<()> {
-
-  let mut succ_dir = PathBuf::from(basedir);
-  succ_dir.push("success");
-  let succ_dir = succ_dir.as_path();
-
-  let mut succ_res_dir = PathBuf::from(tmpdir);
-  succ_res_dir.push("success");
-  let succ_res_dir = succ_res_dir.as_path();
-
-  for p in list_files(succ_dir, "fl")? {
-    let fpath = p.as_path();
-    let test_name = extract_test_name(fpath);
-
-    // convert source into ast, and then generates a source code from ast.
-    let result = exec_fn(fpath)?;
-
-    let mut res_path = PathBuf::from(succ_res_dir);
-    res_path.push(format!("{}.{}", test_name, "result"));
-    let mut result_file = File::create(&res_path)?;
-    result_file.write_all(result.as_bytes())?;
-    result_file.sync_all()?;
-
-    let mut expected_path = PathBuf::from(succ_dir);
-    expected_path.push(format!("{}.{}", test_name, "result"));
-    let expected = util::file_to_string(expected_path.as_path())?;
-
-    print!("Testing {} ... ", display(fpath.file_name()));
-
-    let (dist, _) = diff(&result, &expected, "");
-    assert_fn(dist, &expected, &result, stop_if_err)?
-  }
-
-  Ok(())
-}
-
-//pub fn setup_tmpdir(tmpdir: &Path) {
-//  mkdir(tmpdir);
-//
-//  let mut succ_result = PathBuf::from(tmpdir);
-//  succ_result.push("success");
-//  mkdir(succ_result.as_path());
-//}
-
-
-pub type TestSet = Box<Fn(&Path, &Path, bool) -> DriverResult<()>>;
-
-pub trait TestSet2<'a> {
-  fn driver(&self) -> &'a TestDriver<'a>;
-
+pub trait TestSet<'a> {
   fn name(&self) -> &str;
 
   fn assert(&self, edit_dist: i32, expected: &str, result: &str) -> DriverResult<()> {
@@ -259,33 +206,33 @@ pub trait TestSet2<'a> {
 
   fn transform(&self, &Path) -> DriverResult<String>;
 
-  fn in_dir(&self) -> PathBuf {
-    let mut in_dir = PathBuf::from(self.driver().in_base_dir());
+  fn in_dir(&self, driver: &TestDriver) -> PathBuf {
+    let mut in_dir = PathBuf::from(driver.in_base_dir());
     in_dir.push(self.name());
     in_dir
   }
 
-  fn out_dir(&self) -> PathBuf {
-    let mut in_dir = PathBuf::from(self.driver().out_base_dir());
+  fn out_dir(&self, driver: &TestDriver) -> PathBuf {
+    let mut in_dir = PathBuf::from(driver.out_base_dir());
     in_dir.push(self.name());
     in_dir
   }
 
-  fn run_all(&self) -> DriverResult<()> {
-    for p in list_files(self.in_dir().as_path(), "fl")? {
-      self.run_unit(p.as_path())?;
+  fn run_all(&self, driver: &TestDriver) -> DriverResult<()> {
+    for p in list_files(self.in_dir(driver).as_path(), "fl")? {
+      self.run_unit(driver, p.as_path())?;
     }
     Ok(())
   }
 
-  fn run_unit(&self, input: &Path) -> DriverResult<()> {
+  fn run_unit(&self, driver: &TestDriver, input: &Path) -> DriverResult<()> {
     let test_name = extract_test_name(input);
 
     // transform an input into a string generated from an output.
     let result = self.transform(input)?;
-    self.save_result(test_name, &result)?;
+    self.save_result(driver, test_name, &result)?;
 
-    let expected = self.expected_result(test_name)?;
+    let expected = self.expected_result(driver, test_name)?;
 
     print!("Testing {} ... ", display(input.file_name()));
     let (dist, _) = diff(&result, &expected, "");
@@ -293,15 +240,15 @@ pub trait TestSet2<'a> {
     self.assert(dist, &expected, &result)
   }
 
-  fn save_result(&self, test_name: &str, result: &str) -> DriverResult<()> {
-    let mut save_path = self.out_dir();
+  fn save_result(&self, driver: &TestDriver, test_name: &str, result: &str) -> DriverResult<()> {
+    let mut save_path = self.out_dir(driver);
     save_path.push(format!("{}.{}", test_name, "result"));
     Ok(util::str_to_file(save_path.as_path(), result)?)
 
   }
 
-  fn expected_result(&self, test_name: &str) -> DriverResult<String> {
-    let mut expected_path = self.in_dir();
+  fn expected_result(&self, driver: &TestDriver, test_name: &str) -> DriverResult<String> {
+    let mut expected_path = self.in_dir(driver);
     expected_path.push(format!("{}.{}", test_name, "result"));
     Ok(util::file_to_string(expected_path.as_path())?)
   }
