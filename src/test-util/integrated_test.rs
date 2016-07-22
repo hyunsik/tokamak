@@ -1,22 +1,163 @@
+/// Directory Hierarchy For A Test Collection
+///
+/// ```
+/// [base]
+///   |- [Set 1]
+///         |- test_X.fl
+///         |- test_Y.fl
+///         |-    ...
+///   |- [Set 2]
+///   |- [Set ..]
+///   ..
+///   |- [Set N]
+/// ```
+///
+/// A test collection consists of multiple test sets, each of which contains
+/// multiple test units. All test units in the same test set shares the test ways,
+/// including how to assert an actual result against an the expected result,
+/// how to handle input data. In most cases, an input data is a source code.
+/// A file name in a test set is used as a test name.
+
 use std::fmt;
 use std::ffi::OsStr;
 use std::fs::{File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use difference::diff;
 
-use util::{self, mkdir};
+use difference::{diff, print_diff};
+use getopts::{self, Matches, Options};
 
-use getopts::Matches;
+use util;
 
-pub trait TestUnit {
-  fn file_name(&self) -> &Path;
+pub struct RunEnv {
+  program_name: String,
+  args: Vec<String>,
+  cwd: PathBuf,
+  exec_path: PathBuf
+}
 
-  fn name(&self) -> &str {
-    self.file_name().file_stem().unwrap().to_str().unwrap()
+impl RunEnv {
+  pub fn new(args: Vec<String>, cwd: PathBuf, exec_path: PathBuf) -> RunEnv {
+    RunEnv {
+      program_name: args[0].clone(),
+      args: args,
+      cwd: cwd,
+      exec_path: exec_path
+    }
   }
 
-  fn run(&self);
+  pub fn program_name(&self) -> &str {
+    &self.program_name
+  }
+
+  pub fn args(&self) -> &Vec<String> {
+    &self.args
+  }
+
+  pub fn cwd(&self) -> &Path {
+    self.cwd.as_path()
+  }
+
+  pub fn exec_path(&self) -> &Path {
+    self.exec_path.as_path()
+  }
+}
+
+pub enum DriverErr {
+  Help,
+  IncompletedParameters,
+  TestFailure,
+  OptionParsing(getopts::Fail),
+  IoError(io::Error),
+  InputDirNotExist(PathBuf)
+}
+
+impl From<getopts::Fail> for DriverErr {
+  fn from(err: getopts::Fail) -> DriverErr {
+    DriverErr::OptionParsing(err)
+  }
+}
+
+impl From<io::Error> for DriverErr {
+  fn from(err: io::Error) -> DriverErr {
+    DriverErr::IoError(err)
+  }
+}
+
+pub type DriverResult<T> = Result<T, DriverErr>;
+
+pub struct TestDriver<'a> {
+  env: &'a RunEnv,
+  matches: Matches,
+  in_base_path: PathBuf,
+  out_base_path: PathBuf,
+  test_sets: Vec<(&'static str, TestSet)>
+}
+
+impl<'a> TestDriver<'a> {
+  pub fn new(env: &'a RunEnv, opts: Options, phases: Vec<(&'static str, TestSet)>)
+      -> DriverResult<TestDriver<'a>> {
+
+    let matches = opts.parse(&env.args()[1..])?;
+    if matches.opt_present("h") {
+      return Err(DriverErr::Help);
+    }
+    Self::check_requred_params(&matches)?;
+
+    let (in_base_path, out_base_path) = Self::check_and_get_dirs(env.cwd(), &matches)?;
+
+    Ok(TestDriver {
+      env: env,
+      matches: matches,
+      in_base_path: in_base_path,
+      out_base_path: out_base_path,
+      test_sets: phases
+    })
+  }
+
+  pub fn env(&self) -> &RunEnv {
+    self.env
+  }
+
+  pub fn in_base_dir(&self) -> &Path {
+    self.in_base_path.as_path()
+  }
+
+  pub fn out_base_dir(&self) -> &Path {
+    self.out_base_path.as_path()
+  }
+
+  fn check_requred_params(matches: &Matches) -> DriverResult<()> {
+    if matches.free.len() == 2 {
+      Ok(())
+    } else {
+      Err(DriverErr::IncompletedParameters)
+    }
+  }
+
+  fn check_and_get_dirs(cwd: &Path, matches: &Matches) -> DriverResult<(PathBuf, PathBuf)> {
+    let in_base_path = Self::check_input_path(util::absolute_path(cwd, &matches.free[0]))?;
+    Ok((in_base_path, util::absolute_path(cwd, &matches.free[1])))
+  }
+
+  fn check_input_path(path: PathBuf) -> DriverResult<PathBuf> {
+    if path.exists() {
+      Ok(path)
+    } else {
+      Err(DriverErr::InputDirNotExist(path))
+    }
+  }
+
+  pub fn run(&self) -> DriverResult<()> {
+    for p in self.test_sets.iter() {
+      println!("{}", p.0);
+      if self.matches.opt_present(p.0) {
+        p.1(&self.in_base_path, &self.out_base_path, false)?
+      }
+    }
+
+    Ok(())
+  }
 }
 
 pub fn list_files(dir: &Path, extention: &str) -> io::Result<Vec<PathBuf>> {
@@ -45,14 +186,14 @@ pub fn display<'a>(s: Option<&'a OsStr>) -> OsStrDisplay {
   OsStrDisplay {s: s}
 }
 
-pub type AssertFn = Fn(i32, &str, &str, bool) -> TResult<()>;
+pub type AssertFn = Fn(i32, &str, &str, bool) -> DriverResult<()>;
 
-pub type ExecFn = Fn(&Path) -> TResult<String>;
+pub type ExecFn = Fn(&Path) -> DriverResult<String>;
 
 pub fn test_base(basedir: &Path, tmpdir: &Path,
              stop_if_err: bool,
              exec_fn: &ExecFn, assert_fn: &AssertFn)
-             -> TResult<()> {
+             -> DriverResult<()> {
 
   let mut succ_dir = PathBuf::from(basedir);
   succ_dir.push("success");
@@ -88,40 +229,80 @@ pub fn test_base(basedir: &Path, tmpdir: &Path,
   Ok(())
 }
 
-pub enum PTestError {
-  ParseError(String),
-  TestFailure,
-  IOError(io::Error)
-}
+//pub fn setup_tmpdir(tmpdir: &Path) {
+//  mkdir(tmpdir);
+//
+//  let mut succ_result = PathBuf::from(tmpdir);
+//  succ_result.push("success");
+//  mkdir(succ_result.as_path());
+//}
 
-impl From<io::Error> for PTestError {
-  fn from(err: io::Error) -> PTestError {
-    PTestError::IOError(err)
-  }
-}
 
-pub type TResult<T> = Result<T, PTestError>;
+pub type TestSet = Box<Fn(&Path, &Path, bool) -> DriverResult<()>>;
 
-pub fn setup_tmpdir(tmpdir: &Path) {
-  mkdir(tmpdir);
+pub trait TestSet2<'a> {
+  fn driver(&self) -> &'a TestDriver<'a>;
 
-  let mut succ_result = PathBuf::from(tmpdir);
-  succ_result.push("success");
-  mkdir(succ_result.as_path());
-}
+  fn name(&self) -> &str;
 
-pub type Phase = Box<Fn(&Path, &Path, bool) -> TResult<()>>;
-
-pub fn run_phases(data_dir: &Path, tmp_dir: &Path,
-              m: &Matches,
-              phases: &Vec<(&'static str, Phase)>)
-              -> TResult<()> {
-
-  for p in phases.iter() {
-    if m.opt_present(p.0) {
-      p.1(data_dir, tmp_dir, false)?
+  fn assert(&self, edit_dist: i32, expected: &str, result: &str) -> DriverResult<()> {
+    if edit_dist > 0 {
+      println!(" Failed, difference:");
+      print_diff(expected, result, "");
+      println!("");
+    } else {
+      println!(" Ok")
     }
+
+    Ok(())
   }
 
-  Ok(())
+  fn transform(&self, &Path) -> DriverResult<String>;
+
+  fn in_dir(&self) -> PathBuf {
+    let mut in_dir = PathBuf::from(self.driver().in_base_dir());
+    in_dir.push(self.name());
+    in_dir
+  }
+
+  fn out_dir(&self) -> PathBuf {
+    let mut in_dir = PathBuf::from(self.driver().out_base_dir());
+    in_dir.push(self.name());
+    in_dir
+  }
+
+  fn run_all(&self) -> DriverResult<()> {
+    for p in list_files(self.in_dir().as_path(), "fl")? {
+      self.run_unit(p.as_path())?;
+    }
+    Ok(())
+  }
+
+  fn run_unit(&self, input: &Path) -> DriverResult<()> {
+    let test_name = extract_test_name(input);
+
+    // transform an input into a string generated from an output.
+    let result = self.transform(input)?;
+    self.save_result(test_name, &result)?;
+
+    let expected = self.expected_result(test_name)?;
+
+    print!("Testing {} ... ", display(input.file_name()));
+    let (dist, _) = diff(&result, &expected, "");
+
+    self.assert(dist, &expected, &result)
+  }
+
+  fn save_result(&self, test_name: &str, result: &str) -> DriverResult<()> {
+    let mut save_path = self.out_dir();
+    save_path.push(format!("{}.{}", test_name, "result"));
+    Ok(util::str_to_file(save_path.as_path(), result)?)
+
+  }
+
+  fn expected_result(&self, test_name: &str) -> DriverResult<String> {
+    let mut expected_path = self.in_dir();
+    expected_path.push(format!("{}.{}", test_name, "result"));
+    Ok(util::file_to_string(expected_path.as_path())?)
+  }
 }

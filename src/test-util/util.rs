@@ -1,6 +1,17 @@
 use std::fs::{self, File, read_dir};
-use std::io::{self, Read};
-use std::path::Path;
+use std::io::{self, Read, Write};
+use std::path::{Path, PathBuf};
+
+pub fn absolute_path(cwd: &Path, path: &str) -> PathBuf {
+  let p = PathBuf::from(path);
+  if p.is_absolute() {
+    p
+  } else {
+    let mut cur_dir = cwd.to_path_buf();
+    cur_dir.push(p);
+    cur_dir
+  }
+}
 
 pub enum TestError {
   IOError(io::Error)
@@ -58,4 +69,11 @@ pub fn file_to_string(dir: &Path) -> io::Result<String> {
   f.read_to_string(&mut buf)?;
 
   Ok(buf)
+}
+
+pub fn str_to_file(path: &Path, str: &str) -> io::Result<()> {
+  let mut save_file = File::create(&path)?;
+  save_file.write_all(str.as_bytes())?;
+  save_file.sync_all()?;
+  Ok(())
 }
