@@ -84,11 +84,13 @@ fn print_usage(program: &str, opts: &Options) {
   print!("{}", opts.usage(&brief));
 }
 
-fn setup_opts() -> Options {
+fn setup_opts<'a>(test_sets: &Vec<Box<TestSet<'a>>>) -> Options {
   let mut opts = Options::new();
-  opts.optflag("h", "help", "print this help menu")
-      .optflag("", "parser-success", "Test parsing success")
-      .optflag("", "parser-fail", "Test parsing failures");
+  opts.optflag("h", "help", "print this help menu");
+
+  for test_set in test_sets {
+    opts.optflag("", test_set.name(), &format!("Test the {} test set", test_set.name()));
+  }
 
   opts
 }
@@ -106,20 +108,22 @@ pub fn main() {
     env::current_exe().unwrap()
   );
 
-  let driver = match TestDriver::new(&run_env, setup_opts(), setup_phases()) {
+  let opts = setup_opts(&setup_phases());
+
+  let driver = match TestDriver::new(&run_env, &opts, setup_phases()) {
     Ok(d) => d,
     Err(DriverErr::Help) | Err(DriverErr::IncompletedParameters) => {
-      print_usage(run_env.program_name(), &setup_opts());
+      print_usage(run_env.program_name(), &opts);
       std::process::exit(-1);
     },
     Err(DriverErr::OptionParsing(e)) => {
       println!("ERROR: {}\n", e);
-      print_usage(run_env.program_name(), &setup_opts());
+      print_usage(run_env.program_name(), &opts);
       std::process::exit(-1);
     }
     Err(DriverErr::InputDirNotExist(p)) => {
       println!("ERROR: {} does not exists...\n", p.to_str().unwrap());
-      print_usage(run_env.program_name(), &setup_opts());
+      print_usage(run_env.program_name(), &opts);
       std::process::exit(-1);
     }
     _ => {

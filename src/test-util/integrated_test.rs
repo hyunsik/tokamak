@@ -94,7 +94,7 @@ pub struct TestDriver<'a> {
 }
 
 impl<'a> TestDriver<'a> {
-  pub fn new(env: &'a RunEnv, opts: Options, sets: Vec<Box<TestSet<'a>>>)
+  pub fn new(env: &'a RunEnv, opts: &'a Options, sets: Vec<Box<TestSet<'a>>>)
       -> DriverResult<TestDriver<'a>> {
 
     let matches = opts.parse(&env.args()[1..])?;

@@ -1,5 +1,5 @@
 use std::fs::{self, File, read_dir};
-use std::io::{self, Read, Write};
+use std::io::{self, ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
 pub fn absolute_path(cwd: &Path, path: &str) -> PathBuf {
@@ -36,11 +36,13 @@ pub fn list_files(dir: &Path) -> io::Result<fs::ReadDir> {
   //pub fn dir_iter()
 
   if !dir.exists() {
-    panic!("{} does not exists", dir.to_str().unwrap());
+    return Err(io::Error::new(ErrorKind::NotFound,
+             format!("{} does not exists", dir.to_str().unwrap())));
   }
 
   if !fs::metadata(dir)?.is_dir() {
-    panic!("{} must be a directory");
+    return Err(io::Error::new(ErrorKind::Other,
+             format!("{} must be a directory", dir.to_str().unwrap())));
   }
 
   read_dir(dir)
