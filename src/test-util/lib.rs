@@ -88,6 +88,18 @@ impl From<io::Error> for DriverErr {
   }
 }
 
+pub fn default_options<'a>(test_sets: &Vec<Box<TestSet<'a>>>) -> Options {
+  let mut opts = Options::new();
+  opts.optflag("h", "help", "print this help menu");
+  opts.optflag("a", "all", "test all sets");
+
+  for test_set in test_sets {
+    opts.optflag("", test_set.name(), &format!("test the '{}' set", test_set.name()));
+  }
+
+  opts
+}
+
 pub type DriverResult<T> = Result<T, DriverErr>;
 
 pub struct TestDriver<'a> {

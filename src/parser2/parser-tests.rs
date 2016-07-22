@@ -18,6 +18,7 @@ use test_util as test;
 use test_util::{
   DriverErr,
   DriverResult,
+  default_options,
   RunEnv,
   TestDriver,
   TestSet
@@ -83,18 +84,6 @@ fn print_usage(program: &str, opts: &Options) {
   print!("{}", opts.usage(&brief));
 }
 
-fn setup_opts<'a>(test_sets: &Vec<Box<TestSet<'a>>>) -> Options {
-  let mut opts = Options::new();
-  opts.optflag("h", "help", "print this help menu");
-  opts.optflag("a", "all", "test all sets");
-
-  for test_set in test_sets {
-    opts.optflag("", test_set.name(), &format!("test the '{}' set", test_set.name()));
-  }
-
-  opts
-}
-
 fn setup_phases<'a>() -> Vec<Box<TestSet<'a>>> {
   vec![
     Box::new(ParserTestSet::new("items"))
@@ -108,7 +97,7 @@ pub fn main() {
     env::current_exe().unwrap()
   );
 
-  let opts = setup_opts(&setup_phases());
+  let opts = default_options(&setup_phases());
 
   let driver = match TestDriver::new(&run_env, &opts, setup_phases()) {
     Ok(d) => d,
