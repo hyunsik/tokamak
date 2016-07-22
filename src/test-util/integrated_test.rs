@@ -104,6 +104,8 @@ impl<'a> TestDriver<'a> {
     Self::check_requred_params(&matches)?;
 
     let (in_base_path, out_base_path) = Self::check_and_get_dirs(env.cwd(), &matches)?;
+    // create the output base dir if not exists
+    util::mkdir(&out_base_path)?;
 
     Ok(TestDriver {
       env: env,
@@ -153,7 +155,6 @@ impl<'a> TestDriver<'a> {
 
   pub fn run(&self) -> DriverResult<()> {
     for p in self.test_sets.iter() {
-      println!("{}", p.name());
       if self.matches.opt_present(p.name()) {
         p.run_all(self)?
       }
@@ -229,12 +230,12 @@ pub trait TestSet<'a> {
     let test_name = extract_test_name(input);
 
     // transform an input into a string generated from an output.
+    print!("Testing {}::{} ... ", self.name(), display(input.file_name()));
     let result = self.transform(input)?;
-    self.save_result(driver, test_name, &result)?;
 
+    self.save_result(driver, test_name, &result)?;
     let expected = self.expected_result(driver, test_name)?;
 
-    print!("Testing {} ... ", display(input.file_name()));
     let (dist, _) = diff(&result, &expected, "");
 
     self.assert(dist, &expected, &result)
@@ -242,9 +243,9 @@ pub trait TestSet<'a> {
 
   fn save_result(&self, driver: &TestDriver, test_name: &str, result: &str) -> DriverResult<()> {
     let mut save_path = self.out_dir(driver);
+    util::mkdir(save_path.as_path())?;
     save_path.push(format!("{}.{}", test_name, "result"));
     Ok(util::str_to_file(save_path.as_path(), result)?)
-
   }
 
   fn expected_result(&self, driver: &TestDriver, test_name: &str) -> DriverResult<String> {
