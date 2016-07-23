@@ -31,7 +31,7 @@ use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use getopts::{Matches, Options};
+use getopts::{HasArg, Matches, Occur, Options};
 
 pub struct RunEnv {
   program_name: String,
@@ -92,6 +92,10 @@ pub fn default_options<'a>(test_sets: &Vec<Box<TestSet<'a>>>) -> Options {
   let mut opts = Options::new();
   opts.optflag("h", "help", "print this help menu");
   opts.optflag("a", "all", "test all sets");
+  opts.opt("f", "filter",
+           "filter tests by given keywords (multiple words allowed by comma)",
+           "e.g.,) -f=abc,def",
+           HasArg::Yes, Occur::Optional);
 
   for test_set in test_sets {
     opts.optflag("", test_set.name(), &format!("test the '{}' set", test_set.name()));
@@ -105,6 +109,7 @@ pub type DriverResult<T> = Result<T, DriverErr>;
 pub struct TestDriver<'a> {
   env: &'a RunEnv,
   test_all: bool,
+  filter: Vec<String>,
   matches: Matches,
   in_base_path: PathBuf,
   out_base_path: PathBuf,
@@ -121,6 +126,7 @@ impl<'a> TestDriver<'a> {
     }
     Self::check_requred_params(&matches)?;
     let test_all = matches.opt_present("a");
+    let filter = Self::create_filter(&matches);
 
     let (in_base_path, out_base_path) = Self::check_and_get_dirs(env.cwd(), &matches)?;
     // create the output base dir if not exists
@@ -129,11 +135,20 @@ impl<'a> TestDriver<'a> {
     Ok(TestDriver {
       env: env,
       test_all: test_all,
+      filter: filter,
       matches: matches,
       in_base_path: in_base_path,
       out_base_path: out_base_path,
       test_sets: sets
     })
+  }
+
+  fn create_filter(matches: &Matches) -> Vec<String> {
+    let mut filter: Vec<String> = Vec::new();
+    if let Some(f) = matches.opt_str("f") {
+      filter.extend_from_slice(&f.split(",").map(|w| w.to_owned()).collect::<Vec<String>>());
+    }
+    filter
   }
 
   pub fn add_testset(&mut self, set: Box<TestSet<'a>>) {
@@ -239,26 +254,48 @@ pub trait TestSet<'a> {
     in_dir
   }
 
+  fn is_matched(&self, driver: &TestDriver, p: &Path) -> bool {
+    if driver.filter.len() > 0 {
+      let test_name = extract_test_name(p);
+
+      for w in &driver.filter { // if a keyword is matched at least one time
+        if test_name.contains(w) {
+          return true;
+        }
+      }
+      false
+    } else {
+      true
+    }
+  }
+
   fn run_all(&self, driver: &TestDriver) -> DriverResult<()> {
     let files = list_files(self.in_dir(driver).as_path(), "fl")?;
 
     let total_num = files.len();
     let mut fail_num = 0usize;
+    let mut skipped_num = 0usize;
 
-    println!("Testing {} units in {} ... ", files.len(), self.name());
+    println!("\nRunning {} tests in [{}] ... ", files.len(), self.name());
 
     for p in files {
-      match self.run_unit(driver, p.as_path()) {
-        Ok(_) => {}
-        Err(e) => {
-          match e {
-            DriverErr::TestFailure => fail_num+=1,
-            _ => return Err(e)
+      if self.is_matched(driver, p.as_path()) {
+        match self.run_unit(driver, p.as_path()) {
+          Ok(_) => {}
+          Err(e) => {
+            match e {
+              DriverErr::TestFailure => fail_num += 1,
+              _ => return Err(e)
+            }
           }
         }
+      } else {
+        skipped_num +=1;
       }
     }
-    println!("Total runs {}, Failures: {}", total_num, fail_num);
+    println!("\nResult : ");
+    println!("Test Runs: {}, Failures: {}, Errors: {}, Skipped: {}\n",
+             total_num, fail_num, 0usize, skipped_num);
     Ok(())
   }
 
