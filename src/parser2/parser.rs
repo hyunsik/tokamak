@@ -3165,62 +3165,6 @@ mod tests {
   }
 
   #[test]
-  fn test_expr_tuple_field() {
-    match str_to_expr("xyz.1") {
-      Ok(e) => println!("{:?}", e),
-      Err(_) => println!("Error")
-    };
-  }
-
-  #[test]
-  fn test_expr_index() {
-    match str_to_expr("xyz[9]") {
-      Ok(e) => println!("{:?}", e),
-      Err(_) => println!("Error")
-    };
-  }
-
-  #[test]
-  fn test_expr_method_call() {
-    match str_to_expr("x.y()") {
-      Ok(e) => println!("{:?}", e),
-      Err(_) => println!("Error")
-    };
-  }
-
-  #[test]
-  fn test_expr_call() {
-    match str_to_expr("xyz(1,2,3)") {
-      Ok(e) => println!("{:?}", e),
-      Err(_) => println!("Error")
-    };
-  }
-
-  #[test]
-  fn test_expr_plus() {
-    match str_to_expr("2.3 + 4") {
-      Ok(e) => println!("{:?}", e),
-      Err(_) => println!("Error")
-    };
-  }
-
-  #[test]
-  fn test_expr_tuple() {
-    match str_to_expr("(1,2,3)") {
-      Ok(e) => println!("{:?}", e),
-      Err(_) => println!("Error")
-    };
-  }
-
-  #[test]
-  fn test_expr_paren() {
-    match str_to_expr("((1+2))") {
-      Ok(e) => println!("{:?}", e),
-      Err(_) => println!("Error")
-    };
-  }
-
-  #[test]
   fn test_expr_struct() {
     match str_to_expr("xyz {x: 1, y: 1, z:1}") {
       Ok(e) => println!("{:?}", e),

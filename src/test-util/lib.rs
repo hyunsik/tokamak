@@ -230,14 +230,20 @@ pub trait TestSet<'a> {
 
   fn assert(&self, expected: &str, result: &str) -> DriverResult<()> {
     if expected != result {
-      println!(" Failed, difference:");
-      print_diff(expected, result);
-      println!("");
       Err(DriverErr::TestFailure)
     } else {
-      println!(" Ok");
       Ok(())
     }
+  }
+
+  fn print_ok(&self) {
+    println!(" Ok");
+  }
+
+  fn print_fail(&self, expected: &str, result_file: &Path, result: &str) {
+    println!(" Failed, difference from {}\n", result_file.to_str().unwrap());
+    print_diff(expected, result);
+    println!("");
   }
 
   fn transform(&self, &Path) -> DriverResult<String>;
@@ -306,16 +312,28 @@ pub trait TestSet<'a> {
     print!("  {} ... ", display(input.file_name()));
     let result = self.transform(input)?;
 
-    self.save_result(driver, test_name, &result)?;
+    let saved_file = self.save_result(driver, test_name, &result)?;
     let expected = self.expected_result(driver, test_name)?;
-    self.assert(&expected, &result)
+
+    match self.assert(&expected, &result) {
+      Ok(_) => {
+        self.print_ok();
+        Ok(())
+      }
+      Err(e) => {
+        self.print_fail(&expected, &saved_file, &result);
+        Err(e)
+      }
+    }
   }
 
-  fn save_result(&self, driver: &TestDriver, test_name: &str, result: &str) -> DriverResult<()> {
+  fn save_result(&self, driver: &TestDriver, test_name: &str, result: &str)
+      -> DriverResult<PathBuf> {
     let mut save_path = self.out_dir(driver);
     util::mkdir(save_path.as_path())?;
     save_path.push(format!("{}.{}", test_name, "result"));
-    Ok(util::str_to_file(save_path.as_path(), result)?)
+    util::str_to_file(save_path.as_path(), result)?;
+    Ok(save_path)
   }
 
   fn expected_result(&self, driver: &TestDriver, test_name: &str) -> DriverResult<String> {
