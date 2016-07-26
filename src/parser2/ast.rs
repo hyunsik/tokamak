@@ -7,11 +7,11 @@ pub use self::Mutability::*;
 
 use abi::Abi;
 use ast_printer as printer;
-use attr::ThinAttributes;
 use codemap::{Span, Spanned};
 use comments::{doc_comment_style, strip_doc_comment_decoration};
 use ptr::P;
 use token::{self, InternedString};
+use thin_vec::ThinVec;
 
 pub type NodeId = u32;
 
@@ -394,24 +394,6 @@ pub enum StmtKind {
   Semi(P<Expr>, NodeId),
 }
 
-impl StmtKind {
-  pub fn id(&self) -> Option<NodeId> {
-    match *self {
-      StmtKind::Decl(_, id) => Some(id),
-      StmtKind::Expr(_, id) => Some(id),
-      StmtKind::Semi(_, id) => Some(id),
-    }
-  }
-
-  pub fn attrs(&self) -> &[Attribute] {
-    match *self {
-      StmtKind::Decl(ref d, _) => d.attrs(),
-      StmtKind::Expr(ref e, _) |
-      StmtKind::Semi(ref e, _) => e.attrs(),
-    }
-  }
-}
-
 pub type Decl = Spanned<DeclKind>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -420,15 +402,6 @@ pub enum DeclKind {
   Local(P<Local>),
   /// An item binding:
   Item(P<Item>),
-}
-
-impl Decl {
-  pub fn attrs(&self) -> &[Attribute] {
-    match self.node {
-      DeclKind::Local(ref l) => l.attrs(),
-      DeclKind::Item(ref i) => i.attrs(),
-    }
-  }
 }
 
 /// Local represents a `let` or 'var' statement, e.g., `let <pat>:<ty> = <expr>;`,
@@ -441,16 +414,7 @@ pub struct Local {
   pub init: Option<P<Expr>>,
   pub id: NodeId,
   pub span: Span,
-  pub attrs: ThinAttributes,
-}
-
-impl Local {
-  pub fn attrs(&self) -> &[Attribute] {
-    match self.attrs {
-      Some(ref b) => b,
-      None => &[],
-    }
-  }
+  pub attrs: ThinVec<Attribute>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -541,16 +505,7 @@ pub struct Expr {
   pub id: NodeId,
   pub node: ExprKind,
   pub span: Span,
-  pub attrs: ThinAttributes
-}
-
-impl Expr {
-  pub fn attrs(&self) -> &[Attribute] {
-    match self.attrs {
-      Some(ref b) => b,
-      None => &[],
-    }
-  }
+  pub attrs: ThinVec<Attribute>
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -597,7 +552,8 @@ pub enum ExprKind {
   Loop,
   ForLoop,
   Match,
-  Block,
+  /// A block (`{ ... }`)
+  Block(P<Block>),
   /// First expr is the place; second expr is the value.
   InPlace(P<Expr>, P<Expr>),
   /// An assignment (`a = foo()`)

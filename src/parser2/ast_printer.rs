@@ -1567,7 +1567,7 @@ impl<'a> State<'a> {
           Mutability::Mutable => "var"
         };
 
-        //self.print_outer_attributes(loc.attrs.as_attr_slice())?;
+        //try!(self.print_outer_attributes(&loc.attrs));
         try!(self.space_if_not_bol());
         try!(self.ibox(INDENT_UNIT));
         try!(self.word_nbsp(decl));
@@ -1839,7 +1839,7 @@ impl<'a> State<'a> {
         unimplemented!()
       }
 
-      ast::ExprKind::Block => {
+      ast::ExprKind::Block(ref b) => {
         unimplemented!()
       }
 
