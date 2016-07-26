@@ -1,3 +1,5 @@
 pub fn extract(array: Array) -> Int {
-  array[0]
+
+    array[0]
+
 }

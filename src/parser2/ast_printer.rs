@@ -62,12 +62,13 @@ use self::AnnNode::*;
 use self::Breaks::*;
 
 use abi::Abi;
-use ast::{self, BlockCheckMode, Mutability, PatKind};
+use ast::{self, Attribute, BlockCheckMode, Mutability, PatKind};
 use codemap::{self, CodeMap, BytePos};
 use comments;
 use error_handler as errors;
 use parser;
 use precedence::AssocOp;
+use ptr::P;
 use token::keywords;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -1023,6 +1024,11 @@ impl<'a> State<'a> {
     self.end()
   }
 
+  pub fn commasep_exprs(&mut self, b: Breaks,
+                        exprs: &[P<ast::Expr>]) -> io::Result<()> {
+    self.commasep_cmnt(b, exprs, |s, e| s.print_expr(&e), |e| e.span)
+  }
+
   fn maybe_print_comment(&mut self, pos: BytePos) -> io::Result<()> {
     loop {
       match self.next_comment() {
@@ -1766,6 +1772,8 @@ impl<'a> State<'a> {
                                  is_inline: bool) -> io::Result<()> {
     try!(self.maybe_print_comment(expr.span.lo));
 
+    // temporary solution
+    let attrs = &Vec::new();
     /*
     let attrs = expr.attrs.as_attr_slice();
     if is_inline {
@@ -1870,11 +1878,11 @@ impl<'a> State<'a> {
       }
 
       ast::ExprKind::Struct(ref path, ref fields, ref wth) => {
-        unimplemented!()
+        self.print_expr_struct(path, &fields[..], wth, attrs)?;
       }
 
       ast::ExprKind::Tup(ref exprs) => {
-        unimplemented!()
+        self.print_expr_tup(&exprs[..], attrs)?;
       }
 
       ast::ExprKind::Field(ref expr, id) => {
@@ -1911,11 +1919,11 @@ impl<'a> State<'a> {
       }
 
       ast::ExprKind::Call(ref func, ref args) => {
-        unimplemented!()
+        self.print_expr_call(&func, &args[..])?;
       }
 
       ast::ExprKind::MethodCall(ident, ref tys, ref args) => {
-        unimplemented!()
+        self.print_expr_method_call(ident, &tys[..], &args[..])?;
       }
 
       ast::ExprKind::Lit(ref lit) => {
@@ -1965,6 +1973,85 @@ impl<'a> State<'a> {
       }
       _ => true
     }
+  }
+
+  fn print_expr_struct(&mut self,
+                       path: &ast::Path,
+                       fields: &[ast::Field],
+                       wth: &Option<P<ast::Expr>>,
+                       attrs: &[Attribute]) -> io::Result<()> {
+    self.print_path(path, true, 0)?;
+    word(&mut self.s, "{")?;
+    //self.print_inner_attributes_inline(attrs)?;
+    self.commasep_cmnt(
+      Consistent,
+      &fields[..],
+      |s, field| {
+        s.ibox(INDENT_UNIT)?;
+        s.print_ident(field.ident.node)?;
+        s.word_space(":")?;
+        s.print_expr(&field.expr)?;
+        s.end()
+      },
+      |f| f.span)?;
+    match *wth {
+      Some(ref expr) => {
+        self.ibox(INDENT_UNIT)?;
+        if !fields.is_empty() {
+          word(&mut self.s, ",")?;
+          space(&mut self.s)?;
+        }
+        word(&mut self.s, "..")?;
+        self.print_expr(&expr)?;
+        self.end()?;
+      }
+      _ => if !fields.is_empty() {
+        word(&mut self.s, ",")?
+      }
+    }
+    word(&mut self.s, "}")?;
+    Ok(())
+  }
+
+  fn print_expr_tup(&mut self, exprs: &[P<ast::Expr>],
+                    attrs: &[Attribute]) -> io::Result<()> {
+    self.popen()?;
+    //try!(self.print_inner_attributes_inline(attrs));
+    self.commasep_exprs(Inconsistent, &exprs[..])?;
+    if exprs.len() == 1 {
+      word(&mut self.s, ",")?;
+    }
+    self.pclose()
+  }
+
+  fn print_expr_call(&mut self,
+                     func: &ast::Expr,
+                     args: &[P<ast::Expr>]) -> io::Result<()> {
+    self.print_expr_maybe_paren(func)?;
+    self.print_call_post(args)
+  }
+
+  fn print_expr_method_call(&mut self,
+                            ident: ast::SpannedIdent,
+                            tys: &[P<ast::Ty>],
+                            args: &[P<ast::Expr>]) -> io::Result<()> {
+    let base_args = &args[1..];
+    self.print_expr(&args[0])?;
+    word(&mut self.s, ".")?;
+    self.print_ident(ident.node)?;
+    if !tys.is_empty() {
+      word(&mut self.s, "::<")?;
+      self.commasep(Inconsistent, tys,
+                    |s, ty| s.print_type(&ty))?;
+      word(&mut self.s, ">")?;
+    }
+    self.print_call_post(base_args)
+  }
+
+  fn print_call_post(&mut self, args: &[P<ast::Expr>]) -> io::Result<()> {
+    self.popen()?;
+    self.commasep_exprs(Inconsistent, args)?;
+    self.pclose()
   }
 
   fn print_literal(&mut self, lit: &ast::Lit) -> io::Result<()> {

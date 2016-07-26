@@ -1,3 +1,3 @@
-pub fn extract(array: [Int;10]) -> Int {
+pub fn extract(array: Array) -> Int {
   array[0]
 }
