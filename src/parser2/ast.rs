@@ -548,9 +548,26 @@ pub enum ExprKind {
   IfLet(P<Pat>, P<Expr>, P<Block>, Option<P<Expr>>),
 
   Closure,
-  While,
-  Loop,
-  ForLoop,
+  /// A while loop, with an optional label
+  ///
+  /// `'label: while expr { block }`
+  While(P<Expr>, P<Block>, Option<SpannedIdent>),
+  /// A while-let loop, with an optional label
+  ///
+  /// `'label: while let pat = expr { block }`
+  ///
+  /// This is desugared to a combination of `loop` and `match` expressions.
+  WhileLet(P<Pat>, P<Expr>, P<Block>, Option<SpannedIdent>),
+  /// A for loop, with an optional label
+  ///
+  /// `'label: for pat in expr { block }`
+  ///
+  /// This is desugared to a combination of `loop` and `match` expressions.
+  ForLoop(P<Pat>, P<Expr>, P<Block>, Option<SpannedIdent>),
+  /// Conditionless loop (can be exited with break, continue, or return)
+  ///
+  /// `'label: loop { block }`
+  Loop(P<Block>, Option<SpannedIdent>),
   Match,
   /// A block (`{ ... }`)
   Block(P<Block>),

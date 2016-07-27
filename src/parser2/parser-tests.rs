@@ -116,6 +116,10 @@ pub fn main() {
       print_usage(run_env.program_name(), &opts);
       std::process::exit(-1);
     }
+    Err(DriverErr::IoError(e)) => {
+      println!("IO Error: {} \n", e);
+      std::process::exit(-1);
+    }
     _ => {
       panic!("Error");
     }
@@ -123,6 +127,13 @@ pub fn main() {
 
   match driver.run() {
     Ok(_) => std::process::exit(0),
-    _     => std::process::exit(-1)
+    Err(DriverErr::IoError(e)) => {
+      println!("\nIO Error: {} \n", e);
+      std::process::exit(-1);
+    }
+    _ => {
+      println!("\nInternal Error! \n");
+      std::process::exit(-1);
+    }
   };
 }

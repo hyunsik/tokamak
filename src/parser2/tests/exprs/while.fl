@@ -1,0 +1,6 @@
+pub fn w(y: Int) {
+  var x = 0;
+  while x < y {
+    x += 1;
+  }
+}

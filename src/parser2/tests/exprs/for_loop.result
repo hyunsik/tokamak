@@ -1,0 +1,8 @@
+pub fn for_loop(y: Int) {
+
+    for x in 0..y {
+
+        println(x);
+
+    }
+}

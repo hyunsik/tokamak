@@ -1916,7 +1916,7 @@ impl<'a> Parser<'a> {
     let lo = self.span.lo;
     let mut hi = self.span.hi;
 
-    let mut ex: ExprKind = ExprKind::ForLoop;
+    let mut ex: ExprKind = ExprKind::Match;
 
     // Note: when adding new syntax here, don't forget to adjust Token::can_begin_expr().
     match self.token {
@@ -1963,10 +1963,16 @@ impl<'a> Parser<'a> {
           return self.parse_if_expr(attrs);
         }
         if self.eat_keyword(keywords::For) {
+          let lo = self.last_span.lo;
+          return self.parse_for_expr(None, lo, attrs);
         }
         if self.eat_keyword(keywords::While) {
+          let lo = self.last_span.lo;
+          return self.parse_while_expr(None, lo, attrs);
         }
         if self.eat_keyword(keywords::Loop) {
+          let lo = self.last_span.lo;
+          return self.parse_loop_expr(None, lo, attrs);
         }
         if self.eat_keyword(keywords::Continue) {
         }
@@ -2120,6 +2126,64 @@ impl<'a> Parser<'a> {
       let blk = self.parse_block()?;
       return Ok(self.mk_expr(blk.span.lo, blk.span.hi, ExprKind::Block(blk), ThinVec::new()));
     }
+  }
+
+  /// Parse a 'for' .. 'in' expression ('for' token already eaten)
+  pub fn parse_for_expr(&mut self, opt_ident: Option<ast::SpannedIdent>,
+                        span_lo: BytePos,
+                        mut attrs: ThinVec<Attribute>) -> PResult<P<Expr>> {
+    // Parse: `for <src_pat> in <src_expr> <src_loop_block>`
+
+    let pat = self.parse_pat()?;
+    self.expect_keyword(keywords::In)?;
+    let expr = self.parse_expr_res(RESTRICTION_NO_STRUCT_LITERAL, None)?;
+    let (iattrs, loop_block) = self.parse_inner_attrs_and_block()?;
+    attrs.extend(iattrs);
+
+    let hi = self.last_span.hi;
+
+    Ok(self.mk_expr(span_lo, hi,
+                    ExprKind::ForLoop(pat, expr, loop_block, opt_ident),
+                    attrs))
+  }
+
+  /// Parse a 'while' or 'while let' expression ('while' token already eaten)
+  pub fn parse_while_expr(&mut self, opt_ident: Option<ast::SpannedIdent>,
+                          span_lo: BytePos,
+                          mut attrs: ThinVec<Attribute>) -> PResult<P<Expr>> {
+    if self.token.is_keyword(keywords::Let) {
+      return self.parse_while_let_expr(opt_ident, span_lo, attrs);
+    }
+    let cond = self.parse_expr_res(RESTRICTION_NO_STRUCT_LITERAL, None)?;
+    let (iattrs, body) = self.parse_inner_attrs_and_block()?;
+    attrs.extend(iattrs);
+    let hi = body.span.hi;
+    return Ok(self.mk_expr(span_lo, hi, ExprKind::While(cond, body, opt_ident),
+                           attrs));
+  }
+
+  /// Parse a 'while let' expression ('while' token already eaten)
+  pub fn parse_while_let_expr(&mut self, opt_ident: Option<ast::SpannedIdent>,
+                              span_lo: BytePos,
+                              mut attrs: ThinVec<Attribute>) -> PResult<P<Expr>> {
+    self.expect_keyword(keywords::Let)?;
+    let pat = self.parse_pat()?;
+    self.expect(&token::Eq)?;
+    let expr = self.parse_expr_res(RESTRICTION_NO_STRUCT_LITERAL, None)?;
+    let (iattrs, body) = self.parse_inner_attrs_and_block()?;
+    attrs.extend(iattrs);
+    let hi = body.span.hi;
+    return Ok(self.mk_expr(span_lo, hi, ExprKind::WhileLet(pat, expr, body, opt_ident), attrs));
+  }
+
+  // parse `loop {...}`, `loop` token already eaten
+  pub fn parse_loop_expr(&mut self, opt_ident: Option<ast::SpannedIdent>,
+                         span_lo: BytePos,
+                         mut attrs: ThinVec<Attribute>) -> PResult<P<Expr>> {
+    let (iattrs, body) = self.parse_inner_attrs_and_block()?;
+    attrs.extend(iattrs);
+    let hi = body.span.hi;
+    Ok(self.mk_expr(span_lo, hi, ExprKind::Loop(body, opt_ident), attrs))
   }
 
   /// Matches lit = true | false | token_lit
@@ -2742,9 +2806,9 @@ pub fn expr_requires_semi_to_be_stmt(e: &ast::Expr) -> bool {
     ast::ExprKind::IfLet(..) |
     ast::ExprKind::Match |
     ast::ExprKind::Block(..) |
-    ast::ExprKind::While |
-    ast::ExprKind::Loop |
-    ast::ExprKind::ForLoop => false,
+    ast::ExprKind::While(..) |
+    ast::ExprKind::Loop(..) |
+    ast::ExprKind::ForLoop(..) => false,
     _ => true,
   }
 }

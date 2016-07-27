@@ -1827,16 +1827,50 @@ impl<'a> State<'a> {
         unimplemented!()
       }
 
-      ast::ExprKind::While => {
-        unimplemented!()
+      ast::ExprKind::While(ref test, ref blk, opt_ident) => {
+        if let Some(ident) = opt_ident {
+          self.print_ident(ident.node)?;
+          try!(self.word_space(":"));
+        }
+        self.head("while")?;
+        self.print_expr(&test)?;
+        space(&mut self.s)?;
+        self.print_block_with_attrs(&blk, attrs)?;
       }
-
-      ast::ExprKind::Loop => {
-        unimplemented!()
+      ast::ExprKind::WhileLet(ref pat, ref expr, ref blk, opt_ident) => {
+        if let Some(ident) = opt_ident {
+          self.print_ident(ident.node)?;
+          self.word_space(":")?;
+        }
+        self.head("while let")?;
+        self.print_pat(&pat)?;
+        space(&mut self.s)?;
+        self.word_space("=")?;
+        self.print_expr(&expr)?;
+        space(&mut self.s)?;
+        self.print_block_with_attrs(&blk, attrs)?;
       }
-
-      ast::ExprKind::ForLoop => {
-        unimplemented!()
+      ast::ExprKind::ForLoop(ref pat, ref iter, ref blk, opt_ident) => {
+        if let Some(ident) = opt_ident {
+          self.print_ident(ident.node)?;
+          self.word_space(":")?;
+        }
+        self.head("for")?;
+        self.print_pat(&pat)?;
+        space(&mut self.s)?;
+        self.word_space("in")?;
+        self.print_expr(&iter)?;
+        space(&mut self.s)?;
+        self.print_block_with_attrs(&blk, attrs)?;
+      }
+      ast::ExprKind::Loop(ref blk, opt_ident) => {
+        if let Some(ident) = opt_ident {
+          self.print_ident(ident.node)?;
+          self.word_space(":")?;
+        }
+        self.head("loop")?;
+        space(&mut self.s)?;
+        self.print_block_with_attrs(&blk, attrs)?;
       }
 
       ast::ExprKind::Match => {
