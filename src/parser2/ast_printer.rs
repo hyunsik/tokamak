@@ -1557,6 +1557,10 @@ impl<'a> State<'a> {
     self.maybe_print_trailing_comment(st.span, None)
   }
 
+  pub fn print_block(&mut self, blk: &ast::Block) -> io::Result<()> {
+    self.print_block_with_attrs(blk, &[])
+  }
+
   pub fn print_decl(&mut self, decl: &ast::Decl) -> io::Result<()> {
     try!(self.maybe_print_comment(decl.span.lo));
     match decl.node {
@@ -1813,10 +1817,10 @@ impl<'a> State<'a> {
       }
 
       ast::ExprKind::If(ref test, ref blk, ref elseopt) => {
-        unimplemented!()
+        self.print_if(&test, &blk, elseopt.as_ref().map(|e| &**e))?;
       }
       ast::ExprKind::IfLet(ref pat, ref expr, ref blk, ref elseopt) => {
-        unimplemented!()
+        self.print_if_let(&pat, &expr, &blk, elseopt.as_ref().map(|e| &**e))?;
       }
 
       ast::ExprKind::Closure => {
@@ -1976,6 +1980,71 @@ impl<'a> State<'a> {
         }
       }
       _ => true
+    }
+  }
+
+  pub fn print_if(&mut self, test: &ast::Expr, blk: &ast::Block,
+                  elseopt: Option<&ast::Expr>) -> io::Result<()> {
+    self.head("if")?;
+    self.print_expr(test)?;
+    space(&mut self.s)?;
+    self.print_block(blk)?;
+    self.print_else(elseopt)
+  }
+
+  pub fn print_if_let(&mut self, pat: &ast::Pat, expr: &ast::Expr, blk: &ast::Block,
+                      elseopt: Option<&ast::Expr>) -> io::Result<()> {
+    try!(self.head("if let"));
+    try!(self.print_pat(pat));
+    try!(space(&mut self.s));
+    try!(self.word_space("="));
+    try!(self.print_expr(expr));
+    try!(space(&mut self.s));
+    try!(self.print_block(blk));
+    self.print_else(elseopt)
+  }
+
+  fn print_else(&mut self, els: Option<&ast::Expr>) -> io::Result<()> {
+    match els {
+      Some(_else) => {
+        match _else.node {
+          // "another else-if"
+          ast::ExprKind::If(ref i, ref then, ref e) => {
+            try!(self.cbox(INDENT_UNIT - 1));
+            try!(self.ibox(0));
+            try!(word(&mut self.s, " else if "));
+            try!(self.print_expr(&i));
+            try!(space(&mut self.s));
+            try!(self.print_block(&then));
+            self.print_else(e.as_ref().map(|e| &**e))
+          }
+          // "another else-if-let"
+          ast::ExprKind::IfLet(ref pat, ref expr, ref then, ref e) => {
+            try!(self.cbox(INDENT_UNIT - 1));
+            try!(self.ibox(0));
+            try!(word(&mut self.s, " else if let "));
+            try!(self.print_pat(&pat));
+            try!(space(&mut self.s));
+            try!(self.word_space("="));
+            try!(self.print_expr(&expr));
+            try!(space(&mut self.s));
+            try!(self.print_block(&then));
+            self.print_else(e.as_ref().map(|e| &**e))
+          }
+          // "final else"
+          ast::ExprKind::Block(ref b) => {
+            try!(self.cbox(INDENT_UNIT - 1));
+            try!(self.ibox(0));
+            try!(word(&mut self.s, " else "));
+            self.print_block(&b)
+          }
+          // BLEAH, constraints would be great here
+          _ => {
+            panic!("print_if saw if with weird alternative");
+          }
+        }
+      }
+      _ => Ok(())
     }
   }
 

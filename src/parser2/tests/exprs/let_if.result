@@ -1,0 +1,12 @@
+pub fn check_if_some(x: Option) -> bool {
+
+    if let y = x {
+
+        true
+
+    } else {
+
+        false
+
+    }
+}

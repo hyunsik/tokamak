@@ -1,4 +1,4 @@
-pub fn plus() -> Int {
+pub fn block() -> Int {
 
     { 1 + 2 }
 

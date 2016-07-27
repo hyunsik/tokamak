@@ -1,0 +1,7 @@
+pub fn gth_3(x: Int) -> bool {
+  if x > 3 {
+    true
+  } else {
+    false
+  }
+}

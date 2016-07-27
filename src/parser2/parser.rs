@@ -1960,6 +1960,7 @@ impl<'a> Parser<'a> {
       }
       _ => {
         if self.eat_keyword(keywords::If) {
+          return self.parse_if_expr(attrs);
         }
         if self.eat_keyword(keywords::For) {
         }
@@ -2073,6 +2074,52 @@ impl<'a> Parser<'a> {
 
     let blk = self.parse_block_tail(lo, blk_mode)?;
     return Ok(self.mk_expr(blk.span.lo, blk.span.hi, ExprKind::Block(blk), attrs));
+  }
+
+  /// Parse an 'if' or 'if let' expression ('if' token already eaten)
+  pub fn parse_if_expr(&mut self, attrs: ThinVec<Attribute>) -> PResult<P<Expr>> {
+    if self.check_keyword(keywords::Let) {
+      return self.parse_if_let_expr(attrs);
+    }
+    let lo = self.last_span.lo;
+    let cond = self.parse_expr_res(RESTRICTION_NO_STRUCT_LITERAL, None)?;
+    let thn = self.parse_block()?;
+    let mut els: Option<P<Expr>> = None;
+    let mut hi = thn.span.hi;
+    if self.eat_keyword(keywords::Else) {
+      let elexpr = self.parse_else_expr()?;
+      hi = elexpr.span.hi;
+      els = Some(elexpr);
+    }
+    Ok(self.mk_expr(lo, hi, ExprKind::If(cond, thn, els), attrs))
+  }
+
+  /// Parse an 'if let' expression ('if' token already eaten)
+  pub fn parse_if_let_expr(&mut self, attrs: ThinVec<Attribute>)
+      -> PResult<P<Expr>> {
+    let lo = self.last_span.lo;
+    self.expect_keyword(keywords::Let)?;
+    let pat = self.parse_pat()?;
+    self.expect(&token::Eq)?;
+    let expr = self.parse_expr_res(RESTRICTION_NO_STRUCT_LITERAL, None)?;
+    let thn = self.parse_block()?;
+    let (hi, els) = if self.eat_keyword(keywords::Else) {
+      let expr = self.parse_else_expr()?;
+      (expr.span.hi, Some(expr))
+    } else {
+      (thn.span.hi, None)
+    };
+    Ok(self.mk_expr(lo, hi, ExprKind::IfLet(pat, expr, thn, els), attrs))
+  }
+
+  // `else` token already eaten
+  pub fn parse_else_expr(&mut self) -> PResult<P<Expr>> {
+    if self.eat_keyword(keywords::If) {
+      return self.parse_if_expr(ThinVec::new());
+    } else {
+      let blk = self.parse_block()?;
+      return Ok(self.mk_expr(blk.span.lo, blk.span.hi, ExprKind::Block(blk), ThinVec::new()));
+    }
   }
 
   /// Matches lit = true | false | token_lit
