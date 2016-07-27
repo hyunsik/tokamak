@@ -12,7 +12,7 @@ use ast::{BinOpKind, Expr, ExprKind, Lit, LitKind, Ident, RangeLimits, UnOp};
 use ast::{ItemKind, ForeignItem, ForeignItemKind};
 use ast::{ViewPath, ViewPathList, ViewPathGlob, ViewPathSimple};
 use ast::{Ty, TyKind};
-use ast::{Block, BlockCheckMode, Stmt, StmtKind, Decl, DeclKind, Local, Mutability};
+use ast::{Block, BlockCheckMode, Stmt, StmtKind, Decl, DeclKind, Local, Mutability, UnsafeSource};
 use ast::{BindingMode, Field, Pat, PatKind};
 use ast::{Arg, FnDecl, FunctionRetTy};
 use ast::{TokenTree, Delimited};
@@ -1972,6 +1972,10 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(keywords::Match) {
         }
         if self.eat_keyword(keywords::Unsafe) {
+          return self.parse_block_expr(
+            lo,
+            BlockCheckMode::Unsafe(UnsafeSource::UserProvided),
+            attrs);
         }
         if self.eat_keyword(keywords::Return) {
         } else if self.eat_keyword(keywords::Break) {
@@ -2065,7 +2069,7 @@ impl<'a> Parser<'a> {
     self.expect(&token::OpenDelim(token::Brace))?;
 
     let mut attrs = outer_attrs;
-//    attrs.extend(self.parse_inner_attributes()?);
+    attrs.extend(self.parse_inner_attributes()?);
 
     let blk = self.parse_block_tail(lo, blk_mode)?;
     return Ok(self.mk_expr(blk.span.lo, blk.span.hi, ExprKind::Block(blk), attrs));

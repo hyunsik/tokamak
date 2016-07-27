@@ -1839,8 +1839,12 @@ impl<'a> State<'a> {
         unimplemented!()
       }
 
-      ast::ExprKind::Block(ref b) => {
-        unimplemented!()
+      ast::ExprKind::Block(ref blk) => {
+        // containing cbox, will be closed by print-block at }
+        try!(self.cbox(INDENT_UNIT));
+        // head-box, will be closed by print-block after {
+        try!(self.ibox(0));
+        try!(self.print_block_with_attrs(&blk, attrs));
       }
 
       ast::ExprKind::InPlace(ref place, ref expr) => {

@@ -1,0 +1,3 @@
+pub fn plus() -> Int {
+  { 1 + 2 }
+}
