@@ -1,0 +1,8 @@
+pub fn b() {
+
+    loop  {
+
+        break ;
+
+    }
+}

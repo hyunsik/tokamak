@@ -530,57 +530,29 @@ pub enum RangeLimits {
 pub enum ExprKind {
   /// A unary operation (For example: `!x`, `*x`)
   Unary(UnOp, P<Expr>),
+
   Binary(BinOp, P<Expr>, P<Expr>),
+
   /// A cast (`foo as f64`)
   Cast(P<Expr>, P<Ty>),
+
   Type(P<Expr>, P<Ty>),
 
-  /// An `if` block, with an optional else block
-  ///
-  /// `if expr { block } else { expr }`
-  If(P<Expr>, P<Block>, Option<P<Expr>>),
-
-  /// An `if let` expression with an optional else block
-  ///
-  /// `if let pat = expr { block } else { expr }`
-  ///
-  /// This is desugared to a `match` expression.
-  IfLet(P<Pat>, P<Expr>, P<Block>, Option<P<Expr>>),
-
   Closure,
-  /// A while loop, with an optional label
-  ///
-  /// `'label: while expr { block }`
-  While(P<Expr>, P<Block>, Option<SpannedIdent>),
-  /// A while-let loop, with an optional label
-  ///
-  /// `'label: while let pat = expr { block }`
-  ///
-  /// This is desugared to a combination of `loop` and `match` expressions.
-  WhileLet(P<Pat>, P<Expr>, P<Block>, Option<SpannedIdent>),
-  /// A for loop, with an optional label
-  ///
-  /// `'label: for pat in expr { block }`
-  ///
-  /// This is desugared to a combination of `loop` and `match` expressions.
-  ForLoop(P<Pat>, P<Expr>, P<Block>, Option<SpannedIdent>),
-  /// Conditionless loop (can be exited with break, continue, or return)
-  ///
-  /// `'label: loop { block }`
-  Loop(P<Block>, Option<SpannedIdent>),
-  Match,
+
   /// A block (`{ ... }`)
   Block(P<Block>),
+
   /// First expr is the place; second expr is the value.
   InPlace(P<Expr>, P<Expr>),
+
   /// An assignment (`a = foo()`)
   Assign(P<Expr>, P<Expr>),
+
   /// An assignment with an operator
   ///
   /// For example, `a += 1`.
   AssignOp(BinOp, P<Expr>, P<Expr>),
-
-  Paren(P<Expr>),
 
   /// Variable reference, possibly containing `::` and/or type
   /// parameters, e.g. foo::bar::<baz>.
@@ -624,6 +596,13 @@ pub enum ExprKind {
   /// A literal (For example: `1`, `"foo"`)
   Lit(P<Lit>),
 
+  /// No-op: used solely so we can pretty-print faithfully
+  Paren(P<Expr>),
+
+  //--------------------------------------------------------------------------
+  // Function Call
+  //--------------------------------------------------------------------------
+
   /// A function call
   ///
   /// The first field resolves to the function itself,
@@ -643,6 +622,57 @@ pub enum ExprKind {
   /// Thus, `x.foo::<Bar, Baz>(a, b, c, d)` is represented as
   /// `ExprKind::MethodCall(foo, [Bar, Baz], [x, a, b, c, d])`.
   MethodCall(SpannedIdent, Vec<P<Ty>>, Vec<P<Expr>>),
+
+  //--------------------------------------------------------------------------
+  // Expression for Control Flows
+  //--------------------------------------------------------------------------
+
+  Match,
+
+  /// An `if` block, with an optional else block
+  ///
+  /// `if expr { block } else { expr }`
+  If(P<Expr>, P<Block>, Option<P<Expr>>),
+
+  /// An `if let` expression with an optional else block
+  ///
+  /// `if let pat = expr { block } else { expr }`
+  ///
+  /// This is desugared to a `match` expression.
+  IfLet(P<Pat>, P<Expr>, P<Block>, Option<P<Expr>>),
+
+  /// A while loop, with an optional label
+  ///
+  /// `'label: while expr { block }`
+  While(P<Expr>, P<Block>, Option<SpannedIdent>),
+
+  /// A while-let loop, with an optional label
+  ///
+  /// `'label: while let pat = expr { block }`
+  ///
+  /// This is desugared to a combination of `loop` and `match` expressions.
+  WhileLet(P<Pat>, P<Expr>, P<Block>, Option<SpannedIdent>),
+
+  /// A for loop, with an optional label
+  ///
+  /// `'label: for pat in expr { block }`
+  ///
+  /// This is desugared to a combination of `loop` and `match` expressions.
+  ForLoop(P<Pat>, P<Expr>, P<Block>, Option<SpannedIdent>),
+
+  /// Conditionless loop (can be exited with break, continue, or return)
+  ///
+  /// `'label: loop { block }`
+  Loop(P<Block>, Option<SpannedIdent>),
+
+  /// A `break`, with an optional label to break
+  Break(Option<SpannedIdent>),
+
+  /// A `continue`, with an optional label
+  Continue(Option<SpannedIdent>),
+
+  /// A `return`, with an optional value to be returned
+  Ret(Option<P<Expr>>),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]

@@ -1,0 +1,5 @@
+pub fn r() -> (Double, Double) {
+
+    return (1.1, 1.2);
+
+}

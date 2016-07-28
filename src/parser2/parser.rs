@@ -2024,6 +2024,15 @@ impl<'a> Parser<'a> {
           return self.parse_loop_expr(None, lo, attrs);
         }
         if self.eat_keyword(keywords::Continue) {
+          ex = if self.token.is_ident() {
+            ExprKind::Continue(Some(Spanned{
+              node: self.parse_ident()?,
+              span: self.span
+            }))
+          } else {
+            ExprKind::Continue(None)
+          };
+          hi = self.last_span.hi;
         }
         if self.eat_keyword(keywords::Match) {
         }
@@ -2034,7 +2043,23 @@ impl<'a> Parser<'a> {
             attrs);
         }
         if self.eat_keyword(keywords::Return) {
+          if self.token.can_begin_expr() {
+            let e = self.parse_expr()?;
+            hi = e.span.hi;
+            ex = ExprKind::Ret(Some(e));
+          } else {
+            ex = ExprKind::Ret(None);
+          }
         } else if self.eat_keyword(keywords::Break) {
+          ex = if self.token.is_ident() {
+            ExprKind::Break(Some(Spanned {
+            node: self.parse_ident()?,
+            span: self.span
+            }))
+          } else {
+            ExprKind::Break(None)
+          };
+          hi = self.last_span.hi;
         } else if self.token.is_keyword(keywords::Let) {
           // Catch this syntax error here, instead of in `check_strict_keywords`, so
           // that we can explicitly mention that let is not to be used as an expression

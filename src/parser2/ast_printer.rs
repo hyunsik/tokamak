@@ -1979,6 +1979,33 @@ impl<'a> State<'a> {
       ast::ExprKind::Lit(ref lit) => {
         self.print_literal(&lit)?;
       }
+
+      ast::ExprKind::Break(opt_ident) => {
+        word(&mut self.s, "break")?;
+        space(&mut self.s)?;
+        if let Some(ident) = opt_ident {
+          self.print_ident(ident.node)?;
+          space(&mut self.s)?;
+        }
+      }
+      ast::ExprKind::Continue(opt_ident) => {
+        word(&mut self.s, "continue")?;
+        space(&mut self.s)?;
+        if let Some(ident) = opt_ident {
+          self.print_ident(ident.node)?;
+          space(&mut self.s);
+        }
+      }
+      ast::ExprKind::Ret(ref result) => {
+        word(&mut self.s, "return")?;
+        match *result {
+          Some(ref expr) => {
+            word(&mut self.s, " ")?;
+            self.print_expr(&expr)?;
+          }
+          _ => ()
+        }
+      }
     }
 
     self.ann.post(self, NodeExpr(expr))?;
