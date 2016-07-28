@@ -612,6 +612,18 @@ pub enum ExprKind {
   /// A range (`1..2`, `1..`, `..2`, `1...2`, `1...`, `...2`)
   Range(Option<P<Expr>>, Option<P<Expr>>, RangeLimits),
 
+  /// An array (`[a, b, c, d]`)
+  Vec(Vec<P<Expr>>),
+
+  /// An array literal constructed from one repeated element.
+  ///
+  /// For example, `[1; 5]`. The first expression is the element
+  /// to be repeated; the second is the number of times to repeat it.
+  Repeat(P<Expr>, P<Expr>),
+
+  /// A literal (For example: `1`, `"foo"`)
+  Lit(P<Lit>),
+
   /// A function call
   ///
   /// The first field resolves to the function itself,
@@ -631,9 +643,6 @@ pub enum ExprKind {
   /// Thus, `x.foo::<Bar, Baz>(a, b, c, d)` is represented as
   /// `ExprKind::MethodCall(foo, [Bar, Baz], [x, a, b, c, d])`.
   MethodCall(SpannedIdent, Vec<P<Ty>>, Vec<P<Expr>>),
-
-  /// A literal (For example: `1`, `"foo"`)
-  Lit(P<Lit>),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]

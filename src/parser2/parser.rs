@@ -602,6 +602,21 @@ impl<'a> Parser<'a> {
     v
   }
 
+  /// Parse a sequence, including the closing delimiter. The function
+  /// f must consume tokens until reaching the next separator or
+  /// closing bracket.
+  pub fn parse_seq_to_end<T, F>(&mut self,
+                                ket: &token::Token,
+                                sep: SeqSep,
+                                f: F)
+                                -> PResult<Vec<T>> where
+                                  F: FnMut(&mut Parser<'a>) -> PResult<T>,
+  {
+    let val = self.parse_seq_to_before_end(ket, sep, f);
+    self.bump();
+    Ok(val)
+  }
+
   /// Parse a sequence, not including the closing delimiter. The function
   /// f must consume tokens until reaching the next separator or
   /// closing bracket.
@@ -1956,7 +1971,41 @@ impl<'a> Parser<'a> {
 
       }
       token::OpenDelim(token::Bracket) => {
+        self.bump();
 
+        attrs.extend(self.parse_inner_attributes()?);
+
+        if self.check(&token::CloseDelim(token::Bracket)) {
+          // Empty vector.
+          self.bump();
+          ex = ExprKind::Vec(Vec::new());
+        } else {
+          // Nonempty vector.
+          let first_expr = self.parse_expr()?;
+          if self.check(&token::SemiColon) {
+            // Repeating array syntax: [ 0; 512 ]
+            self.bump();
+            let count = self.parse_expr()?;
+            self.expect(&token::CloseDelim(token::Bracket))?;
+            ex = ExprKind::Repeat(first_expr, count);
+          } else if self.check(&token::Comma) {
+            // Vector with two or more elements.
+            self.bump();
+            let remaining_exprs = self.parse_seq_to_end(
+              &token::CloseDelim(token::Bracket),
+              SeqSep::trailing_allowed(token::Comma),
+              |p| Ok(p.parse_expr()?)
+            )?;
+            let mut exprs = vec!(first_expr);
+            exprs.extend(remaining_exprs);
+            ex = ExprKind::Vec(exprs);
+          } else {
+            // Vector with one element.
+            self.expect(&token::CloseDelim(token::Bracket))?;
+            ex = ExprKind::Vec(vec!(first_expr));
+          }
+        }
+        hi = self.last_span.hi;
       }
       _ => {
         if self.eat_keyword(keywords::If) {
@@ -1987,8 +2036,17 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(keywords::Return) {
         } else if self.eat_keyword(keywords::Break) {
         } else if self.token.is_keyword(keywords::Let) {
+          // Catch this syntax error here, instead of in `check_strict_keywords`, so
+          // that we can explicitly mention that let is not to be used as an expression
+          let mut db = self.fatal("expected expression, found statement (`let`)");
+          db.note("variable declaration using `let` is a statement");
+          return Err(db);
         } else if self.token.is_keyword(keywords::Var) {
-
+          // Catch this syntax error here, instead of in `check_strict_keywords`, so
+          // that we can explicitly mention that let is not to be used as an expression
+          let mut db = self.fatal("expected expression, found statement (`var`)");
+          db.note("variable declaration using `var` is a statement");
+          return Err(db);
         } else if self.token.is_path_start() {
           let path = self.parse_path()?;
 

@@ -1960,6 +1960,14 @@ impl<'a> State<'a> {
         }
       }
 
+      ast::ExprKind::Vec(ref exprs) => {
+        self.print_expr_vec(&exprs[..], attrs)?;
+      }
+
+      ast::ExprKind::Repeat(ref element, ref count) => {
+        self.print_expr_repeat(&element, &count, attrs)?;
+      }
+
       ast::ExprKind::Call(ref func, ref args) => {
         self.print_expr_call(&func, &args[..])?;
       }
@@ -2129,6 +2137,30 @@ impl<'a> State<'a> {
       word(&mut self.s, ",")?;
     }
     self.pclose()
+  }
+
+  fn print_expr_vec(&mut self, exprs: &[P<ast::Expr>],
+                    attrs: &[Attribute]) -> io::Result<()> {
+    self.ibox(INDENT_UNIT)?;
+    word(&mut self.s, "[")?;
+    //self.print_inner_attributes_inline(attrs)?;
+    self.commasep_exprs(Inconsistent, &exprs[..])?;
+    word(&mut self.s, "]")?;
+    self.end()
+  }
+
+  fn print_expr_repeat(&mut self,
+                       element: &ast::Expr,
+                       count: &ast::Expr,
+                       attrs: &[Attribute]) -> io::Result<()> {
+    self.ibox(INDENT_UNIT)?;
+    word(&mut self.s, "[")?;
+    //self.print_inner_attributes_inline(attrs)?;
+    self.print_expr(element)?;
+    self.word_space(";")?;
+    self.print_expr(count)?;
+    word(&mut self.s, "]")?;
+    self.end()
   }
 
   fn print_expr_call(&mut self,
