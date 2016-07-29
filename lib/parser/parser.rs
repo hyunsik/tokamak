@@ -2024,7 +2024,7 @@ impl<'a> Parser<'a> {
           return self.parse_loop_expr(None, lo, attrs);
         }
         if self.eat_keyword(keywords::Continue) {
-          ex = if self.token.is_ident() {
+          let ex = if self.token.is_ident() {
             ExprKind::Continue(Some(Spanned{
               node: self.parse_ident()?,
               span: self.span
@@ -2033,6 +2033,7 @@ impl<'a> Parser<'a> {
             ExprKind::Continue(None)
           };
           hi = self.last_span.hi;
+          return Ok(self.mk_expr(lo, hi, ex, ThinVec::new()));
         }
         if self.eat_keyword(keywords::Match) {
           return self.parse_match_expr(attrs);

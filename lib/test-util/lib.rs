@@ -28,7 +28,7 @@ pub mod util;
 
 use std::fmt;
 use std::ffi::OsStr;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use getopts::{HasArg, Matches, Occur, Options};
@@ -296,6 +296,7 @@ pub trait TestSet<'a> {
           }
         }
       } else {
+        print!("  {} ... skipped\n", display(p.as_path().file_name()));
         skipped_num +=1;
       }
     }
@@ -308,10 +309,11 @@ pub trait TestSet<'a> {
   fn run_unit(&self, driver: &TestDriver, input: &Path) -> DriverResult<()> {
     let test_name = extract_test_name(input);
 
-    // transform an input into a string generated from an output.
     print!("  {} ... ", display(input.file_name()));
-    let result = self.transform(input)?;
+    io::stdout().flush()?;
 
+    // transform an input into a string generated from an output.
+    let result = self.transform(input)?;
     let saved_file = self.save_result(driver, test_name, &result)?;
     let expected = self.expected_result(driver, test_name)?;
 
