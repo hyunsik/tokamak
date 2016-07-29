@@ -488,6 +488,24 @@ pub struct FieldPat {
   pub is_shorthand: bool,
 }
 
+/// An arm of a 'match'.
+///
+/// E.g. `0...10 => { println!("match!") }` as in
+///
+/// ```rust,ignore
+/// match n {
+///     0...10 => { println!("match!") },
+///     // ..
+/// }
+/// ```
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Arm {
+  pub attrs: Vec<Attribute>,
+  pub pats: Vec<P<Pat>>,
+  pub guard: Option<P<Expr>>,
+  pub body: P<Expr>,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
 pub enum Mutability {
   Mutable,
@@ -627,7 +645,8 @@ pub enum ExprKind {
   // Expression for Control Flows
   //--------------------------------------------------------------------------
 
-  Match,
+  /// A `match` block.
+  Match(P<Expr>, Vec<Arm>),
 
   /// An `if` block, with an optional else block
   ///

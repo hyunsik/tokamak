@@ -62,7 +62,7 @@ use self::AnnNode::*;
 use self::Breaks::*;
 
 use abi::Abi;
-use ast::{self, Attribute, BlockCheckMode, Mutability, PatKind};
+use ast::{self, Attribute, BlockCheckMode, Mutability, PatKind, UnsafeSource};
 use codemap::{self, CodeMap, BytePos};
 use comments;
 use error_handler as errors;
@@ -1504,6 +1504,11 @@ impl<'a> State<'a> {
     self.print_block_maybe_unclosed(blk, INDENT_UNIT, attrs, true)
   }
 
+  pub fn print_block_unclosed_indent(&mut self, blk: &ast::Block,
+                                     indented: usize) -> io::Result<()> {
+    self.print_block_maybe_unclosed(blk, indented, &[], false)
+  }
+
   pub fn print_block_maybe_unclosed(&mut self,
                                     blk: &ast::Block,
                                     indented: usize,
@@ -1873,8 +1878,18 @@ impl<'a> State<'a> {
         self.print_block_with_attrs(&blk, attrs)?;
       }
 
-      ast::ExprKind::Match => {
-        unimplemented!()
+      ast::ExprKind::Match(ref expr, ref arms) => {
+        self.cbox(INDENT_UNIT)?;
+        self.ibox(4)?;
+        self.word_nbsp("match")?;
+        self.print_expr(&expr)?;
+        space(&mut self.s)?;
+        self.bopen()?;
+        //self.print_inner_attributes_no_trailing_hardbreak(attrs)?;
+        for arm in arms {
+          self.print_arm(arm)?;
+        }
+        self.bclose_(expr.span, INDENT_UNIT)?;
       }
 
       ast::ExprKind::Block(ref blk) => {
@@ -2050,6 +2065,52 @@ impl<'a> State<'a> {
       }
       _ => true
     }
+  }
+
+  fn print_arm(&mut self, arm: &ast::Arm) -> io::Result<()> {
+    // I have no idea why this check is necessary, but here it
+    // is :(
+    if arm.attrs.is_empty() {
+      try!(space(&mut self.s));
+    }
+    self.cbox(INDENT_UNIT)?;
+    self.ibox(0)?;
+    //try!(self.print_outer_attributes(&arm.attrs));
+    let mut first = true;
+    for p in &arm.pats {
+      if first {
+        first = false;
+      } else {
+        space(&mut self.s)?;
+        self.word_space("|")?;
+      }
+      self.print_pat(&p)?;
+    }
+    space(&mut self.s)?;
+    if let Some(ref e) = arm.guard {
+      self.word_space("if")?;
+      self.print_expr(&e)?;
+      space(&mut self.s)?;
+    }
+    self.word_space("=>")?;
+
+    match arm.body.node {
+      ast::ExprKind::Block(ref blk) => {
+        // the block will close the pattern's ibox
+        self.print_block_unclosed_indent(&blk, INDENT_UNIT)?;
+
+        // If it is a user-provided unsafe block, print a comma after it
+        if let BlockCheckMode::Unsafe(UnsafeSource::UserProvided) = blk.rules {
+          word(&mut self.s, ",")?;
+        }
+      }
+      _ => {
+        self.end()?; // close the ibox for the pattern
+        self.print_expr(&arm.body)?;
+        word(&mut self.s, ",")?;
+      }
+    }
+    self.end() // close enclosing cbox
   }
 
   pub fn print_if(&mut self, test: &ast::Expr, blk: &ast::Block,

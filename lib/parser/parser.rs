@@ -13,7 +13,7 @@ use ast::{ItemKind, ForeignItem, ForeignItemKind};
 use ast::{ViewPath, ViewPathList, ViewPathGlob, ViewPathSimple};
 use ast::{Ty, TyKind};
 use ast::{Block, BlockCheckMode, Stmt, StmtKind, Decl, DeclKind, Local, Mutability, UnsafeSource};
-use ast::{BindingMode, Field, Pat, PatKind};
+use ast::{Arm, BindingMode, Field, Pat, PatKind};
 use ast::{Arg, FnDecl, FunctionRetTy};
 use ast::{TokenTree, Delimited};
 use ast::Mutability::*;
@@ -1931,7 +1931,7 @@ impl<'a> Parser<'a> {
     let lo = self.span.lo;
     let mut hi = self.span.hi;
 
-    let mut ex: ExprKind = ExprKind::Match;
+    let mut ex: ExprKind;
 
     // Note: when adding new syntax here, don't forget to adjust Token::can_begin_expr().
     match self.token {
@@ -1968,7 +1968,7 @@ impl<'a> Parser<'a> {
         return self.parse_block_expr(lo, BlockCheckMode::Default, attrs);
       }
       token::BinOp(token::Or) |  token::OrOr => {
-
+        ex = ExprKind::Closure;
       }
       token::OpenDelim(token::Bracket) => {
         self.bump();
@@ -2035,6 +2035,7 @@ impl<'a> Parser<'a> {
           hi = self.last_span.hi;
         }
         if self.eat_keyword(keywords::Match) {
+          return self.parse_match_expr(attrs);
         }
         if self.eat_keyword(keywords::Unsafe) {
           return self.parse_block_expr(
@@ -2269,6 +2270,78 @@ impl<'a> Parser<'a> {
     Ok(self.mk_expr(span_lo, hi, ExprKind::Loop(body, opt_ident), attrs))
   }
 
+  // `match` token already eaten
+  fn parse_match_expr(&mut self, mut attrs: ThinVec<Attribute>) -> PResult<P<Expr>> {
+    let match_span = self.last_span;
+    let lo = self.last_span.lo;
+    let discriminant = self.parse_expr_res(RESTRICTION_NO_STRUCT_LITERAL, None)?;
+    if let Err(mut e) = self.expect(&token::OpenDelim(token::Brace)) {
+      if self.token == token::Token::SemiColon {
+        e.span_note(match_span, "did you mean to remove this `match` keyword?");
+      }
+      return Err(e)
+    }
+    attrs.extend(self.parse_inner_attributes()?);
+
+    let mut arms: Vec<Arm> = Vec::new();
+    while self.token != token::CloseDelim(token::Brace) {
+      match self.parse_arm() {
+        Ok(arm) => arms.push(arm),
+        Err(mut e) => {
+          // Recover by skipping to the end of the block.
+          e.emit();
+          self.recover_stmt();
+          let hi = self.span.hi;
+          if self.token == token::CloseDelim(token::Brace) {
+            self.bump();
+          }
+          return Ok(self.mk_expr(lo, hi, ExprKind::Match(discriminant, arms), attrs));
+        }
+      }
+    }
+    let hi = self.span.hi;
+    self.bump();
+    return Ok(self.mk_expr(lo, hi, ExprKind::Match(discriminant, arms), attrs));
+  }
+
+  pub fn parse_arm(&mut self) -> PResult<Arm> {
+    //let attrs = self.parse_outer_attributes()?;
+    let attrs = Vec::new();
+    let pats = self.parse_pats()?;
+    let mut guard = None;
+    if self.eat_keyword(keywords::If) {
+      guard = Some(self.parse_expr()?);
+    }
+    self.expect(&token::FatArrow)?;
+    let expr = self.parse_expr_res(RESTRICTION_STMT_EXPR, None)?;
+
+    let require_comma =
+      !expr_is_simple_block(&expr) && self.token != token::CloseDelim(token::Brace);
+
+    if require_comma {
+      self.expect_one_of(&[token::Comma], &[token::CloseDelim(token::Brace)])?;
+    } else {
+      self.eat(&token::Comma);
+    }
+
+    Ok(ast::Arm {
+      attrs: attrs,
+      pats: pats,
+      guard: guard,
+      body: expr,
+    })
+  }
+
+  /// Parse patterns, separated by '|' s
+  fn parse_pats(&mut self) -> PResult<Vec<P<Pat>>> {
+    let mut pats = Vec::new();
+    loop {
+      pats.push(self.parse_pat()?);
+      if self.check(&token::BinOp(token::Or)) { self.bump();}
+        else { return Ok(pats); }
+    };
+  }
+
   /// Matches lit = true | false | token_lit
   pub fn parse_lit(&mut self) -> PResult<Lit> {
     let lo = self.span.lo;
@@ -2309,20 +2382,20 @@ impl<'a> Parser<'a> {
 
           token::Str_(s) => {
             (true,
-              LitKind::Str(token::intern_and_get_ident(&str_lit(&s.as_str())),
-                           ast::StrStyle::Cooked))
+             LitKind::Str(token::intern_and_get_ident(&str_lit(&s.as_str())),
+                          ast::StrStyle::Cooked))
           }
           token::StrRaw(s, n) => {
             (true,
-              LitKind::Str(
-                token::intern_and_get_ident(&raw_str_lit(&s.as_str())),
-                ast::StrStyle::Raw(n)))
+             LitKind::Str(
+               token::intern_and_get_ident(&raw_str_lit(&s.as_str())),
+               ast::StrStyle::Raw(n)))
           }
           token::ByteStr(i) =>
             (true, LitKind::ByteStr(byte_str_lit(&i.as_str()))),
           token::ByteStrRaw(i, _) =>
             (true,
-              LitKind::ByteStr(Rc::new(i.to_string().into_bytes()))),
+             LitKind::ByteStr(Rc::new(i.to_string().into_bytes()))),
         };
 
         if suffix_illegal {
@@ -2887,12 +2960,19 @@ pub fn expr_requires_semi_to_be_stmt(e: &ast::Expr) -> bool {
   match e.node {
     ast::ExprKind::If(..) |
     ast::ExprKind::IfLet(..) |
-    ast::ExprKind::Match |
+    ast::ExprKind::Match(..) |
     ast::ExprKind::Block(..) |
     ast::ExprKind::While(..) |
     ast::ExprKind::Loop(..) |
     ast::ExprKind::ForLoop(..) => false,
     _ => true,
+  }
+}
+
+pub fn expr_is_simple_block(e: &ast::Expr) -> bool {
+  match e.node {
+    ast::ExprKind::Block(ref block) => block.rules == BlockCheckMode::Default,
+    _ => false,
   }
 }
 

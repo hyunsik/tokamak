@@ -89,6 +89,7 @@ fn setup_phases<'a>() -> Vec<Box<TestSet<'a>>> {
     Box::new(ParserTestSet::new("items")),
     Box::new(ParserTestSet::new("exprs")),
     Box::new(ParserTestSet::new("literals")),
+    Box::new(ParserTestSet::new("match")),
   ]
 }
 
