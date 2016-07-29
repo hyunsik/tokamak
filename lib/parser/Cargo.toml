@@ -12,7 +12,6 @@ name = "parser-tests"
 path = "parser-tests.rs"
 
 [dependencies]
-common = { path = "../common" }
 test-util = { path = "../test-util" }
 
 bitflags = "0.7"

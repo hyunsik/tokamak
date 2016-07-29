@@ -1,9 +1,9 @@
 [package]
 
-name = "tokamak"
-description = "Data Processing Kernel using Modern Hardware"
+name = "flang"
+description = "Dataflow Programming Language"
 version = "0.0.1"
-authors = [ "Hyunsik Choi <hyunsik at apache dot org>" ]
+authors = [ "Flang Development Team" ]
 license = "Apache-2.0"
 keywords = ["Data Analysis", "Data Processing", "MapReduce", "DataFrame", "Database", "Distributed Computing"]
 
