@@ -370,9 +370,6 @@ pub enum UnsafeSource {
 pub struct Block {
   /// Statements in a block
   pub stmts: Vec<Stmt>,
-  /// An expression at the end of the block
-  /// without a semicolon, if any
-  pub expr: Option<P<Expr>>,
   pub id: NodeId,
   /// Distinguishes between `unsafe { ... }` and `{ ... }`
   pub rules: BlockCheckMode,
@@ -380,28 +377,42 @@ pub struct Block {
 }
 
 /// A statement
-pub type Stmt = Spanned<StmtKind>;
+/// A statement
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Stmt {
+  pub id: NodeId,
+  pub node: StmtKind,
+  pub span: Span,
+}
+
+impl Stmt {
+  pub fn add_trailing_semicolon(mut self) -> Self {
+    self.node = match self.node {
+      StmtKind::Expr(expr) => StmtKind::Semi(expr),
+      node @ _ => node,
+    };
+    self
+  }
+}
+
+impl fmt::Debug for Stmt {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "stmt({}: {})", self.id.to_string(), printer::stmt_to_string(self))
+  }
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StmtKind {
-  /// Could be an item or a local (let) binding:
-  Decl(P<Decl>, NodeId),
-
-  /// Expr without trailing semi-colon (must have unit type):
-  Expr(P<Expr>, NodeId),
-
-  /// Expr with trailing semi-colon (may have any type):
-  Semi(P<Expr>, NodeId),
-}
-
-pub type Decl = Spanned<DeclKind>;
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum DeclKind {
-  /// A local (let) binding:
+  /// A local (let) binding.
   Local(P<Local>),
-  /// An item binding:
+
+  /// An item definition.
   Item(P<Item>),
+
+  /// Expr without trailing semi-colon.
+  Expr(P<Expr>),
+
+  Semi(P<Expr>),
 }
 
 /// Local represents a `let` or 'var' statement, e.g., `let <pat>:<ty> = <expr>;`,
@@ -556,7 +567,10 @@ pub enum ExprKind {
 
   Type(P<Expr>, P<Ty>),
 
-  Closure,
+  /// A closure (for example, `move |a, b, c| {a + b + c}`)
+  ///
+  /// The final span is the span of the argument block `|...|`
+  Closure(CaptureBy, P<FnDecl>, P<Block>, Span),
 
   /// A block (`{ ... }`)
   Block(P<Block>),
@@ -973,6 +987,13 @@ impl FloatTy {
 pub struct QSelf {
   pub ty: P<Ty>,
   pub position: usize
+}
+
+/// A capture clause
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum CaptureBy {
+  Value,
+  Ref,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]

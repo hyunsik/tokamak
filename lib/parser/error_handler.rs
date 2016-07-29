@@ -122,6 +122,13 @@ impl Handler {
     unimplemented!()
   }
 
+  pub fn struct_span_warn<'a, S: Into<MultiSpan>>(&'a self,
+                                                  sp: S,
+                                                  msg: &str)
+                                                  -> DiagnosticBuilder {
+    unimplemented!()
+  }
+
   #[allow(unused_variables)]
   pub fn struct_span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
       -> DiagnosticBuilder {

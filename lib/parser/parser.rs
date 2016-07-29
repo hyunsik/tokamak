@@ -8,11 +8,11 @@ use std::result::Result;
 
 use abi::{self, Abi};
 use ast::{self, Attribute, Module, Item, Package, Constness, Unsafety, Visibility};
-use ast::{BinOpKind, Expr, ExprKind, Lit, LitKind, Ident, RangeLimits, UnOp};
+use ast::{UnOp, BinOpKind, CaptureBy, Expr, ExprKind, Lit, LitKind, Ident, RangeLimits};
 use ast::{ItemKind, ForeignItem, ForeignItemKind};
 use ast::{ViewPath, ViewPathList, ViewPathGlob, ViewPathSimple};
 use ast::{Ty, TyKind};
-use ast::{Block, BlockCheckMode, Stmt, StmtKind, Decl, DeclKind, Local, Mutability, UnsafeSource};
+use ast::{Block, BlockCheckMode, Stmt, StmtKind, Local, Mutability, UnsafeSource};
 use ast::{Arm, BindingMode, Field, Pat, PatKind};
 use ast::{Arg, FnDecl, FunctionRetTy};
 use ast::{TokenTree, Delimited};
@@ -1228,44 +1228,63 @@ impl<'a> Parser<'a> {
   /// Precondition: already parsed the '{'.
   fn parse_block_tail(&mut self, lo: BytePos, s: BlockCheckMode) -> PResult<P<Block>> {
     let mut stmts = vec![];
-    let mut expr = None;
 
     while !self.eat(&token::CloseDelim(token::Brace)) {
-      let Spanned {node, span} = if let Some(s) = self.parse_stmt_() {
-        s
+      if let Some(stmt) = self.parse_full_stmt()? {
+        stmts.push(stmt);
       } else if self.token == token::Eof {
         break;
       } else {
         // Found only `;` or `}`.
         continue;
       };
-
-      match node {
-        StmtKind::Expr(e, _) => {
-          self.handle_expression_like_statement(e, span, &mut stmts, &mut expr)?;
-        }
-        _ => { // all other kinds of statements:
-          let mut hi = span.hi;
-          if stmt_ends_with_semi(&node) {
-            self.commit_stmt_expecting(token::SemiColon)?;
-            hi = self.last_span.hi;
-          }
-
-          stmts.push(Spanned {
-            node: node,
-            span: mk_span(span.lo, hi)
-          });
-        }
-      }
     }
 
     Ok(P(ast::Block {
       stmts: stmts,
-      expr: expr,
       id: ast::DUMMY_NODE_ID,
       rules: s,
-      span: mk_span(lo, self.last_span.hi),
+      span: codemap::mk_span(lo, self.last_span.hi),
     }))
+  }
+
+  /// Parse a statement, including the trailing semicolon.
+  pub fn parse_full_stmt(&mut self) -> PResult<Option<Stmt>> {
+    let mut stmt = match self.parse_stmt_() {
+      Some(stmt) => stmt,
+      None => return Ok(None),
+    };
+
+    match stmt.node {
+      StmtKind::Expr(ref expr) if self.token != token::Eof => {
+        // expression without semicolon
+        if expr_requires_semi_to_be_stmt(expr) {
+          // Just check for errors and recover; do not eat semicolon yet.
+          if let Err(mut e) =
+          self.expect_one_of(&[], &[token::SemiColon, token::CloseDelim(token::Brace)])
+            {
+              e.emit();
+              self.recover_stmt();
+            }
+        }
+      }
+      StmtKind::Local(..) => {
+        // We used to incorrectly allow a macro-expanded let statement to lack a semicolon.
+        if self.token != token::SemiColon {
+          self.warn_missing_semicolon();
+        } else {
+          self.expect_one_of(&[token::SemiColon], &[])?;
+        }
+      }
+      _ => {}
+    }
+
+    if self.eat(&token::SemiColon) {
+      stmt = stmt.add_trailing_semicolon();
+    }
+
+    stmt.span.hi = self.last_span.hi;
+    Ok(Some(stmt))
   }
 
   fn parse_stmt_(&mut self) -> Option<Stmt> {
@@ -1276,73 +1295,41 @@ impl<'a> Parser<'a> {
     })
   }
 
-  fn handle_expression_like_statement(&mut self,
-                                      e: P<Expr>,
-                                      span: Span,
-                                      stmts: &mut Vec<Stmt>,
-                                      last_block_expr: &mut Option<P<Expr>>)
-                                      -> PResult<()> {
-    // expression without semicolon
-    if expr_requires_semi_to_be_stmt(&e) {
-      // Just check for errors and recover; do not eat semicolon yet.
-      if let Err(mut e) =
-      self.commit_stmt(&[], &[token::SemiColon, token::CloseDelim(token::Brace)])
-      {
-        e.emit();
-        self.recover_stmt();
-      }
-    }
-
-    match self.token {
-      token::SemiColon => {
-        self.bump();
-        let span_with_semi = Span {
-          lo: span.lo,
-          hi: self.last_span.hi,
-        };
-        stmts.push(Spanned {
-          node: StmtKind::Semi(e, ast::DUMMY_NODE_ID),
-          span: span_with_semi,
-        });
-      }
-      token::CloseDelim(token::Brace) => *last_block_expr = Some(e),
-      _ => {
-        stmts.push(Spanned {
-          node: StmtKind::Expr(e, ast::DUMMY_NODE_ID),
-          span: span
-        });
-      }
-    }
-    Ok(())
+  fn warn_missing_semicolon(&self) {
+    self.diagnostic().struct_span_warn(self.span, {
+      &format!("expected `;`, found `{}`", self.this_token_to_string())
+    }).note({
+      "This was erroneously allowed and will become a hard error in a future release"
+    }).emit();
   }
 
-  fn parse_stmt_without_recovery(&mut self) -> PResult< Option<Stmt>> {
+  fn parse_stmt_without_recovery(&mut self) -> PResult<Option<Stmt>> {
 
     let attrs = Vec::new();
     let lo = self.span.lo;
 
-    Ok(Some(if self.check_keyword(keywords::Let) {
-      self.expect_keyword(keywords::Let)?;
-      let decl = self.parse_let(attrs.into())?;
-      let hi = decl.span.hi;
-      let stmt = StmtKind::Decl(decl, ast::DUMMY_NODE_ID);
-      spanned(lo, hi, stmt)
-    } else if self.check_keyword(keywords::Var) {
-      self.expect_keyword(keywords::Var)?;
-      let decl = self.parse_var(attrs.into())?;
-      let hi = decl.span.hi;
-      let stmt = StmtKind::Decl(decl, ast::DUMMY_NODE_ID);
-      spanned(lo, hi, stmt)
+    Ok(Some(if self.eat_keyword(keywords::Let) {
+      Stmt {
+        id: ast::DUMMY_NODE_ID,
+        node: StmtKind::Local(self.parse_let(attrs.into())?),
+        span: codemap::mk_span(lo, self.last_span.hi),
+      }
+    } else if self.eat_keyword(keywords::Var) {
+      Stmt {
+        id: ast::DUMMY_NODE_ID,
+        node: StmtKind::Local(self.parse_var(attrs.into())?),
+        span: codemap::mk_span(lo, self.last_span.hi),
+      }
     } else {
       // FIXME: Bad copy of attrs
       let restrictions = self.restrictions | NO_NONINLINE_MOD;
       match self.with_res(restrictions,
                           |this| this.parse_item_(attrs.clone(), true))? {
-        Some(i) => {
-          let hi = i.span.hi;
-          let decl = P(spanned(lo, hi, DeclKind::Item(i)));
-          spanned(lo, hi, StmtKind::Decl(decl, ast::DUMMY_NODE_ID))
-        }
+        Some(i) => Stmt {
+          id: ast::DUMMY_NODE_ID,
+          span: codemap::mk_span(lo, i.span.hi),
+          node: StmtKind::Item(i),
+        },
         None => {
           let unused_attrs = |attrs: &[_], s: &mut Self| {
             if attrs.len() > 0 {
@@ -1365,9 +1352,11 @@ impl<'a> Parser<'a> {
 
           // Remainder are line-expr stmts.
           let e = self.parse_expr_res(RESTRICTION_STMT_EXPR, Some(attrs.into()))?;
-          let hi = e.span.hi;
-          let stmt = StmtKind::Expr(e, ast::DUMMY_NODE_ID);
-          spanned(lo, hi, stmt)
+          Stmt {
+            id: ast::DUMMY_NODE_ID,
+            span: codemap::mk_span(lo, e.span.hi),
+            node: StmtKind::Expr(e),
+          }
         }
       }
     }))
@@ -1436,17 +1425,13 @@ impl<'a> Parser<'a> {
   }
 
   /// Parse a "let" stmt
-  fn parse_let(&mut self, attrs: ThinVec<Attribute>) -> PResult<P<Decl>> {
-    let lo = self.span.lo;
-    let local = self.parse_local(Immutable, attrs)?;
-    Ok(P(spanned(lo, self.last_span.hi, DeclKind::Local(local))))
+  fn parse_let(&mut self, attrs: ThinVec<Attribute>) -> PResult<P<Local>> {
+    self.parse_local(Immutable, attrs)
   }
 
   /// Parse a "var" stmt
-  fn parse_var(&mut self, attrs: ThinVec<Attribute>) -> PResult<P<Decl>> {
-    let lo = self.span.lo;
-    let local = self.parse_local(Mutable, attrs)?;
-    Ok(P(spanned(lo, self.last_span.hi, DeclKind::Local(local))))
+  fn parse_var(&mut self, attrs: ThinVec<Attribute>) -> PResult<P<Local>> {
+    self.parse_local(Mutable, attrs)
   }
 
   /// Parse a local variable declaration
@@ -1931,7 +1916,7 @@ impl<'a> Parser<'a> {
     let lo = self.span.lo;
     let mut hi = self.span.hi;
 
-    let mut ex: ExprKind;
+    let ex: ExprKind;
 
     // Note: when adding new syntax here, don't forget to adjust Token::can_begin_expr().
     match self.token {
@@ -1968,7 +1953,8 @@ impl<'a> Parser<'a> {
         return self.parse_block_expr(lo, BlockCheckMode::Default, attrs);
       }
       token::BinOp(token::Or) |  token::OrOr => {
-        ex = ExprKind::Closure;
+        let lo = self.span.lo;
+        return self.parse_lambda_expr(lo, CaptureBy::Ref, attrs);
       }
       token::OpenDelim(token::Bracket) => {
         self.bump();
@@ -2151,6 +2137,89 @@ impl<'a> Parser<'a> {
     }
 
     return Ok(self.mk_expr(lo, hi, ex, ThinVec::new()));
+  }
+
+  // `move |args| expr`
+  pub fn parse_lambda_expr(&mut self,
+                           lo: BytePos,
+                           capture_clause: CaptureBy,
+                           attrs: ThinVec<Attribute>)
+                           -> PResult<P<Expr>>
+  {
+    let decl = self.parse_fn_block_decl()?;
+    let decl_hi = self.last_span.hi;
+    let body = match decl.output {
+      FunctionRetTy::Default(_) => {
+        // If no explicit return type is given, parse any
+        // expr and wrap it up in a dummy block:
+        let body_expr = self.parse_expr()?;
+        P(ast::Block {
+          id: ast::DUMMY_NODE_ID,
+          span: body_expr.span,
+          stmts: vec![Stmt {
+                        span: body_expr.span,
+                        node: StmtKind::Expr(body_expr),
+                        id: ast::DUMMY_NODE_ID,
+                    }],
+          rules: BlockCheckMode::Default,
+        })
+      }
+      _ => {
+        // If an explicit return type is given, require a
+        // block to appear (RFC 968).
+        self.parse_block()?
+      }
+    };
+
+    Ok(self.mk_expr(
+      lo,
+      body.span.hi,
+      ExprKind::Closure(capture_clause, decl, body, codemap::mk_span(lo, decl_hi)),
+      attrs))
+  }
+
+  // parse the |arg, arg| header on a lambda
+  fn parse_fn_block_decl(&mut self) -> PResult<P<FnDecl>> {
+    let inputs_captures = {
+      if self.eat(&token::OrOr) {
+        Vec::new()
+      } else {
+        self.expect(&token::BinOp(token::Or))?;
+        let args = self.parse_seq_to_before_end(
+          &token::BinOp(token::Or),
+          SeqSep::trailing_allowed(token::Comma),
+          |p| p.parse_fn_block_arg()
+        );
+        self.bump();
+        args
+      }
+    };
+    let output = self.parse_ret_ty()?;
+
+    Ok(P(FnDecl {
+      inputs: inputs_captures,
+      output: output,
+      variadic: false
+    }))
+  }
+
+  /// Parse an argument in a lambda header e.g. |arg, arg|
+  pub fn parse_fn_block_arg(&mut self) -> PResult<Arg> {
+    let pat = self.parse_pat()?;
+    let t = if self.eat(&token::Colon) {
+      self.parse_ty()?
+    } else {
+      P(Ty {
+        id: ast::DUMMY_NODE_ID,
+        node: TyKind::Infer,
+        span: codemap::mk_span(self.span.lo, self.span.hi),
+      })
+    };
+    Ok(Arg {
+      ty: t,
+      pat: pat,
+      id: ast::DUMMY_NODE_ID
+    })
   }
 
   /// Parse a block or unsafe block
@@ -2982,13 +3051,9 @@ pub fn expr_is_simple_block(e: &ast::Expr) -> bool {
 /// seen the semicolon, and thus don't need another.
 pub fn stmt_ends_with_semi(stmt: &ast::StmtKind) -> bool {
   match *stmt {
-    ast::StmtKind::Decl(ref d, _) => {
-      match d.node {
-        ast::DeclKind::Local(_) => true,
-        ast::DeclKind::Item(_) => false,
-      }
-    }
-    ast::StmtKind::Expr(ref e, _) => expr_requires_semi_to_be_stmt(e),
+    ast::StmtKind::Local(_) => true,
+    ast::StmtKind::Item(_) => false,
+    ast::StmtKind::Expr(ref e) => expr_requires_semi_to_be_stmt(e),
     ast::StmtKind::Semi(..) => false,
   }
 }

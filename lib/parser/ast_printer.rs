@@ -69,7 +69,7 @@ use error_handler as errors;
 use parser;
 use precedence::AssocOp;
 use ptr::P;
-use token::keywords;
+use token::{self, DelimToken, keywords, InternedString, BinOp};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Breaks {
@@ -1524,76 +1524,64 @@ impl<'a> State<'a> {
 
     //self.print_inner_attributes(attrs)?;
 
-    for st in &blk.stmts {
-      self.print_stmt(st)?;
-    }
-    match blk.expr {
-      Some(ref expr) => {
-        self.space_if_not_bol()?;
-        self.print_expr_outer_attr_style(&expr, false)?;
-        self.maybe_print_trailing_comment(expr.span, Some(blk.span.hi))?;
+    for (i, st) in blk.stmts.iter().enumerate() {
+      match st.node {
+        ast::StmtKind::Expr(ref expr) if i == blk.stmts.len() - 1 => {
+          try!(self.space_if_not_bol());
+          try!(self.print_expr_outer_attr_style(&expr, false));
+          try!(self.maybe_print_trailing_comment(expr.span, Some(blk.span.hi)));
+        }
+        _ => try!(self.print_stmt(st)),
       }
-      _ => ()
     }
-    self.bclose_maybe_open(blk.span, indented, close_box)?;
+
+    try!(self.bclose_maybe_open(blk.span, indented, close_box));
     self.ann.post(self, NodeBlock(blk))
   }
 
   pub fn print_stmt(&mut self, st: &ast::Stmt) -> io::Result<()> {
     self.maybe_print_comment(st.span.lo)?;
     match st.node {
-      ast::StmtKind::Decl(ref decl, _) => {
-        try!(self.print_decl(&decl));
+      ast::StmtKind::Local(ref loc) => {
+        //self.print_outer_attributes(&loc.attrs)?;
+        self.space_if_not_bol()?;
+        self.ibox(INDENT_UNIT)?;
+        self.word_nbsp(match loc.mutbl {
+          Mutability::Immutable => "let",
+          Mutability::Mutable => "var"
+        })?;
+
+        self.ibox(INDENT_UNIT)?;
+        self.print_local_decl(&loc)?;
+        self.end()?;
+        if let Some(ref init) = loc.init {
+          self.nbsp()?;
+          self.word_space("=")?;
+          self.print_expr(&init)?;
+        }
+        word(&mut self.s, ";")?;
+        self.end()?;
       }
-      ast::StmtKind::Expr(ref expr, _) => {
+      ast::StmtKind::Item(ref item) => self.print_item(&item)?,
+      ast::StmtKind::Expr(ref expr) => {
         try!(self.space_if_not_bol());
         try!(self.print_expr_outer_attr_style(&expr, false));
+        if parser::expr_requires_semi_to_be_stmt(expr) {
+          word(&mut self.s, ";")?;
+        }
       }
-      ast::StmtKind::Semi(ref expr, _) => {
-        try!(self.space_if_not_bol());
-        try!(self.print_expr_outer_attr_style(&expr, false));
-        try!(word(&mut self.s, ";"));
+      ast::StmtKind::Semi(ref expr) => {
+        self.space_if_not_bol()?;
+        self.print_expr_outer_attr_style(&expr, false)?;
+        word(&mut self.s, ";")?;
       }
     }
 
-    if parser::stmt_ends_with_semi(&st.node) {
-      word(&mut self.s, ";")?;
-    }
     self.maybe_print_trailing_comment(st.span, None)
   }
 
   pub fn print_block(&mut self, blk: &ast::Block) -> io::Result<()> {
     self.print_block_with_attrs(blk, &[])
-  }
-
-  pub fn print_decl(&mut self, decl: &ast::Decl) -> io::Result<()> {
-    try!(self.maybe_print_comment(decl.span.lo));
-    match decl.node {
-      ast::DeclKind::Local(ref loc) => {
-
-        let decl = match loc.mutbl {
-          Mutability::Immutable => "let",
-          Mutability::Mutable => "var"
-        };
-
-        //try!(self.print_outer_attributes(&loc.attrs));
-        try!(self.space_if_not_bol());
-        try!(self.ibox(INDENT_UNIT));
-        try!(self.word_nbsp(decl));
-
-        try!(self.ibox(INDENT_UNIT));
-        try!(self.print_local_decl(&loc));
-        try!(self.end());
-        if let Some(ref init) = loc.init {
-          try!(self.nbsp());
-          try!(self.word_space("="));
-          try!(self.print_expr(&init));
-        }
-        self.end()
-      }
-
-      ast::DeclKind::Item(ref item) => self.print_item(&item)
-    }
   }
 
   pub fn print_local_decl(&mut self, loc: &ast::Local) -> io::Result<()> {
@@ -1828,8 +1816,36 @@ impl<'a> State<'a> {
         self.print_if_let(&pat, &expr, &blk, elseopt.as_ref().map(|e| &**e))?;
       }
 
-      ast::ExprKind::Closure => {
-        unimplemented!()
+      ast::ExprKind::Closure(capture_clause, ref decl, ref body, _) => {
+        self.print_capture_clause(capture_clause)?;
+
+        self.print_fn_block_args(&decl)?;
+        space(&mut self.s)?;
+
+        let default_return = match decl.output {
+          ast::FunctionRetTy::Default(..) => true,
+          _ => false
+        };
+
+        match body.stmts.last().map(|stmt| &stmt.node) {
+          Some(&ast::StmtKind::Expr(ref i_expr)) if default_return &&
+            body.stmts.len() == 1 => {
+            // we extract the block, so as not to create another set of boxes
+            if let ast::ExprKind::Block(ref blk) = i_expr.node {
+              self.print_block_unclosed_with_attrs(&blk, &i_expr.attrs)?;
+            } else {
+              // this is a bare expression
+              self.print_expr(&i_expr)?;
+              self.end()?; // need to close a box
+            }
+          }
+          _ => self.print_block_unclosed(&body)?,
+        }
+
+        // a box will be closed by print_expr, but we didn't want an overall
+        // wrapper so we closed the corresponding opening. so create an
+        // empty box to satisfy the close.
+        self.ibox(0)?;
       }
 
       ast::ExprKind::While(ref test, ref blk, opt_ident) => {
@@ -2113,6 +2129,51 @@ impl<'a> State<'a> {
     self.end() // close enclosing cbox
   }
 
+  pub fn print_fn_block_args(
+    &mut self,
+    decl: &ast::FnDecl)
+    -> io::Result<()> {
+    try!(word(&mut self.s, "|"));
+    try!(self.commasep(Inconsistent, &decl.inputs, |s, arg| s.print_arg(arg, true)));
+    try!(word(&mut self.s, "|"));
+
+    if let ast::FunctionRetTy::Default(..) = decl.output {
+      return Ok(());
+    }
+
+    try!(self.space_if_not_bol());
+    try!(self.word_space("->"));
+    match decl.output {
+      ast::FunctionRetTy::Ty(ref ty) => {
+        try!(self.print_type(&ty));
+        self.maybe_print_comment(ty.span.lo)
+      }
+      ast::FunctionRetTy::Default(..) => unreachable!(),
+      ast::FunctionRetTy::None(span) => {
+        try!(self.word_nbsp("!"));
+        self.maybe_print_comment(span.lo)
+      }
+    }
+  }
+
+  pub fn print_block_unclosed(&mut self, blk: &ast::Block) -> io::Result<()> {
+    self.print_block_unclosed_indent(blk, INDENT_UNIT)
+  }
+
+  pub fn print_block_unclosed_with_attrs(&mut self, blk: &ast::Block,
+                                         attrs: &[ast::Attribute])
+                                         -> io::Result<()> {
+    self.print_block_maybe_unclosed(blk, INDENT_UNIT, attrs, false)
+  }
+
+  pub fn print_capture_clause(&mut self, capture_clause: ast::CaptureBy)
+    -> io::Result<()> {
+    match capture_clause {
+      ast::CaptureBy::Value => self.word_space("move"),
+      ast::CaptureBy::Ref => Ok(()),
+    }
+  }
+
   pub fn print_if(&mut self, test: &ast::Expr, blk: &ast::Block,
                   elseopt: Option<&ast::Expr>) -> io::Result<()> {
     self.head("if")?;
@@ -2387,7 +2448,7 @@ pub fn visibility_qualified(vis: &ast::Visibility, s: &str) -> String {
 fn needs_parentheses(expr: &ast::Expr) -> bool {
   match expr.node {
     ast::ExprKind::Assign(..) | ast::ExprKind::Binary(..) |
-    ast::ExprKind::Closure |
+    ast::ExprKind::Closure(..) |
     ast::ExprKind::AssignOp(..) | ast::ExprKind::Cast(..) |
     ast::ExprKind::InPlace(..) | ast::ExprKind::Type(..) => true,
     _ => false,
@@ -2405,3 +2466,19 @@ pub fn path_to_string(p: &ast::Path) -> String {
 }
 
 fn repeat(s: &str, n: usize) -> String { iter::repeat(s).take(n).collect() }
+
+pub fn stmt_to_string(stmt: &ast::Stmt) -> String {
+  to_string(|s| s.print_stmt(stmt))
+}
+
+pub fn to_string<F>(f: F) -> String where
+  F: FnOnce(&mut State) -> io::Result<()>,
+{
+  let mut wr = Vec::new();
+  {
+    let mut printer = rust_printer(Box::new(&mut wr));
+    f(&mut printer).unwrap();
+    eof(&mut printer.s).unwrap();
+  }
+  String::from_utf8(wr).unwrap()
+}
