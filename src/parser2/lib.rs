@@ -9,6 +9,7 @@ extern crate env_logger;
 #[macro_use ] extern crate itertools;
 #[macro_use] extern crate log;
 extern crate term;
+extern crate rustc_unicode as unicode;
 
 pub mod abi;
 pub mod ast;

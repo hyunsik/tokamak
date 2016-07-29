@@ -87,7 +87,8 @@ fn print_usage(program: &str, opts: &Options) {
 fn setup_phases<'a>() -> Vec<Box<TestSet<'a>>> {
   vec![
     Box::new(ParserTestSet::new("items")),
-    Box::new(ParserTestSet::new("exprs"))
+    Box::new(ParserTestSet::new("exprs")),
+    Box::new(ParserTestSet::new("literals")),
   ]
 }
 

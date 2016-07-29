@@ -6,6 +6,7 @@ use std::rc::Rc;
 use ast::{self};
 use codemap::{self, BytePos, CharPos, CodeMap, Span, Pos};
 use error_handler::{Handler, DiagnosticBuilder};
+use unicode::property::Pattern_White_Space;
 use unicode_chars;
 use token::{self, str_to_ident};
 
@@ -200,6 +201,31 @@ impl<'a> StringReader<'a> {
   /// Report a fatal error spanning [`from_pos`, `to_pos`).
   fn fatal_span_(&self, from_pos: BytePos, to_pos: BytePos, m: &str) -> FatalError {
     self.fatal_span(codemap::mk_span(from_pos, to_pos), m)
+  }
+
+  /// Report a lexical error spanning [`from_pos`, `to_pos`), appending an
+  /// escaped character to the error message
+  fn err_span_char(&self, from_pos: BytePos, to_pos: BytePos, m: &str, c: char) {
+    let mut m = m.to_string();
+    m.push_str(": ");
+    for c in c.escape_default() {
+      m.push(c)
+    }
+    self.err_span_(from_pos, to_pos, &m[..]);
+  }
+
+  fn struct_err_span_char(&self,
+                          from_pos: BytePos,
+                          to_pos: BytePos,
+                          m: &str,
+                          c: char)
+                          -> DiagnosticBuilder {
+    let mut m = m.to_string();
+    m.push_str(": ");
+    for c in c.escape_default() {
+      m.push(c)
+    }
+    self.span_diagnostic.struct_span_err(codemap::mk_span(from_pos, to_pos), &m[..])
   }
 
   fn struct_fatal_span_char(&self,
@@ -503,6 +529,37 @@ impl<'a> StringReader<'a> {
       '%' => {
         return Ok(self.binop(token::Percent));
       }
+      '"' => {
+        let start_bpos = self.last_pos;
+        let mut valid = true;
+        self.bump();
+        while !self.curr_is('"') {
+          if self.is_eof() {
+            let last_bpos = self.last_pos;
+            panic!(self.fatal_span_(start_bpos,
+                                                last_bpos,
+                                                "unterminated double quote string"));
+          }
+
+          let ch_start = self.last_pos;
+          let ch = self.curr.unwrap();
+          self.bump();
+          valid &= self.scan_char_or_byte(ch_start,
+                                          ch,
+                                          // ascii_only =
+                                          false,
+                                          '"');
+        }
+        // adjust for the ASCII " at the start of the literal
+        let id = if valid {
+          self.name_from(start_bpos + BytePos(1))
+        } else {
+          token::intern("??")
+        };
+        self.bump();
+        let suffix = self.scan_optional_raw_name();
+        return Ok(token::Literal(token::Str_(id), suffix));
+      }
       c => {
         let last_bpos = self.last_pos;
         let bpos = self.pos;
@@ -768,6 +825,12 @@ impl<'a> StringReader<'a> {
     })
   }
 
+  fn consume_whitespace(&mut self) {
+    while is_pattern_whitespace(self.curr) && !self.is_eof() {
+      self.bump();
+    }
+  }
+
   fn read_to_eol(&mut self) -> String {
     let mut val = String::new();
     while !self.curr_is('\n') && !self.is_eof() {
@@ -797,6 +860,242 @@ impl<'a> StringReader<'a> {
     (self.curr_is('/') && self.nextch_is('/')) || (self.curr_is('/') && self.nextch_is('*')) ||
         // consider shebangs comments, but not inner attributes
         (self.curr_is('#') && self.nextch_is('!') && !self.nextnextch_is('['))
+  }
+
+
+  /// Scan for a single (possibly escaped) byte or char
+  /// in a byte, (non-raw) byte string, char, or (non-raw) string literal.
+  /// `start` is the position of `first_source_char`, which is already consumed.
+  ///
+  /// Returns true if there was a valid char/byte, false otherwise.
+  fn scan_char_or_byte(&mut self,
+                       start: BytePos,
+                       first_source_char: char,
+                       ascii_only: bool,
+                       delim: char)
+                       -> bool {
+    match first_source_char {
+      '\\' => {
+        // '\X' for some X must be a character constant:
+        let escaped = self.curr;
+        let escaped_pos = self.last_pos;
+        self.bump();
+        match escaped {
+          None => {}  // EOF here is an error that will be checked later.
+          Some(e) => {
+            return match e {
+              'n' | 'r' | 't' | '\\' | '\'' | '"' | '0' => true,
+              'x' => self.scan_byte_escape(delim, !ascii_only),
+              'u' => {
+                let valid = if self.curr_is('{') {
+                  self.scan_unicode_escape(delim) && !ascii_only
+                } else {
+                  let span = codemap::mk_span(start, self.last_pos);
+                  self.span_diagnostic
+                    .struct_span_err(span, "incorrect unicode escape sequence")
+                    .span_help(span,
+                               "format of unicode escape sequences is \
+                                `\\u{…}`")
+                    .emit();
+                  false
+                };
+                if ascii_only {
+                  self.err_span_(start,
+                                 self.last_pos,
+                                 "unicode escape sequences cannot be used as a \
+                                  byte or in a byte string");
+                }
+                valid
+
+              }
+              '\n' if delim == '"' => {
+                self.consume_whitespace();
+                true
+              }
+              '\r' if delim == '"' && self.curr_is('\n') => {
+                self.consume_whitespace();
+                true
+              }
+              c => {
+                let last_pos = self.last_pos;
+                let mut err = self.struct_err_span_char(escaped_pos,
+                                                        last_pos,
+                                                        if ascii_only {
+                                                          "unknown byte escape"
+                                                        } else {
+                                                          "unknown character \
+                                                           escape"
+                                                        },
+                                                        c);
+                if e == '\r' {
+                  err.span_help(codemap::mk_span(escaped_pos, last_pos),
+                                "this is an isolated carriage return; consider \
+                                 checking your editor and version control \
+                                 settings");
+                }
+                if (e == '{' || e == '}') && !ascii_only {
+                  err.span_help(codemap::mk_span(escaped_pos, last_pos),
+                                "if used in a formatting string, curly braces \
+                                 are escaped with `{{` and `}}`");
+                }
+                err.emit();
+                false
+              }
+            }
+          }
+        }
+      }
+      '\t' | '\n' | '\r' | '\'' if delim == '\'' => {
+        let last_pos = self.last_pos;
+        self.err_span_char(start,
+                           last_pos,
+                           if ascii_only {
+                             "byte constant must be escaped"
+                           } else {
+                             "character constant must be escaped"
+                           },
+                           first_source_char);
+        return false;
+      }
+      '\r' => {
+        if self.curr_is('\n') {
+          self.bump();
+          return true;
+        } else {
+          self.err_span_(start,
+                         self.last_pos,
+                         "bare CR not allowed in string, use \\r instead");
+          return false;
+        }
+      }
+      _ => {
+        if ascii_only && first_source_char > '\x7F' {
+          let last_pos = self.last_pos;
+          self.err_span_(start,
+                         last_pos,
+                         "byte constant must be ASCII. Use a \\xHH escape for a \
+                          non-ASCII byte");
+          return false;
+        }
+      }
+    }
+    true
+  }
+
+  fn scan_byte_escape(&mut self, delim: char, below_0x7f_only: bool) -> bool {
+    self.scan_hex_digits(2, delim, below_0x7f_only)
+  }
+
+  /// Scan over a \u{...} escape
+    ///
+    /// At this point, we have already seen the \ and the u, the { is the current character. We
+    /// will read at least one digit, and up to 6, and pass over the }.
+  fn scan_unicode_escape(&mut self, delim: char) -> bool {
+    self.bump(); // past the {
+    let start_bpos = self.last_pos;
+    let mut count = 0;
+    let mut accum_int = 0;
+    let mut valid = true;
+
+    while !self.curr_is('}') && count <= 6 {
+      let c = match self.curr {
+        Some(c) => c,
+        None => {
+          panic!(self.fatal_span_(start_bpos,
+                                            self.last_pos,
+                                            "unterminated unicode escape (found EOF)"));
+        }
+      };
+      accum_int *= 16;
+      accum_int += c.to_digit(16).unwrap_or_else(|| {
+        if c == delim {
+          panic!(self.fatal_span_(self.last_pos,
+                                            self.pos,
+                                            "unterminated unicode escape (needed a `}`)"));
+        } else {
+          self.err_span_char(self.last_pos,
+                             self.pos,
+                             "invalid character in unicode escape",
+                             c);
+        }
+        valid = false;
+        0
+      });
+      self.bump();
+      count += 1;
+    }
+
+    if count > 6 {
+      self.err_span_(start_bpos,
+                     self.last_pos,
+                     "overlong unicode escape (can have at most 6 hex digits)");
+      valid = false;
+    }
+
+    if valid && (char::from_u32(accum_int).is_none() || count == 0) {
+      self.err_span_(start_bpos,
+                     self.last_pos,
+                     "invalid unicode character escape");
+      valid = false;
+    }
+
+    self.bump(); // past the ending }
+    valid
+  }
+
+  /// Scan over `n_digits` hex digits, stopping at `delim`, reporting an
+    /// error if too many or too few digits are encountered.
+  fn scan_hex_digits(&mut self, n_digits: usize, delim: char, below_0x7f_only: bool) -> bool {
+    debug!("scanning {} digits until {:?}", n_digits, delim);
+    let start_bpos = self.last_pos;
+    let mut accum_int = 0;
+
+    let mut valid = true;
+    for _ in 0..n_digits {
+      if self.is_eof() {
+        let last_bpos = self.last_pos;
+        panic!(self.fatal_span_(start_bpos,
+                                        last_bpos,
+                                        "unterminated numeric character escape"));
+      }
+      if self.curr_is(delim) {
+        let last_bpos = self.last_pos;
+        self.err_span_(start_bpos,
+                       last_bpos,
+                       "numeric character escape is too short");
+        valid = false;
+        break;
+      }
+      let c = self.curr.unwrap_or('\x00');
+      accum_int *= 16;
+      accum_int += c.to_digit(16).unwrap_or_else(|| {
+        self.err_span_char(self.last_pos,
+                           self.pos,
+                           "invalid character in numeric character escape",
+                           c);
+
+        valid = false;
+        0
+      });
+      self.bump();
+    }
+
+    if below_0x7f_only && accum_int >= 0x80 {
+      self.err_span_(start_bpos,
+                     self.last_pos,
+                     "this form of character escape may only be used with characters in \
+                      the range [\\x00-\\x7f]");
+      valid = false;
+    }
+
+    match char::from_u32(accum_int) {
+      Some(_) => valid,
+      None => {
+        let last_bpos = self.last_pos;
+        self.err_span_(start_bpos, last_bpos, "invalid numeric character escape");
+        false
+      }
+    }
   }
 
   /// Lex a LIT_INTEGER or a LIT_FLOAT
@@ -944,6 +1243,12 @@ impl<'a> StringReader<'a> {
       }
     }
   }
+}
+
+// This tests the character for the unicode property 'PATTERN_WHITE_SPACE' which
+// is guaranteed to be forward compatible. http://unicode.org/reports/tr31/#R3
+pub fn is_pattern_whitespace(c: Option<char>) -> bool {
+  c.map_or(false, Pattern_White_Space)
 }
 
 fn in_range(c: Option<char>, lo: char, hi: char) -> bool {
