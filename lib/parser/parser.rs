@@ -974,7 +974,7 @@ impl<'a> Parser<'a> {
     let ident = self.parse_fn_header()?;
     let decl = self.parse_fn_decl(true)?;
     let hi = self.span.hi;
-    self.expect(&token::SemiColon)?;
+//    self.expect(&token::SemiColon)?;
 
     Ok(ast::ForeignItem {
       ident: ident,
@@ -996,7 +996,7 @@ impl<'a> Parser<'a> {
     self.expect(&token::Colon)?;
     let ty = self.parse_ty()?;
     let hi = self.span.hi;
-    self.expect(&token::SemiColon)?;
+//    self.expect(&token::SemiColon)?;
     Ok(ForeignItem {
       ident: ident,
       attrs: attrs,
@@ -1013,7 +1013,7 @@ impl<'a> Parser<'a> {
     let ty = self.parse_ty()?;
     self.expect(&token::Eq)?;
     let e = self.parse_expr()?;
-    self.commit_expr_expecting(&e, token::SemiColon)?;
+    //self.commit_expr_expecting(&e, token::SemiColon)?;
     let item = match m {
       Some(m) => ItemKind::Static(ty, m, e),
       None => ItemKind::Const(ty, e),
@@ -1026,7 +1026,7 @@ impl<'a> Parser<'a> {
     let ident = self.parse_ident()?;
     self.expect(&token::Eq)?;
     let ty = self.parse_ty()?;
-    self.expect(&token::SemiColon)?;
+//    self.expect(&token::SemiColon)?;
     Ok((ident, ItemKind::Ty(ty), None))
   }
 
@@ -1268,14 +1268,14 @@ impl<'a> Parser<'a> {
             }
         }
       }
-      StmtKind::Local(..) => {
-        // We used to incorrectly allow a macro-expanded let statement to lack a semicolon.
-        if self.token != token::SemiColon {
-          self.warn_missing_semicolon();
-        } else {
-          self.expect_one_of(&[token::SemiColon], &[])?;
-        }
-      }
+//      StmtKind::Local(..) => {
+//        // We used to incorrectly allow a macro-expanded let statement to lack a semicolon.
+//        if self.token != token::SemiColon {
+//          self.warn_missing_semicolon();
+//        } else {
+//          self.expect_one_of(&[token::SemiColon], &[])?;
+//        }
+//      }
       _ => {}
     }
 

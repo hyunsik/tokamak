@@ -1,6 +1,6 @@
 pub fn l(y: Int) {
-  var x = 0;
+  var x = 0
   loop {
-    x += 1;
+    x += 1
   }
 }

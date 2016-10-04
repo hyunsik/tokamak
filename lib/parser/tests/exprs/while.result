@@ -4,7 +4,7 @@ pub fn w(y: Int) {
 
     while x < y {
 
-        x += 1;
+        x += 1
 
     }
 }

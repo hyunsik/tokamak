@@ -1,0 +1,3 @@
+const fn abc(x: Int) -> Int { x }
+
+pub const fn def(x: Long) -> Long { x }

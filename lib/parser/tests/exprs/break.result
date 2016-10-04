@@ -2,7 +2,7 @@ pub fn b() {
 
     loop  {
 
-        break ;
+        break
 
     }
 }

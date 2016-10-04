@@ -1,5 +1,7 @@
 #![feature(question_mark)]
 
+#[macro_use] extern crate log;
+extern crate env_logger;
 extern crate getopts;
 extern crate test_util;
 extern crate parser2;
@@ -93,6 +95,8 @@ fn setup_phases<'a>() -> Vec<Box<TestSet<'a>>> {
 }
 
 pub fn main() {
+  env_logger::init().unwrap();
+
   let run_env = RunEnv::new(
     env::args().collect(),
     env::current_dir().unwrap(),

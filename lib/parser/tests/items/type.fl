@@ -1,1 +1,1 @@
-pub type Point = (Double, Double);
+pub type Point = (Double, Double)

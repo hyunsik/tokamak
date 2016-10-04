@@ -4,7 +4,7 @@ pub fn l(y: Int) {
 
     loop  {
 
-        x += 1;
+        x += 1
 
     }
 }

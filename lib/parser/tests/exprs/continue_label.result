@@ -2,7 +2,7 @@ pub fn b() {
 
     loop  {
 
-        continue label1 ;
+        continue label1
 
     }
 }

@@ -1,5 +1,5 @@
 extern {
-  static x: Int;
-  static var y: Int;
-  fn sqar(x: double) -> x;
+  static x: Int
+  static var y: Int
+  fn sqar(x: double) -> x
 }
