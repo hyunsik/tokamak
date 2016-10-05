@@ -1200,7 +1200,6 @@ impl<'a> State<'a> {
 
         self.word_space("=")?;
         self.print_expr(&expr)?;
-        word(&mut self.s, ";")?;
         self.end()?; // end the outer cbox
       }
       ast::ItemKind::Const(ref ty, ref expr) => {
@@ -1214,7 +1213,6 @@ impl<'a> State<'a> {
 
         self.word_space("=")?;
         self.print_expr(&expr)?;
-        word(&mut self.s, ";")?;
         self.end()?; // end the outer cbox
       }
       ast::ItemKind::Fn(ref decl, unsafety, constness, abi, ref body) => {
@@ -1240,7 +1238,6 @@ impl<'a> State<'a> {
         space(&mut self.s)?;
         self.word_space("=")?;
         self.print_type(&ty)?;
-        word(&mut self.s, ";")?;
         self.end()?; // end the outer ibox
       }
       _ => {
@@ -1559,7 +1556,6 @@ impl<'a> State<'a> {
           self.word_space("=")?;
           self.print_expr(&init)?;
         }
-        word(&mut self.s, ";")?;
         self.end()?;
       }
       ast::StmtKind::Item(ref item) => self.print_item(&item)?,
