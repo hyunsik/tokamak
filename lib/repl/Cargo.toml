@@ -1,10 +1,10 @@
 [package]
-name = "repl"
+name = "librepl"
 version = "0.0.1"
 authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
 
 [lib]
-name = "session"
+name = "repl"
 path = "lib.rs"
 
 [dependencies]

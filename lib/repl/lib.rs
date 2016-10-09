@@ -1,3 +1,7 @@
+extern crate rl_sys; // libreadline
+
+use rl_sys::readline;
+
 pub struct ReplOption {
 }
 
@@ -25,12 +29,15 @@ impl ReplEnv {
 pub struct CompilerInstance;
 
 pub fn runRepl(compiler: &CompilerInstance, env: &ReplEnv) {
-  let line: String = "".to_string();
   loop {
-    let input = env.input(&line);
-
-    if !env.handle_input(compiler, input) {
-      break;
+    match readline::readline(&format!("\x1b[33mtkm [{}]> \x1b[0m", 0)) {
+      Ok(Some(line)) => {
+        println!("{}", line);
+      }
+      Ok(None) => break, // eof
+      Err(msg) => {
+        println!("{}", msg);
+      }
     }
   }
 }
