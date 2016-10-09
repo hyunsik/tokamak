@@ -1,5 +1,5 @@
 [package]
-name = "parser2"
+name = "parser"
 version = "0.0.1"
 authors = ["Hyunsik Choi <hyunsik@apache.org>"]
 
