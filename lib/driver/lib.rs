@@ -16,6 +16,8 @@ use std::process;
 
 use getopts::{HasArg, Options, Occur};
 
+use repl::{run_repl, ReplEnv};
+
 static DEFAULT_PROGRAM_NAME: &'static str = "unnamed";
 
 pub enum DriverErr {
@@ -129,7 +131,10 @@ pub fn run_driver(args: Vec<String>, cwd: PathBuf,
   };
 
   match action {
-    DriverAction::Repl => unimplemented!(),
+    DriverAction::Repl => {
+      run_repl(ReplEnv { sout: sout.clone(), serr: serr.clone() });
+      0
+    }
     DriverAction::Batch => unimplemented!(),
     DriverAction::Daemon => unimplemented!(),
   }

@@ -1,0 +1,10 @@
+[package]
+name = "libflang_compiler"
+version = "0.0.1"
+authors = ["Hyunsik Choi <hyunsik.choi@gmail.com>"]
+
+[lib]
+name = "flang_compiler"
+path = "lib.rs"
+
+
