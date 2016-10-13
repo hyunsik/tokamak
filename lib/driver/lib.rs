@@ -132,7 +132,7 @@ pub fn run_driver(args: Vec<String>, cwd: PathBuf,
 
   match action {
     DriverAction::Repl => {
-      run_repl(ReplEnv { sout: sout.clone(), serr: serr.clone() });
+      run_repl(ReplEnv::new(sout.clone(), serr.clone()));
       0
     }
     DriverAction::Batch => unimplemented!(),
