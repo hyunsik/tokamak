@@ -1,11 +1,14 @@
-extern crate rl_sys; // libreadline
+extern crate rl_sys;
+extern crate nix;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::io;
 use std::rc::Rc;
 
 use rl_sys::readline;
+use nix::libc;
 
 mod directive;
 use directive::{
@@ -89,7 +92,7 @@ fn exec_line(src_file: &mut SourceFile, line: &str) {
 
 pub enum ReplAction<'a> {
   Directive(&'a str, Vec<&'a str>),
-  ExternalComamnd(&'a str, Vec<&'a str>),
+  ExternalComamnd(&'a str),
   ExecuteSource(&'a str),
   None,
 }
@@ -104,7 +107,7 @@ fn parse_action<'a>(env: &ReplEnv, line: &'a str) -> ReplAction<'a> {
         ReplAction::Directive(&first[1..], tokens.collect::<Vec<_>>())
       }
       x if x.starts_with('!') => { // external command
-        ReplAction::ExternalComamnd(&first[1..], tokens.collect::<Vec<_>>())
+        ReplAction::ExternalComamnd(&line[1..])
       }
       _ => {
         ReplAction::ExecuteSource(line)
@@ -118,7 +121,10 @@ fn handle_line(env: &ReplEnv, line: &str) {
   match parse_action(env, line) {
     ReplAction::Directive(_, _) => println!("Directive"),
     ReplAction::ExecuteSource(_) => println!("ExecuteSource"),
-    ReplAction::ExternalComamnd(_, _) => println!("ExternalCommand"),
+    ReplAction::ExternalComamnd(command) => {
+      let c_to_print = CString::new(command).unwrap();
+      unsafe { libc::system(c_to_print.as_ptr()); }
+    }
     ReplAction::None => {}
   }
 }
