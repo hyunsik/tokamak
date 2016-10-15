@@ -6,15 +6,12 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::io;
 use std::rc::Rc;
-
 use rl_sys::readline;
+
 use nix::libc;
 
 mod directive;
-use directive::{
-  Directive,
-  Help
-};
+use InputType::*;
 
 pub enum InputType<'a> {
   Directive(&'a str, Vec<&'a str>),
@@ -85,10 +82,10 @@ impl Repl {
 
   fn handle_line(&self, line: &str) -> ReplAction {
     match self.parse_input(line) {
-      InputType::Directive(d, args) => self.exec_directive(d, args),
-      InputType::ExecuteSource(line) => self.exec_line(line),
-      InputType::ExternalComamnd(command) => self.exec_external_program(command),
-      InputType::Empty => ReplAction::Done // just enter without any type
+      Directive(d, args) => self.exec_directive(d, args),
+      ExecuteSource(line) => self.exec_line(line),
+      ExternalComamnd(command) => self.exec_external_program(command),
+      Empty => ReplAction::Done // just enter without any type
     }
   }
 
@@ -98,17 +95,11 @@ impl Repl {
 
     match first_token {
       Some(first) => match first {
-        x if x.starts_with(':') => { // directive
-          InputType::Directive(&first[1..], tokens.collect::<Vec<_>>())
-        }
-        x if x.starts_with('!') => { // external command
-          InputType::ExternalComamnd(&line[1..])
-        }
-        _ => {
-          InputType::ExecuteSource(line)
-        }
+        x if x.starts_with(':') => Directive(&first[1..], tokens.collect::<Vec<_>>()),
+        x if x.starts_with('!') => ExternalComamnd(&line[1..]),
+        _ => ExecuteSource(line)
       },
-      None => InputType::Empty
+      None => Empty
     }
   }
 
