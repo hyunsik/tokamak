@@ -13,6 +13,8 @@ use nix::libc;
 mod directive;
 use InputType::*;
 
+static DEFAULT_PROMPT: &'static str = "\x1b[33mflang> \x1b[0m";
+
 pub enum InputType<'a> {
   Directive(&'a str, Vec<&'a str>),
   ExternalComamnd(&'a str),
@@ -27,6 +29,7 @@ pub enum ReplAction {
 }
 
 pub struct Repl {
+  source: String,
   pub sout: Rc<RefCell<io::Write>>, // stream out,
   pub serr: Rc<RefCell<io::Write>>, // stream err,
 }
@@ -34,6 +37,7 @@ pub struct Repl {
 impl Repl {
   pub fn new(sout: Rc<RefCell<io::Write>>, serr: Rc<RefCell<io::Write>>) -> Repl {
     Repl {
+      source: String::new(),
       sout: sout,
       serr: serr,
     }
@@ -55,19 +59,19 @@ impl Repl {
     self.sout.borrow_mut().flush().ok();
   }
 
-  pub fn run(&self) {
+  pub fn run(&mut self) {
     self.write_out(b"Welcome to Flang version 0.1. (Type :help for assistance.)\n");
     self.flush_out();
 
     let mut state = ReplState::new();
 
-    let mut prompt: String = "\x1b[33mflang> \x1b[0m".to_string();
+    let mut prompt: String = DEFAULT_PROMPT.to_string();
 
     loop {
       match readline::readline(&prompt) {
         Ok(Some(line)) => {
           match self.handle_line(&line) {
-            ReplAction::Done => {}
+            ReplAction::Done => { prompt = DEFAULT_PROMPT.to_string(); }
             ReplAction::Continue(p) => prompt = p,
             ReplAction::Quit => break
           }
@@ -80,7 +84,7 @@ impl Repl {
     }
   }
 
-  fn handle_line(&self, line: &str) -> ReplAction {
+  fn handle_line(&mut self, line: &str) -> ReplAction {
     match self.parse_input(line) {
       Directive(d, args) => self.exec_directive(d, args),
       ExecuteSource(line) => self.exec_line(line),
@@ -104,10 +108,18 @@ impl Repl {
   }
 
   pub fn exec_directive(&self, directive: &str, args: Vec<&str>) -> ReplAction {
-    ReplAction::Done
+    match directive {
+      "dump" => {
+        self.write_out(self.source.as_bytes());
+        ReplAction::Done
+      }
+      "quit" => ReplAction::Quit,
+      _ => ReplAction::Done
+    }
   }
 
-  pub fn exec_line(&self, line: &str) -> ReplAction {
+  pub fn exec_line(&mut self, line: &str) -> ReplAction {
+    self.source.push_str(line);
     ReplAction::Done
   }
 
