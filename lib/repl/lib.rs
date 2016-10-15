@@ -29,15 +29,15 @@ pub enum ReplAction {
 }
 
 pub struct Repl {
-  source: String,
-  pub sout: Rc<RefCell<io::Write>>, // stream out,
-  pub serr: Rc<RefCell<io::Write>>, // stream err,
+  src_file: SourceFile,
+  sout: Rc<RefCell<io::Write>>, // stream out,
+  serr: Rc<RefCell<io::Write>>, // stream err,
 }
 
 impl Repl {
   pub fn new(sout: Rc<RefCell<io::Write>>, serr: Rc<RefCell<io::Write>>) -> Repl {
     Repl {
-      source: String::new(),
+      src_file: SourceFile::new(),
       sout: sout,
       serr: serr,
     }
@@ -110,7 +110,7 @@ impl Repl {
   pub fn exec_directive(&self, directive: &str, args: Vec<&str>) -> ReplAction {
     match directive {
       "dump" => {
-        self.write_out(self.source.as_bytes());
+        self.write_out(self.src_file.as_bytes());
         ReplAction::Done
       }
       "quit" => ReplAction::Quit,
@@ -119,8 +119,16 @@ impl Repl {
   }
 
   pub fn exec_line(&mut self, line: &str) -> ReplAction {
-    self.source.push_str(line);
+    self.src_file.add_line(line);
     ReplAction::Done
+
+    // append source
+    // generate mir
+    // check ast error
+    // add source which is valid
+    // skip if the source doesn't need to run
+    // generate llvm ir and module
+    // reorganize llvm module
   }
 
   pub fn exec_external_program(&self, command: &str) -> ReplAction {
@@ -138,30 +146,27 @@ impl ReplState {
   }
 }
 
-pub struct Input;
-
-pub struct Output;
-
-pub struct CompilerInstance;
-
 pub struct SourceFile {
   source: String
 }
 
 impl SourceFile {
+  pub fn new() -> SourceFile {
+    SourceFile { source : String::new() }
+  }
+
   pub fn add_line(&mut self, line: &str) {
     self.source.push_str(line);
+    self.source.push_str("\n");
   }
-}
 
-fn exec_line(src_file: &mut SourceFile, line: &str) {
-  // append source
-  // generate mir
-  // check ast error
-  // add source which is valid
-  // skip if the source doesn't need to run
-  // generate llvm ir and module
-  // reorganize llvm module
+  pub fn as_str(&self) -> &str {
+    &self.source
+  }
+
+  pub fn as_bytes(&self) -> &[u8] {
+    self.source.as_bytes()
+  }
 }
 
 
