@@ -16,7 +16,7 @@ use std::process;
 
 use getopts::{HasArg, Options, Occur};
 
-use repl::{run_repl, ReplEnv};
+use repl::Repl;
 
 static DEFAULT_PROGRAM_NAME: &'static str = "unnamed";
 
@@ -132,7 +132,8 @@ pub fn run_driver(args: Vec<String>, cwd: PathBuf,
 
   match action {
     DriverAction::Repl => {
-      run_repl(ReplEnv::new(sout.clone(), serr.clone()));
+      let repl = Repl::new(sout.clone(), serr.clone());
+      repl.run();
       0
     }
     DriverAction::Batch => unimplemented!(),

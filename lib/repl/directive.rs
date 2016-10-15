@@ -1,9 +1,9 @@
-use super::ReplEnv;
+use super::Repl;
 
 pub trait Directive {
   fn command(&self) -> &'static str;
   fn help(&self) -> &'static str;
-  fn execute(&self, env: &ReplEnv, args: &[&str]);
+  fn execute(&self, env: &Repl, args: &[&str]);
 }
 
 pub struct Help;
@@ -17,6 +17,6 @@ impl Directive for Help {
     "help command"
   }
 
-  fn execute(&self, env: &ReplEnv, args: &[&str]) {
+  fn execute(&self, env: &Repl, args: &[&str]) {
   }
 }

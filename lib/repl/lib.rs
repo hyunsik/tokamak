@@ -16,43 +16,114 @@ use directive::{
   Help
 };
 
-pub struct ReplOption {
+pub enum InputType<'a> {
+  Directive(&'a str, Vec<&'a str>),
+  ExternalComamnd(&'a str),
+  ExecuteSource(&'a str),
+  Empty,
 }
 
-pub struct ReplEnv {
-  directives: HashMap<&'static str, Box<Directive>>,
+pub enum ReplAction {
+  Done,
+  Continue(String),
+  Quit
+}
 
+pub struct Repl {
   pub sout: Rc<RefCell<io::Write>>, // stream out,
   pub serr: Rc<RefCell<io::Write>>, // stream err,
 }
 
-impl ReplEnv {
-  pub fn new(sout: Rc<RefCell<io::Write>>, serr: Rc<RefCell<io::Write>>) -> ReplEnv {
-    let mut directives = HashMap::new();
-    let help = Box::new(Help) as Box<Directive>;
-    directives.insert(help.command(), help);
-
-    ReplEnv {
+impl Repl {
+  pub fn new(sout: Rc<RefCell<io::Write>>, serr: Rc<RefCell<io::Write>>) -> Repl {
+    Repl {
       sout: sout,
       serr: serr,
-      directives: directives
     }
   }
 
-  pub fn sout_write(&self, msg: &[u8]) {
+  pub fn write_out(&self, msg: &[u8]) {
     self.sout.borrow_mut().write(msg).ok();
   }
 
-  pub fn sout_flush(&self) {
+  pub fn flush_out(&self) {
     self.sout.borrow_mut().flush().ok();
   }
 
-  pub fn serr_write(&self, msg: &[u8]) {
+  pub fn write_err(&self, msg: &[u8]) {
     self.sout.borrow_mut().write(msg).ok();
   }
 
-  pub fn serr_flush(&self) {
+  pub fn flush_err(&self) {
     self.sout.borrow_mut().flush().ok();
+  }
+
+  pub fn run(&self) {
+    self.write_out(b"Welcome to Flang version 0.1. (Type :help for assistance.)\n");
+    self.flush_out();
+
+    let mut state = ReplState::new();
+
+    let mut prompt: String = "\x1b[33mflang> \x1b[0m".to_string();
+
+    loop {
+      match readline::readline(&prompt) {
+        Ok(Some(line)) => {
+          match self.handle_line(&line) {
+            ReplAction::Done => {}
+            ReplAction::Continue(p) => prompt = p,
+            ReplAction::Quit => break
+          }
+        }
+        Ok(None) => break, // eof
+        Err(msg) => {
+          self.write_err(format!("ERROR: {}", msg).as_bytes());
+        }
+      }
+    }
+  }
+
+  fn handle_line(&self, line: &str) -> ReplAction {
+    match self.parse_input(line) {
+      InputType::Directive(d, args) => self.exec_directive(d, args),
+      InputType::ExecuteSource(line) => self.exec_line(line),
+      InputType::ExternalComamnd(command) => self.exec_external_program(command),
+      InputType::Empty => ReplAction::Done // just enter without any type
+    }
+  }
+
+  fn parse_input<'a>(&self, line: &'a str) -> InputType<'a> {
+    let mut tokens = line.split_whitespace();
+    let first_token = tokens.next();
+
+    match first_token {
+      Some(first) => match first {
+        x if x.starts_with(':') => { // directive
+          InputType::Directive(&first[1..], tokens.collect::<Vec<_>>())
+        }
+        x if x.starts_with('!') => { // external command
+          InputType::ExternalComamnd(&line[1..])
+        }
+        _ => {
+          InputType::ExecuteSource(line)
+        }
+      },
+      None => InputType::Empty
+    }
+  }
+
+  pub fn exec_directive(&self, directive: &str, args: Vec<&str>) -> ReplAction {
+    ReplAction::Done
+  }
+
+  pub fn exec_line(&self, line: &str) -> ReplAction {
+    ReplAction::Done
+  }
+
+  pub fn exec_external_program(&self, command: &str) -> ReplAction {
+    let c_to_print = CString::new(command).unwrap();
+    unsafe { libc::system(c_to_print.as_ptr()); }
+    ReplAction::Done
   }
 }
 
@@ -90,60 +161,4 @@ fn exec_line(src_file: &mut SourceFile, line: &str) {
   // reorganize llvm module
 }
 
-pub enum ReplAction<'a> {
-  Directive(&'a str, Vec<&'a str>),
-  ExternalComamnd(&'a str),
-  ExecuteSource(&'a str),
-  None,
-}
 
-fn parse_action<'a>(env: &ReplEnv, line: &'a str) -> ReplAction<'a> {
-  let mut tokens = line.split_whitespace();
-  let first_token = tokens.next();
-
-  match first_token {
-    Some(first) => match first {
-      x if x.starts_with(':') => { // directive
-        ReplAction::Directive(&first[1..], tokens.collect::<Vec<_>>())
-      }
-      x if x.starts_with('!') => { // external command
-        ReplAction::ExternalComamnd(&line[1..])
-      }
-      _ => {
-        ReplAction::ExecuteSource(line)
-      }
-    },
-    None => ReplAction::None
-  }
-}
-
-fn handle_line(env: &ReplEnv, line: &str) {
-  match parse_action(env, line) {
-    ReplAction::Directive(_, _) => println!("Directive"),
-    ReplAction::ExecuteSource(_) => println!("ExecuteSource"),
-    ReplAction::ExternalComamnd(command) => {
-      let c_to_print = CString::new(command).unwrap();
-      unsafe { libc::system(c_to_print.as_ptr()); }
-    }
-    ReplAction::None => {}
-  }
-}
-
-pub fn run_repl(env: ReplEnv) {
-
-  env.sout_write(b"Welcome to Flang version 0.1. (Type :help for assistance.)\n");
-  env.sout_flush();
-
-  let mut state = ReplState::new();
-  loop {
-    match readline::readline(&format!("\x1b[33mtkm [{}]> \x1b[0m", "flang")) {
-      Ok(Some(line)) => {
-        handle_line(&env, &line)
-      }
-      Ok(None) => break, // eof
-      Err(msg) => {
-        println!("> {}", msg);
-      }
-    }
-  }
-}

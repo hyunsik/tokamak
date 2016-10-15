@@ -12,7 +12,7 @@ pub fn main() {
   let exit_code = driver::run_driver(
     std::env::args().collect(),
     env::current_dir().unwrap(),
-    Box::new(io::stdout()), Box::new(io::stderr())
+    Box::new(io::stderr()), Box::new(io::stderr())
   );
 
   process::exit(exit_code);
