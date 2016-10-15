@@ -125,14 +125,14 @@ pub fn run_driver(args: Vec<String>, cwd: PathBuf,
   let (action, driver_env) = match init_driver(args, cwd, sout.clone(), serr.clone()) {
     Ok(r) => r,
     Err(e) => {
-      sout.borrow_mut().write_all(format!("{}\n", e).as_bytes()).ok();
+      serr.borrow_mut().write_all(format!("{}\n", e).as_bytes()).ok();
       process::exit(-1);
     }
   };
 
   match action {
     DriverAction::Repl => {
-      let repl = Repl::new(sout.clone(), serr.clone());
+      let mut repl = Repl::new(sout.clone(), serr.clone());
       repl.run();
       0
     }
