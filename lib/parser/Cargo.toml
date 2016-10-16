@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = ["Hyunsik Choi <hyunsik@apache.org>"]
 
 [lib]
-name = "parser2"
+name = "parser"
 path = "lib.rs"
 
 [[bin]]

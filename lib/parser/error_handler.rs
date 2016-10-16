@@ -53,9 +53,71 @@ impl Level {
 }
 
 #[derive(Clone)]
-pub struct DiagnosticBuilder;
+pub enum RenderSpan {
+  /// A FullSpan renders with both with an initial line for the
+  /// message, prefixed by file:linenum, followed by a summary of
+  /// the source code covered by the span.
+  FullSpan(MultiSpan),
 
-impl DiagnosticBuilder {
+  /// A suggestion renders with both with an initial line for the
+  /// message, prefixed by file:linenum, followed by a summary
+  /// of hypothetical source code, where each `String` is spliced
+  /// into the lines in place of the code covered by each span.
+  Suggestion(CodeSuggestion),
+}
+
+#[derive(Clone)]
+pub struct CodeSuggestion {
+  pub msp: MultiSpan,
+  pub substitutes: Vec<String>,
+}
+
+#[derive(Clone)]
+pub struct DiagnosticBuilder<'a> {
+  handler: &'a Handler,
+  pub level: Level,
+  pub message: String,
+  pub code: Option<String>,
+  pub span: MultiSpan,
+  pub children: Vec<SubDiagnostic>,
+}
+
+/// For example a note attached to an error.
+#[derive(Clone)]
+pub struct SubDiagnostic {
+  pub level: Level,
+  pub message: String,
+  pub span: MultiSpan,
+  pub render_span: Option<RenderSpan>,
+}
+
+impl<'a> DiagnosticBuilder<'a> {
+
+  /// Convenience function for internal use, clients should use one of the
+    /// struct_* methods on Handler.
+  fn new(handler: &'a Handler,
+         level: Level,
+         message: &str) -> DiagnosticBuilder<'a> {
+    DiagnosticBuilder::new_with_code(handler, level, None, message)
+  }
+
+  /// Convenience function for internal use, clients should use one of the
+    /// struct_* methods on Handler.
+  fn new_with_code(handler: &'a Handler,
+                   level: Level,
+                   code: Option<String>,
+                   message: &str) -> DiagnosticBuilder<'a> {
+    DiagnosticBuilder {
+      handler: handler,
+      level: level,
+      message: message.to_owned(),
+      code: code,
+      span: MultiSpan::new(),
+      children: vec![],
+    }
+  }
+
+
   /// Emit the diagnostic.
   pub fn emit(&mut self) {
     unimplemented!()
@@ -73,6 +135,11 @@ impl DiagnosticBuilder {
   #[allow(unused_variables)]
   pub fn note(&mut self, msg: &str) -> &mut DiagnosticBuilder {
     unimplemented!()
+  }
+
+  pub fn set_span<S: Into<MultiSpan>>(&mut self, sp: S) -> &mut Self {
+    self.span = sp.into();
+    self
   }
 
   #[allow(unused_variables)]
@@ -125,24 +192,33 @@ impl Handler {
   pub fn struct_span_warn<'a, S: Into<MultiSpan>>(&'a self,
                                                   sp: S,
                                                   msg: &str)
-                                                  -> DiagnosticBuilder {
+                                                  -> DiagnosticBuilder<'a> {
     unimplemented!()
   }
 
   #[allow(unused_variables)]
-  pub fn struct_span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
-      -> DiagnosticBuilder {
-    unimplemented!()
+  pub fn struct_span_err<'a, S: Into<MultiSpan>>(&'a self,
+                                                 sp: S,
+                                                 msg: &str)
+                                                 -> DiagnosticBuilder<'a> {
+    self.bump_err_count();
+    let mut result = DiagnosticBuilder::new(self, Level::Error, msg);
+    result.set_span(sp);
+    result
   }
 
   #[allow(unused_variables)]
-  pub fn struct_span_fatal<S: Into<MultiSpan>>(&self, sp: S, msg: &str)
-      -> DiagnosticBuilder {
+  pub fn struct_span_fatal<'a, S: Into<MultiSpan>>(&'a self, sp: S, msg: &str)
+      -> DiagnosticBuilder<'a> {
     println!("{}", msg);
     unimplemented!()
   }
 
   pub fn bug(&self, msg: &str) -> ! {
     unimplemented!()
+  }
+
+  pub fn bump_err_count(&self) {
+    self.err_count.set(self.err_count.get() + 1);
   }
 }

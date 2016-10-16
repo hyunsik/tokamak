@@ -1,7 +1,6 @@
 #![feature(const_fn)]
 #![feature(filling_drop)]
 #![feature(unicode)]
-#![feature(question_mark)]
 #![feature(str_escape)]
 
 #[macro_use] extern crate bitflags;
@@ -24,6 +23,7 @@ pub mod parser;
 pub mod precedence;
 pub mod ptr;
 pub mod token;
+pub mod tokenstream;
 pub mod unicode_chars;
 mod thin_vec;
 //pub mod visitor;

@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
   /// terminated by a semicolon.
 
   /// matches inner_attrs*
-  pub fn parse_inner_attributes(&mut self) -> PResult<Vec<ast::Attribute>> {
+  pub fn parse_inner_attributes(&mut self) -> PResult<'a, Vec<ast::Attribute>> {
     let mut attrs: Vec<ast::Attribute> = vec![];
 
     Ok(attrs)

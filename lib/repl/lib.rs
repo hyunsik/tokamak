@@ -13,6 +13,11 @@ use nix::libc;
 mod directive;
 use InputType::*;
 
+extern crate parser;
+use parser::codemap::CodeMap;
+use parser::lexer::{Reader, StringReader};
+use parser::parser::{filemap_to_tts, ParseSess, Parser};
+
 static DEFAULT_PROMPT: &'static str = "\x1b[33mflang> \x1b[0m";
 
 pub enum InputType<'a> {
@@ -119,6 +124,11 @@ impl Repl {
   }
 
   pub fn exec_line(&mut self, line: &str) -> ReplAction {
+    let sess: ParseSess = ParseSess::new();
+    let codemap = CodeMap::new();
+    let filemap = codemap.new_filemap("console.fl".to_string(), None, line.to_string());
+    let tts = filemap_to_tts(&sess, filemap);
+
     self.src_file.add_line(line);
     ReplAction::Done
 

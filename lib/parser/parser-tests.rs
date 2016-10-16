@@ -1,20 +1,18 @@
-#![feature(question_mark)]
-
 #[macro_use] extern crate log;
 extern crate env_logger;
 extern crate getopts;
 extern crate test_util;
-extern crate parser2;
+extern crate parser;
 
 use std::env;
 use std::io::Write;
 use std::path::Path;
 use getopts::Options;
 
-use parser2::ast_printer::{self, NoAnn};
-use parser2::codemap::CodeMap;
-use parser2::lexer::{StringReader};
-use parser2::parser::{ParseSess, Parser};
+use parser::ast_printer::{self, NoAnn};
+use parser::codemap::CodeMap;
+use parser::lexer::{StringReader};
+use parser::parser::{ParseSess, Parser};
 
 use test_util as test;
 use test_util::{

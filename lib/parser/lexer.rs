@@ -72,7 +72,7 @@ pub struct StringReader<'a> {
   /// cached token
   pub peek_tok: token::Token,
   pub peek_span: Span,
-  pub fatal_errs: Vec<DiagnosticBuilder>,
+  pub fatal_errs: Vec<DiagnosticBuilder<'a>>,
 
   /// source text
   pub source_text: Rc<String>,
@@ -219,7 +219,7 @@ impl<'a> StringReader<'a> {
                           to_pos: BytePos,
                           m: &str,
                           c: char)
-                          -> DiagnosticBuilder {
+                          -> DiagnosticBuilder<'a> {
     let mut m = m.to_string();
     m.push_str(": ");
     for c in c.escape_default() {
@@ -233,7 +233,7 @@ impl<'a> StringReader<'a> {
                             to_pos: BytePos,
                             m: &str,
                             c: char)
-                            -> DiagnosticBuilder {
+                            -> DiagnosticBuilder<'a> {
     let mut m = m.to_string();
     m.push_str(": ");
     for c in c.escape_default() {
