@@ -1,6 +1,4 @@
-
 #![feature(set_stdio)]
-#![feature(question_mark)]
 
 extern crate env_logger;
 extern crate data_structures;

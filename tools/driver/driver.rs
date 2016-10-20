@@ -1,6 +1,6 @@
 #[macro_use] extern crate log;
 extern crate env_logger;
-extern crate driver;
+extern crate flang_driver as driver;
 
 use std::env;
 use std::io;

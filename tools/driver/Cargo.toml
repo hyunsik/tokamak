@@ -13,4 +13,4 @@ getopts = "0.2.14"
 log = "0.3.4"
 rl-sys = "0.5.2"
 
-libdriver = { path = "../../lib/driver" }
+driver = { path = "../../lib/driver" }

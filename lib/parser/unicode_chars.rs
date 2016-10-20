@@ -1,8 +1,8 @@
 // Characters and their corresponding confusables were collected from
 // http://www.unicode.org/Public/security/revision-06/confusables.txt
 
-use codemap::mk_span as make_span;
-use error_handler::DiagnosticBuilder;
+use common::codespan::mk_span as make_span;
+use errors::DiagnosticBuilder;
 use lexer::StringReader;
 
 const UNICODE_ARRAY: &'static [(char, &'static str, char)] = &[

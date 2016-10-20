@@ -1,5 +1,3 @@
-#![feature(question_mark)]
-
 /// Directory Hierarchy For A Test Collection
 ///
 /// ```

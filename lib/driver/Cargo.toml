@@ -1,10 +1,10 @@
 [package]
-name = "libdriver"
+name = "driver"
 version = "0.0.1"
 authors = ["Hyunsik Choi <hyunsik.choi@gmail.com>"]
 
 [lib]
-name = "driver"
+name = "flang_driver"
 path = "lib.rs"
 
 [dependencies]
@@ -14,7 +14,7 @@ itertools = "0.4.3"
 log = "0.3.4"
 term = "0.4.4"
 
-libflang_common = {path = "../common" }
+common = {path = "../common" }
 librepl = { path = "../repl" }
 
 

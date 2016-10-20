@@ -1,0 +1,15 @@
+[package]
+name = "errors"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
+
+[lib]
+name = "flang_errors"
+path = "lib.rs"
+
+[dependencies]
+env_logger = "0.3.2"
+log = "0.3.5"
+term = "0.4.4"
+
+common = { path = "../common" }

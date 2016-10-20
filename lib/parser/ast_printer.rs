@@ -63,9 +63,10 @@ use self::Breaks::*;
 
 use abi::Abi;
 use ast::{self, Attribute, BlockCheckMode, Mutability, PatKind, UnsafeSource};
-use codemap::{self, CodeMap, BytePos};
+use codemap::CodeMap;
+use common::codespan::{self, BytePos};
 use comments;
-use error_handler as errors;
+use errors;
 use parser;
 use precedence::AssocOp;
 use ptr::P;
@@ -969,16 +970,16 @@ impl<'a> State<'a> {
     self.end() // close the head-box
   }
 
-  pub fn bclose_(&mut self, span: codemap::Span,
+  pub fn bclose_(&mut self, span: codespan::Span,
                  indented: usize) -> io::Result<()> {
     self.bclose_maybe_open(span, indented, true)
   }
 
-  pub fn bclose(&mut self, span: codemap::Span) -> io::Result<()> {
+  pub fn bclose(&mut self, span: codespan::Span) -> io::Result<()> {
     self.bclose_(span, INDENT_UNIT)
   }
 
-  pub fn bclose_maybe_open(&mut self, span: codemap::Span,
+  pub fn bclose_maybe_open(&mut self, span: codespan::Span,
                            indented: usize, close_box: bool) -> io::Result<()> {
     self.maybe_print_comment(span.hi)?;
     self.break_offset_if_not_bol(1, -(indented as isize))?;
@@ -1005,7 +1006,7 @@ impl<'a> State<'a> {
                                 mut op: F,
                                 mut get_span: G) -> io::Result<()> where
                                     F: FnMut(&mut State, &T) -> io::Result<()>,
-                                    G: FnMut(&T) -> codemap::Span,
+                                    G: FnMut(&T) -> codespan::Span,
   {
     self.rbox(0, b)?;
     let len = elts.len();
@@ -1058,7 +1059,7 @@ impl<'a> State<'a> {
     }
   }
 
-  pub fn maybe_print_trailing_comment(&mut self, span: codemap::Span,
+  pub fn maybe_print_trailing_comment(&mut self, span: codespan::Span,
                                       next_pos: Option<BytePos>)
                                       -> io::Result<()> {
     let cm = match self.cm {

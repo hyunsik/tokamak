@@ -1,6 +1,7 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::iter;
 use std::mem;
+use std::path::PathBuf;
 use std::slice;
 use std::str;
 use std::rc::Rc;
@@ -16,12 +17,15 @@ use ast::{Block, BlockCheckMode, Stmt, StmtKind, Local, Mutability, UnsafeSource
 use ast::{Arm, BindingMode, Field, Pat, PatKind};
 use ast::{Arg, FnDecl, FunctionRetTy};
 use ast::Mutability::*;
-use codemap::{self, BytePos, FileMap, mk_span, Span, Spanned, spanned};
-use error_handler::{DiagnosticBuilder, Handler};
+use codemap::{self, CodeMap, Spanned, spanned};
+use common::codespan::{self, BytePos, FileMap, mk_span, Span};
+use errors::{DiagnosticBuilder, Handler};
+use errors::emitter::ColorConfig;
 use lexer::{char_at, Reader, StringReader, TokenAndSpan};
 use precedence::{AssocOp, Fixity};
 use ptr::P;
 use thin_vec::ThinVec;
+use ttreader;
 use token::{self, keywords, InternedString, Token};
 use tokenstream::{self, TokenTree, Delimited};
 
@@ -38,18 +42,35 @@ type ItemInfo = (Ident, ItemKind, Option<Vec<Attribute>>);
 /// Info about a parsing session.
 pub struct ParseSess {
   pub span_diagnostic: Handler, // better be the same as the one in the reader!
+  /// Used to determine and report recursive mod inclusions
+  included_mod_stack: RefCell<Vec<PathBuf>>,
+  code_map: Rc<CodeMap>,
 }
 
 impl ParseSess {
   pub fn new() -> ParseSess {
-    let handler = Handler { err_count: Cell::new(0) };
+    let cm = Rc::new(CodeMap::new());
+    let handler = Handler::with_tty_emitter(ColorConfig::Auto,
+                                            true,
+                                            false,
+                                            Some(cm.clone()));
+    ParseSess::with_span_handler(handler, cm)
+  }
+
+  pub fn with_span_handler(handler: Handler, code_map: Rc<CodeMap>) -> ParseSess {
     ParseSess {
-      span_diagnostic: handler
+      span_diagnostic: handler,
+      included_mod_stack: RefCell::new(vec![]),
+      code_map: code_map
     }
   }
 
   pub fn span_diagnostic<'a>(&'a self) -> &'a Handler {
     &self.span_diagnostic
+  }
+
+  pub fn codemap(&self) -> &CodeMap {
+    &self.code_map
   }
 }
 
@@ -676,7 +697,7 @@ impl<'a> Parser<'a> {
       return Err(self.fatal(&format!("expected item, found `{}`", token_str)));
     }
 
-    let hi = if self.span == codemap::DUMMY_SPAN {
+    let hi = if self.span == codespan::DUMMY_SPAN {
       inner_lo
     } else {
       self.last_span.hi
@@ -1246,7 +1267,7 @@ impl<'a> Parser<'a> {
       stmts: stmts,
       id: ast::DUMMY_NODE_ID,
       rules: s,
-      span: codemap::mk_span(lo, self.last_span.hi),
+      span: codespan::mk_span(lo, self.last_span.hi),
     }))
   }
 
@@ -1314,13 +1335,13 @@ impl<'a> Parser<'a> {
       Stmt {
         id: ast::DUMMY_NODE_ID,
         node: StmtKind::Local(self.parse_let(attrs.into())?),
-        span: codemap::mk_span(lo, self.last_span.hi),
+        span: codespan::mk_span(lo, self.last_span.hi),
       }
     } else if self.eat_keyword(keywords::Var) {
       Stmt {
         id: ast::DUMMY_NODE_ID,
         node: StmtKind::Local(self.parse_var(attrs.into())?),
-        span: codemap::mk_span(lo, self.last_span.hi),
+        span: codespan::mk_span(lo, self.last_span.hi),
       }
     } else {
       // FIXME: Bad copy of attrs
@@ -1329,7 +1350,7 @@ impl<'a> Parser<'a> {
                           |this| this.parse_item_(attrs.clone(), true))? {
         Some(i) => Stmt {
           id: ast::DUMMY_NODE_ID,
-          span: codemap::mk_span(lo, i.span.hi),
+          span: codespan::mk_span(lo, i.span.hi),
           node: StmtKind::Item(i),
         },
         None => {
@@ -1356,7 +1377,7 @@ impl<'a> Parser<'a> {
           let e = self.parse_expr_res(RESTRICTION_STMT_EXPR, Some(attrs.into()))?;
           Stmt {
             id: ast::DUMMY_NODE_ID,
-            span: codemap::mk_span(lo, e.span.hi),
+            span: codespan::mk_span(lo, e.span.hi),
             node: StmtKind::Expr(e),
           }
         }
@@ -1880,7 +1901,7 @@ impl<'a> Parser<'a> {
 
   // parse a stream of tokens into a list of TokenTree's,
   // up to EOF.
-  pub fn parse_all_token_trees(&mut self) -> PResult<Vec<TokenTree>> {
+  pub fn parse_all_token_trees(&mut self) -> PResult<'a, Vec<TokenTree>> {
     let mut tts = Vec::new();
     while self.token != token::Eof {
       tts.push(self.parse_token_tree()?);
@@ -2301,7 +2322,7 @@ impl<'a> Parser<'a> {
     Ok(self.mk_expr(
       lo,
       body.span.hi,
-      ExprKind::Closure(capture_clause, decl, body, codemap::mk_span(lo, decl_hi)),
+      ExprKind::Closure(capture_clause, decl, body, codespan::mk_span(lo, decl_hi)),
       attrs))
   }
 
@@ -2339,7 +2360,7 @@ impl<'a> Parser<'a> {
       P(Ty {
         id: ast::DUMMY_NODE_ID,
         node: TyKind::Infer,
-        span: codemap::mk_span(self.span.lo, self.span.hi),
+        span: codespan::mk_span(self.span.lo, self.span.hi),
       })
     };
     Ok(Arg {
@@ -3473,6 +3494,27 @@ pub fn integer_lit(s: &str,
   }
 }
 
+/// Given a filemap and config, return a parser
+pub fn filemap_to_parser<'a>(sess: &'a ParseSess,
+                             filemap: Rc<FileMap>) -> Parser<'a> {
+  let end_pos = filemap.end_pos;
+  let mut parser = tts_to_parser(sess, filemap_to_tts(sess, filemap));
+
+  if parser.token == token::Eof && parser.span == codespan::DUMMY_SPAN {
+    parser.span = mk_span(end_pos, end_pos);
+  }
+
+  parser
+}
+
+/// Given tts and cfg, produce a parser
+pub fn tts_to_parser<'a>(sess: &'a ParseSess,
+                         tts: Vec<tokenstream::TokenTree>) -> Parser<'a> {
+  let trdr = ttreader::new_tt_reader(&sess.span_diagnostic, None, tts);
+  let mut p = Parser::new(sess, Box::new(trdr));
+  p
+}
+
 /// Given a filemap, produce a sequence of token-trees
 pub fn filemap_to_tts(sess: &ParseSess, filemap: Rc<FileMap>)
   -> Vec<tokenstream::TokenTree> {
@@ -3491,7 +3533,7 @@ mod tests {
 
   use ast::{Expr, Package};
   use ast_printer::{self, NoAnn};
-  use codemap::CodeMap;
+  use codespan::CodeMap;
   use lexer::{StringReader};
   use ptr::P;
   use token;

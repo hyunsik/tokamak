@@ -4,8 +4,9 @@ use std::usize;
 pub use self::CommentStyle::*;
 
 use ast;
-use codemap::{BytePos, CharPos, CodeMap, FileMap, Pos};
-use error_handler as errors;
+use codemap::CodeMap;
+use common::codespan::{BytePos, CharPos, FileMap, Pos};
+use errors;
 use lexer::{self, is_whitespace, Reader, StringReader, TokenAndSpan};
 use lexer::{char_at, is_block_doc_comment};
 use token;

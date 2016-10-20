@@ -7,7 +7,8 @@ pub use self::Mutability::*;
 
 use abi::Abi;
 use ast_printer as printer;
-use codemap::{Span, Spanned};
+use codemap::Spanned;
+use common::codespan::Span;
 use comments::{doc_comment_style, strip_doc_comment_decoration};
 use ptr::P;
 use token::{self, InternedString};

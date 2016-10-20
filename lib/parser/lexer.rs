@@ -4,19 +4,19 @@ use std::mem::replace;
 use std::rc::Rc;
 
 use ast::{self};
-use codemap::{self, BytePos, CharPos, CodeMap, Span, Pos};
-use error_handler::{Handler, DiagnosticBuilder};
+use codemap::CodeMap;
+use common::codespan::{self, BytePos, CharPos, Span, Pos};
+use errors::{FatalError, Handler, DiagnosticBuilder};
 use unicode::property::Pattern_White_Space;
 use unicode_chars;
 use token::{self, str_to_ident};
+use ttreader::{TtReader, tt_next_token};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TokenAndSpan {
   pub tok: token::Token,
   pub sp: Span,
 }
-
-pub struct FatalError;
 
 pub trait Reader {
   fn is_eof(&self) -> bool;
@@ -56,6 +56,36 @@ pub trait Reader {
   fn real_token(&mut self) -> TokenAndSpan {
     let res = self.try_real_token();
     self.unwrap_or_abort(res)
+  }
+}
+
+impl<'a> Reader for TtReader<'a> {
+  fn is_eof(&self) -> bool {
+    self.cur_tok == token::Eof
+  }
+  fn try_next_token(&mut self) -> Result<TokenAndSpan, ()> {
+    assert!(self.fatal_errs.is_empty());
+    let r = tt_next_token(self);
+    debug!("TtReader: r={:?}", r);
+    Ok(r)
+  }
+  fn fatal(&self, m: &str) -> FatalError {
+    self.sp_diag.span_fatal(self.cur_span, m)
+  }
+  fn err(&self, m: &str) {
+    self.sp_diag.span_err(self.cur_span, m);
+  }
+  fn emit_fatal_errors(&mut self) {
+    for err in &mut self.fatal_errs {
+      err.emit();
+    }
+    self.fatal_errs.clear();
+  }
+  fn peek(&self) -> TokenAndSpan {
+    TokenAndSpan {
+      tok: self.cur_tok.clone(),
+      sp: self.cur_span,
+    }
   }
 }
 
@@ -137,7 +167,7 @@ pub fn char_at(s: &str, byte: usize) -> char {
 impl<'a> StringReader<'a> {
   /// For comments.rs, which hackily pokes into pos and curr
   pub fn new_raw<'b>(span_diagnostic: &'b Handler,
-                     filemap: Rc<codemap::FileMap>)
+                     filemap: Rc<codespan::FileMap>)
                      -> StringReader<'b> {
     if filemap.src.is_none() {
       span_diagnostic.bug(&format!("Cannot lex filemap \
@@ -154,7 +184,7 @@ impl<'a> StringReader<'a> {
       curr: Some('\n'),
 
       peek_tok: token::Eof,
-      peek_span: codemap::DUMMY_SPAN,
+      peek_span: codespan::DUMMY_SPAN,
       fatal_errs: Vec::new(),
 
       source_text: source_text,
@@ -165,7 +195,7 @@ impl<'a> StringReader<'a> {
   }
 
   pub fn new(span_diagnostic: &'a Handler,
-             filemap: Rc<codemap::FileMap>)
+             filemap: Rc<codespan::FileMap>)
              -> StringReader<'a> {
     let mut sr = StringReader::new_raw(span_diagnostic, filemap);
     if let Err(_) = sr.advance_token() {
@@ -189,7 +219,7 @@ impl<'a> StringReader<'a> {
   #[allow(unused_variables)]
   /// Report a lexical error spanning [`from_pos`, `to_pos`).
   fn err_span_(&self, from_pos: BytePos, to_pos: BytePos, m: &str) {
-    self.err_span(codemap::mk_span(from_pos, to_pos), m)
+    self.err_span(codespan::mk_span(from_pos, to_pos), m)
   }
 
   #[allow(unused_variables)]
@@ -200,7 +230,7 @@ impl<'a> StringReader<'a> {
 
   /// Report a fatal error spanning [`from_pos`, `to_pos`).
   fn fatal_span_(&self, from_pos: BytePos, to_pos: BytePos, m: &str) -> FatalError {
-    self.fatal_span(codemap::mk_span(from_pos, to_pos), m)
+    self.fatal_span(codespan::mk_span(from_pos, to_pos), m)
   }
 
   /// Report a lexical error spanning [`from_pos`, `to_pos`), appending an
@@ -225,7 +255,7 @@ impl<'a> StringReader<'a> {
     for c in c.escape_default() {
       m.push(c)
     }
-    self.span_diagnostic.struct_span_err(codemap::mk_span(from_pos, to_pos), &m[..])
+    self.span_diagnostic.struct_span_err(codespan::mk_span(from_pos, to_pos), &m[..])
   }
 
   fn struct_fatal_span_char(&self,
@@ -239,7 +269,7 @@ impl<'a> StringReader<'a> {
     for c in c.escape_default() {
       m.push(c)
     }
-    self.span_diagnostic.struct_span_fatal(codemap::mk_span(from_pos, to_pos), &m[..])
+    self.span_diagnostic.struct_span_fatal(codespan::mk_span(from_pos, to_pos), &m[..])
   }
 
   pub fn curr_is(&self, c: char) -> bool {
@@ -583,11 +613,11 @@ impl<'a> StringReader<'a> {
       None => {
         if self.is_eof() {
           self.peek_tok = token::Eof;
-          self.peek_span = codemap::mk_span(self.last_pos, self.last_pos);
+          self.peek_span = codespan::mk_span(self.last_pos, self.last_pos);
         } else {
           let start_bytespos = self.last_pos;
           self.peek_tok = self.next_token_inner()?;
-          self.peek_span = codemap::mk_span(start_bytespos, self.last_pos)
+          self.peek_span = codespan::mk_span(start_bytespos, self.last_pos)
         }
       }
     }
@@ -679,7 +709,7 @@ impl<'a> StringReader<'a> {
 
         Some(TokenAndSpan {
           tok: token::Whitespace,
-          sp: codemap::mk_span(start_bpos, self.last_pos)
+          sp: codespan::mk_span(start_bpos, self.last_pos)
         })
       }
       _ => None
@@ -692,7 +722,7 @@ impl<'a> StringReader<'a> {
     match self.curr {
       Some(c) => {
         if c.is_whitespace() {
-          self.span_diagnostic.span_err(codemap::mk_span(self.last_pos, self.last_pos),
+          self.span_diagnostic.span_err(codespan::mk_span(self.last_pos, self.last_pos),
                                         "called consume_any_line_comment, but there \
                                          was whitespace");
         }
@@ -743,13 +773,13 @@ impl<'a> StringReader<'a> {
 
               Some(TokenAndSpan {
                 tok: tok,
-                sp: codemap::mk_span(start_bpos, self.last_pos),
+                sp: codespan::mk_span(start_bpos, self.last_pos),
               })
             })
           } else {
             Some(TokenAndSpan {
               tok: token::Comment,
-              sp: codemap::mk_span(start_bpos, self.last_pos),
+              sp: codespan::mk_span(start_bpos, self.last_pos),
             })
           };
         }
@@ -820,7 +850,7 @@ impl<'a> StringReader<'a> {
 
       Some(TokenAndSpan {
         tok: tok,
-        sp: codemap::mk_span(start_bpos, self.last_pos),
+        sp: codespan::mk_span(start_bpos, self.last_pos),
       })
     })
   }
@@ -890,7 +920,7 @@ impl<'a> StringReader<'a> {
                 let valid = if self.curr_is('{') {
                   self.scan_unicode_escape(delim) && !ascii_only
                 } else {
-                  let span = codemap::mk_span(start, self.last_pos);
+                  let span = codespan::mk_span(start, self.last_pos);
                   self.span_diagnostic
                     .struct_span_err(span, "incorrect unicode escape sequence")
                     .span_help(span,
@@ -928,13 +958,13 @@ impl<'a> StringReader<'a> {
                                                         },
                                                         c);
                 if e == '\r' {
-                  err.span_help(codemap::mk_span(escaped_pos, last_pos),
+                  err.span_help(codespan::mk_span(escaped_pos, last_pos),
                                 "this is an isolated carriage return; consider \
                                  checking your editor and version control \
                                  settings");
                 }
                 if (e == '{' || e == '}') && !ascii_only {
-                  err.span_help(codemap::mk_span(escaped_pos, last_pos),
+                  err.span_help(codespan::mk_span(escaped_pos, last_pos),
                                 "if used in a formatting string, curly braces \
                                  are escaped with `{{` and `}}`");
                 }

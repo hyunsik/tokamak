@@ -1,5 +1,5 @@
 [package]
-name = "libflang_common"
+name = "common"
 version = "0.0.1"
 authors = ["Hyunsik Choi <hyunsik.choi@gmail.com>"]
 
@@ -7,4 +7,6 @@ authors = ["Hyunsik Choi <hyunsik.choi@gmail.com>"]
 name = "flang_common"
 path = "lib.rs"
 
-
+[dependencies]
+log = "0.3.4"
+rustc-serialize = "0.3.19"

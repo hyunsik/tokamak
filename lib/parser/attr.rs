@@ -2,7 +2,7 @@
 
 use ast::{self, Attribute};
 
-use codemap::{spanned, Spanned};
+use codemap::Spanned;
 use parser::{Parser, PResult, TokenType};
 
 impl<'a> Parser<'a> {
