@@ -3494,9 +3494,33 @@ pub fn integer_lit(s: &str,
   }
 }
 
+// Warning: This parses with quote_depth > 0, which is not the default.
+pub fn parse_tts_from_source_str<'a>(name: String,
+                                     source: String,
+                                     sess: &'a ParseSess)
+                                     -> PResult<'a, Vec<tokenstream::TokenTree>> {
+  let mut p = new_parser_from_source_str(
+    sess,
+    name,
+    source
+  );
+  p.quote_depth += 1;
+  // right now this is re-creating the token trees from ... token trees.
+  p.parse_all_token_trees()
+}
+
+// Create a new parser from a source string
+pub fn new_parser_from_source_str<'a>(sess: &'a ParseSess,
+                                      name: String,
+                                      source: String)
+                                      -> Parser<'a> {
+  filemap_to_parser(sess, sess.codemap().new_filemap(name, None, source))
+}
+
 /// Given a filemap and config, return a parser
 pub fn filemap_to_parser<'a>(sess: &'a ParseSess,
                              filemap: Rc<FileMap>) -> Parser<'a> {
+  debug!("start_pos: {:?}, end_pos: {:?}", filemap.start_pos, filemap.end_pos);
   let end_pos = filemap.end_pos;
   let mut parser = tts_to_parser(sess, filemap_to_tts(sess, filemap));
 

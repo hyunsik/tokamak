@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use ast::{self, AttrStyle, LitKind};
 use codemap::Spanned;
-use common::codespan::{DUMMY_SPAN, Span};
+use common::codespan::Span;
 use comments::{doc_comment_style, strip_doc_comment_decoration};
 use token::{self, Lit, Token};
 use parser;

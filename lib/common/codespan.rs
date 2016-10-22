@@ -222,8 +222,8 @@ pub struct FileMap {
   pub abs_path: Option<FileName>,
   /// The complete source code
   pub src: Option<Rc<String>>,
-  /// The start position of this source in the CodeMap
   pub start_pos: BytePos,
+  /// The start position of this source in the CodeMap
   /// The end position of this source in the CodeMap
   pub end_pos: BytePos,
   /// Locations of lines beginnings in the source code

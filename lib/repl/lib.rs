@@ -1,5 +1,8 @@
+extern crate env_logger;
+#[macro_use] extern crate log;
 extern crate rl_sys;
 extern crate nix;
+
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -16,7 +19,7 @@ use InputType::*;
 extern crate parser;
 use parser::codemap::CodeMap;
 use parser::lexer::{Reader, StringReader};
-use parser::parser::{filemap_to_parser, ParseSess, Parser};
+use parser::parser::{filemap_to_parser, parse_tts_from_source_str, ParseSess, Parser};
 
 static DEFAULT_PROMPT: &'static str = "\x1b[33mflang> \x1b[0m";
 
@@ -124,10 +127,10 @@ impl Repl {
   }
 
   pub fn exec_line(&mut self, line: &str) -> ReplAction {
+    debug!("input line: {}", line);
     let sess: ParseSess = ParseSess::new();
-    let codemap = Rc::new(CodeMap::new());
-    let filemap = codemap.new_filemap("console.fl".to_string(), None, line.to_string());
-    let tts = filemap_to_parser(&sess, filemap, );
+    let filemap = sess.codemap().new_filemap_and_lines("console.fl", None, line);
+    let parser = filemap_to_parser(&sess, filemap);
 
     self.src_file.add_line(line);
     ReplAction::Done

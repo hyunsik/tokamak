@@ -1,5 +1,7 @@
 #![feature(libc)]
 #![feature(range_contains)]
+extern crate env_logger;
+#[macro_use] extern crate log;
 extern crate libc;
 extern crate term;
 extern crate flang_common as common;
