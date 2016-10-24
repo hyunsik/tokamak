@@ -17,8 +17,8 @@ mod directive;
 use InputType::*;
 
 extern crate flang_errors as errors;
-use errors::{Handler};
-use errors::emitter::{ColorConfig, EmitterWriter};
+use errors::{DiagnosticBuilder, Handler};
+use errors::emitter::{ColorConfig, Emitter, EmitterWriter};
 extern crate parser;
 use parser::ast::StmtKind::*;
 use parser::codemap::CodeMap;
@@ -136,7 +136,7 @@ impl Repl {
 
   pub fn exec_line(&mut self, line: &str) -> ReplAction {
     let cm = Rc::new(CodeMap::new());
-    let emitter = Box::new(EmitterWriter::stderr(ColorConfig::Auto, Some(cm.clone())));
+    let emitter = Box::new(ReplEmitter::new(cm.clone()));
     let handler = Handler::with_emitter(true, false, emitter);
     let parsess = ParseSess::with_span_handler(handler, cm.clone());
 
@@ -196,6 +196,25 @@ fn parse_flang2<'a>(parsess: &'a ParseSess, line: &str) -> PResult<'a, Vec<Token
   let sdr = StringReader::new(&parsess.span_diagnostic, filemap);
   let mut p = Parser::new(parsess, Box::new(sdr));
   p.parse_all_token_trees()
+}
+
+pub struct ReplEmitter {
+  em: EmitterWriter
+}
+
+impl ReplEmitter {
+  pub fn new(cm: Rc<CodeMap>) -> ReplEmitter {
+    ReplEmitter {
+      em: EmitterWriter::stderr(ColorConfig::Auto, Some(cm))
+    }
+  }
+}
+
+impl Emitter for ReplEmitter {
+  /// Emit a structured diagnostic.
+  fn emit(&mut self, db: &DiagnosticBuilder) {
+    self.em.emit(db);
+  }
 }
 
 pub struct ReplState;
