@@ -1,3 +1,0 @@
-const x: Int = 1
-
-pub const x: Int = 1

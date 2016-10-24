@@ -1,8 +1,0 @@
-pub fn b() {
-
-    loop  {
-
-        continue
-
-    }
-}

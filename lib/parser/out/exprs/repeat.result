@@ -1,5 +1,0 @@
-pub fn vec() -> IntArray {
-
-    [1; 512]
-
-}

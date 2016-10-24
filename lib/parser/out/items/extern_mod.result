@@ -1,9 +1,0 @@
-extern "C" {
-
-    static x: Int;
-
-    static var y: Int;
-
-    fn sqar(x: double) -> x;
-
-}

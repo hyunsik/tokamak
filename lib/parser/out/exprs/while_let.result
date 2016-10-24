@@ -1,8 +1,0 @@
-pub fn w(y: IntIterator) {
-
-    while let x = y {
-
-        println(x)
-
-    }
-}
