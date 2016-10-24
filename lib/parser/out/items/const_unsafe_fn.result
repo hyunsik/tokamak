@@ -1,0 +1,3 @@
+const unsafe fn abc(x: Int) -> Int { x }
+
+pub const unsafe fn def(x: Long) -> Long { x }

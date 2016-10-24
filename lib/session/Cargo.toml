@@ -1,0 +1,18 @@
+[package]
+name = "session"
+version = "0.0.1"
+authors = ["Hyunsik Choi <hyunsik.choi@gmail.com>"]
+
+[lib]
+name = "session"
+path = "lib.rs"
+
+[dependencies]
+
+env_logger = "0.3.2"
+getopts = "0.2.14"
+itertools = "0.4.3"
+log = "0.3.4"
+term = "0.4.4"
+
+

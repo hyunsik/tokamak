@@ -95,12 +95,10 @@ impl EmitterWriter {
   }
 
   fn preprocess_annotations(&self, msp: &MultiSpan) -> Vec<FileWithAnnotatedLines> {
-    debug!("preprocess_annotations enter");
     fn add_annotation_to_file(file_vec: &mut Vec<FileWithAnnotatedLines>,
                               file: Rc<FileMap>,
                               line_index: usize,
                               ann: Annotation) {
-      debug!("line_index: {}", line_index);
       for slot in file_vec.iter_mut() {
         // Look through each of our files for the one we're adding to
         if slot.file.name == file.name {
@@ -169,8 +167,6 @@ impl EmitterWriter {
                                });
       }
     }
-    debug!("preprocess_annotations leave");
-    debug!("output size: {}", output.len());
 
     output
   }
@@ -180,7 +176,6 @@ impl EmitterWriter {
                         file: Rc<FileMap>,
                         line: &Line,
                         width_offset: usize) {
-    debug!(">>>>> {}", line.line_index);
     let source_string = file.get_line(line.line_index - 1)
       .unwrap_or("");
 

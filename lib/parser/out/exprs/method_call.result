@@ -1,0 +1,5 @@
+pub fn extract(p: Point) -> Int {
+
+    p.x()
+
+}

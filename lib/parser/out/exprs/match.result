@@ -1,0 +1,10 @@
+pub fn m(x: Int) -> Int {
+
+    match x {
+
+
+        _ => 1,
+    }
+
+
+}

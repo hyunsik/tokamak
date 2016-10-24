@@ -16,12 +16,18 @@ use nix::libc;
 mod directive;
 use InputType::*;
 
+extern crate flang_errors as errors;
+use errors::{Handler};
+use errors::emitter::{ColorConfig, EmitterWriter};
 extern crate parser;
+use parser::ast::StmtKind::*;
 use parser::codemap::CodeMap;
 use parser::lexer::{Reader, StringReader};
-use parser::parser::{filemap_to_parser, parse_tts_from_source_str, ParseSess, Parser};
+use parser::parser::{filemap_to_parser, parse_tts_from_source_str, ParseSess, Parser, PResult};
+use parser::tokenstream::TokenTree;
 
 static DEFAULT_PROMPT: &'static str = "\x1b[33mflang> \x1b[0m";
+static REPL_DUMMY_FILENAME: &'static str = "console.fl";
 
 pub enum InputType<'a> {
   Directive(&'a str, Vec<&'a str>),
@@ -38,6 +44,7 @@ pub enum ReplAction {
 
 pub struct Repl {
   src_file: SourceFile,
+  parsess: ParseSess,
   sout: Rc<RefCell<io::Write>>, // stream out,
   serr: Rc<RefCell<io::Write>>, // stream err,
 }
@@ -46,6 +53,7 @@ impl Repl {
   pub fn new(sout: Rc<RefCell<io::Write>>, serr: Rc<RefCell<io::Write>>) -> Repl {
     Repl {
       src_file: SourceFile::new(),
+      parsess: ParseSess::new(),
       sout: sout,
       serr: serr,
     }
@@ -127,12 +135,39 @@ impl Repl {
   }
 
   pub fn exec_line(&mut self, line: &str) -> ReplAction {
-    debug!("input line: {}", line);
-    let sess: ParseSess = ParseSess::new();
-    let filemap = sess.codemap().new_filemap_and_lines("console.fl", None, line);
-    let parser = filemap_to_parser(&sess, filemap);
+    let cm = Rc::new(CodeMap::new());
+    let emitter = Box::new(EmitterWriter::stderr(ColorConfig::Auto, Some(cm.clone())));
+    let handler = Handler::with_emitter(true, false, emitter);
+    let parsess = ParseSess::with_span_handler(handler, cm.clone());
 
+    let mut parser = parse_flang(&parsess, line);
     self.src_file.add_line(line);
+
+    match parser.parse_item() {
+      Ok(Some(item)) => {
+        println!("item");
+        return ReplAction::Done
+      }
+      Ok(None) => println!("no item"),
+      Err(ref mut e) => {
+        println!("not item");
+        e.cancel();
+      }
+    };
+
+    match parser.parse_full_stmt() {
+      Ok(Some(stmt)) => {
+        match stmt.node {
+          Local(l) => println!("local"),
+          Item(i) => println!("item"),
+          Expr(e) => println!("expr"),
+          Semi(s) => println!("semi"),
+        }
+      }
+      Ok(None) => println!("no stmt"),
+      Err(e) => println!("not stmt"),
+    };
+
     ReplAction::Done
 
     // append source
@@ -149,6 +184,18 @@ impl Repl {
     unsafe { libc::system(c_to_print.as_ptr()); }
     ReplAction::Done
   }
+}
+
+fn parse_flang<'a>(parsess: &'a ParseSess, line: &str) -> Parser<'a> {
+  let filemap = parsess.codemap().new_filemap_and_lines("console.fl", None, line);
+  filemap_to_parser(&parsess, filemap)
+}
+
+fn parse_flang2<'a>(parsess: &'a ParseSess, line: &str) -> PResult<'a, Vec<TokenTree>> {
+  let filemap = parsess.codemap().new_filemap_and_lines("console.fl", None, line);
+  let sdr = StringReader::new(&parsess.span_diagnostic, filemap);
+  let mut p = Parser::new(parsess, Box::new(sdr));
+  p.parse_all_token_trees()
 }
 
 pub struct ReplState;

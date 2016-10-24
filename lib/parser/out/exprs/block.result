@@ -1,0 +1,5 @@
+pub fn block() -> Int {
+
+    { 1 + 2 }
+
+}

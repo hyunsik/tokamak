@@ -1,0 +1,7 @@
+pub type Tuple = (Int, Int)
+
+pub fn extract(tuple: Tuple) -> Int {
+
+    tuple.1
+
+}

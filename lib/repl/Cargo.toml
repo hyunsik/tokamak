@@ -8,6 +8,7 @@ name = "repl"
 path = "lib.rs"
 
 [dependencies]
+errors = { path = "../errors" }
 parser = { path = "../parser" }
 
 env_logger = "0.3.2"

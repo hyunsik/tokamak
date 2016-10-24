@@ -1,4 +1,4 @@
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::iter;
 use std::mem;
 use std::path::PathBuf;
@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
 
   #[allow(unused_variables)]
   pub fn span_fatal(&self, sp: Span, m: &str) -> DiagnosticBuilder<'a> {
-    unimplemented!()
+    self.sess.span_diagnostic.struct_span_fatal(sp, m)
   }
 
   pub fn span_fatal_help(&self, sp: Span, m: &str, help: &str) -> DiagnosticBuilder<'a> {
@@ -258,9 +258,9 @@ impl<'a> Parser<'a> {
     }
   }
 
-  #[allow(unused_variables)]
   pub fn unexpected_last<T>(&self, t: &token::Token) -> PResult<'a, T> {
-    unimplemented!()
+    let token_str = token::token_to_string(t);
+    Err(self.span_fatal(self.last_span, &format!("unexpected token: `{}`", token_str)))
   }
 
   //---------------------------------------------------------------------------
