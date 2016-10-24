@@ -5,3 +5,5 @@ target
 .vscode
 **/*.bk
 **/*.iml
+*.swp
+lib/parser/out
