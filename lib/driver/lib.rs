@@ -78,7 +78,7 @@ fn create_options() -> Options {
 }
 
 fn init_driver(args: Vec<String>, cwd: PathBuf,
-              sout: Rc<RefCell<io::Write>>, serr: Rc<RefCell<io::Write>>)
+              sout: Rc<RefCell<Box<io::Write + Send>>>, serr: Rc<RefCell<io::Write>>)
               -> DriverRes<(DriverAction, DriverEnv)> {
 
   let opts = create_options();
@@ -114,7 +114,7 @@ fn string_to_pathbuf(src_paths: &Vec<String>) -> Vec<PathBuf> {
 
 
 pub fn run_driver(args: Vec<String>, cwd: PathBuf,
-           sout: Box<io::Write>,
+           sout: Box<io::Write + Send>,
            serr: Box<io::Write>) -> i32 {
 
   let sout = Rc::new(RefCell::new(sout));

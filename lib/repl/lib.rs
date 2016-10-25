@@ -45,12 +45,12 @@ pub enum ReplAction {
 pub struct Repl {
   src_file: SourceFile,
   parsess: ParseSess,
-  sout: Rc<RefCell<io::Write>>, // stream out,
+  sout: Rc<RefCell<Box<io::Write + Send>>>, // stream out,
   serr: Rc<RefCell<io::Write>>, // stream err,
 }
 
 impl Repl {
-  pub fn new(sout: Rc<RefCell<io::Write>>, serr: Rc<RefCell<io::Write>>) -> Repl {
+  pub fn new(sout: Rc<RefCell<Box<io::Write + Send>>>, serr: Rc<RefCell<io::Write>>) -> Repl {
     Repl {
       src_file: SourceFile::new(),
       parsess: ParseSess::new(),
