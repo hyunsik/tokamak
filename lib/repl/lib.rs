@@ -46,11 +46,11 @@ pub struct Repl {
   src_file: SourceFile,
   parsess: ParseSess,
   sout: Rc<RefCell<Box<io::Write + Send>>>, // stream out,
-  serr: Rc<RefCell<io::Write>>, // stream err,
+  serr: ErrDestination, // stream err,
 }
 
 impl Repl {
-  pub fn new(sout: Rc<RefCell<Box<io::Write + Send>>>, serr: Rc<RefCell<io::Write>>) -> Repl {
+  pub fn new(sout: Rc<RefCell<Box<io::Write + Send>>>, serr: ErrDestination) -> Repl {
     Repl {
       src_file: SourceFile::new(),
       parsess: ParseSess::new(),
@@ -134,9 +134,20 @@ impl Repl {
     }
   }
 
+  fn emitter(&self, cm: Rc<CodeMap>) -> Box<Emitter> {
+    match self.serr {
+      ErrDestination::Stderr => {
+        Box::new(EmitterWriter::stderr(ColorConfig::Auto, Some(cm)))
+      }
+      ErrDestination::Raw(ref buf) => {
+        Box::new(EmitterWriter::new(Box::new(WriteDelegator {write: buf.clone()}), Some(cm)))
+      }
+    }
+  }
+
   pub fn exec_line(&mut self, line: &str) -> ReplAction {
     let cm = Rc::new(CodeMap::new());
-    let emitter = Box::new(ReplEmitter::new(cm.clone()));
+    let emitter = self.emitter(cm.clone());
     let handler = Handler::with_emitter(true, false, emitter);
     let parsess = ParseSess::with_span_handler(handler, cm.clone());
 
@@ -198,22 +209,19 @@ fn parse_flang2<'a>(parsess: &'a ParseSess, line: &str) -> PResult<'a, Vec<Token
   p.parse_all_token_trees()
 }
 
-pub struct ReplEmitter {
-  em: EmitterWriter
+pub struct WriteDelegator {
+  write: Rc<RefCell<Box<io::Write + Send>>>
 }
 
-impl ReplEmitter {
-  pub fn new(cm: Rc<CodeMap>) -> ReplEmitter {
-    ReplEmitter {
-      em: EmitterWriter::stderr(ColorConfig::Auto, Some(cm))
-    }
+unsafe impl Send for WriteDelegator {}
+
+impl io::Write for WriteDelegator {
+  fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    self.write.borrow_mut().write(buf)
   }
-}
 
-impl Emitter for ReplEmitter {
-  /// Emit a structured diagnostic.
-  fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.em.emit(db);
+  fn flush(&mut self) -> io::Result<()> {
+    self.write.borrow_mut().flush()
   }
 }
 
@@ -248,4 +256,7 @@ impl SourceFile {
   }
 }
 
-
+pub enum ErrDestination {
+  Stderr,
+  Raw(Rc<RefCell<Box<io::Write + Send>>>)
+}

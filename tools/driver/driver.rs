@@ -1,9 +1,9 @@
 #[macro_use] extern crate log;
 extern crate env_logger;
 extern crate flang_driver as driver;
+extern crate term;
 
 use std::env;
-use std::io;
 use std::process;
 
 pub fn main() {
@@ -12,7 +12,7 @@ pub fn main() {
   let exit_code = driver::run_driver(
     std::env::args().collect(),
     env::current_dir().unwrap(),
-    Box::new(io::stderr()), Box::new(io::stderr())
+    Box::new(term::stdout().unwrap()), Box::new(term::stderr().unwrap())
   );
 
   process::exit(exit_code);

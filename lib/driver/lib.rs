@@ -14,7 +14,7 @@ use std::process;
 
 use getopts::{HasArg, Options, Occur};
 
-use repl::Repl;
+use repl::{ErrDestination, Repl};
 
 static DEFAULT_PROGRAM_NAME: &'static str = "unnamed";
 
@@ -59,8 +59,8 @@ pub struct DriverEnv {
   pub src_paths: Vec<PathBuf>,
   pub cwd: PathBuf,
 
-  sout: Rc<RefCell<io::Write>>, // stream out,
-  serr: Rc<RefCell<io::Write>>, // stream err,
+  sout: Rc<RefCell<io::Write + Send>>, // stream out,
+  serr: Rc<RefCell<io::Write + Send>>, // stream err,
 }
 
 #[allow(unused)]
@@ -78,7 +78,8 @@ fn create_options() -> Options {
 }
 
 fn init_driver(args: Vec<String>, cwd: PathBuf,
-              sout: Rc<RefCell<Box<io::Write + Send>>>, serr: Rc<RefCell<io::Write>>)
+              sout: Rc<RefCell<Box<io::Write + Send>>>,
+              serr: Rc<RefCell<Box<io::Write + Send>>>)
               -> DriverRes<(DriverAction, DriverEnv)> {
 
   let opts = create_options();
@@ -115,7 +116,7 @@ fn string_to_pathbuf(src_paths: &Vec<String>) -> Vec<PathBuf> {
 
 pub fn run_driver(args: Vec<String>, cwd: PathBuf,
            sout: Box<io::Write + Send>,
-           serr: Box<io::Write>) -> i32 {
+           serr: Box<io::Write + Send>) -> i32 {
 
   let sout = Rc::new(RefCell::new(sout));
   let serr = Rc::new(RefCell::new(serr));
@@ -130,7 +131,8 @@ pub fn run_driver(args: Vec<String>, cwd: PathBuf,
 
   match action {
     DriverAction::Repl => {
-      let mut repl = Repl::new(sout.clone(), serr.clone());
+      let mut repl = Repl::new(sout.clone(), ErrDestination::Stderr);
+      //let mut repl = Repl::new(sout.clone(), ErrDestination::Raw(Rc::new(RefCell::new(Box::new(io::stderr())))));
       repl.run();
       0
     }
