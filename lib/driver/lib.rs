@@ -14,7 +14,8 @@ use std::process;
 
 use getopts::{HasArg, Options, Occur};
 
-use repl::{ErrDestination, Repl};
+pub use repl::{DriverEnv, ErrorDestination};
+use repl::{Repl};
 
 static DEFAULT_PROGRAM_NAME: &'static str = "unnamed";
 
@@ -51,16 +52,6 @@ pub type DriverRes<T> = Result<T, DriverErr>;
 pub enum DriverAction {
   Repl,
   Batch,
-  Daemon
-}
-
-pub struct DriverEnv {
-  pub program_name: String,
-  pub src_paths: Vec<PathBuf>,
-  pub cwd: PathBuf,
-
-  sout: Rc<RefCell<io::Write + Send>>, // stream out,
-  serr: Rc<RefCell<io::Write + Send>>, // stream err,
 }
 
 #[allow(unused)]
@@ -77,9 +68,8 @@ fn create_options() -> Options {
   opts
 }
 
-fn init_driver(args: Vec<String>, cwd: PathBuf,
-              sout: Rc<RefCell<Box<io::Write + Send>>>,
-              serr: Rc<RefCell<Box<io::Write + Send>>>)
+fn setup_driver(args: Vec<String>, cwd: PathBuf,
+               errdst: Rc<RefCell<ErrorDestination>>)
               -> DriverRes<(DriverAction, DriverEnv)> {
 
   let opts = create_options();
@@ -101,42 +91,39 @@ fn init_driver(args: Vec<String>, cwd: PathBuf,
     program_name: program_name,
     cwd: cwd,
     src_paths: string_to_pathbuf(src_paths),
-    sout: sout,
-    serr: serr
+    errdst: errdst
   };
 
   Ok((action, drv_env))
 }
 
-fn string_to_pathbuf(src_paths: &Vec<String>) -> Vec<PathBuf> {
-  src_paths.iter().map(|p| PathBuf::from(p)).collect::<Vec<PathBuf>>()
-}
-
-
-
 pub fn run_driver(args: Vec<String>, cwd: PathBuf,
-           sout: Box<io::Write + Send>,
-           serr: Box<io::Write + Send>) -> i32 {
+           errdst: ErrorDestination) -> i32 {
 
-  let sout = Rc::new(RefCell::new(sout));
-  let serr = Rc::new(RefCell::new(serr));
+  let errdst = Rc::new(RefCell::new(errdst));
 
-  let (action, driver_env) = match init_driver(args, cwd, sout.clone(), serr.clone()) {
+  let (action, driver_env) = match setup_driver(args, cwd, errdst.clone()) {
     Ok(r) => r,
     Err(e) => {
-      serr.borrow_mut().write_all(format!("{}\n", e).as_bytes()).ok();
+      println(&errdst, &format!("{}", e));
       process::exit(-1);
     }
   };
 
   match action {
     DriverAction::Repl => {
-      let mut repl = Repl::new(sout.clone(), ErrDestination::Stderr);
-      //let mut repl = Repl::new(sout.clone(), ErrDestination::Raw(Rc::new(RefCell::new(Box::new(io::stderr())))));
+      let mut repl = Repl::new(driver_env);
       repl.run();
       0
     }
     DriverAction::Batch => unimplemented!(),
-    DriverAction::Daemon => unimplemented!(),
   }
+}
+
+fn string_to_pathbuf(src_paths: &Vec<String>) -> Vec<PathBuf> {
+  src_paths.iter().map(|p| PathBuf::from(p)).collect::<Vec<PathBuf>>()
+}
+
+fn println(errdst: &Rc<RefCell<ErrorDestination>>, s: &str) {
+  errdst.borrow_mut().write_all(s.as_bytes()).ok();
 }

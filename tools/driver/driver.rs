@@ -6,13 +6,15 @@ extern crate term;
 use std::env;
 use std::process;
 
+use driver::ErrorDestination;
+
 pub fn main() {
   env_logger::init().unwrap();
 
   let exit_code = driver::run_driver(
     std::env::args().collect(),
     env::current_dir().unwrap(),
-    Box::new(term::stdout().unwrap()), Box::new(term::stderr().unwrap())
+    ErrorDestination::Stderr
   );
 
   process::exit(exit_code);

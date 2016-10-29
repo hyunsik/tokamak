@@ -2,3 +2,4 @@
 extern crate rustc_serialize;
 
 pub mod codespan;
+pub mod driver;

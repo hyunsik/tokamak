@@ -2,24 +2,27 @@ extern crate env_logger;
 #[macro_use] extern crate log;
 extern crate rl_sys;
 extern crate nix;
+extern crate term;
 
+extern crate flang_common as common;
+extern crate flang_errors as errors;
+extern crate parser;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::io;
+use std::io::{self, Write};
 use std::rc::Rc;
-use rl_sys::readline;
 
 use nix::libc;
+use rl_sys::readline;
 
 mod directive;
 use InputType::*;
 
-extern crate flang_errors as errors;
+pub use common::driver::{DriverEnv, ErrorDestination};
 use errors::{DiagnosticBuilder, Handler};
 use errors::emitter::{ColorConfig, Emitter, EmitterWriter};
-extern crate parser;
 use parser::ast::StmtKind::*;
 use parser::codemap::CodeMap;
 use parser::lexer::{Reader, StringReader};
@@ -45,41 +48,25 @@ pub enum ReplAction {
 pub struct Repl {
   src_file: SourceFile,
   parsess: ParseSess,
-  sout: Rc<RefCell<Box<io::Write + Send>>>, // stream out,
-  serr: ErrDestination, // stream err,
+  env: DriverEnv, // stream err,
 }
 
 impl Repl {
-  pub fn new(sout: Rc<RefCell<Box<io::Write + Send>>>, serr: ErrDestination) -> Repl {
+  pub fn new(env: DriverEnv) -> Repl {
     Repl {
       src_file: SourceFile::new(),
       parsess: ParseSess::new(),
-      sout: sout,
-      serr: serr,
+      env: env,
     }
   }
 
-  pub fn write_out(&self, msg: &[u8]) {
-    self.sout.borrow_mut().write(msg).ok();
-  }
-
-  pub fn flush_out(&self) {
-    self.sout.borrow_mut().flush().ok();
-  }
-
-  pub fn write_err(&self, msg: &[u8]) {
-    self.sout.borrow_mut().write(msg).ok();
-  }
-
-  pub fn flush_err(&self) {
-    self.sout.borrow_mut().flush().ok();
+  fn println(&self, msg: &[u8]) {
+    self.env.errdst.borrow_mut().write(msg).ok();
   }
 
   pub fn run(&mut self) {
-    self.write_out(b"Welcome to Flang version 0.1. (Type :help for assistance.)\n");
-    self.flush_out();
-
-    let mut state = ReplState::new();
+    self.println(
+      b"Welcome to Flang version 0.1. (Type :help for assistance.)\n");
 
     let mut prompt: String = DEFAULT_PROMPT.to_string();
 
@@ -94,7 +81,7 @@ impl Repl {
         }
         Ok(None) => break, // eof
         Err(msg) => {
-          self.write_err(format!("ERROR: {}", msg).as_bytes());
+          self.println(format!("ERROR: {}", msg).as_bytes());
         }
       }
     }
@@ -115,7 +102,9 @@ impl Repl {
 
     match first_token {
       Some(first) => match first {
-        x if x.starts_with(':') => Directive(&first[1..], tokens.collect::<Vec<_>>()),
+        x if x.starts_with(':') => {
+          Directive(&first[1..], tokens.collect::<Vec<_>>())
+        }
         x if x.starts_with('!') => ExternalComamnd(&line[1..]),
         _ => ExecuteSource(line)
       },
@@ -126,7 +115,8 @@ impl Repl {
   pub fn exec_directive(&self, directive: &str, args: Vec<&str>) -> ReplAction {
     match directive {
       "dump" => {
-        self.write_out(self.src_file.as_bytes());
+        let bytes = self.src_file.as_bytes();
+        self.println(bytes);
         ReplAction::Done
       }
       "quit" => ReplAction::Quit,
@@ -135,12 +125,13 @@ impl Repl {
   }
 
   fn emitter(&self, cm: Rc<CodeMap>) -> Box<Emitter> {
-    match self.serr {
-      ErrDestination::Stderr => {
+    match *self.env.errdst.borrow() {
+      ErrorDestination::Stderr => {
         Box::new(EmitterWriter::stderr(ColorConfig::Auto, Some(cm)))
       }
-      ErrDestination::Raw(ref buf) => {
-        Box::new(EmitterWriter::new(Box::new(WriteDelegator {write: buf.clone()}), Some(cm)))
+      ErrorDestination::Raw(ref buf) => {
+        let delegator = WriteDelegator {write: buf.clone()};
+        Box::new(EmitterWriter::new(Box::new(delegator), Some(cm)))
       }
     }
   }
@@ -202,13 +193,6 @@ fn parse_flang<'a>(parsess: &'a ParseSess, line: &str) -> Parser<'a> {
   filemap_to_parser(&parsess, filemap)
 }
 
-fn parse_flang2<'a>(parsess: &'a ParseSess, line: &str) -> PResult<'a, Vec<TokenTree>> {
-  let filemap = parsess.codemap().new_filemap_and_lines("console.fl", None, line);
-  let sdr = StringReader::new(&parsess.span_diagnostic, filemap);
-  let mut p = Parser::new(parsess, Box::new(sdr));
-  p.parse_all_token_trees()
-}
-
 pub struct WriteDelegator {
   write: Rc<RefCell<Box<io::Write + Send>>>
 }
@@ -222,14 +206,6 @@ impl io::Write for WriteDelegator {
 
   fn flush(&mut self) -> io::Result<()> {
     self.write.borrow_mut().flush()
-  }
-}
-
-pub struct ReplState;
-
-impl ReplState {
-  pub fn new() -> ReplState {
-    ReplState
   }
 }
 
@@ -254,9 +230,4 @@ impl SourceFile {
   pub fn as_bytes(&self) -> &[u8] {
     self.source.as_bytes()
   }
-}
-
-pub enum ErrDestination {
-  Stderr,
-  Raw(Rc<RefCell<Box<io::Write + Send>>>)
 }
