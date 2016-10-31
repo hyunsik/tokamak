@@ -124,17 +124,18 @@ impl<'a> Reader for StringReader<'a> {
   }
 
   /// Report a fatal error with the current span.
-  #[allow(unused_variables)]
   fn fatal(&self, m: &str) -> FatalError {
-    unimplemented!()
+    self.fatal_span(self.peek_span, m)
   }
   /// Report a non-fatal error with the current span.
-  #[allow(unused_variables)]
   fn err(&self, m: &str) {
-    unimplemented!()
+    self.err_span(self.peek_span, m)
   }
   fn emit_fatal_errors(&mut self) {
-    unimplemented!()
+    for err in &mut self.fatal_errs {
+      err.emit();
+    }
+    self.fatal_errs.clear();
   }
   fn peek(&self) -> TokenAndSpan {
     // FIXME(pcwalton): Bad copy!
@@ -222,10 +223,9 @@ impl<'a> StringReader<'a> {
     self.err_span(codespan::mk_span(from_pos, to_pos), m)
   }
 
-  #[allow(unused_variables)]
   /// Report a fatal lexical error with a given span.
   pub fn fatal_span(&self, sp: Span, m: &str) -> FatalError {
-    unimplemented!()
+    self.span_diagnostic.span_fatal(sp, m)
   }
 
   /// Report a fatal error spanning [`from_pos`, `to_pos`).

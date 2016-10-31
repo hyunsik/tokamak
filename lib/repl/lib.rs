@@ -1,3 +1,6 @@
+#![feature(set_stdio)]
+
+extern crate crossbeam;
 extern crate env_logger;
 #[macro_use] extern crate log;
 extern crate rl_sys;
@@ -12,13 +15,19 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::io::{self, Write};
+use std::sync::mpsc::channel;
+use std::panic::catch_unwind;
 use std::rc::Rc;
+use std::str;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 use nix::libc;
 use rl_sys::readline;
 
 mod directive;
 use InputType::*;
+use ErrorKind::*;
 
 pub use common::driver::{DriverEnv, ErrorDestination};
 use errors::{DiagnosticBuilder, Handler};
@@ -29,7 +38,10 @@ use parser::lexer::{Reader, StringReader};
 use parser::parser::{filemap_to_parser, parse_tts_from_source_str, ParseSess, Parser, PResult};
 use parser::tokenstream::TokenTree;
 
+static WELCOME_MSG: &'static str =
+  "Welcome to Flang version 0.1. (Type :help for assistance.)\n";
 static DEFAULT_PROMPT: &'static str = "\x1b[33mflang> \x1b[0m";
+static CONTINUE_PROMPT: &'static str = "\x1b[33m> \x1b[0m";
 static REPL_DUMMY_FILENAME: &'static str = "console.fl";
 
 pub enum InputType<'a> {
@@ -41,12 +53,16 @@ pub enum InputType<'a> {
 
 pub enum ReplAction {
   Done,
-  Continue(String),
+  Error,
+  Continue,
   Quit
 }
 
+unsafe impl Send for ReplAction {}
+
 pub struct Repl {
-  src_file: SourceFile,
+  unexecuted_src: SourceFile,
+  executed_src: SourceFile,
   parsess: ParseSess,
   env: DriverEnv, // stream err,
 }
@@ -54,19 +70,19 @@ pub struct Repl {
 impl Repl {
   pub fn new(env: DriverEnv) -> Repl {
     Repl {
-      src_file: SourceFile::new(),
+      unexecuted_src: SourceFile::new(),
+      executed_src: SourceFile::new(),
       parsess: ParseSess::new(),
       env: env,
     }
   }
 
-  fn println(&self, msg: &[u8]) {
-    self.env.errdst.borrow_mut().write(msg).ok();
+  fn println(&self, msg: &str) {
+    self.env.errdst.borrow_mut().write(msg.as_bytes()).ok();
   }
 
   pub fn run(&mut self) {
-    self.println(
-      b"Welcome to Flang version 0.1. (Type :help for assistance.)\n");
+    self.println(WELCOME_MSG);
 
     let mut prompt: String = DEFAULT_PROMPT.to_string();
 
@@ -74,14 +90,16 @@ impl Repl {
       match readline::readline(&prompt) {
         Ok(Some(line)) => {
           match self.handle_line(&line) {
-            ReplAction::Done => { prompt = DEFAULT_PROMPT.to_string(); }
-            ReplAction::Continue(p) => prompt = p,
+            ReplAction::Done | ReplAction::Error => {
+              prompt = DEFAULT_PROMPT.to_string();
+            }
+            ReplAction::Continue => prompt = CONTINUE_PROMPT.to_string(),
             ReplAction::Quit => break
           }
         }
         Ok(None) => break, // eof
         Err(msg) => {
-          self.println(format!("ERROR: {}", msg).as_bytes());
+          self.println(&format!("ERROR: {}", msg));
         }
       }
     }
@@ -115,8 +133,7 @@ impl Repl {
   pub fn exec_directive(&self, directive: &str, args: Vec<&str>) -> ReplAction {
     match directive {
       "dump" => {
-        let bytes = self.src_file.as_bytes();
-        self.println(bytes);
+        self.println(self.executed_src.as_str());
         ReplAction::Done
       }
       "quit" => ReplAction::Quit,
@@ -124,53 +141,131 @@ impl Repl {
     }
   }
 
-  fn emitter(&self, cm: Rc<CodeMap>) -> Box<Emitter> {
-    match *self.env.errdst.borrow() {
+  fn new_emitter(errdst: ErrorDestination, cm: Rc<CodeMap>)
+      -> (Box<Emitter>, Rc<RefCell<Vec<ErrorKind>>>) {
+    let ew = match errdst {
       ErrorDestination::Stderr => {
-        Box::new(EmitterWriter::stderr(ColorConfig::Auto, Some(cm)))
+        EmitterWriter::stderr(ColorConfig::Auto, Some(cm))
       }
       ErrorDestination::Raw(ref buf) => {
         let delegator = WriteDelegator {write: buf.clone()};
-        Box::new(EmitterWriter::new(Box::new(delegator), Some(cm)))
+        EmitterWriter::new(Box::new(delegator), Some(cm))
       }
+    };
+
+    let (emitter, errkinds) = EmitterDelegator::new(ew);
+    (Box::new(emitter), errkinds)
+  }
+
+  fn need_more_liens(errs: &Rc<RefCell<Vec<ErrorKind>>>) -> bool {
+    errs.borrow().len() == 1 && match errs.borrow()[0] {
+      UnclosedDelimiter => true,
+      _ => false
+    }
+  }
+
+  fn is_error(errs: &Rc<RefCell<Vec<ErrorKind>>>) -> bool {
+    if errs.borrow().len() == 0 {
+      return false;
+    }
+
+    if errs.borrow().len() > 2 {
+      return true;
+    }
+
+    // only if errors.len() == 1
+    match errs.borrow()[0] {
+      UnclosedDelimiter => false,
+      _ => true
     }
   }
 
   pub fn exec_line(&mut self, line: &str) -> ReplAction {
-    let cm = Rc::new(CodeMap::new());
-    let emitter = self.emitter(cm.clone());
-    let handler = Handler::with_emitter(true, false, emitter);
-    let parsess = ParseSess::with_span_handler(handler, cm.clone());
 
-    let mut parser = parse_flang(&parsess, line);
-    self.src_file.add_line(line);
+    // Temporarily have stack size set to 16MB to deal with nom-using crates failing
+    const STACK_SIZE: usize = 16 * 1024 * 1024; // 16MB
 
-    match parser.parse_item() {
-      Ok(Some(item)) => {
-        println!("item");
-        return ReplAction::Done
-      }
-      Ok(None) => println!("no item"),
-      Err(ref mut e) => {
-        println!("not item");
-        e.cancel();
-      }
-    };
-
-    match parser.parse_full_stmt() {
-      Ok(Some(stmt)) => {
-        match stmt.node {
-          Local(l) => println!("local"),
-          Item(i) => println!("item"),
-          Expr(e) => println!("expr"),
-          Semi(s) => println!("semi"),
+    struct Sink(Arc<Mutex<Vec<u8>>>);
+    impl Write for Sink {
+        fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+            Write::write(&mut *self.0.lock().unwrap(), data)
         }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    let data = Arc::new(Mutex::new(Vec::new()));
+    let err = Sink(data.clone());
+
+    //let (tx, rx) = channel();
+    let line = line.to_owned();
+    let mut unexecuted_src = self.unexecuted_src.as_str().to_owned();
+    let errdst = self.env.errdst.borrow().clone();
+
+    let task = thread::Builder::new().name("parsing".to_owned());
+    let handle = task.spawn(move || {
+      io::set_panic(Some(Box::new(err)));
+
+      unexecuted_src.push_str(&line);
+      unexecuted_src.push_str("\n");
+
+      let cm = Rc::new(CodeMap::new());
+      let (emitter, errs) = Repl::new_emitter(errdst, cm.clone());
+      let handler = Handler::with_emitter(true, false, emitter);
+      let parsess = ParseSess::with_span_handler(handler, cm.clone());
+      let mut parser = parse_flang(&parsess, &unexecuted_src);
+
+      if Repl::need_more_liens(&errs) {
+        println!("need more lines");
+        return (ReplAction::Continue, unexecuted_src, "".to_owned());
+      } else if Repl::is_error(&errs) {
+        return (ReplAction::Error, "".to_owned(), "".to_owned());
       }
-      Ok(None) => println!("no stmt"),
-      Err(e) => println!("not stmt"),
+
+
+      match parser.parse_item() {
+        Ok(Some(item)) => {
+          println!("item");
+        }
+        Ok(None) => println!("no item"),
+        Err(ref mut e) => {
+          println!("not item");
+          e.cancel();
+        }
+      };
+
+      match parser.parse_full_stmt() {
+        Ok(Some(stmt)) => {
+          match stmt.node {
+            Local(l) => println!("local"),
+            Item(i) => println!("item"),
+            Expr(e) => println!("expr"),
+            Semi(s) => println!("semi"),
+          }
+        }
+        Ok(None) => println!("no stmt"),
+        Err(e) => println!("not stmt"),
+      };
+
+      (ReplAction::Done, "".to_owned(), unexecuted_src.to_owned())
+    }).unwrap();
+
+    let (action, unexecuted_src, executed_src) = match handle.join() {
+      Ok(result) => result,
+
+      Err(value) => {
+        // if it is a real error or bug, it will print out the stacktrace
+        if !value.is::<errors::FatalError>() {
+          writeln!(io::stderr(), "{}",
+            str::from_utf8(&data.lock().unwrap()).unwrap()).unwrap();
+        }
+        (ReplAction::Error, "".to_owned(), "".to_owned())
+      }
     };
 
-    ReplAction::Done
+    self.unexecuted_src.update(&unexecuted_src);
+    self.executed_src.update(&executed_src);
 
     // append source
     // generate mir
@@ -179,6 +274,8 @@ impl Repl {
     // skip if the source doesn't need to run
     // generate llvm ir and module
     // reorganize llvm module
+
+    action
   }
 
   pub fn exec_external_program(&self, command: &str) -> ReplAction {
@@ -189,7 +286,9 @@ impl Repl {
 }
 
 fn parse_flang<'a>(parsess: &'a ParseSess, line: &str) -> Parser<'a> {
-  let filemap = parsess.codemap().new_filemap_and_lines("console.fl", None, line);
+  let filemap = parsess
+    .codemap()
+    .new_filemap_and_lines(REPL_DUMMY_FILENAME, None, line);
   filemap_to_parser(&parsess, filemap)
 }
 
@@ -230,4 +329,60 @@ impl SourceFile {
   pub fn as_bytes(&self) -> &[u8] {
     self.source.as_bytes()
   }
+
+  pub fn clear(&mut self) {
+    self.source.clear();
+  }
+
+  pub fn update(&mut self, lines: &str) {
+    self.clear();
+    self.source.push_str(lines);
+  }
+}
+
+unsafe impl Sync for SourceFile {}
+
+enum ErrorKind {
+  UnclosedDelimiter,
+  Unknown
+}
+
+struct EmitterDelegator {
+  em: EmitterWriter,
+  errors: Rc<RefCell<Vec<ErrorKind>>>
+}
+
+impl EmitterDelegator {
+  pub fn new(em : EmitterWriter)
+      -> (EmitterDelegator, Rc<RefCell<Vec<ErrorKind>>>) {
+    let errors = Rc::new(RefCell::new(Vec::new()));
+    let delegator = EmitterDelegator { em : em, errors: errors.clone() };
+    (delegator, errors)
+  }
+}
+
+impl Emitter for EmitterDelegator {
+  fn emit(&mut self, db: &DiagnosticBuilder) {
+
+    let errkind = error_kind(db.message());
+
+    match errkind {
+      UnclosedDelimiter => {},
+      _ => self.em.emit(db)
+    };
+
+    self.errors.borrow_mut().push(errkind);
+  }
+}
+
+fn error_kind(msg: &str) -> ErrorKind {
+  if is_unclosed_delemiter(msg) {
+    ErrorKind::UnclosedDelimiter
+  } else {
+    Unknown
+  }
+}
+
+fn is_unclosed_delemiter(msg: &str) -> bool {
+  msg == "this file contains an un-closed delimiter"
 }

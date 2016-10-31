@@ -12,6 +12,7 @@ common = { path = "../common" }
 errors = { path = "../errors" }
 parser = { path = "../parser" }
 
+crossbeam = "0.2.10"
 env_logger = "0.3.2"
 itertools = "0.4.3"
 libc = "^0.2"

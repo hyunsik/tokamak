@@ -5,10 +5,13 @@ use std::path::PathBuf;
 
 use self::ErrorDestination::*;
 
+#[derive(Clone)]
 pub enum ErrorDestination {
   Stderr,
   Raw(Rc<RefCell<Box<io::Write + Send>>>)
 }
+
+unsafe impl Send for ErrorDestination {}
 
 impl io::Write for ErrorDestination {
   fn write(&mut self, buf: &[u8]) -> io::Result<usize> {

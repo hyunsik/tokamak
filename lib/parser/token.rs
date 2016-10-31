@@ -61,7 +61,7 @@ impl Lit {
   }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Token {
   /* Expression-operator symbols. */
   Eq,
