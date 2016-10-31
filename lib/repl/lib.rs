@@ -32,6 +32,7 @@ use ErrorKind::*;
 pub use common::driver::{DriverEnv, ErrorDestination};
 use errors::{DiagnosticBuilder, Handler};
 use errors::emitter::{ColorConfig, Emitter, EmitterWriter};
+use parser::ast::Stmt;
 use parser::ast::StmtKind::*;
 use parser::codemap::CodeMap;
 use parser::lexer::{Reader, StringReader};
@@ -224,28 +225,21 @@ impl Repl {
       }
 
 
-      match parser.parse_item() {
-        Ok(Some(item)) => {
-          println!("item");
-        }
-        Ok(None) => println!("no item"),
+      let item = match parser.parse_item() {
+        Ok(item) => item,
         Err(ref mut e) => {
-          println!("not item");
           e.cancel();
+          None
         }
       };
 
-      match parser.parse_full_stmt() {
-        Ok(Some(stmt)) => {
-          match stmt.node {
-            Local(l) => println!("local"),
-            Item(i) => println!("item"),
-            Expr(e) => println!("expr"),
-            Semi(s) => println!("semi"),
-          }
+      let stmt = if item.is_none() {
+        match parser.parse_full_stmt() {
+          Ok(stmt) => stmt,
+          Err(_) => None,
         }
-        Ok(None) => println!("no stmt"),
-        Err(e) => println!("not stmt"),
+      } else {
+        None
       };
 
       (ReplAction::Done, "".to_owned(), unexecuted_src.to_owned())
