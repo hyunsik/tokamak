@@ -9,6 +9,7 @@ path = "lib.rs"
 
 [dependencies]
 common = { path = "../common" }
+flang_compiler = { path = "../compiler" }
 errors = { path = "../errors" }
 parser = { path = "../parser" }
 

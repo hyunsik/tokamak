@@ -1,5 +1,5 @@
 [package]
-name = "libflang_compiler"
+name = "flang_compiler"
 version = "0.0.1"
 authors = ["Hyunsik Choi <hyunsik.choi@gmail.com>"]
 
@@ -7,4 +7,10 @@ authors = ["Hyunsik Choi <hyunsik.choi@gmail.com>"]
 name = "flang_compiler"
 path = "lib.rs"
 
+[dependencies]
+fnv = "1.0.5"
+itertools = "0.4.3"
+log = "0.3.4"
 
+common = {path = "../common" }
+parser = { path = "../parser" }

@@ -8,6 +8,7 @@ extern crate nix;
 extern crate term;
 
 extern crate flang_common as common;
+extern crate flang_compiler as compiler;
 extern crate flang_errors as errors;
 extern crate parser;
 
@@ -30,6 +31,7 @@ use InputType::*;
 use ErrorKind::*;
 
 pub use common::driver::{DriverEnv, ErrorDestination};
+use compiler::IncrCompilerAction;
 use errors::{DiagnosticBuilder, Handler};
 use errors::emitter::{ColorConfig, Emitter, EmitterWriter};
 use parser::ast::Stmt;
@@ -52,19 +54,9 @@ pub enum InputType<'a> {
   Empty,
 }
 
-pub enum ReplAction {
-  Done,
-  Error,
-  Continue,
-  Quit
-}
-
-unsafe impl Send for ReplAction {}
-
 pub struct Repl {
   unexecuted_src: SourceFile,
   executed_src: SourceFile,
-  parsess: ParseSess,
   env: DriverEnv, // stream err,
 }
 
@@ -73,7 +65,6 @@ impl Repl {
     Repl {
       unexecuted_src: SourceFile::new(),
       executed_src: SourceFile::new(),
-      parsess: ParseSess::new(),
       env: env,
     }
   }
@@ -91,11 +82,11 @@ impl Repl {
       match readline::readline(&prompt) {
         Ok(Some(line)) => {
           match self.handle_line(&line) {
-            ReplAction::Done | ReplAction::Error => {
+            IncrCompilerAction::Done | IncrCompilerAction::Error => {
               prompt = DEFAULT_PROMPT.to_string();
             }
-            ReplAction::Continue => prompt = CONTINUE_PROMPT.to_string(),
-            ReplAction::Quit => break
+            IncrCompilerAction::Continue => prompt = CONTINUE_PROMPT.to_string(),
+            IncrCompilerAction::Quit => break
           }
         }
         Ok(None) => break, // eof
@@ -106,12 +97,12 @@ impl Repl {
     }
   }
 
-  fn handle_line(&mut self, line: &str) -> ReplAction {
+  fn handle_line(&mut self, line: &str) -> IncrCompilerAction {
     match self.parse_input(line) {
       Directive(d, args) => self.exec_directive(d, args),
       ExecuteSource(line) => self.exec_line(line),
       ExternalComamnd(command) => self.exec_external_program(command),
-      Empty => ReplAction::Done // just enter without any type
+      Empty => IncrCompilerAction::Done // just enter without any type
     }
   }
 
@@ -131,14 +122,15 @@ impl Repl {
     }
   }
 
-  pub fn exec_directive(&self, directive: &str, args: Vec<&str>) -> ReplAction {
+  pub fn exec_directive(&self, directive: &str, args: Vec<&str>)
+      -> IncrCompilerAction {
     match directive {
       "dump" => {
         self.println(self.executed_src.as_str());
-        ReplAction::Done
+        IncrCompilerAction::Done
       }
-      "quit" => ReplAction::Quit,
-      _ => ReplAction::Done
+      "quit" => IncrCompilerAction::Quit,
+      _ => IncrCompilerAction::Done
     }
   }
 
@@ -181,7 +173,7 @@ impl Repl {
     }
   }
 
-  pub fn exec_line(&mut self, line: &str) -> ReplAction {
+  pub fn exec_line(&mut self, line: &str) -> IncrCompilerAction {
 
     // Temporarily have stack size set to 16MB to deal with nom-using crates failing
     const STACK_SIZE: usize = 16 * 1024 * 1024; // 16MB
@@ -219,9 +211,9 @@ impl Repl {
 
       if Repl::need_more_liens(&errs) {
         println!("need more lines");
-        return (ReplAction::Continue, unexecuted_src, "".to_owned());
+        return (IncrCompilerAction::Continue, unexecuted_src, "".to_owned());
       } else if Repl::is_error(&errs) {
-        return (ReplAction::Error, "".to_owned(), "".to_owned());
+        return (IncrCompilerAction::Error, "".to_owned(), "".to_owned());
       }
 
 
@@ -242,7 +234,7 @@ impl Repl {
         None
       };
 
-      (ReplAction::Done, "".to_owned(), unexecuted_src.to_owned())
+      (IncrCompilerAction::Done, "".to_owned(), unexecuted_src.to_owned())
     }).unwrap();
 
     let (action, unexecuted_src, executed_src) = match handle.join() {
@@ -254,7 +246,7 @@ impl Repl {
           writeln!(io::stderr(), "{}",
             str::from_utf8(&data.lock().unwrap()).unwrap()).unwrap();
         }
-        (ReplAction::Error, "".to_owned(), "".to_owned())
+        (IncrCompilerAction::Error, "".to_owned(), "".to_owned())
       }
     };
 
@@ -272,10 +264,10 @@ impl Repl {
     action
   }
 
-  pub fn exec_external_program(&self, command: &str) -> ReplAction {
+  pub fn exec_external_program(&self, command: &str) -> IncrCompilerAction {
     let c_to_print = CString::new(command).unwrap();
     unsafe { libc::system(c_to_print.as_ptr()); }
-    ReplAction::Done
+    IncrCompilerAction::Done
   }
 }
 
