@@ -1,6 +1,5 @@
 #![feature(set_stdio)]
 
-extern crate crossbeam;
 extern crate env_logger;
 #[macro_use] extern crate log;
 extern crate rl_sys;
@@ -31,7 +30,7 @@ use InputType::*;
 use ErrorKind::*;
 
 pub use common::driver::{DriverEnv, ErrorDestination};
-use compiler::IncrCompilerAction;
+use compiler::{IncrCompilerAction, IncrCompiler};
 use errors::{DiagnosticBuilder, Handler};
 use errors::emitter::{ColorConfig, Emitter, EmitterWriter};
 use parser::ast::Stmt;
@@ -56,15 +55,19 @@ pub enum InputType<'a> {
 
 pub struct Repl {
   unexecuted_src: SourceFile,
-  executed_src: SourceFile,
-  env: DriverEnv, // stream err,
+  executed_src: SourceFile,  
+  compiler: IncrCompiler,
+  env: DriverEnv,
 }
 
 impl Repl {
   pub fn new(env: DriverEnv) -> Repl {
     Repl {
       unexecuted_src: SourceFile::new(),
-      executed_src: SourceFile::new(),
+      executed_src: SourceFile::new(),      
+      compiler: IncrCompiler::new(
+        REPL_DUMMY_FILENAME.to_owned(), 
+        env.errdst.clone()),
       env: env,
     }
   }

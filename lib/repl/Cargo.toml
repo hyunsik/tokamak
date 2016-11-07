@@ -13,11 +13,9 @@ flang_compiler = { path = "../compiler" }
 errors = { path = "../errors" }
 parser = { path = "../parser" }
 
-crossbeam = "0.2.10"
 env_logger = "0.3.2"
 itertools = "0.4.3"
 libc = "^0.2"
-llvm-sys = ">=0.2.2"
 log = "0.3.5"
 nix = "0.7.0"
 rl-sys = "0.5.2"

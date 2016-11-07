@@ -13,4 +13,5 @@ itertools = "0.4.3"
 log = "0.3.4"
 
 common = {path = "../common" }
+errors = { path = "../errors" }
 parser = { path = "../parser" }
