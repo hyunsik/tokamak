@@ -153,31 +153,26 @@ impl Repl {
     (Box::new(emitter), errkinds)
   }
 
-  fn need_more_liens(errs: &Rc<RefCell<Vec<ErrorKind>>>) -> bool {
-    errs.borrow().len() == 1 && match errs.borrow()[0] {
-      UnclosedDelimiter => true,
-      _ => false
-    }
-  }
-
-  fn is_error(errs: &Rc<RefCell<Vec<ErrorKind>>>) -> bool {
-    if errs.borrow().len() == 0 {
-      return false;
-    }
-
-    if errs.borrow().len() > 2 {
-      return true;
-    }
-
-    // only if errors.len() == 1
-    match errs.borrow()[0] {
-      UnclosedDelimiter => false,
-      _ => true
-    }
-  }
-
   pub fn exec_line(&mut self, line: &str) -> IncrCompilerAction {
-    IncrCompilerAction::Done
+
+    self.unexecuted_src.add_line(line);
+    let to_be_executed = self.unexecuted_src.as_str().to_owned();
+
+    let action = self.compiler.eval(&to_be_executed);
+
+    match action {
+      IncrCompilerAction::Error => {
+        self.unexecuted_src.clear();
+      }
+
+      IncrCompilerAction::Done => {
+        self.executed_src.add_line(&to_be_executed);
+      }
+
+      _ => {}
+    };
+
+    action
   }
 
   pub fn exec_external_program(&self, command: &str) -> IncrCompilerAction {

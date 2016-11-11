@@ -1,11 +1,12 @@
 use std::cell::RefCell;
 use std::io::{self, Write};
 use std::rc::Rc;
+use std::str;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 use common::driver::ErrorDestination;
-use errors::{DiagnosticBuilder, Handler};
+use errors::{self, DiagnosticBuilder, Handler};
 use errors::emitter::{ColorConfig, Emitter, EmitterWriter};
 use parser::ast::Stmt;
 use parser::ast::StmtKind::*;
@@ -31,14 +32,14 @@ enum ErrorKind {
 unsafe impl Send for IncrCompilerAction {}
 
 pub struct IncrCompiler {
-  pub filename: String, 
+  pub filename: String,
   pub errdst: Rc<RefCell<ErrorDestination>>, // error destination
 }
 
 impl IncrCompiler {
-  pub fn new(filename: String, errdst: Rc<RefCell<ErrorDestination>>) 
+  pub fn new(filename: String, errdst: Rc<RefCell<ErrorDestination>>)
       -> IncrCompiler {
-        
+
     IncrCompiler {
       filename: filename,
       errdst: errdst
@@ -68,7 +69,7 @@ impl IncrCompiler {
 
     let task = thread::Builder::new().name("parsing".to_owned());
     let handle = task.spawn(move || {
-      
+
       io::set_panic(Some(Box::new(err)));
 
       let cm = Rc::new(CodeMap::new());
@@ -77,9 +78,50 @@ impl IncrCompiler {
       let parsess = ParseSess::with_span_handler(handler, cm.clone());
       let filemap = parsess.codemap().new_filemap_and_lines(&filename, None, &line);
       let mut parser = filemap_to_parser(&parsess, filemap);
-    }).unwrap();    
 
-    IncrCompilerAction::Done
+      if need_more_liens(&errs) {
+        return IncrCompilerAction::Continue;
+      } else if is_error(&errs) {
+        return IncrCompilerAction::Error;
+      }
+
+      IncrCompilerAction::Done
+    }).unwrap();
+
+    let action = match handle.join() {
+      Ok(result) => result,
+      Err(value) => {
+        if !value.is::<errors::FatalError>() {
+          writeln!(io::stderr(), "{}", str::from_utf8(&data.lock().unwrap()).unwrap()).unwrap();
+        }
+        IncrCompilerAction::Error
+      }
+    };
+
+    action
+  }
+}
+
+fn need_more_liens(errs: &Rc<RefCell<Vec<ErrorKind>>>) -> bool {
+  errs.borrow().len() == 1 && match errs.borrow()[0] {
+    UnclosedDelimiter => true,
+    _ => false
+  }
+}
+
+fn is_error(errs: &Rc<RefCell<Vec<ErrorKind>>>) -> bool {
+  if errs.borrow().len() == 0 {
+    return false;
+  }
+
+  if errs.borrow().len() > 2 {
+    return true;
+  }
+
+  // only if errors.len() == 1
+  match errs.borrow()[0] {
+    UnclosedDelimiter => false,
+    _ => true
   }
 }
 
