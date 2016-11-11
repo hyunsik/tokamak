@@ -55,7 +55,7 @@ pub enum InputType<'a> {
 
 pub struct Repl {
   unexecuted_src: SourceFile,
-  executed_src: SourceFile,  
+  executed_src: SourceFile,
   compiler: IncrCompiler,
   env: DriverEnv,
 }
@@ -64,9 +64,9 @@ impl Repl {
   pub fn new(env: DriverEnv) -> Repl {
     Repl {
       unexecuted_src: SourceFile::new(),
-      executed_src: SourceFile::new(),      
+      executed_src: SourceFile::new(),
       compiler: IncrCompiler::new(
-        REPL_DUMMY_FILENAME.to_owned(), 
+        REPL_DUMMY_FILENAME.to_owned(),
         env.errdst.clone()),
       env: env,
     }
@@ -177,94 +177,7 @@ impl Repl {
   }
 
   pub fn exec_line(&mut self, line: &str) -> IncrCompilerAction {
-
-    // Temporarily have stack size set to 16MB to deal with nom-using crates failing
-    const STACK_SIZE: usize = 16 * 1024 * 1024; // 16MB
-
-    struct Sink(Arc<Mutex<Vec<u8>>>);
-    impl Write for Sink {
-        fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-            Write::write(&mut *self.0.lock().unwrap(), data)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    let data = Arc::new(Mutex::new(Vec::new()));
-    let err = Sink(data.clone());
-
-    //let (tx, rx) = channel();
-    let line = line.to_owned();
-    let mut unexecuted_src = self.unexecuted_src.as_str().to_owned();
-    let errdst = self.env.errdst.borrow().clone();
-
-    let task = thread::Builder::new().name("parsing".to_owned());
-    let handle = task.spawn(move || {
-      io::set_panic(Some(Box::new(err)));
-
-      unexecuted_src.push_str(&line);
-      unexecuted_src.push_str("\n");
-
-      let cm = Rc::new(CodeMap::new());
-      let (emitter, errs) = Repl::new_emitter(errdst, cm.clone());
-      let handler = Handler::with_emitter(true, false, emitter);
-      let parsess = ParseSess::with_span_handler(handler, cm.clone());
-      let mut parser = parse_flang(&parsess, &unexecuted_src);
-
-      if Repl::need_more_liens(&errs) {
-        println!("need more lines");
-        return (IncrCompilerAction::Continue, unexecuted_src, "".to_owned());
-      } else if Repl::is_error(&errs) {
-        return (IncrCompilerAction::Error, "".to_owned(), "".to_owned());
-      }
-
-
-      let item = match parser.parse_item() {
-        Ok(item) => item,
-        Err(ref mut e) => {
-          e.cancel();
-          None
-        }
-      };
-
-      let stmt = if item.is_none() {
-        match parser.parse_full_stmt() {
-          Ok(stmt) => stmt,
-          Err(_) => None,
-        }
-      } else {
-        None
-      };
-
-      (IncrCompilerAction::Done, "".to_owned(), unexecuted_src.to_owned())
-    }).unwrap();
-
-    let (action, unexecuted_src, executed_src) = match handle.join() {
-      Ok(result) => result,
-
-      Err(value) => {
-        // if it is a real error or bug, it will print out the stacktrace
-        if !value.is::<errors::FatalError>() {
-          writeln!(io::stderr(), "{}",
-            str::from_utf8(&data.lock().unwrap()).unwrap()).unwrap();
-        }
-        (IncrCompilerAction::Error, "".to_owned(), "".to_owned())
-      }
-    };
-
-    self.unexecuted_src.update(&unexecuted_src);
-    self.executed_src.update(&executed_src);
-
-    // append source
-    // generate mir
-    // check ast error
-    // add source which is valid
-    // skip if the source doesn't need to run
-    // generate llvm ir and module
-    // reorganize llvm module
-
-    action
+    IncrCompilerAction::Done
   }
 
   pub fn exec_external_program(&self, command: &str) -> IncrCompilerAction {

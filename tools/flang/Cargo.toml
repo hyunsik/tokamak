@@ -1,0 +1,16 @@
+[package]
+name = "flang"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik.choi@gmail.com>" ]
+
+[[bin]]
+name = "flang"
+path = "flang.rs"
+
+[dependencies]
+env_logger = "0.3.2"
+getopts = "0.2.14"
+log = "0.3.4"
+term = "0.4.4"
+
+driver = { path = "../../lib/driver" }
