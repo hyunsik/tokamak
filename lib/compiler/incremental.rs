@@ -8,11 +8,12 @@ use std::thread;
 use common::driver::ErrorDestination;
 use errors::{self, DiagnosticBuilder, Handler};
 use errors::emitter::{ColorConfig, Emitter, EmitterWriter};
-use parser::ast::Stmt;
+use parser::ast::{self, Stmt};
 use parser::ast::StmtKind::*;
 use parser::codemap::CodeMap;
 use parser::lexer::{Reader, StringReader};
 use parser::parser::{filemap_to_parser, parse_tts_from_source_str, ParseSess, Parser, PResult};
+use parser::ptr::P;
 use parser::tokenstream::TokenTree;
 
 use self::ErrorKind::*;
@@ -27,6 +28,13 @@ pub enum IncrCompilerAction {
 enum ErrorKind {
   UnclosedDelimiter,
   Unknown
+}
+
+enum Parsed {
+  Item(P<ast::Item>),
+  Stmt(ast::Stmt),
+  None,
+  Error
 }
 
 unsafe impl Send for IncrCompilerAction {}
@@ -100,6 +108,30 @@ impl IncrCompiler {
 
     action
   }
+}
+
+fn parse(parser: &mut Parser) -> Parsed {
+  let parsed: Option<Parsed> = match parser.parse_item() {
+    Ok(Some(item)) => Parsed::Item(item),
+    Ok(None) => None,
+    Err(ref mut e) => {
+      e.cancel();
+      None
+     }
+  };
+
+  let parsed = if parsed.is_none() {
+    match parser.parse_full_stmt() {
+      Ok(Some(item)) => Parsed::Item(item),
+      Ok(None) => None,
+      Err(ref mut e) => {
+        e.cancel();
+        None
+      }
+    }
+  }
+
+  parsed
 }
 
 fn need_more_liens(errs: &Rc<RefCell<Vec<ErrorKind>>>) -> bool {
