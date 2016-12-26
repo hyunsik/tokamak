@@ -1,0 +1,10 @@
+[package]
+name = "util"
+version = "0.0.1"
+authors = [ "Hyunsik Choi <hyunsik@apache.org>" ]
+
+[lib]
+name = "flang_util"
+path = "lib.rs"
+
+[dependencies]
