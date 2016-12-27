@@ -99,7 +99,6 @@ fn setup_driver(args: Vec<String>, cwd: PathBuf,
 
 pub fn run_driver(args: Vec<String>, cwd: PathBuf,
            errdst: ErrorDestination) -> i32 {
-
   let errdst = Rc::new(RefCell::new(errdst));
 
   let (action, driver_env) = match setup_driver(args, cwd, errdst.clone()) {

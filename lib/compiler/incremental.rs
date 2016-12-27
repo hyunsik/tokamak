@@ -18,6 +18,8 @@ use parser::tokenstream::TokenTree;
 
 use self::ErrorKind::*;
 
+use super::Input;
+
 pub enum IncrCompilerAction {
   Done,
   Error,
@@ -44,6 +46,9 @@ pub struct IncrCompiler {
   pub errdst: Rc<RefCell<ErrorDestination>>, // error destination
 }
 
+// Temporarily have stack size set to 16MB to deal with nom-using crates failing
+const DEFAULT_STACK_SIZE: usize = 16 * 1024 * 1024; // 16MB
+
 impl IncrCompiler {
   pub fn new(filename: String, errdst: Rc<RefCell<ErrorDestination>>)
       -> IncrCompiler {
@@ -54,11 +59,11 @@ impl IncrCompiler {
     }
   }
 
+  pub fn init(&mut self) {
+  }
+
   pub fn eval(&mut self, line: &str) -> IncrCompilerAction {
-
-    // Temporarily have stack size set to 16MB to deal with nom-using crates failing
-    const STACK_SIZE: usize = 16 * 1024 * 1024; // 16MB
-
+    println!("execute line: {}", line);
     struct Sink(Arc<Mutex<Vec<u8>>>);
     impl Write for Sink {
         fn write(&mut self, data: &[u8]) -> io::Result<usize> {
@@ -87,18 +92,41 @@ impl IncrCompiler {
       let filemap = parsess.codemap().new_filemap_and_lines(&filename, None, &line);
       let mut parser = filemap_to_parser(&parsess, filemap);
 
+      debug!("filemap_to_parser...");
       if need_more_liens(&errs) {
         return IncrCompilerAction::Continue;
       } else if is_error(&errs) {
         return IncrCompilerAction::Error;
       }
 
-      IncrCompilerAction::Done
+      match parse(&mut parser) {
+        Parsed::Item(item) => {
+          debug!("item: {:?}", item);
+          IncrCompilerAction::Done
+        }
+        Parsed::Stmt(stmt) => {
+          debug!("stmt: {:?}", stmt);
+          IncrCompilerAction::Done
+        }
+        Parsed::None => {
+          debug!("none");
+          IncrCompilerAction::Done
+        }
+        Parsed::Error => {
+          debug!("error");
+          IncrCompilerAction::Error
+        }
+      }
+
     }).unwrap();
 
     let action = match handle.join() {
-      Ok(result) => result,
+      Ok(result) => {
+        debug!("handle Ok");
+        result
+      }
       Err(value) => {
+        debug!("handle Err");
         if !value.is::<errors::FatalError>() {
           writeln!(io::stderr(), "{}", str::from_utf8(&data.lock().unwrap()).unwrap()).unwrap();
         }
@@ -108,30 +136,73 @@ impl IncrCompiler {
 
     action
   }
+} // IncrCompiler
+
+pub type CompilerResult = Result<(), u64>;
+
+fn compiler_input(input: &Input) {
+  match phase_1_parse_input(input) {
+    Ok(_) => {},
+    Err(_) => {}
+  };
 }
 
+fn phase_1_parse_input(input: &Input) -> PResult<ast::Package> {
+  unimplemented!()
+}
+
+/// it tries to parse a given line.
+/// It firstly assumes the line as an item, and tries to parse the line.
+/// Otherwise, it regards
 fn parse(parser: &mut Parser) -> Parsed {
-  let parsed: Option<Parsed> = match parser.parse_item() {
-    Ok(Some(item)) => Parsed::Item(item),
-    Ok(None) => None,
-    Err(ref mut e) => {
+  let parsed_item: PResult<Option<P<ast::Item>>> = match parser.parse_item() {
+    Ok(Some(item)) => Ok(Some(item)),
+    Ok(None) => Ok(None),
+    Err(mut e) => {
       e.cancel();
-      None
+      Err(e)
      }
   };
 
-  let parsed = if parsed.is_none() {
+  let parsed_stmt: PResult<Option<Stmt>> = if parsed_item.is_err() {
     match parser.parse_full_stmt() {
-      Ok(Some(item)) => Parsed::Item(item),
-      Ok(None) => None,
-      Err(ref mut e) => {
+      Ok(Some(stmt)) => Ok(Some(stmt)),
+      Ok(None) => Ok(None),
+      Err(mut e) => {
         e.cancel();
-        None
+        Err(e)
       }
     }
-  }
+  } else {
+    Ok(None)
+  };
 
-  parsed
+  match (parsed_item, parsed_stmt) {
+    (Ok(Some(item)), Ok(None)) => {
+      debug!("item: {:?}", item);
+      Parsed::Item(item)
+    }
+    (Ok(Some(item)), Err(_)) => {
+      debug!("item: {:?}", item);
+      Parsed::Item(item)
+    }
+    (Ok(None), Ok(Some(stmt))) => {
+      debug!("stmt: {:?}", stmt);
+      Parsed::Stmt(stmt)
+    }
+    (Err(_), Ok(Some(stmt))) => {
+      debug!("stmt: {:?}", stmt);
+      Parsed::Stmt(stmt)
+    }
+    (Err(_), Err(_)) => {
+      debug!("error");
+      Parsed::Error
+    }
+    (_, _) => {
+      debug!("None");
+      Parsed::None
+    }
+  }
 }
 
 fn need_more_liens(errs: &Rc<RefCell<Vec<ErrorKind>>>) -> bool {

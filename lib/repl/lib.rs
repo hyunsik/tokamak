@@ -1,6 +1,5 @@
 #![feature(set_stdio)]
 
-extern crate env_logger;
 #[macro_use] extern crate log;
 extern crate rl_sys;
 extern crate nix;
@@ -154,7 +153,6 @@ impl Repl {
   }
 
   pub fn exec_line(&mut self, line: &str) -> IncrCompilerAction {
-
     self.unexecuted_src.add_line(line);
     let to_be_executed = self.unexecuted_src.as_str().to_owned();
 
@@ -166,6 +164,7 @@ impl Repl {
       }
 
       IncrCompilerAction::Done => {
+        self.unexecuted_src.clear();
         self.executed_src.add_line(&to_be_executed);
       }
 
