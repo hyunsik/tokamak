@@ -151,55 +151,62 @@ fn phase_1_parse_input(input: &Input) -> PResult<ast::Package> {
   unimplemented!()
 }
 
+fn should_parse_stmt(item: &PResult<Option<P<ast::Item>>>) -> bool {
+  // if item is error or none
+  item.is_err() || item.as_ref().ok().unwrap().is_none()
+}
+
 /// it tries to parse a given line.
 /// It firstly assumes the line as an item, and tries to parse the line.
 /// Otherwise, it regards
 fn parse(parser: &mut Parser) -> Parsed {
-  let parsed_item: PResult<Option<P<ast::Item>>> = match parser.parse_item() {
-    Ok(Some(item)) => Ok(Some(item)),
-    Ok(None) => Ok(None),
-    Err(mut e) => {
-      e.cancel();
-      Err(e)
-     }
-  };
+  let mut parsed_item = parser.parse_item();
 
-  let parsed_stmt: PResult<Option<Stmt>> = if parsed_item.is_err() {
-    match parser.parse_full_stmt() {
-      Ok(Some(stmt)) => Ok(Some(stmt)),
-      Ok(None) => Ok(None),
-      Err(mut e) => {
-        e.cancel();
-        Err(e)
-      }
-    }
+  if parsed_item.is_err() {
+    let e = parsed_item.as_mut().err().unwrap();
+    e.cancel();
+  }
+
+  let mut parsed_stmt = if should_parse_stmt(&parsed_item) {
+    parser.parse_full_stmt()
   } else {
     Ok(None)
   };
 
+  if parsed_stmt.is_err() {
+    let e = parsed_stmt.as_mut().err().unwrap();
+    e.cancel();
+  }
+
+  // There are 9 cases:
+  // 1: (Ok(Some(item)), Ok(Some(stmt))) - how it happens?
+  // 2: (Ok(Some(item)), Ok(None))       - item
+  // 3: (Ok(Some(item)), Err(e))         - item
+  // 4: (Ok(None)), Ok(Some(stmt)))      - stmt
+  // 5: (Err(e),    Ok(Some(stmt)))      - stmt
+  // 6: (Ok(None),  Ok(None))            - none
+  // 7: (Ok(None),  Err(e))              - none
+  // 8: (Err(e),  Ok(None))              - none
+  // 9: (Err(e),  Err(e))                - error
   match (parsed_item, parsed_stmt) {
-    (Ok(Some(item)), Ok(None)) => {
-      debug!("item: {:?}", item);
+    // case 1
+    (Ok(Some(item)), Ok(Some(stmt))) => {
+      panic!("A line is regarded as an item as well as a statement.")
+    }
+    // case 2, 3
+    (Ok(Some(item)), _) => {
       Parsed::Item(item)
     }
-    (Ok(Some(item)), Err(_)) => {
-      debug!("item: {:?}", item);
-      Parsed::Item(item)
-    }
-    (Ok(None), Ok(Some(stmt))) => {
-      debug!("stmt: {:?}", stmt);
+    // case 4, 5
+    (_, Ok(Some(stmt))) => {
       Parsed::Stmt(stmt)
     }
-    (Err(_), Ok(Some(stmt))) => {
-      debug!("stmt: {:?}", stmt);
-      Parsed::Stmt(stmt)
-    }
+    // case 9
     (Err(_), Err(_)) => {
-      debug!("error");
       Parsed::Error
     }
+    // case 6, 7, 8
     (_, _) => {
-      debug!("None");
       Parsed::None
     }
   }
