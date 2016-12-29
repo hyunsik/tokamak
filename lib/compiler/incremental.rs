@@ -12,9 +12,10 @@ use parser::ast::{self, Stmt};
 use parser::ast::StmtKind::*;
 use parser::codemap::CodeMap;
 use parser::lexer::{Reader, StringReader};
-use parser::parser::{filemap_to_parser, parse_tts_from_source_str, ParseSess, Parser, PResult};
+use parser::parser::{self, filemap_to_parser, parse_tts_from_source_str, ParseSess, Parser, PResult};
 use parser::ptr::P;
 use parser::tokenstream::TokenTree;
+use util::time::time;
 
 use self::ErrorKind::*;
 
@@ -92,7 +93,6 @@ impl IncrCompiler {
       let filemap = parsess.codemap().new_filemap_and_lines(&filename, None, &line);
       let mut parser = filemap_to_parser(&parsess, filemap);
 
-      debug!("filemap_to_parser...");
       if need_more_liens(&errs) {
         return IncrCompilerAction::Continue;
       } else if is_error(&errs) {
@@ -101,19 +101,15 @@ impl IncrCompiler {
 
       match parse(&mut parser) {
         Parsed::Item(item) => {
-          debug!("item: {:?}", item);
           IncrCompilerAction::Done
         }
         Parsed::Stmt(stmt) => {
-          debug!("stmt: {:?}", stmt);
           IncrCompilerAction::Done
         }
         Parsed::None => {
-          debug!("none");
           IncrCompilerAction::Done
         }
         Parsed::Error => {
-          debug!("error");
           IncrCompilerAction::Error
         }
       }
@@ -140,11 +136,19 @@ impl IncrCompiler {
 
 pub type CompilerResult = Result<(), u64>;
 
-fn compiler_input(input: &Input) {
-  match phase_1_parse_input(input) {
-    Ok(_) => {},
-    Err(_) => {}
-  };
+fn compiler_input<'a>(sess: &'a ParseSess, input: &Input) -> PResult<'a, ast::Package> {
+  let package = time(true, "parsing", || {
+    match *input {
+      Input::File(ref file) => {
+        parser::parse_package_from_file(file, sess)
+      }
+      Input::Str { ref input, ref name } => {
+        parser::parse_package_from_source_str(name.clone(), input.clone(), sess)
+      }
+    }
+  })?;
+
+  unimplemented!()
 }
 
 fn phase_1_parse_input(input: &Input) -> PResult<ast::Package> {

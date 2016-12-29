@@ -5,6 +5,7 @@ extern crate fnv;
 extern crate flang_common as common;
 extern crate flang_errors as errors;
 extern crate parser as parser;
+extern crate flang_util as util;
 
 mod incremental;
 pub mod metadata;

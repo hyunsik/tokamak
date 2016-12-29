@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::iter;
 use std::mem;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::slice;
 use std::str;
 use std::rc::Rc;
@@ -3494,6 +3494,40 @@ pub fn integer_lit(s: &str,
   }
 }
 
+// a bunch of utility functions of the form parse_<thing>_from_<source>
+// where <thing> includes crate, expr, item, stmt, tts, and one that
+// uses a HOF to parse anything, and <source> includes file and
+// source_str.
+
+pub fn parse_package_from_file<'a>(input: &Path, sess: &'a ParseSess) -> PResult<'a, ast::Package> {
+    let mut parser = new_parser_from_file(sess, input);
+    parser.parse_package()
+}
+
+pub fn parse_package_from_source_str<'a>(name: String, source: String, sess: &'a ParseSess)
+                                       -> PResult<'a, ast::Package> {
+    new_parser_from_source_str(sess, name, source).parse_package()
+}
+
+pub fn parse_expr_from_source_str<'a>(name: String, source: String, sess: &'a ParseSess)
+                                      -> PResult<'a, P<ast::Expr>> {
+    new_parser_from_source_str(sess, name, source).parse_expr()
+}
+
+/// Parses an item.
+///
+/// Returns `Ok(Some(item))` when successful, `Ok(None)` when no item was found, and`Err`
+/// when a syntax error occurred.
+pub fn parse_item_from_source_str<'a>(name: String, source: String, sess: &'a ParseSess)
+                                      -> PResult<'a, Option<P<ast::Item>>> {
+    new_parser_from_source_str(sess, name, source).parse_item()
+}
+
+pub fn parse_stmt_from_source_str<'a>(name: String, source: String, sess: &'a ParseSess)
+                                      -> PResult<'a, Option<ast::Stmt>> {
+    new_parser_from_source_str(sess, name, source).parse_full_stmt()
+}
+
 // Warning: This parses with quote_depth > 0, which is not the default.
 pub fn parse_tts_from_source_str<'a>(name: String,
                                      source: String,
@@ -3517,6 +3551,12 @@ pub fn new_parser_from_source_str<'a>(sess: &'a ParseSess,
   filemap_to_parser(sess, sess.codemap().new_filemap(name, None, source))
 }
 
+/// Create a new parser, handling errors as appropriate
+/// if the file doesn't exist
+pub fn new_parser_from_file<'a>(sess: &'a ParseSess, path: &Path) -> Parser<'a> {
+    filemap_to_parser(sess, file_to_filemap(sess, path, None))
+}
+
 /// Given a filemap and config, return a parser
 pub fn filemap_to_parser<'a>(sess: &'a ParseSess,
                              filemap: Rc<FileMap>) -> Parser<'a> {
@@ -3531,12 +3571,22 @@ pub fn filemap_to_parser<'a>(sess: &'a ParseSess,
   parser
 }
 
-/// Given tts and cfg, produce a parser
-pub fn tts_to_parser<'a>(sess: &'a ParseSess,
-                         tts: Vec<tokenstream::TokenTree>) -> Parser<'a> {
-  let trdr = ttreader::new_tt_reader(&sess.span_diagnostic, None, tts);
-  let mut p = Parser::new(sess, Box::new(trdr));
-  p
+// base abstractions
+
+/// Given a session and a path and an optional span (for error reporting),
+/// add the path to the session's codemap and return the new filemap.
+fn file_to_filemap(sess: &ParseSess, path: &Path, spanopt: Option<Span>)
+                   -> Rc<FileMap> {
+    match sess.codemap().load_file(path) {
+        Ok(filemap) => filemap,
+        Err(e) => {
+            let msg = format!("couldn't read {:?}: {}", path.display(), e);
+            match spanopt {
+                Some(sp) => panic!(sess.span_diagnostic.span_fatal(sp, &msg)),
+                None => panic!(sess.span_diagnostic.fatal(&msg))
+            }
+        }
+    }
 }
 
 /// Given a filemap, produce a sequence of token-trees
@@ -3547,6 +3597,13 @@ pub fn filemap_to_tts(sess: &ParseSess, filemap: Rc<FileMap>)
   let srdr = StringReader::new(&sess.span_diagnostic, filemap);
   let mut p1 = Parser::new(sess, Box::new(srdr));
   p1.parse_all_token_trees().ok().unwrap()
+}
+
+/// Given tts and cfg, produce a parser
+pub fn tts_to_parser<'a>(sess: &'a ParseSess,
+                         tts: Vec<tokenstream::TokenTree>) -> Parser<'a> {
+  let trdr = ttreader::new_tt_reader(&sess.span_diagnostic, None, tts);
+  Parser::new(sess, Box::new(trdr))
 }
 
 #[cfg(test)]
