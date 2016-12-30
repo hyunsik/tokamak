@@ -42,6 +42,8 @@ use std::iter::FromIterator;
 use std::ops::Deref;
 use std::{ptr, slice, vec};
 
+use rustc_serialize::{Encodable, Decodable, Encoder, Decoder};
+
 /// An owned smart pointer.
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct P<T: ?Sized> {
@@ -124,6 +126,18 @@ impl<T> fmt::Pointer for P<T> {
   }
 }
 
+impl<T: 'static + Decodable> Decodable for P<T> {
+    fn decode<D: Decoder>(d: &mut D) -> Result<P<T>, D::Error> {
+        Decodable::decode(d).map(P)
+    }
+}
+
+impl<T: Encodable> Encodable for P<T> {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        (**self).encode(s)
+    }
+}
+
 impl<T> P<[T]> {
   pub fn new() -> P<[T]> {
     P { ptr: Default::default() }
@@ -185,4 +199,19 @@ impl<'a, T> IntoIterator for &'a P<[T]> {
   fn into_iter(self) -> Self::IntoIter {
     self.ptr.into_iter()
   }
+}
+
+impl<T: Encodable> Encodable for P<[T]> {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        Encodable::encode(&**self, s)
+    }
+}
+
+impl<T: Decodable> Decodable for P<[T]> {
+    fn decode<D: Decoder>(d: &mut D) -> Result<P<[T]>, D::Error> {
+        Ok(P::from_vec(match Decodable::decode(d) {
+            Ok(t) => t,
+            Err(e) => return Err(e)
+        }))
+    }
 }

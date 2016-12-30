@@ -2,6 +2,7 @@
 #![feature(filling_drop)]
 #![feature(unicode)]
 #![feature(str_escape)]
+#![feature(optin_builtin_traits)]
 
 #[macro_use] extern crate bitflags;
 extern crate env_logger;

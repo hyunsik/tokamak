@@ -2,6 +2,8 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
+
 pub use self::ViewPath_::*;
 pub use self::Mutability::*;
 
@@ -45,6 +47,18 @@ impl fmt::Display for Name {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     fmt::Display::fmt(&self.as_str(), f)
   }
+}
+
+impl Encodable for Name {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        s.emit_str(&self.as_str())
+    }
+}
+
+impl Decodable for Name {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Name, D::Error> {
+        Ok(token::intern(&d.read_str()?))
+    }
 }
 
 /// A SyntaxContext represents a chain of macro-expandings
@@ -821,7 +835,7 @@ impl BinOpKind {
   }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Copy)]
 pub enum IntTy {
   Is,
   I8,
@@ -880,7 +894,7 @@ impl IntTy {
   }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Copy)]
 pub enum UintTy {
   Us,
   U8,
@@ -936,7 +950,7 @@ impl fmt::Display for UintTy {
   }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Copy)]
 pub enum FloatTy {
   F32,
   F64,

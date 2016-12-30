@@ -311,6 +311,9 @@ declare_keywords! {
     (54, Default,        "default")
     (55, StaticLifetime, "'static")
     (56, Union,          "union")
+
+    // A virtual keyword that resolves to the crate root when used in a lexical scope.
+    (57, PackageRoot, "{{root}}")
 }
 
 // looks like we can get rid of this completely...
