@@ -3,6 +3,8 @@ pub use self::DelimToken::*;
 pub use self::Lit::*;
 pub use self::Token::*;
 
+use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
+
 use std::fmt;
 use std::iter;
 use std::ops::Deref;
@@ -387,6 +389,18 @@ impl fmt::Display for InternedString {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     fmt::Display::fmt(&self.string, f)
   }
+}
+
+impl Decodable for InternedString {
+    fn decode<D: Decoder>(d: &mut D) -> Result<InternedString, D::Error> {
+        Ok(intern(&d.read_str()?).as_str())
+    }
+}
+
+impl Encodable for InternedString {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        s.emit_str(&self.string)
+    }
 }
 
 impl<'a> PartialEq<&'a str> for InternedString {

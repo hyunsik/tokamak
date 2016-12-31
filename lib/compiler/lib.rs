@@ -1,6 +1,7 @@
 #![feature(set_stdio)]
 extern crate fnv;
 #[macro_use] extern crate log;
+extern crate rustc_serialize;
 
 extern crate flang_common as common;
 extern crate flang_errors as errors;
@@ -9,6 +10,7 @@ extern crate flang_util as util;
 
 mod incremental;
 pub mod metadata;
+pub mod hir;
 
 pub use incremental::{IncrCompilerAction, IncrCompiler};
 

@@ -30,7 +30,11 @@ pub mod token;
 pub mod tokenstream;
 pub mod ttreader;
 pub mod unicode_chars;
-mod thin_vec;
+
+pub mod util {
+    mod thin_vec;
+    pub use self::thin_vec::ThinVec;
+}
 //pub mod visitor;
 
 
