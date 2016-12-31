@@ -24,7 +24,7 @@ use errors::emitter::ColorConfig;
 use lexer::{char_at, Reader, StringReader, TokenAndSpan};
 use precedence::{AssocOp, Fixity};
 use ptr::P;
-use thin_vec::ThinVec;
+use util::ThinVec;
 use ttreader;
 use token::{self, keywords, InternedString, Token};
 use tokenstream::{self, TokenTree, Delimited};

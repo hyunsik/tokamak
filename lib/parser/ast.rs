@@ -14,7 +14,7 @@ use common::codespan::Span;
 use comments::{doc_comment_style, strip_doc_comment_decoration};
 use ptr::P;
 use token::{self, InternedString};
-use thin_vec::ThinVec;
+use util::ThinVec;
 
 pub type NodeId = u32;
 
@@ -1011,7 +1011,7 @@ pub enum CaptureBy {
   Ref,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum StrStyle {
   /// A regular string, like `"foo"`
   Cooked,
@@ -1024,14 +1024,17 @@ pub enum StrStyle {
 /// A literal
 pub type Lit = Spanned<LitKind>;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum LitIntType {
   Signed(IntTy),
   Unsigned(UintTy),
   Unsuffixed,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// Literal kind.
+///
+/// E.g. `"foo"`, `42`, `12.34` or `bool`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum LitKind {
   /// A string literal (`"foo"`)
   Str(InternedString, StrStyle),
@@ -1051,55 +1054,72 @@ pub enum LitKind {
   Bool(bool),
 }
 
-/// Meta-data associated with an item
-pub type Attribute = Spanned<Attribute_>;
-
 /// Distinguishes between Attributes that decorate items and Attributes that
 /// are contained as statements within items. These two cases need to be
 /// distinguished for pretty-printing.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum AttrStyle {
   Outer,
   Inner,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub struct AttrId(pub usize);
 
+/// Meta-data associated with an item
 /// Doc-comments are promoted to attributes that have is_sugared_doc = true
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Attribute_ {
-  pub id: AttrId,
-  pub value: P<MetaItem>,
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub struct Attribute {
+    pub id: AttrId,
+    pub style: AttrStyle,
+    pub value: MetaItem,
+    pub is_sugared_doc: bool,
+    pub span: Span,
 }
 
-pub type MetaItem = Spanned<MetaItemKind>;
+/// A spanned compile-time attribute list item.
+pub type NestedMetaItem = Spanned<NestedMetaItemKind>;
 
-#[derive(Clone, Eq, Hash, Debug)]
+/// Possible values inside of compile-time attribute lists.
+///
+/// E.g. the '..' in `#[name(..)]`.
+#[derive(Clone, Eq, RustcEncodable, RustcDecodable, Hash, Debug, PartialEq)]
+pub enum NestedMetaItemKind {
+    /// A full MetaItem, for recursive meta items.
+    MetaItem(MetaItem),
+    /// A literal.
+    ///
+    /// E.g. "foo", 64, true
+    Literal(Lit),
+}
+
+/// A spanned compile-time attribute item.
+///
+/// E.g. `#[test]`, `#[derive(..)]` or `#[feature = "foo"]`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub struct MetaItem {
+    pub name: Name,
+    pub node: MetaItemKind,
+    pub span: Span,
+}
+
+/// A compile-time attribute item.
+///
+/// E.g. `#[test]`, `#[derive(..)]` or `#[feature = "foo"]`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum MetaItemKind {
-  Word(InternedString),
-  List(InternedString, Vec<P<MetaItem>>),
-  //NameValue(InternedString, Lit),
-}
-
-// can't be derived because the MetaItemKind::List requires an unordered comparison
-impl PartialEq for MetaItemKind {
-  fn eq(&self, other: &MetaItemKind) -> bool {
-    use self::MetaItemKind::*;
-    match *self {
-      Word(ref ns) => match *other {
-        Word(ref no) => (*ns) == (*no),
-        _ => false
-      },
-      List(ref ns, ref miss) => match *other {
-        List(ref no, ref miso) => {
-          ns == no &&
-          miss.iter().all(|mi| miso.iter().any(|x| x.node == mi.node))
-        }
-        _ => false
-      }
-    }
-  }
+    /// Word meta item.
+    ///
+    /// E.g. `test` as in `#[test]`
+    Word,
+    /// List meta item.
+    ///
+    /// E.g. `derive(..)` as in `#[derive(..)]`
+    List(Vec<NestedMetaItem>),
+    /// Name value meta item.
+    ///
+    /// E.g. `feature = "foo"` as in `#[feature = "foo"]`
+    NameValue(Lit)
 }
 
 /// Represents the header (not the body) of a function declaration
