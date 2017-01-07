@@ -21,11 +21,12 @@ pub mod ast_printer;
 pub mod attr;
 pub mod codemap;
 pub mod comments;
-pub mod interner;
 pub mod lexer;
+pub mod hygiene;
 pub mod parser;
 pub mod precedence;
 pub mod ptr;
+pub mod symbol;
 pub mod token;
 pub mod tokenstream;
 pub mod ttreader;
@@ -35,6 +36,6 @@ pub mod util {
     mod thin_vec;
     pub use self::thin_vec::ThinVec;
 }
-//pub mod visitor;
+pub mod visitor;
 
 

@@ -5,6 +5,7 @@ use codemap::Spanned;
 use common::codespan::Span;
 use comments::{doc_comment_style, strip_doc_comment_decoration};
 use token::{self, Lit, Token};
+use symbol::Symbol;
 use parser;
 
 
@@ -125,10 +126,10 @@ impl TokenTree {
         TokenTree::Delimited(sp, Rc::new(Delimited {
           delim: token::Bracket,
           open_span: sp,
-          tts: vec![TokenTree::Token(sp, token::Ident(token::str_to_ident("doc"))),
+          tts: vec![TokenTree::Token(sp, token::Ident(ast::Ident::from_str("doc"))),
                               TokenTree::Token(sp, token::Eq),
                               TokenTree::Token(sp, token::Literal(
-                                  token::StrRaw(token::intern(&stripped), num_of_hashes), None))],
+                                  token::StrRaw(Symbol::intern(&stripped), num_of_hashes), None))],
           close_span: sp,
         }))
       }
@@ -230,7 +231,7 @@ impl TokenTree {
   pub fn maybe_str(&self) -> Option<ast::Lit> {
     match *self {
       TokenTree::Token(sp, Token::Literal(Lit::Str_(s), _)) => {
-        let l = LitKind::Str(token::intern_and_get_ident(&parser::str_lit(&s.as_str())),
+        let l = LitKind::Str(Symbol::intern(&parser::str_lit(&s.as_str())),
                              ast::StrStyle::Cooked);
         Some(Spanned {
           node: l,
@@ -238,7 +239,7 @@ impl TokenTree {
         })
       }
       TokenTree::Token(sp, Token::Literal(Lit::StrRaw(s, n), _)) => {
-        let l = LitKind::Str(token::intern_and_get_ident(&parser::raw_str_lit(&s.as_str())),
+        let l = LitKind::Str(Symbol::intern(&parser::raw_str_lit(&s.as_str())),
                              ast::StrStyle::Raw(n));
         Some(Spanned {
           node: l,

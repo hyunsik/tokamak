@@ -3,13 +3,14 @@ use std::char;
 use std::mem::replace;
 use std::rc::Rc;
 
-use ast::{self};
+use ast::{self, Ident};
 use codemap::CodeMap;
 use common::codespan::{self, BytePos, CharPos, Span, Pos};
 use errors::{FatalError, Handler, DiagnosticBuilder};
 use unicode::property::Pattern_White_Space;
 use unicode_chars;
-use token::{self, str_to_ident};
+use symbol::Symbol;
+use token;
 use ttreader::{TtReader, tt_next_token};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -324,7 +325,7 @@ impl<'a> StringReader<'a> {
       if string == "_" {
         None
       } else {
-        Some(token::intern(string))
+        Some(Symbol::intern(string))
       }
     })
   }
@@ -368,7 +369,7 @@ impl<'a> StringReader<'a> {
         if string == "_" {
           token::Underscore
         } else {
-          token::Ident(str_to_ident(string))
+          token::Ident(Ident::from_str(string))
         }
       }));
     }
@@ -584,7 +585,7 @@ impl<'a> StringReader<'a> {
         let id = if valid {
           self.name_from(start_bpos + BytePos(1))
         } else {
-          token::intern("??")
+          Symbol::intern("??")
         };
         self.bump();
         let suffix = self.scan_optional_raw_name();
@@ -643,7 +644,7 @@ impl<'a> StringReader<'a> {
   /// single-byte delimiter).
   pub fn name_from(&self, start: BytePos) -> ast::Name {
     debug!("taking an ident from {:?} to {:?}", start, self.last_pos);
-    self.with_str_from(start, token::intern)
+    self.with_str_from(start, Symbol::intern)
   }
 
   /// Converts CRLF to LF in the given string, raising an error on bare CR.
@@ -766,7 +767,7 @@ impl<'a> StringReader<'a> {
             self.with_str_from(start_bpos, |string| {
               // comments with only more "/"s are not doc comments
               let tok = if is_doc_comment(string) {
-                token::DocComment(token::intern(string))
+                token::DocComment(Symbol::intern(string))
               } else {
                 token::Comment
               };
@@ -843,7 +844,7 @@ impl<'a> StringReader<'a> {
         } else {
           string.into()
         };
-        token::DocComment(token::intern(&string[..]))
+        token::DocComment(Symbol::intern(&string[..]))
       } else {
         token::Comment
       };
@@ -1171,7 +1172,7 @@ impl<'a> StringReader<'a> {
       self.err_span_(start_bpos,
                      self.last_pos,
                      "no valid digits found for number");
-      return token::Integer(token::intern("0"));
+      return token::Integer(Symbol::intern("0"));
     }
 
     // might be a float, but don't be greedy if this is actually an

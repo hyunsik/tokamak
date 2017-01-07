@@ -26,8 +26,9 @@ use precedence::{AssocOp, Fixity};
 use ptr::P;
 use util::ThinVec;
 use ttreader;
-use token::{self, keywords, InternedString, Token};
+use token::{self, Token};
 use tokenstream::{self, TokenTree, Delimited};
+use symbol::{keywords, Symbol};
 
 bitflags! {
     pub flags Restrictions: u8 {
@@ -38,6 +39,19 @@ bitflags! {
 }
 
 type ItemInfo = (Ident, ItemKind, Option<Vec<Attribute>>);
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum PathStyle {
+    /// A path with no type parameters, e.g. `foo::bar::Baz`, used in imports or visibilities.
+    Mod,
+    /// A path with a lifetime and type parameters, with no double colons
+    /// before the type parameters; e.g. `foo::bar<'a>::Baz<T>`, used in types.
+    /// Paths using this style can be passed into macros expecting `path` nonterminals.
+    Type,
+    /// A path with a lifetime and type parameters with double colons before
+    /// the type parameters; e.g. `foo::bar::<'a>::Baz::<T>`, used in expressions or patterns.
+    Expr,
+}
 
 /// Info about a parsing session.
 pub struct ParseSess {
@@ -875,36 +889,41 @@ impl<'a> Parser<'a> {
   /// MOD_SEP? non_global_path MOD_SEP LBRACE item_seq RBRACE
   /// MOD_SEP? LBRACE item_seq RBRACE
   fn parse_view_path(&mut self) -> PResult<'a, P<ViewPath>> {
-    let lo = self.span.lo;
-    if self.check(&token::OpenDelim(token::Brace)) || self.is_import_coupler() {
-      // `{foo, bar}` or `::{foo, bar}`
-      let prefix = ast::Path {
-        global: self.eat(&token::ModSep),
-        segments: Vec::new(),
-        span: mk_span(lo, self.span.hi),
-      };
-      let items = self.parse_path_list_items()?;
-      Ok(P(spanned(lo, self.span.hi, ViewPathList(prefix, items))))
-    } else {
-      let prefix = self.parse_path()?;
-      if self.is_import_coupler() {
-        // `foo::bar::{a, b}` or `foo::bar::*`
-        self.bump();
-        if self.check(&token::BinOp(token::Star)) {
-          self.bump();
-          Ok(P(spanned(lo, self.span.hi, ViewPathGlob(prefix))))
+        let lo = self.span.lo;
+        if self.check(&token::OpenDelim(token::Brace)) || self.check(&token::BinOp(token::Star)) ||
+           self.is_import_coupler() {
+            // `{foo, bar}`, `::{foo, bar}`, `*`, or `::*`.
+            self.eat(&token::ModSep);
+            let prefix = ast::Path {
+                segments: vec![ast::PathSegment::package_root()],
+                span: mk_span(lo, self.span.hi),
+            };
+            let view_path_kind = if self.eat(&token::BinOp(token::Star)) {
+                ViewPathGlob(prefix)
+            } else {
+                ViewPathList(prefix, self.parse_path_list_items()?)
+            };
+            Ok(P(spanned(lo, self.span.hi, view_path_kind)))
         } else {
-          let items = self.parse_path_list_items()?;
-          Ok(P(spanned(lo, self.span.hi, ViewPathList(prefix, items))))
+            let prefix = self.parse_path(PathStyle::Mod)?.default_to_global();
+            if self.is_import_coupler() {
+                // `foo::bar::{a, b}` or `foo::bar::*`
+                self.bump();
+                if self.check(&token::BinOp(token::Star)) {
+                    self.bump();
+                    Ok(P(spanned(lo, self.span.hi, ViewPathGlob(prefix))))
+                } else {
+                    let items = self.parse_path_list_items()?;
+                    Ok(P(spanned(lo, self.span.hi, ViewPathList(prefix, items))))
+                }
+            } else {
+                // `foo::bar` or `foo::bar as baz`
+                let rename = self.parse_rename()?.
+                                  unwrap_or(prefix.segments.last().unwrap().identifier);
+                Ok(P(spanned(lo, self.last_span.hi, ViewPathSimple(rename, prefix))))
+            }
         }
-      } else {
-        // `foo::bar` or `foo::bar as baz`
-        let rename = self.parse_rename()?.
-        unwrap_or(prefix.segments.last().unwrap().identifier);
-        Ok(P(spanned(lo, self.last_span.hi, ViewPathSimple(rename, prefix))))
-      }
     }
-  }
 
   fn parse_path_list_items(&mut self) -> PResult<'a, Vec<ast::PathListItem>> {
     self.parse_unspanned_seq(&token::OpenDelim(token::Brace),
@@ -2209,7 +2228,7 @@ impl<'a> Parser<'a> {
           db.note("variable declaration using `var` is a statement");
           return Err(db);
         } else if self.token.is_path_start() {
-          let path = self.parse_path()?;
+          let path = self.parse_path(PathStyle::Expr)?;
 
           if self.check(&token::OpenDelim(token::Brace)) {
             // This is a struct literal, unless we're prohibited
@@ -2575,60 +2594,54 @@ impl<'a> Parser<'a> {
   }
 
   /// Matches token_lit = LIT_INTEGER | ...
-  pub fn parse_lit_token(&mut self) -> PResult<'a, LitKind> {
-    let out = match self.token {
-      token::Literal(lit, suf) => {
-        let (suffix_illegal, out) = match lit {
-          token::Byte(i) => (true, LitKind::Byte(byte_lit(&i.as_str()).0)),
-          token::Char(i) => (true, LitKind::Char(char_lit(&i.as_str()).0)),
+    pub fn parse_lit_token(&mut self) -> PResult<'a, LitKind> {
+        let out = match self.token {
+            token::Literal(lit, suf) => {
+                let (suffix_illegal, out) = match lit {
+                    token::Byte(i) => (true, LitKind::Byte(byte_lit(&i.as_str()).0)),
+                    token::Char(i) => (true, LitKind::Char(char_lit(&i.as_str()).0)),
 
-          // there are some valid suffixes for integer and
-          // float literals, so all the handling is done
-          // internally.
-          token::Integer(s) => {
-            (false, integer_lit(&s.as_str(),
-                                       suf.as_ref().map(|s| s.as_str()),
-                                       &self.sess.span_diagnostic,
-                                       self.span))
-          }
-          token::Float(s) => {
-            (false, float_lit(&s.as_str(),
-                                     suf.as_ref().map(|s| s.as_str()),
-                                     &self.sess.span_diagnostic,
-                                     self.span))
-          }
+                    // there are some valid suffixes for integer and
+                    // float literals, so all the handling is done
+                    // internally.
+                    token::Integer(s) => {
+                        let diag = &self.sess.span_diagnostic;
+                        (false, integer_lit(&s.as_str(), suf, diag, self.span))
+                    }
+                    token::Float(s) => {
+                        let diag = &self.sess.span_diagnostic;
+                        (false, float_lit(&s.as_str(), suf, diag, self.span))
+                    }
 
-          token::Str_(s) => {
-            (true,
-             LitKind::Str(token::intern_and_get_ident(&str_lit(&s.as_str())),
-                          ast::StrStyle::Cooked))
-          }
-          token::StrRaw(s, n) => {
-            (true,
-             LitKind::Str(
-               token::intern_and_get_ident(&raw_str_lit(&s.as_str())),
-               ast::StrStyle::Raw(n)))
-          }
-          token::ByteStr(i) =>
-            (true, LitKind::ByteStr(byte_str_lit(&i.as_str()))),
-          token::ByteStrRaw(i, _) =>
-            (true,
-             LitKind::ByteStr(Rc::new(i.to_string().into_bytes()))),
+                    token::Str_(s) => {
+                        let s = Symbol::intern(&str_lit(&s.as_str()));
+                        (true, LitKind::Str(s, ast::StrStyle::Cooked))
+                    }
+                    token::StrRaw(s, n) => {
+                        let s = Symbol::intern(&raw_str_lit(&s.as_str()));
+                        (true, LitKind::Str(s, ast::StrStyle::Raw(n)))
+                    }
+                    token::ByteStr(i) => {
+                        (true, LitKind::ByteStr(byte_str_lit(&i.as_str())))
+                    }
+                    token::ByteStrRaw(i, _) => {
+                        (true, LitKind::ByteStr(Rc::new(i.to_string().into_bytes())))
+                    }
+                };
+
+                if suffix_illegal {
+                    let sp = self.span;
+                    self.expect_no_suffix(sp, &format!("{} literal", lit.short_name()), suf)
+                }
+
+                out
+            }
+            _ => { return self.unexpected_last(&self.token); }
         };
 
-        if suffix_illegal {
-          let sp = self.span;
-          self.expect_no_suffix(sp, &format!("{} literal", lit.short_name()), suf)
-        }
-
-        out
-      }
-      _ => { return self.unexpected_last(&self.token); }
-    };
-
-    self.bump();
-    Ok(out)
-  }
+        self.bump();
+        Ok(out)
+    }
 
   /// Parse a type.
   pub fn parse_ty(&mut self) -> PResult<'a, P<Ty>> {
@@ -2661,7 +2674,7 @@ impl<'a> Parser<'a> {
         TyKind::Tup(ts)
       }
     } else if self.token.is_path_start() {
-      let path = self.parse_path()?;
+      let path = self.parse_path(PathStyle::Type)?;
       // NAMED TYPE
       TyKind::Path(path)
     } else if self.eat(&token::Underscore) {
@@ -2680,44 +2693,109 @@ impl<'a> Parser<'a> {
   /// mode. The `mode` parameter determines whether lifetimes, types, and/or
   /// bounds are permitted and whether `::` must precede type parameter
   /// groups.
-  pub fn parse_path(&mut self) -> PResult<'a, ast::Path> {
+  pub fn parse_path(&mut self, mode: PathStyle) -> PResult<'a, ast::Path> {
+        let lo = self.span.lo;
+        let is_global = self.eat(&token::ModSep);
 
-    let lo = self.span.lo;
-    let is_global = self.eat(&token::ModSep);
+        // Parse any number of segments and bound sets. A segment is an
+        // identifier followed by an optional lifetime and a set of types.
+        // A bound set is a set of type parameter bounds.
+        let mut segments = match mode {
+            PathStyle::Type => {
+                self.parse_path_segments_without_colons()?
+            }
+            PathStyle::Expr => {
+                self.parse_path_segments_with_colons()?
+            }
+            PathStyle::Mod => {
+                self.parse_path_segments_without_types()?
+            }
+        };
 
+        if is_global {
+            segments.insert(0, ast::PathSegment::package_root());
+        }
 
-    let segments = self.parse_path_segments_without_types()?;
+        // Assemble the span.
+        let span = mk_span(lo, self.last_span.hi);
 
-    // Assemble the span.
-    let span = mk_span(lo, self.last_span.hi);
-
-    // Assemble the result.
-    Ok(ast::Path {
-      span: span,
-      global: is_global,
-      segments: segments,
-    })
+        // Assemble the result.
+        Ok(ast::Path {
+            span: span,
+            segments: segments,
+        })
   }
 
   /// Examples:
-  /// - `a::b::c`
-  pub fn parse_path_segments_without_types(&mut self) -> PResult<'a, Vec<ast::PathSegment>> {
-    let mut segments = Vec::new();
-    loop {
-      // First, parse an identifier.
-      let identifier = self.parse_path_segment_ident()?;
+    /// - `a::b<T,U>::c<V,W>`
+    /// - `a::b<T,U>::c(V) -> W`
+    /// - `a::b<T,U>::c(V)`
+    pub fn parse_path_segments_without_colons(&mut self) -> PResult<'a, Vec<ast::PathSegment>> {
+        let mut segments = Vec::new();
+        loop {
+            // First, parse an identifier.
+            let identifier = self.parse_path_segment_ident()?;
 
-      // Assemble and push the result.
-      segments.push(ast::PathSegment { identifier: identifier });
+            if self.check(&token::ModSep) && self.look_ahead(1, |t| *t == token::Lt) {
+                self.bump();
+                let prev_span = self.last_span;
 
-      // If we do not see a `::` or see `::{`/`::*`, stop.
-      if !self.check(&token::ModSep) || self.is_import_coupler() {
-        return Ok(segments);
-      } else {
-        self.bump();
-      }
+                let mut err = self.diagnostic().struct_span_err(prev_span,
+                    "unexpected token: `::`");
+                err.help(
+                    "use `<...>` instead of `::<...>` if you meant to specify type arguments");
+                err.emit();
+            }
+
+            // Assemble and push the result.
+            segments.push(ast::PathSegment { identifier: identifier });
+
+            // Continue only if we see a `::`
+            if !self.eat(&token::ModSep) {
+                return Ok(segments);
+            }
+        }
     }
-  }
+
+    /// Examples:
+    /// - `a::b::<T,U>::c`
+    pub fn parse_path_segments_with_colons(&mut self) -> PResult<'a, Vec<ast::PathSegment>> {
+        let mut segments = Vec::new();
+        loop {
+            // First, parse an identifier.
+            let identifier = self.parse_path_segment_ident()?;
+
+            // If we do not see a `::`, stop.
+            if !self.eat(&token::ModSep) {
+                segments.push(identifier.into());
+                return Ok(segments);
+            }
+
+            // Consumed `a::`, go look for `b`
+            segments.push(identifier.into());
+        }
+    }
+
+    /// Examples:
+    /// - `a::b::c`
+    pub fn parse_path_segments_without_types(&mut self)
+                                             -> PResult<'a, Vec<ast::PathSegment>> {
+        let mut segments = Vec::new();
+        loop {
+            // First, parse an identifier.
+            let identifier = self.parse_path_segment_ident()?;
+
+            // Assemble and push the result.
+            segments.push(identifier.into());
+
+            // If we do not see a `::` or see `::{`/`::*`, stop.
+            if !self.check(&token::ModSep) || self.is_import_coupler() {
+                return Ok(segments);
+            } else {
+                self.bump();
+            }
+        }
+    }
 
   /// `::{` or `::*`
   fn is_import_coupler(&mut self) -> bool {
@@ -2803,7 +2881,7 @@ impl<'a> Parser<'a> {
             pat = self.parse_pat_ident(BindingMode::ByValue)?;
           } else {
             let qself = None;
-            let path = self.parse_path()?;
+            let path = self.parse_path(PathStyle::Expr)?;
 
             match self.token {
               token::DotDotDot => {
@@ -2903,7 +2981,7 @@ impl<'a> Parser<'a> {
     if self.token.is_path_start() {
       let lo = self.span.lo;
       // Parse an unqualified path
-      let (qself, path) = (None, self.parse_path()?);
+      let (qself, path) = (None, self.parse_path(PathStyle::Expr)?);
       let hi = self.last_span.hi;
       Ok(self.mk_expr(lo, hi, ExprKind::Path(qself, path), ThinVec::new()))
     } else {
@@ -3271,37 +3349,39 @@ fn looks_like_width_suffix(first_chars: &[char], s: &str) -> bool {
   s[1..].chars().all(|c| '0' <= c && c <= '9')
 }
 
-fn filtered_float_lit(data: token::InternedString, suffix: Option<&str>,
-  sd: &Handler, sp: Span) -> ast::LitKind {
-  debug!("filtered_float_lit: {}, {:?}", data, suffix);
-  match suffix.as_ref().map(|s| &**s) {
-    Some("f32") => ast::LitKind::Float(data, ast::FloatTy::F32),
-    Some("f64") => ast::LitKind::Float(data, ast::FloatTy::F64),
-    Some(suf) => {
-      if suf.len() >= 2 && looks_like_width_suffix(&['f'], suf) {
-        // if it looks like a width, lets try to be helpful.
-        sd.struct_span_err(sp, &format!("invalid width `{}` for float literal", &suf[1..]))
-        .help("valid widths are 32 and 64")
-        .emit();
-      } else {
-        sd.struct_span_err(sp, &format!("invalid suffix `{}` for float literal", suf))
-        .help("valid suffixes are `f32` and `f64`")
-        .emit();
-      }
+fn filtered_float_lit(data: Symbol, suffix: Option<Symbol>, sd: &Handler, sp: Span)
+                      -> ast::LitKind {
+    debug!("filtered_float_lit: {}, {:?}", data, suffix);
+    let suffix = match suffix {
+        Some(suffix) => suffix,
+        None => return ast::LitKind::FloatUnsuffixed(data),
+    };
 
-      ast::LitKind::FloatUnsuffixed(data)
+    match &*suffix.as_str() {
+        "f32" => ast::LitKind::Float(data, ast::FloatTy::F32),
+        "f64" => ast::LitKind::Float(data, ast::FloatTy::F64),
+        suf => {
+            if suf.len() >= 2 && looks_like_width_suffix(&['f'], suf) {
+                // if it looks like a width, lets try to be helpful.
+                sd.struct_span_err(sp, &format!("invalid width `{}` for float literal", &suf[1..]))
+                 .help("valid widths are 32 and 64")
+                 .emit();
+            } else {
+                sd.struct_span_err(sp, &format!("invalid suffix `{}` for float literal", suf))
+                  .help("valid suffixes are `f32` and `f64`")
+                  .emit();
+            }
+
+            ast::LitKind::FloatUnsuffixed(data)
+        }
     }
-    None => ast::LitKind::FloatUnsuffixed(data)
-  }
 }
 
-pub fn float_lit(s: &str, suffix: Option<InternedString>,
-  sd: &Handler, sp: Span) -> ast::LitKind {
-  debug!("float_lit: {:?}, {:?}", s, suffix);
-  // FIXME #2252: bounds checking float literals is deferred until trans
-  let s = s.chars().filter(|&c| c != '_').collect::<String>();
-  let data = token::intern_and_get_ident(&s);
-  filtered_float_lit(data, suffix.as_ref().map(|s| &**s), sd, sp)
+pub fn float_lit(s: &str, suffix: Option<Symbol>, sd: &Handler, sp: Span) -> ast::LitKind {
+    debug!("float_lit: {:?}, {:?}", s, suffix);
+    // FIXME #2252: bounds checking float literals is deferred until trans
+    let s = s.chars().filter(|&c| c != '_').collect::<String>();
+    filtered_float_lit(Symbol::intern(&s), suffix, sd, sp)
 }
 
 /// Parse a string representing a byte literal into its final form. Similar to `char_lit`
@@ -3396,102 +3476,97 @@ pub fn byte_str_lit(lit: &str) -> Rc<Vec<u8>> {
   Rc::new(res)
 }
 
-pub fn integer_lit(s: &str,
-                   suffix: Option<InternedString>,
-                   sd: &Handler,
-                   sp: Span)
-                   -> ast::LitKind {
-  // s can only be ascii, byte indexing is fine
+pub fn integer_lit(s: &str, suffix: Option<Symbol>, sd: &Handler, sp: Span) -> ast::LitKind {
+    // s can only be ascii, byte indexing is fine
 
-  let s2 = s.chars().filter(|&c| c != '_').collect::<String>();
-  let mut s = &s2[..];
+    let s2 = s.chars().filter(|&c| c != '_').collect::<String>();
+    let mut s = &s2[..];
 
-  debug!("integer_lit: {}, {:?}", s, suffix);
+    debug!("integer_lit: {}, {:?}", s, suffix);
 
-  let mut base = 10;
-  let orig = s;
-  let mut ty = ast::LitIntType::Unsuffixed;
+    let mut base = 10;
+    let orig = s;
+    let mut ty = ast::LitIntType::Unsuffixed;
 
-  if char_at(s, 0) == '0' && s.len() > 1 {
-    match char_at(s, 1) {
-      'x' => base = 16,
-      'o' => base = 8,
-      'b' => base = 2,
-      _ => { }
-    }
-  }
-
-  // 1f64 and 2f32 etc. are valid float literals.
-  if let Some(ref suf) = suffix {
-    if looks_like_width_suffix(&['f'], suf) {
-      match base {
-        16 => sd.span_err(sp, "hexadecimal float literal is not supported"),
-        8 => sd.span_err(sp, "octal float literal is not supported"),
-        2 => sd.span_err(sp, "binary float literal is not supported"),
-        _ => ()
-      }
-      let ident = token::intern_and_get_ident(&s);
-      return filtered_float_lit(ident, Some(&suf), sd, sp)
-    }
-  }
-
-  if base != 10 {
-    s = &s[2..];
-  }
-
-  if let Some(ref suf) = suffix {
-    if suf.is_empty() { sd.span_bug(sp, "found empty literal suffix in Some")}
-    ty = match &**suf {
-      "isize" => ast::LitIntType::Signed(ast::IntTy::Is),
-      "i8"  => ast::LitIntType::Signed(ast::IntTy::I8),
-      "i16" => ast::LitIntType::Signed(ast::IntTy::I16),
-      "i32" => ast::LitIntType::Signed(ast::IntTy::I32),
-      "i64" => ast::LitIntType::Signed(ast::IntTy::I64),
-      "usize" => ast::LitIntType::Unsigned(ast::UintTy::Us),
-      "u8"  => ast::LitIntType::Unsigned(ast::UintTy::U8),
-      "u16" => ast::LitIntType::Unsigned(ast::UintTy::U16),
-      "u32" => ast::LitIntType::Unsigned(ast::UintTy::U32),
-      "u64" => ast::LitIntType::Unsigned(ast::UintTy::U64),
-      _ => {
-        // i<digits> and u<digits> look like widths, so lets
-        // give an error message along those lines
-        if looks_like_width_suffix(&['i', 'u'], suf) {
-          sd.struct_span_err(sp, &format!("invalid width `{}` for integer literal",
-          &suf[1..]))
-          .help("valid widths are 8, 16, 32 and 64")
-          .emit();
-        } else {
-          sd.struct_span_err(sp, &format!("invalid suffix `{}` for numeric literal", suf))
-          .help("the suffix must be one of the integral types \
-                             (`u32`, `isize`, etc)")
-          .emit();
+    if char_at(s, 0) == '0' && s.len() > 1 {
+        match char_at(s, 1) {
+            'x' => base = 16,
+            'o' => base = 8,
+            'b' => base = 2,
+            _ => { }
         }
-
-        ty
-      }
     }
-  }
 
-  debug!("integer_lit: the type is {:?}, base {:?}, the new string is {:?}, the original \
+    // 1f64 and 2f32 etc. are valid float literals.
+    if let Some(suf) = suffix {
+        if looks_like_width_suffix(&['f'], &suf.as_str()) {
+            match base {
+                16 => sd.span_err(sp, "hexadecimal float literal is not supported"),
+                8 => sd.span_err(sp, "octal float literal is not supported"),
+                2 => sd.span_err(sp, "binary float literal is not supported"),
+                _ => ()
+            }
+            return filtered_float_lit(Symbol::intern(&s), Some(suf), sd, sp)
+        }
+    }
+
+    if base != 10 {
+        s = &s[2..];
+    }
+
+    if let Some(suf) = suffix {
+        if suf.as_str().is_empty() { sd.span_bug(sp, "found empty literal suffix in Some")}
+        ty = match &*suf.as_str() {
+            "isize" => ast::LitIntType::Signed(ast::IntTy::Is),
+            "i8"  => ast::LitIntType::Signed(ast::IntTy::I8),
+            "i16" => ast::LitIntType::Signed(ast::IntTy::I16),
+            "i32" => ast::LitIntType::Signed(ast::IntTy::I32),
+            "i64" => ast::LitIntType::Signed(ast::IntTy::I64),
+            "usize" => ast::LitIntType::Unsigned(ast::UintTy::Us),
+            "u8"  => ast::LitIntType::Unsigned(ast::UintTy::U8),
+            "u16" => ast::LitIntType::Unsigned(ast::UintTy::U16),
+            "u32" => ast::LitIntType::Unsigned(ast::UintTy::U32),
+            "u64" => ast::LitIntType::Unsigned(ast::UintTy::U64),
+            suf => {
+                // i<digits> and u<digits> look like widths, so lets
+                // give an error message along those lines
+                if looks_like_width_suffix(&['i', 'u'], suf) {
+                    sd.struct_span_err(sp, &format!("invalid width `{}` for integer literal",
+                                             &suf[1..]))
+                      .help("valid widths are 8, 16, 32 and 64")
+                      .emit();
+                } else {
+                    sd.struct_span_err(sp, &format!("invalid suffix `{}` for numeric literal", suf))
+                      .help("the suffix must be one of the integral types \
+                             (`u32`, `isize`, etc)")
+                      .emit();
+                }
+
+                ty
+            }
+        }
+    }
+
+    debug!("integer_lit: the type is {:?}, base {:?}, the new string is {:?}, the original \
            string was {:?}, the original suffix was {:?}", ty, base, s, orig, suffix);
 
-  match u64::from_str_radix(s, base) {
-    Ok(r) => ast::LitKind::Int(r, ty),
-    Err(_) => {
-      // small bases are lexed as if they were base 10, e.g, the string
-      // might be `0b10201`. This will cause the conversion above to fail,
-      // but these cases have errors in the lexer: we don't want to emit
-      // two errors, and we especially don't want to emit this error since
-      // it isn't necessarily true.
-      let already_errored = base < 10 &&
-      s.chars().any(|c| c.to_digit(10).map_or(false, |d| d >= base));
+    match u64::from_str_radix(s, base) {
+        Ok(r) => ast::LitKind::Int(r, ty),
+        Err(_) => {
+            // small bases are lexed as if they were base 10, e.g, the string
+            // might be `0b10201`. This will cause the conversion above to fail,
+            // but these cases have errors in the lexer: we don't want to emit
+            // two errors, and we especially don't want to emit this error since
+            // it isn't necessarily true.
+            let already_errored = base < 10 &&
+                s.chars().any(|c| c.to_digit(10).map_or(false, |d| d >= base));
 
-      if !already_errored {
-        sd.span_err(sp, "int literal is too large");
-      }
-      ast::LitKind::Int(0, ty)
+            if !already_errored {
+                sd.span_err(sp, "int literal is too large");
+            }
+            ast::LitKind::Int(0, ty)
+        }
     }
-  }
 }
 
 // a bunch of utility functions of the form parse_<thing>_from_<source>

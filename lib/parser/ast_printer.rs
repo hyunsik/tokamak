@@ -70,7 +70,8 @@ use errors;
 use parser;
 use precedence::AssocOp;
 use ptr::P;
-use token::{self, DelimToken, keywords, InternedString, BinOp};
+use token::{self, DelimToken, BinOp};
+use symbol::{keywords, Symbol};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Breaks {
@@ -1251,7 +1252,7 @@ impl<'a> State<'a> {
   pub fn print_view_path(&mut self, vp: &ast::ViewPath) -> io::Result<()> {
     match vp.node {
       ast::ViewPathSimple(ident, ref path) => {
-        self.print_path(path, false, 0)?;
+        self.print_path(path, false, 0, true)?;
 
         if path.segments.last().unwrap().identifier.name != ident.name {
           space(&mut self.s)?;
@@ -1262,14 +1263,14 @@ impl<'a> State<'a> {
         Ok(())
       }
       ast::ViewPathGlob(ref path) => {
-        self.print_path(path, false, 0)?;
+        self.print_path(path, false, 0, true)?;
         word(&mut self.s, "::*")
       }
       ast::ViewPathList(ref path, ref idents) => {
         if path.segments.is_empty() {
           word(&mut self.s, "{")?;
         } else {
-          self.print_path(path, false, 0)?;
+          self.print_path(path, false, 0, true)?;
           word(&mut self.s, "::{")?;
         }
         self.commasep(Inconsistent, &idents[..], |s, w| {
@@ -1300,26 +1301,30 @@ impl<'a> State<'a> {
   }
 
   fn print_path(&mut self,
-                path: &ast::Path,
-                colons_before_params: bool,
-                depth: usize)
-                -> io::Result<()>
-  {
-    self.maybe_print_comment(path.span.lo)?;
+                  path: &ast::Path,
+                  colons_before_params: bool,
+                  depth: usize,
+                  defaults_to_global: bool)
+                  -> io::Result<()>
+    {
+        try!(self.maybe_print_comment(path.span.lo));
 
-    let mut first = !path.global;
-    for segment in &path.segments[..path.segments.len() - depth] {
-      if first {
-        first = false
-      } else {
-        word(&mut self.s, "::")?
-      }
+        let mut segments = path.segments[..path.segments.len()-depth].iter();
+        if defaults_to_global && path.is_global() {
+            segments.next();
+        }
+        for (i, segment) in segments.enumerate() {
+            if i > 0 {
+                try!(word(&mut self.s, "::"))
+            }
+            if segment.identifier.name != keywords::PackageRoot.name() &&
+               segment.identifier.name != "$package" {
+                try!(self.print_ident(segment.identifier));
+            }
+        }
 
-      self.print_ident(segment.identifier)?;
+        Ok(())
     }
-
-    Ok(())
-  }
 
   fn print_qpath(&mut self,
                  path: &ast::Path,
@@ -1332,7 +1337,7 @@ impl<'a> State<'a> {
       space(&mut self.s)?;
       self.word_space("as")?;
       let depth = path.segments.len() - qself.position;
-      self.print_path(&path, false, depth)?;
+      self.print_path(&path, false, depth, false)?;
     }
     word(&mut self.s, ">")?;
     word(&mut self.s, "::")?;
@@ -1602,7 +1607,7 @@ impl<'a> State<'a> {
       }
 
       ast::TyKind::Path(ref path) => {
-        self.print_path(path, false, 0)?;
+        self.print_path(path, false, 0, false)?;
       }
 
       ast::TyKind::Tup(ref elts) => {
@@ -1654,7 +1659,7 @@ impl<'a> State<'a> {
       }
 
       PatKind::Path(ref path) => {
-        self.print_path(path, true, 0)?
+        self.print_path(path, true, 0, false)?
       },
 
       PatKind::QPath(ref qself, ref path) => {
@@ -1662,7 +1667,7 @@ impl<'a> State<'a> {
       },
 
       PatKind::Struct(ref path, ref fields, etc) => {
-        self.print_path(path, true, 0)?;
+        self.print_path(path, true, 0, false)?;
         self.nbsp()?;
         self.word_space("{")?;
         self.commasep_cmnt(
@@ -1707,7 +1712,7 @@ impl<'a> State<'a> {
       }
 
       PatKind::TupleStruct(ref path, ref elts, ddpos) => {
-        self.print_path(path, true, 0)?;
+        self.print_path(path, true, 0, false)?;
         self.popen()?;
         if let Some(ddpos) = ddpos {
           self.commasep(Inconsistent, &elts[..ddpos], |s, p| s.print_pat(&p))?;
@@ -1940,7 +1945,7 @@ impl<'a> State<'a> {
       }
 
       ast::ExprKind::Path(None, ref path) => {
-        self.print_path(path, true, 0)?;
+        self.print_path(path, true, 0, false)?;
       }
 
       ast::ExprKind::Path(Some(ref qself), ref path) => {
@@ -2241,7 +2246,7 @@ impl<'a> State<'a> {
                        fields: &[ast::Field],
                        wth: &Option<P<ast::Expr>>,
                        attrs: &[Attribute]) -> io::Result<()> {
-    self.print_path(path, true, 0)?;
+    self.print_path(path, true, 0, false)?;
     word(&mut self.s, "{")?;
     //self.print_inner_attributes_inline(attrs)?;
     self.commasep_cmnt(
@@ -2348,7 +2353,7 @@ impl<'a> State<'a> {
       _ => ()
     }
     match lit.node {
-      ast::LitKind::Str(ref st, style) => self.print_string(&st, style),
+      ast::LitKind::Str(ref st, style) => self.print_string(&st.as_str(), style),
       ast::LitKind::Byte(byte) => {
         let mut res = String::from("b'");
         res.extend(ascii::escape_default(byte).map(|c| c as char));
@@ -2382,7 +2387,7 @@ impl<'a> State<'a> {
                &f,
                t.ty_to_string()))
       }
-      ast::LitKind::FloatUnsuffixed(ref f) => word(self.writer(), &f[..]),
+      ast::LitKind::FloatUnsuffixed(ref f) => word(self.writer(), &f.as_str()),
       ast::LitKind::Bool(val) => {
         if val { word(self.writer(), "true") } else { word(self.writer(), "false") }
       }
@@ -2437,8 +2442,11 @@ impl<'a> State<'a> {
 
 pub fn visibility_qualified(vis: &ast::Visibility, s: &str) -> String {
   match *vis {
-    ast::Visibility::Public => format!("pub {}", s),
-    ast::Visibility::Inherited => s.to_string()
+      ast::Visibility::Public => format!("pub {}", s),
+      ast::Visibility::Crate(_) => format!("pub(crate) {}", s),
+      ast::Visibility::Restricted { ref path, .. } =>
+          format!("pub({}) {}", to_string(|s| s.print_path(path, false, 0, true)), s),
+      ast::Visibility::Inherited => s.to_string()
   }
 }
 
@@ -2453,13 +2461,7 @@ fn needs_parentheses(expr: &ast::Expr) -> bool {
 }
 
 pub fn path_to_string(p: &ast::Path) -> String {
-  let path_str = p.segments.iter().join("::");
-
-  if p.global {
-    format!("::{}", &path_str)
-  } else {
-    path_str
-  }
+  to_string(|s| s.print_path(p, false, 0, false))
 }
 
 fn repeat(s: &str, n: usize) -> String { iter::repeat(s).take(n).collect() }

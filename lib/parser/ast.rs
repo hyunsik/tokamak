@@ -1,139 +1,70 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::u32;
 
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 
 pub use self::ViewPath_::*;
 pub use self::Mutability::*;
+pub use symbol::Symbol as Name;
 
 use abi::Abi;
 use ast_printer as printer;
 use codemap::Spanned;
 use common::codespan::Span;
 use comments::{doc_comment_style, strip_doc_comment_decoration};
+use hygiene::SyntaxContext;
 use ptr::P;
-use token::{self, InternedString};
+use symbol::{Symbol, keywords};
 use util::ThinVec;
-
-pub type NodeId = u32;
-
-/// Node id used to represent the root of the package.
-pub const PKG_NODE_ID: NodeId = 0;
-
-/// When parsing and doing expansions, we initially give all AST nodes this AST
-/// node value. Then later, in the renumber pass, we renumber them to have
-/// small, positive ids.
-pub const DUMMY_NODE_ID: NodeId = !0;
-
-/// A name is a part of an identifier, representing a string or gensym. It's
-/// the result of interning.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Name(pub u32);
-
-impl Name {
-  pub fn as_str(self) -> token::InternedString {
-    token::InternedString::new_from_name(self)
-  }
-}
-
-impl fmt::Debug for Name {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}({})", self, self.0)
-  }
-}
-
-impl fmt::Display for Name {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    fmt::Display::fmt(&self.as_str(), f)
-  }
-}
-
-impl Encodable for Name {
-    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
-        s.emit_str(&self.as_str())
-    }
-}
-
-impl Decodable for Name {
-    fn decode<D: Decoder>(d: &mut D) -> Result<Name, D::Error> {
-        Ok(token::intern(&d.read_str()?))
-    }
-}
-
-/// A SyntaxContext represents a chain of macro-expandings
-/// and renamings. Each macro expansion corresponds to
-/// a fresh u32. This u32 is a reference to a table stored
-/// in thread-local storage.
-/// The special value EMPTY_CTXT is used to indicate an empty
-/// syntax context.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct SyntaxContext(pub u32);
 
 /// An identifier contains a Name (index into the interner
 /// table) and a SyntaxContext to track renaming and
 /// macro expansion per Flatt et al., "Macros That Work Together"
-#[derive(Clone, Copy, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Ident {
   pub name: Name,
   pub ctxt: SyntaxContext
 }
 
-pub const EMPTY_CTXT : SyntaxContext = SyntaxContext(0);
-
 impl Ident {
-  pub fn new(name: Name, ctxt: SyntaxContext) -> Ident {
-    Ident {name: name, ctxt: ctxt}
-  }
-  pub const fn with_empty_ctxt(name: Name) -> Ident {
-    Ident {name: name, ctxt: EMPTY_CTXT}
-  }
-}
-
-impl PartialEq for Ident {
-  fn eq(&self, other: &Ident) -> bool {
-    if self.ctxt != other.ctxt {
-      // There's no one true way to compare Idents. They can be compared
-      // non-hygienically `id1.name == id2.name`, hygienically
-      // `mtwt::resolve(id1) == mtwt::resolve(id2)`, or even member-wise
-      // `(id1.name, id1.ctxt) == (id2.name, id2.ctxt)` depending on the situation.
-      // Ideally, PartialEq should not be implemented for Ident at all, but that
-      // would be too impractical, because many larger structures (Token, in particular)
-      // including Idents as their parts derive PartialEq and use it for non-hygienic
-      // comparisons. That's why PartialEq is implemented and defaults to non-hygienic
-      // comparison. Hash is implemented too and is consistent with PartialEq, i.e. only
-      // the name of Ident is hashed. Still try to avoid comparing idents in your code
-      // (especially as keys in hash maps), use one of the three methods listed above
-      // explicitly.
-      //
-      // If you see this panic, then some idents from different contexts were compared
-      // non-hygienically. It's likely a bug. Use one of the three comparison methods
-      // listed above explicitly.
-
-      panic!("idents with different contexts are compared with operator `==`: \
-                {:?}, {:?}.", self, other);
+    pub const fn with_empty_ctxt(name: Name) -> Ident {
+        Ident { name: name, ctxt: SyntaxContext::empty() }
     }
 
-    self.name == other.name
-  }
-}
+    /// Maps a string to an identifier with an empty syntax context.
+    pub fn from_str(s: &str) -> Ident {
+        Ident::with_empty_ctxt(Symbol::intern(s))
+    }
 
-impl Hash for Ident {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.name.hash(state)
-  }
+    pub fn unhygienize(&self) -> Ident {
+        Ident { name: self.name, ctxt: SyntaxContext::empty() }
+    }
 }
 
 impl fmt::Debug for Ident {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}#{}", self.name, self.ctxt.0)
-  }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{:?}", self.name, self.ctxt)
+    }
 }
 
 impl fmt::Display for Ident {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    fmt::Display::fmt(&self.name, f)
-  }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.name, f)
+    }
+}
+
+impl Encodable for Ident {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        self.name.encode(s)
+    }
+}
+
+impl Decodable for Ident {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Ident, D::Error> {
+        Ok(Ident::with_empty_ctxt(Name::decode(d)?))
+    }
 }
 
 pub type ViewPath = Spanned<ViewPath_>;
@@ -193,15 +124,15 @@ impl PathListItemKind {
 
 pub type PathListItem = Spanned<PathListItemKind>;
 
-/// A "Path" is essentially Rust's notion of a name; for instance:
-/// std::cmp::PartialEq  .  It's represented as a sequence of identifiers,
+/// A "Path" is essentially Rust's notion of a name.
+///
+/// It's represented as a sequence of identifiers,
 /// along with a bunch of supporting information.
-#[derive(Clone, PartialEq, Eq, Hash)]
+///
+/// E.g. `std::cmp::PartialEq`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash)]
 pub struct Path {
   pub span: Span,
-  /// A `::foo` path, is relative to the crate root rather than current
-  /// module (like paths in an import).
-  pub global: bool,
   /// The segments in the path: the things separated by `::`.
   pub segments: Vec<PathSegment>,
 }
@@ -218,25 +149,88 @@ impl fmt::Display for Path {
   }
 }
 
-/// A segment of a path: an identifier, an optional lifetime, and a set of
-/// types.
-#[derive(Clone, PartialEq, Eq, Hash)]
+impl Path {
+    // convert a span and an identifier to the corresponding
+    // 1-segment path
+    pub fn from_ident(s: Span, identifier: Ident) -> Path {
+        Path {
+            span: s,
+            segments: vec![identifier.into()],
+        }
+    }
+
+    pub fn default_to_global(mut self) -> Path {
+        let name = self.segments[0].identifier.name;
+        if !self.is_global() && name != "$package" &&
+           name != keywords::SelfValue.name() && name != keywords::Super.name() {
+            self.segments.insert(0, PathSegment::package_root());
+        }
+        self
+    }
+
+    pub fn is_global(&self) -> bool {
+        !self.segments.is_empty() && self.segments[0].identifier.name == keywords::PackageRoot.name()
+    }
+}
+
+/// A segment of a path: an identifier, an optional lifetime, and a set of types.
+///
+/// E.g. `std`, `String` or `Box<T>`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct PathSegment {
   /// The identifier portion of this path segment.
   pub identifier: Ident
 }
 
-impl fmt::Debug for PathSegment {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "PathSegment({})", self.identifier.name)
-  }
+impl From<Ident> for PathSegment {
+    fn from(id: Ident) -> Self {
+        PathSegment { identifier: id }
+    }
 }
 
-impl fmt::Display for PathSegment {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "PathSegment({})", self.identifier.name)
-  }
+impl PathSegment {
+    pub fn package_root() -> Self {
+        PathSegment {
+            identifier: keywords::PackageRoot.ident(),
+        }
+    }
 }
+
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
+pub struct NodeId(u32);
+
+impl NodeId {
+    pub fn new(x: usize) -> NodeId {
+        assert!(x < (u32::MAX as usize));
+        NodeId(x as u32)
+    }
+
+    pub fn from_u32(x: u32) -> NodeId {
+        NodeId(x)
+    }
+
+    pub fn as_usize(&self) -> usize {
+        self.0 as usize
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
+}
+
+impl fmt::Display for NodeId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+/// Node id used to represent the root of the crate.
+pub const CRATE_NODE_ID: NodeId = NodeId(0);
+
+/// When parsing and doing expansions, we initially give all AST nodes this AST
+/// node value. Then later, in the renumber pass, we renumber them to have
+/// small, positive ids.
+pub const DUMMY_NODE_ID: NodeId = NodeId(!0);
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Package {
@@ -256,8 +250,10 @@ pub struct Module {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Visibility {
-  Public,
-  Inherited,
+    Public,
+    Crate(Span),
+    Restricted { path: P<Path>, id: NodeId },
+    Inherited,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1037,7 +1033,7 @@ pub enum LitIntType {
 #[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum LitKind {
   /// A string literal (`"foo"`)
-  Str(InternedString, StrStyle),
+  Str(Symbol, StrStyle),
   /// A byte string (`b"foo"`)
   ByteStr(Rc<Vec<u8>>),
   /// A byte char (`b'f'`)
@@ -1047,9 +1043,9 @@ pub enum LitKind {
   /// An integer literal (`1`)
   Int(u64, LitIntType),
   /// A float literal (`1f64` or `1E10f64`)
-  Float(InternedString, FloatTy),
+  Float(Symbol, FloatTy),
   /// A float literal without a suffix (`1.0 or 1.0E10`)
-  FloatUnsuffixed(InternedString),
+  FloatUnsuffixed(Symbol),
   /// A boolean literal
   Bool(bool),
 }
