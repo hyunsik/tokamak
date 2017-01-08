@@ -1369,7 +1369,6 @@ impl<'a> State<'a> {
                       Some(item.ident),
                       &item.vis)?;
         self.end()?; // end head-ibox
-        word(&mut self.s, ";")?;
         self.end() // end the outer fn box
       }
       ast::ForeignItemKind::Static(ref t, m) => {
@@ -1380,7 +1379,6 @@ impl<'a> State<'a> {
         self.print_ident(item.ident)?;
         self.word_space(":")?;
         self.print_type(&t)?;
-        word(&mut self.s, ";")?;
         self.end()?; // end the head-ibox
         self.end() // end the outer cbox
       }
