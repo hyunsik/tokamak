@@ -1338,10 +1338,12 @@ pub fn is_whitespace(c: Option<char>) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use ast;
-  use parser::ParseSess;
-  use token::{self, str_to_ident};
   use std::rc::Rc;
+
+  use ast::{self, Ident};
+  use parser::ParseSess;
+  use symbol::Symbol;
+  use token;
   use super::{Reader, StringReader};
 
   fn assert_tokens(source: &str, expected: &[token::Token]) {
@@ -1360,7 +1362,7 @@ mod tests {
   }
 
   fn ident(name: &str) -> token::Token {
-    token::Ident(str_to_ident(name))
+    token::Ident(Ident::from_str(name))
   }
 
   #[test]
@@ -1423,7 +1425,7 @@ mod tests {
   }
 
   fn intern(str: &str) -> ast::Name {
-    token::intern(str)
+    Symbol::intern(str)
   }
 
   #[test]
