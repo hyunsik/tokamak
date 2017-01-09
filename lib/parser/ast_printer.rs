@@ -1217,14 +1217,15 @@ impl<'a> State<'a> {
         self.print_expr(&expr)?;
         self.end()?; // end the outer cbox
       }
-      ast::ItemKind::Fn(ref decl, unsafety, constness, abi, ref body) => {
+      ast::ItemKind::Fn(ref decl, unsafety, constness, abi, ref typarams, ref body) => {
         self.head("")?;
         self.print_fn(
           decl,
           unsafety,
-          constness,
+          constness.node,
           abi,
           Some(item.ident),
+          typarams,
           &item.vis
         )?;
         word(&mut self.s, " ")?;
@@ -1360,14 +1361,15 @@ impl<'a> State<'a> {
     self.maybe_print_comment(item.span.lo)?;
     //self.print_outer_attributes(&item.attrs)?;
     match item.node {
-      ast::ForeignItemKind::Fn(ref decl) => {
+      ast::ForeignItemKind::Fn(ref decl, ref generics) => {
         self.head("")?;
-        self.print_fn(decl,
-                      ast::Unsafety::Normal,
-                      ast::Constness::NotConst,
-                      Abi::Rust,
-                      Some(item.ident),
-                      &item.vis)?;
+        try!(self.print_fn(decl,
+                           ast::Unsafety::Normal,
+                           ast::Constness::NotConst,
+                           Abi::Rust,
+                           Some(item.ident),
+                           generics,
+                           &item.vis));
         self.end()?; // end head-ibox
         self.end() // end the outer fn box
       }
@@ -1391,6 +1393,7 @@ impl<'a> State<'a> {
                   constness: ast::Constness,
                   abi: Abi,
                   name: Option<ast::Ident>,
+                  generics: &ast::Generics,
                   vis: &ast::Visibility) -> io::Result<()> {
 
     self.print_fn_header_info(unsafety, constness, abi, vis)?;
@@ -1399,9 +1402,47 @@ impl<'a> State<'a> {
       self.nbsp()?;
       self.print_ident(name)?;
     }
-
+    self.print_generics(generics)?;
     self.print_fn_args_and_ret(decl)
   }
+
+  pub fn print_generics(&mut self,
+                          generics: &ast::Generics)
+                          -> io::Result<()> {
+      let total = generics.ty_params.len();
+      if total == 0 {
+            return Ok(());
+      }
+
+      try!(word(&mut self.s, "<"));
+      let mut ints = Vec::new();
+      for i in 0..total {
+          ints.push(i);
+      }
+
+      self.commasep(Inconsistent, &ints[..], |s, &idx| {
+                let param = &generics.ty_params[idx];
+                s.print_ty_param(param)
+
+      })?;
+
+      word(&mut self.s, ">")?;
+      Ok(())
+  }
+
+  pub fn print_ty_param(&mut self, param: &ast::TyParam) -> io::Result<()> {
+      //try!(self.print_outer_attributes_inline(&param.attrs));
+      try!(self.print_ident(param.ident));
+      match param.default {
+          Some(ref default) => {
+              try!(space(&mut self.s));
+              try!(self.word_space("="));
+              self.print_type(&default)
+          }
+          _ => Ok(())
+      }
+  }
+
 
   pub fn print_fn_header_info(&mut self,
                               unsafety: ast::Unsafety,
@@ -2129,10 +2170,9 @@ impl<'a> State<'a> {
     self.end() // close enclosing cbox
   }
 
-  pub fn print_fn_block_args(
-    &mut self,
-    decl: &ast::FnDecl)
-    -> io::Result<()> {
+  pub fn print_fn_block_args(&mut self,
+                             decl: &ast::FnDecl)
+                             -> io::Result<()> {
     try!(word(&mut self.s, "|"));
     try!(self.commasep(Inconsistent, &decl.inputs, |s, arg| s.print_arg(arg, true)));
     try!(word(&mut self.s, "|"));
@@ -2458,15 +2498,7 @@ fn needs_parentheses(expr: &ast::Expr) -> bool {
   }
 }
 
-pub fn path_to_string(p: &ast::Path) -> String {
-  to_string(|s| s.print_path(p, false, 0, false))
-}
-
 fn repeat(s: &str, n: usize) -> String { iter::repeat(s).take(n).collect() }
-
-pub fn stmt_to_string(stmt: &ast::Stmt) -> String {
-  to_string(|s| s.print_stmt(stmt))
-}
 
 pub fn to_string<F>(f: F) -> String where
   F: FnOnce(&mut State) -> io::Result<()>,
@@ -2478,4 +2510,16 @@ pub fn to_string<F>(f: F) -> String where
     eof(&mut printer.s).unwrap();
   }
   String::from_utf8(wr).unwrap()
+}
+
+pub fn path_to_string(p: &ast::Path) -> String {
+  to_string(|s| s.print_path(p, false, 0, false))
+}
+
+pub fn ty_to_string(ty: &ast::Ty) -> String {
+    to_string(|s| s.print_type(ty))
+}
+
+pub fn stmt_to_string(stmt: &ast::Stmt) -> String {
+  to_string(|s| s.print_stmt(stmt))
 }

@@ -12,7 +12,7 @@ pub use symbol::Symbol as Name;
 use abi::Abi;
 use ast_printer as printer;
 use codemap::Spanned;
-use common::codespan::Span;
+use common::codespan::{DUMMY_SPAN, Span};
 use comments::{doc_comment_style, strip_doc_comment_decoration};
 use hygiene::SyntaxContext;
 use ptr::P;
@@ -196,7 +196,8 @@ impl PathSegment {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Debug,
+         RustcEncodable, RustcDecodable)]
 pub struct NodeId(u32);
 
 impl NodeId {
@@ -225,12 +226,50 @@ impl fmt::Display for NodeId {
 }
 
 /// Node id used to represent the root of the crate.
-pub const CRATE_NODE_ID: NodeId = NodeId(0);
+pub const PACKAGE_NODE_ID: NodeId = NodeId(0);
 
 /// When parsing and doing expansions, we initially give all AST nodes this AST
 /// node value. Then later, in the renumber pass, we renumber them to have
 /// small, positive ids.
 pub const DUMMY_NODE_ID: NodeId = NodeId(!0);
+
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub struct TyParam {
+    pub attrs: ThinVec<Attribute>,
+    pub ident: Ident,
+    pub id: NodeId,
+    pub default: Option<P<Ty>>,
+    pub span: Span,
+}
+
+/// Represents lifetimes and type parameters attached to a declaration
+/// of a function, enum, trait, etc.
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub struct Generics {
+    pub ty_params: P<[TyParam]>,
+    pub span: Span,
+}
+
+impl Generics {
+    pub fn span_for_name(&self, name: &str) -> Option<Span> {
+        for t in &self.ty_params {
+            if t.ident.name == name {
+                return Some(t.span);
+            }
+        }
+        None
+    }
+}
+
+impl Default for Generics {
+    /// Creates an instance of `Generics`.
+    fn default() ->  Generics {
+        Generics {
+            ty_params: P::new(),
+            span: DUMMY_SPAN,
+        }
+    }
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Package {
@@ -283,7 +322,7 @@ pub enum ItemKind {
   /// A `const` item
   Const(P<Ty>, P<Expr>),
   /// A function declaration
-  Fn(P<FnDecl>, Unsafety, Constness, Abi, P<Block>),
+  Fn(P<FnDecl>, Unsafety, Spanned<Constness>, Abi, Generics, P<Block>),
   /// A type alias, e.g. `type Foo = Bar`
   Ty(P<Ty>),
   Enum,
@@ -310,10 +349,19 @@ pub struct ForeignItem {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForeignItemKind {
   /// A foreign function
-  Fn(P<FnDecl>),
+    Fn(P<FnDecl>, Generics),
   /// A foreign static item (`static ext: u8`), with optional mutability
   /// (the boolean is true when mutable)
   Static(P<Ty>, bool),
+}
+
+impl ForeignItemKind {
+    pub fn descriptive_variant(&self) -> &str {
+        match *self {
+            ForeignItemKind::Fn(..) => "foreign function",
+            ForeignItemKind::Static(..) => "foreign static item"
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -337,15 +385,21 @@ pub enum Constness {
   NotConst,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash)]
 pub struct Ty {
   pub id: NodeId,
   pub node: TyKind,
   pub span: Span,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+impl fmt::Debug for Ty {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "type({})", printer::ty_to_string(self))
+    }
+}
+
 /// The different kinds of types recognized by the compiler
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum TyKind {
   Vec(P<Ty>),
   /// A path (`module::module::...::Type`), optionally

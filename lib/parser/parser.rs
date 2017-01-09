@@ -12,13 +12,13 @@ use ast::{self, Attribute, Module, Item, Package, Constness, Unsafety, Visibilit
 use ast::{UnOp, BinOpKind, CaptureBy, Expr, ExprKind, Lit, LitKind, Ident, RangeLimits};
 use ast::{ItemKind, ForeignItem, ForeignItemKind};
 use ast::{ViewPath, ViewPathList, ViewPathGlob, ViewPathSimple};
-use ast::{Ty, TyKind};
+use ast::{Ty, TyKind, TyParam};
 use ast::{Block, BlockCheckMode, Stmt, StmtKind, Local, Mutability, UnsafeSource};
 use ast::{Arm, BindingMode, Field, Pat, PatKind};
 use ast::{Arg, FnDecl, FunctionRetTy};
 use ast::Mutability::*;
-use codemap::{self, CodeMap, Spanned, spanned};
-use common::codespan::{self, BytePos, FileMap, mk_span, Span};
+use codemap::{self, CodeMap, Spanned, respan, spanned};
+use common::codespan::{self, BytePos, FileMap, DUMMY_SPAN, mk_span, Span};
 use errors::{DiagnosticBuilder, Handler};
 use errors::emitter::ColorConfig;
 use lexer::{char_at, Reader, StringReader, TokenAndSpan};
@@ -146,34 +146,51 @@ fn maybe_append(mut lhs: Vec<Attribute>, rhs: Option<Vec<Attribute>>) -> Vec<Att
   lhs
 }
 
+#[derive(PartialEq)]
+enum PrevTokenKind {
+    DocComment,
+    Comma,
+    Eof,
+    Other,
+}
+
+// Simple circular buffer used for keeping few next tokens.
+#[derive(Default)]
+struct LookaheadBuffer {
+    buffer: [TokenAndSpan; LOOKAHEAD_BUFFER_CAPACITY],
+    start: usize,
+    end: usize,
+}
+
+const LOOKAHEAD_BUFFER_CAPACITY: usize = 8;
+
+impl LookaheadBuffer {
+    fn len(&self) -> usize {
+        (LOOKAHEAD_BUFFER_CAPACITY + self.end - self.start) % LOOKAHEAD_BUFFER_CAPACITY
+    }
+}
+
 pub struct Parser<'a> {
-  pub sess: &'a ParseSess,
-  pub reader: Box<Reader + 'a>,
-
-  /// the current token
-  pub token: token::Token,
-  /// the span of the current token
-  pub span: Span,
-  /// the previous token or None (only stashed sometimes).
-  pub last_token: Option<Box<token::Token>>,
-  last_token_eof: bool,
-  /// the span of the prior token
-  pub last_span: Span,
-  parsing_token_tree: bool,
-
-  pub expected_tokens: Vec<TokenType>,
-  pub restrictions: Restrictions,
-  /// Stack of open delimiters and their spans. Used for error message.
-  pub open_braces: Vec<(token::DelimToken, Span)>,
-  pub quote_depth: usize, // not (yet) related to the quasiquoter
-
-  // token buffer
-  pub buffer: [TokenAndSpan; 4],
-  pub buffer_start: isize,
-  pub buffer_end: isize,
-
-  /// stats
-  pub tokens_consumed: usize,
+    pub sess: &'a ParseSess,
+    /// the current token
+    pub token: token::Token,
+    /// the span of the current token
+    pub span: Span,
+    /// the span of the prior token
+    pub last_span: Span,
+    /// the previous token kind
+    prev_token_kind: PrevTokenKind,
+    lookahead_buffer: LookaheadBuffer,
+    /// stats
+    pub tokens_consumed: usize,
+    pub restrictions: Restrictions,
+    pub quote_depth: usize, // not (yet) related to the quasiquoter
+    parsing_token_tree: bool,
+    pub reader: Box<Reader + 'a>,
+    /// Stack of open delimiters and their spans. Used for error message.
+    pub open_braces: Vec<(token::DelimToken, Span)>,
+    pub expected_tokens: Vec<TokenType>,
+    pub tts: Vec<(TokenTree, usize)>,
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -196,38 +213,50 @@ impl TokenType {
 pub type PResult<'a, T> = Result<T, DiagnosticBuilder<'a>>;
 
 impl<'a> Parser<'a> {
-  pub fn new(sess: &'a ParseSess, mut r: Box<Reader + 'a>) -> Parser<'a> {
-    let tok0 = r.real_token();
-    let span = tok0.sp;
-    let placeholder = TokenAndSpan {
-      tok: Token::Underscore,
-      sp: span
-    };
+  pub fn new(sess: &'a ParseSess, mut r: Box<Reader + 'a>) -> Self {
+      let mut parser = Parser {
+          reader: r,
+          sess: sess,
+          token: token::Underscore,
+          span: DUMMY_SPAN,
+          last_span: DUMMY_SPAN,
+          prev_token_kind: PrevTokenKind::Other,
+          lookahead_buffer: Default::default(),
+          tokens_consumed: 0,
+          restrictions: Restrictions::empty(),
+          quote_depth: 0,
+          parsing_token_tree: false,
+          open_braces: Vec::new(),
+          expected_tokens: Vec::new(),
+          tts: Vec::new(),
+      };
 
-    Parser {
-      sess: sess,
-      reader: r,
-      token: tok0.tok,
-      span: span,
-      last_token: None,
-      last_token_eof: false,
-      last_span: span,
-      parsing_token_tree: false,
-      buffer: [
-        placeholder.clone(),
-        placeholder.clone(),
-        placeholder.clone(),
-        placeholder.clone(),
-      ],
-      expected_tokens: Vec::new(),
-      restrictions: Restrictions::empty(),
-      open_braces: Vec::new(),
-      quote_depth: 0,
+      let tok = parser.next_tok();
+      parser.token = tok.tok;
+      parser.span = tok.sp;
 
-      buffer_start: 0,
-      buffer_end: 0,
-      tokens_consumed: 0
-    }
+      parser
+  }
+
+  fn next_tok(&mut self) -> TokenAndSpan {
+      loop {
+          let mut tok = if let Some((tts, i)) = self.tts.pop() {
+              let tt = tts.get_tt(i);
+              if i + 1 < tts.len() {
+                  self.tts.push((tts, i + 1));
+              }
+              if let TokenTree::Token(sp, tok) = tt {
+                  TokenAndSpan { tok: tok, sp: sp }
+              } else {
+                  self.tts.push((tt, 0));
+                  continue
+              }
+          } else {
+              self.reader.real_token()
+          };
+
+          return tok;
+      }
   }
 
   //-------------------------------------------------------------------------
@@ -416,27 +445,6 @@ impl<'a> Parser<'a> {
     }
   }
 
-  /// Commit to parsing a complete statement `s`, which expects to be
-  /// followed by some token from the set edible + inedible.  Check
-  /// for recoverable input errors, discarding erroneous characters.
-  pub fn commit_stmt(&mut self, edible: &[token::Token],
-                     inedible: &[token::Token]) -> PResult<'a, ()> {
-    if self.last_token
-    .as_ref()
-    .map_or(false, |t| t.is_ident() || t.is_path()) {
-      let expected = edible.iter()
-      .cloned()
-      .chain(inedible.iter().cloned())
-      .collect::<Vec<_>>();
-      self.check_for_erroneous_unit_struct_expecting(&expected);
-    }
-    self.expect_one_of(edible, inedible)
-  }
-
-  pub fn commit_stmt_expecting(&mut self, edible: token::Token) -> PResult<'a, ()> {
-    self.commit_stmt(&[edible], &[])
-  }
-
   /// Commit to parsing a complete expression `e` expected to be
   /// followed by some token from the set edible + inedible.  Recover
   /// from anticipated input errors, discarding erroneous characters.
@@ -484,44 +492,34 @@ impl<'a> Parser<'a> {
 
   /// Advance the parser by one token
   pub fn bump(&mut self) {
-    debug!("called bump - token: {}", &token::token_to_string(&self.token));
-    if self.last_token_eof {
-      // Bumping after EOF is a bad sign, usually an infinite loop.
-      self.bug("attempted to bump the parser past EOF (may be stuck in a loop)");
-    }
+      if self.prev_token_kind == PrevTokenKind::Eof {
+          // Bumping after EOF is a bad sign, usually an infinite loop.
+          self.bug("attempted to bump the parser past EOF (may be stuck in a loop)");
+      }
 
-    if self.token == token::Eof {
-      self.last_token_eof = true;
-    }
+      self.last_span = self.span;
 
-    self.last_span = self.span;
-    // Stash token for error recovery (sometimes; clone is not necessarily cheap).
-    self.last_token = if self.token.is_ident() ||
-                         self.token.is_path() ||
-                         self.token == token::Comma {
-      Some(Box::new(self.token.clone()))
-    } else {
-      None
-    };
-
-    let next = if self.buffer_start == self.buffer_end {
-      self.reader.real_token()
-    } else {
-      // Avoid token copies with `replace`.
-      let buffer_start = self.buffer_start as usize;
-      let next_index = (buffer_start + 1) & 3;
-      self.buffer_start = next_index as isize;
-
-      let placeholder = TokenAndSpan {
-        tok: token::Underscore,
-        sp: self.span,
+      // Record last token kind for possible error recovery.
+      self.prev_token_kind = match self.token {
+          token::DocComment(..) => PrevTokenKind::DocComment,
+          token::Comma => PrevTokenKind::Comma,
+          token::Eof => PrevTokenKind::Eof,
+          _ => PrevTokenKind::Other,
       };
-      mem::replace(&mut self.buffer[buffer_start], placeholder)
-    };
-    self.span = next.sp;
-    self.token = next.tok;
-    self.tokens_consumed += 1;
-    self.expected_tokens.clear();
+
+      let next = if self.lookahead_buffer.start == self.lookahead_buffer.end {
+          self.next_tok()
+      } else {
+          // Avoid token copies with `replace`.
+          let old_start = self.lookahead_buffer.start;
+          self.lookahead_buffer.start = (old_start + 1) % LOOKAHEAD_BUFFER_CAPACITY;
+          mem::replace(&mut self.lookahead_buffer.buffer[old_start], Default::default())
+      };
+
+      self.span = next.sp;
+      self.token = next.tok;
+      self.tokens_consumed += 1;
+      self.expected_tokens.clear();
   }
 
   /// Advance the parser by one token and return the bumped token.
@@ -531,23 +529,37 @@ impl<'a> Parser<'a> {
     old_token
   }
 
-  pub fn buffer_length(&mut self) -> isize {
-    if self.buffer_start <= self.buffer_end {
-      return self.buffer_end - self.buffer_start;
-    }
-    return (4 - self.buffer_start) + self.buffer_end;
+  /// Advance the parser using provided token as a next one. Use this when
+  /// consuming a part of a token. For example a single `<` from `<<`.
+  pub fn bump_with(&mut self,
+                   next: token::Token,
+                   lo: BytePos,
+                   hi: BytePos) {
+      unimplemented!()
   }
 
-  pub fn look_ahead<R, F>(&mut self, distance: usize, f: F) -> R where
-  F: FnOnce(&token::Token) -> R,
+  pub fn look_ahead<R, F>(&mut self, dist: usize, f: F) -> R where
+        F: FnOnce(&token::Token) -> R,
   {
-    let dist = distance as isize;
-    while self.buffer_length() < dist {
-      self.buffer[self.buffer_end as usize] = self.reader.real_token();
-      self.buffer_end = (self.buffer_end + 1) & 3;
-    }
-    f(&self.buffer[((self.buffer_start + dist - 1) & 3) as usize].tok)
+      if dist == 0 {
+          f(&self.token)
+      } else if dist < LOOKAHEAD_BUFFER_CAPACITY {
+          while self.lookahead_buffer.len() < dist {
+              self.lookahead_buffer.buffer[self.lookahead_buffer.end] = self.next_tok();
+              self.lookahead_buffer.end =
+                  (self.lookahead_buffer.end + 1) % LOOKAHEAD_BUFFER_CAPACITY;
+          }
+          let index = (self.lookahead_buffer.start + dist - 1) % LOOKAHEAD_BUFFER_CAPACITY;
+          f(&self.lookahead_buffer.buffer[index].tok)
+      } else {
+          self.bug("lookahead distance is too large");
+      }
   }
+
+  /// Convert a token to a string using self's reader
+    pub fn token_to_string(token: &token::Token) -> String {
+        token::token_to_string(token)
+    }
 
   /// Convert the current token to a string using self's reader
   pub fn this_token_to_string(&self) -> String {
@@ -667,6 +679,115 @@ impl<'a> Parser<'a> {
     self.parse_seq_to_before_tokens(&[ket], sep, f, |mut e| e.emit())
   }
 
+  /// Expect and consume a GT. if a >> is seen, replace it
+  /// with a single > and continue. If a GT is not seen,
+  /// signal an error.
+  pub fn expect_gt(&mut self) -> PResult<'a, ()> {
+      self.expected_tokens.push(TokenType::Token(token::Gt));
+      match self.token {
+          token::Gt => {
+            self.bump();
+            Ok(())
+          }
+          token::BinOp(token::RShift) => {
+            let span = self.span;
+            let lo = span.lo + BytePos(1);
+            Ok(self.bump_with(token::Gt, lo, span.hi))
+          }
+          token::BinOpEq(token::RShift) => {
+            let span = self.span;
+            let lo = span.lo + BytePos(1);
+            Ok(self.bump_with(token::Ge, lo, span.hi))
+          }
+          token::Ge => {
+            let span = self.span;
+            let lo = span.lo + BytePos(1);
+            Ok(self.bump_with(token::Eq, lo, span.hi))
+          }
+          _ => {
+            let gt_str = Parser::token_to_string(&token::Gt);
+            let this_token_str = self.this_token_to_string();
+            Err(self.fatal(&format!("expected `{}`, found `{}`",
+                          gt_str,
+                          this_token_str)))
+          }
+      }
+  }
+
+  pub fn parse_seq_to_before_gt_or_return<T, F>(&mut self,
+                                                  sep: Option<token::Token>,
+                                                  mut f: F)
+                                                  -> PResult<'a, (P<[T]>, bool)>
+        where F: FnMut(&mut Parser<'a>) -> PResult<'a, Option<T>>,
+    {
+        let mut v = Vec::new();
+        // This loop works by alternating back and forth between parsing types
+        // and commas.  For example, given a string `A, B,>`, the parser would
+        // first parse `A`, then a comma, then `B`, then a comma. After that it
+        // would encounter a `>` and stop. This lets the parser handle trailing
+        // commas in generic parameters, because it can stop either after
+        // parsing a type or after parsing a comma.
+        for i in 0.. {
+            if self.check(&token::Gt)
+                || self.token == token::BinOp(token::RShift)
+                || self.token == token::Ge
+                || self.token == token::BinOpEq(token::RShift) {
+                break;
+            }
+
+            if i % 2 == 0 {
+                match f(self)? {
+                    Some(result) => v.push(result),
+                    None => return Ok((P::from_vec(v), true))
+                }
+            } else {
+                if let Some(t) = sep.as_ref() {
+                    self.expect(t)?;
+                }
+
+            }
+        }
+        return Ok((P::from_vec(v), false));
+    }
+
+  /// Parse a sequence bracketed by '<' and '>', stopping
+    /// before the '>'.
+    pub fn parse_seq_to_before_gt<T, F>(&mut self,
+                                        sep: Option<token::Token>,
+                                        mut f: F)
+                                        -> PResult<'a, P<[T]>> where
+        F: FnMut(&mut Parser<'a>) -> PResult<'a, T>,
+    {
+        let (result, returned) = self.parse_seq_to_before_gt_or_return(sep,
+                                                                       |p| Ok(Some(f(p)?)))?;
+        assert!(!returned);
+        return Ok(result);
+    }
+
+    pub fn parse_seq_to_gt<T, F>(&mut self,
+                                 sep: Option<token::Token>,
+                                 f: F)
+                                 -> PResult<'a, P<[T]>> where
+        F: FnMut(&mut Parser<'a>) -> PResult<'a, T>,
+    {
+        let v = self.parse_seq_to_before_gt(sep, f)?;
+        self.expect_gt()?;
+        return Ok(v);
+    }
+
+    pub fn parse_seq_to_gt_or_return<T, F>(&mut self,
+                                           sep: Option<token::Token>,
+                                           f: F)
+                                           -> PResult<'a, (P<[T]>, bool)> where
+        F: FnMut(&mut Parser<'a>) -> PResult<'a, Option<T>>,
+    {
+        let (v, returned) = self.parse_seq_to_before_gt_or_return(sep, f)?;
+        if !returned {
+            self.expect_gt()?;
+        }
+        return Ok((v, returned));
+    }
+
   /// Parse a sequence, including the closing delimiter. The function
   /// f must consume tokens until reaching the next separator or
   /// closing bracket.
@@ -755,10 +876,13 @@ impl<'a> Parser<'a> {
       let opt_abi = self.parse_opt_abi()?;
 
       if self.eat_keyword(keywords::Fn) {
+        let fn_span = self.last_span;
         // EXTERN FUNCTION ITEM
         let abi = opt_abi.unwrap_or(Abi::C);
         let (ident, item_, extra_attrs) =
-        self.parse_item_fn(Unsafety::Normal, Constness::NotConst, abi)?;
+        self.parse_item_fn(Unsafety::Normal,
+                           respan(fn_span, Constness::NotConst),
+                           abi)?;
         let last_span = self.last_span;
         let item = self.mk_item(lo,
                                 last_span.hi,
@@ -793,6 +917,7 @@ impl<'a> Parser<'a> {
     }
 
     if self.eat_keyword(keywords::Const) {
+      let const_span = self.last_span;
       if self.check_keyword(keywords::Fn)
           || (self.check_keyword(keywords::Unsafe) &&
               self.look_ahead(1, |t| t.is_keyword(keywords::Fn))) {
@@ -806,7 +931,9 @@ impl<'a> Parser<'a> {
 
         self.bump();
         let (ident, item_, extra_attrs) =
-        self.parse_item_fn(unsafety, Constness::Const, Abi::Rust)?;
+        self.parse_item_fn(unsafety,
+                           respan(const_span, Constness::Const),
+                           Abi::Rust)?;
         let last_span = self.last_span;
         let item = self.mk_item(lo,
                                 last_span.hi,
@@ -859,8 +986,11 @@ impl<'a> Parser<'a> {
     if self.check_keyword(keywords::Fn) {
       // FUNCTION ITEM
       self.bump();
+      let fn_span = self.last_span;
       let (ident, item_, extra_attrs) =
-        self.parse_item_fn(Unsafety::Normal, Constness::NotConst, Abi::Rust)?;
+        self.parse_item_fn(Unsafety::Normal,
+                           respan(fn_span, Constness::NotConst),
+                           Abi::Rust)?;
       let last_span = self.last_span;
       let item = self.mk_item(lo,
                               last_span.hi,
@@ -1013,15 +1143,14 @@ impl<'a> Parser<'a> {
                            attrs: Vec<Attribute>) -> PResult<'a, ForeignItem> {
     self.expect_keyword(keywords::Fn)?;
 
-    let ident = self.parse_fn_header()?;
+    let (ident, generics) = self.parse_fn_header()?;
     let decl = self.parse_fn_decl(true)?;
     let hi = self.span.hi;
-//    self.expect(&token::SemiColon)?;
 
     Ok(ast::ForeignItem {
       ident: ident,
       attrs: attrs,
-      node: ForeignItemKind::Fn(decl),
+      node: ForeignItemKind::Fn(decl, generics),
       id: ast::DUMMY_NODE_ID,
       span: mk_span(lo, hi),
       vis: vis
@@ -1103,19 +1232,20 @@ impl<'a> Parser<'a> {
   /// Parse an item-position function declaration.
   fn parse_item_fn(&mut self,
                    unsafety: Unsafety,
-                   constness: Constness,
+                   constness: Spanned<Constness>,
                    abi: abi::Abi)
                    -> PResult<'a, ItemInfo> {
-    let ident = self.parse_fn_header()?;
+    let (ident, generics) = self.parse_fn_header()?;
     let decl = self.parse_fn_decl(false)?;
     let (inner_attrs, body) = self.parse_inner_attrs_and_block()?;
-    Ok((ident, ItemKind::Fn(decl, unsafety, constness, abi, body), Some(inner_attrs)))
+    Ok((ident, ItemKind::Fn(decl, unsafety, constness, abi, generics, body), Some(inner_attrs)))
   }
 
   /// Parse the name and optional generic types of a function header.
-  fn parse_fn_header(&mut self) -> PResult<'a, Ident> {
+  fn parse_fn_header(&mut self) -> PResult<'a, (Ident, ast::Generics)> {
     let id = self.parse_ident()?;
-    Ok(id)
+    let generics = self.parse_generics()?;
+    Ok((id, generics))
   }
 
   /// Parse the argument list and result type of a function declaration
@@ -1463,6 +1593,58 @@ impl<'a> Parser<'a> {
           self.bump()
         }
       }
+    }
+  }
+
+  /// Matches typaram = IDENT (`?` unbound)? optbounds ( EQ ty )?
+  fn parse_ty_param(&mut self, preceding_attrs: Vec<ast::Attribute>) -> PResult<'a, TyParam> {
+    let span = self.span;
+    let ident = self.parse_ident()?;
+
+    let default = if self.check(&token::Eq) {
+      self.bump();
+      Some(self.parse_ty()?)
+    } else {
+      None
+    };
+
+    Ok(TyParam {
+      attrs: preceding_attrs.into(),
+      ident: ident,
+      id: ast::DUMMY_NODE_ID,
+      default: default,
+      span: span,
+    })
+  }
+
+  /// Parse a set of optional generic type parameter declarations.
+  ///
+  /// matches generics = ( ) | ( < > ) | ( < typaramseq ( , )? > )
+  pub fn parse_generics(&mut self) -> PResult<'a, ast::Generics> {
+    let span_lo = self.span.lo;
+
+    if self.eat(&token::Lt) {
+      let mut seen_default = false;
+      let ty_params = self.parse_seq_to_gt(Some(token::Comma), |p| {
+        let attrs = vec![];
+        let ty_param = p.parse_ty_param(attrs)?;
+        if ty_param.default.is_some() {
+          seen_default = true;
+        } else if seen_default {
+          let prev_span = p.last_span;
+          p.span_err(prev_span,
+            "type parameters with a default must be trailing");
+        }
+
+        Ok(ty_param)
+      })?;
+
+      Ok(ast::Generics {
+        ty_params: ty_params,
+        span: mk_span(span_lo, self.last_span.hi),
+      })
+    } else {
+      Ok(ast::Generics::default())
     }
   }
 

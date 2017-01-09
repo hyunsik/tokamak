@@ -50,10 +50,10 @@ pub trait Visitor<'ast>: Sized {
         // Nothing to do.
     }
     fn visit_ident(&mut self, span: Span, ident: Ident) {
-        unimplemented!()
+        walk_ident(self, span, ident);
     }
     fn visit_mod(&mut self, m: &'ast Module, _s: Span, _n: NodeId) {
-        unimplemented!()
+        walk_mod(self, m)
     }
     fn visit_foreign_item(&mut self, i: &'ast ForeignItem) {
         unimplemented!()
@@ -84,6 +84,9 @@ pub trait Visitor<'ast>: Sized {
     fn visit_ty(&mut self, t: &'ast Ty) {
         unimplemented!()
     }
+    fn visit_generics(&mut self, g: &'ast Generics) {
+        unimplemented!()
+    }
     fn visit_fn(&mut self, fk: FnKind<'ast>, fd: &'ast FnDecl, s: Span, _: NodeId) {
         unimplemented!()
     }
@@ -103,4 +106,58 @@ pub trait Visitor<'ast>: Sized {
     fn visit_fn_ret_ty(&mut self, ret_ty: &'ast FunctionRetTy) {
         unimplemented!()
     }
+}
+
+#[macro_export]
+macro_rules! walk_list {
+    ($visitor: expr, $method: ident, $list: expr) => {
+        for elem in $list {
+            $visitor.$method(elem)
+        }
+    };
+    ($visitor: expr, $method: ident, $list: expr, $($extra_args: expr),*) => {
+        for elem in $list {
+            $visitor.$method(elem, $($extra_args,)*)
+        }
+    }
+}
+
+pub fn walk_package<'a, V: Visitor<'a>>(visitor: &mut V, pkg: &'a Package) {
+    visitor.visit_mod(&pkg.module, pkg.span, PACKAGE_NODE_ID);
+    walk_list!(visitor, visit_attribute, &pkg.attrs);
+}
+
+pub fn walk_mod<'a, V: Visitor<'a>>(visitor: &mut V, module: &'a Module) {
+    walk_list!(visitor, visit_item, &module.items);
+}
+
+pub fn walk_foreign_item<'a, V: Visitor<'a>>(visitor: &mut V, foreign_item: &'a ForeignItem) {
+    visitor.visit_vis(&foreign_item.vis);
+    visitor.visit_ident(foreign_item.span, foreign_item.ident);
+
+    match foreign_item.node {
+        ForeignItemKind::Fn(ref function_declaration, ref generics) => {
+            walk_fn_decl(visitor, function_declaration);
+            visitor.visit_generics(generics)
+        }
+        ForeignItemKind::Static(ref typ, _) => visitor.visit_ty(typ),
+    }
+
+    walk_list!(visitor, visit_attribute, &foreign_item.attrs);
+}
+
+pub fn walk_ty<'a, V: Visitor<'a>>(visitor: &mut V, typ: &'a Ty) {
+    unimplemented!()
+}
+
+pub fn walk_ident<'a, V: Visitor<'a>>(visitor: &mut V, span: Span, ident: Ident) {
+    visitor.visit_name(span, ident.name);
+}
+
+pub fn walk_fn_decl<'a, V: Visitor<'a>>(visitor: &mut V, function_declaration: &'a FnDecl) {
+    for argument in &function_declaration.inputs {
+        visitor.visit_pat(&argument.pat);
+        visitor.visit_ty(&argument.ty)
+    }
+    visitor.visit_fn_ret_ty(&function_declaration.output)
 }

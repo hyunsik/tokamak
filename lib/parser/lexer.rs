@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use ast::{self, Ident};
 use codemap::CodeMap;
-use common::codespan::{self, BytePos, CharPos, Span, Pos};
+use common::codespan::{self, BytePos, CharPos, DUMMY_SPAN, Span, Pos};
 use errors::{FatalError, Handler, DiagnosticBuilder};
 use unicode::property::Pattern_White_Space;
 use unicode_chars;
@@ -17,6 +17,12 @@ use ttreader::{TtReader, tt_next_token};
 pub struct TokenAndSpan {
   pub tok: token::Token,
   pub sp: Span,
+}
+
+impl Default for TokenAndSpan {
+    fn default() -> Self {
+        TokenAndSpan { tok: token::Underscore, sp: DUMMY_SPAN }
+    }
 }
 
 pub trait Reader {
