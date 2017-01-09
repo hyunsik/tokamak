@@ -69,7 +69,7 @@ impl Decodable for Ident {
 
 pub type ViewPath = Spanned<ViewPath_>;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum ViewPath_ {
 
   /// `foo::bar::baz as quux`
@@ -86,7 +86,7 @@ pub enum ViewPath_ {
   ViewPathList(Path, Vec<PathListItem>)
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum PathListItemKind {
   Ident {
     name: Ident,
@@ -278,7 +278,10 @@ pub struct Package {
   pub attrs: Vec<Attribute>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// Module declaration.
+///
+/// E.g. `mod foo;` or `mod foo { .. }`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct Module {
   /// A span from the first token past `{` to the last token until `}`.
   /// For `mod foo;`, the inner span ranges from the first token
@@ -287,7 +290,7 @@ pub struct Module {
   pub items: Vec<P<Item>>
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum Visibility {
     Public,
     Crate(Span),
@@ -295,7 +298,10 @@ pub enum Visibility {
     Inherited,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// An item
+///
+/// The name might be a dummy name in case of anonymous items
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct Item {
   pub ident: Ident,
   pub attrs: Vec<Attribute>,
@@ -311,7 +317,7 @@ impl Item {
   }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum ItemKind {
   /// A `use` or `pub use` item
   Import(P<ViewPath>),
@@ -329,13 +335,16 @@ pub enum ItemKind {
   Struct,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// Foreign module declaration.
+///
+/// E.g. `extern { .. }` or `extern C { .. }`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct ForeignMod {
   pub abi: Abi,
   pub items: Vec<ForeignItem>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct ForeignItem {
   pub ident: Ident,
   pub attrs: Vec<Attribute>,
@@ -346,10 +355,10 @@ pub struct ForeignItem {
 }
 
 /// An item within an `extern` block
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum ForeignItemKind {
   /// A foreign function
-    Fn(P<FnDecl>, Generics),
+  Fn(P<FnDecl>, Generics),
   /// A foreign static item (`static ext: u8`), with optional mutability
   /// (the boolean is true when mutable)
   Static(P<Ty>, bool),
@@ -364,7 +373,7 @@ impl ForeignItemKind {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum Unsafety {
   Unsafe,
   Normal,
@@ -379,7 +388,7 @@ impl fmt::Display for Unsafety {
   }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum Constness {
   Const,
   NotConst,
@@ -401,37 +410,37 @@ impl fmt::Debug for Ty {
 /// The different kinds of types recognized by the compiler
 #[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum TyKind {
-  Vec(P<Ty>),
+  /// A variable-length slice (`[T]`)
+  Slice(P<Ty>),
+  /// A fixed length array (`[T; n]`)
+  Array(P<Ty>, P<Expr>),
+  /// A tuple (`(A, B, C, D,...)`)
+  Tup(Vec<P<Ty>> ),
   /// A path (`module::module::...::Type`), optionally
   /// "qualified", e.g. `<Vec<T> as SomeTrait>::SomeType`.
   ///
   /// Type parameters are stored in the Path itself
   Path(Path),
-
-  /// A tuple (`(A, B, C, D,...)`)
-  Tup(Vec<P<Ty>> ),
-
   /// No-op; kept solely so that we can pretty-print faithfully
   Paren(P<Ty>),
-
   /// TyKind::Infer means the type should be inferred instead of it having been
   /// specified. This can appear anywhere in a type.
   Infer
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum BlockCheckMode {
   Default,
   Unsafe(UnsafeSource),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum UnsafeSource {
   CompilerGenerated,
   UserProvided,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct Block {
   /// Statements in a block
   pub stmts: Vec<Stmt>,
@@ -442,8 +451,7 @@ pub struct Block {
 }
 
 /// A statement
-/// A statement
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash)]
 pub struct Stmt {
   pub id: NodeId,
   pub node: StmtKind,
@@ -466,7 +474,7 @@ impl fmt::Debug for Stmt {
   }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash)]
 pub enum StmtKind {
   /// A local (let) binding.
   Local(P<Local>),
@@ -480,8 +488,10 @@ pub enum StmtKind {
   Semi(P<Expr>),
 }
 
-/// Local represents a `let` or 'var' statement, e.g., `let <pat>:<ty> = <expr>;`,
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+// FIXME (pending discussion of #1697, #2178...): local should really be
+// a refinement on pat.
+/// Local represents a `let` statement, e.g., `let <pat>:<ty> = <expr>;`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct Local {
   pub pat: P<Pat>,
   pub ty: Option<P<Ty>>,
@@ -493,14 +503,20 @@ pub struct Local {
   pub attrs: ThinVec<Attribute>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash)]
 pub struct Pat {
   pub id: NodeId,
   pub node: PatKind,
   pub span: Span,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+impl fmt::Debug for Pat {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "pat({}: {})", self.id, printer::pat_to_string(self))
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum PatKind {
   /// Represents a wildcard pattern (`_`)
   Wild,
@@ -555,7 +571,7 @@ pub enum PatKind {
 /// Patterns like the fields of Foo `{ x, ref y, ref mut z }`
 /// are treated the same as` x: x, y: ref y, z: ref mut z`,
 /// except is_shorthand is true
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct FieldPat {
   /// The identifier for the field
   pub ident: Ident,
@@ -574,7 +590,7 @@ pub struct FieldPat {
 ///     // ..
 /// }
 /// ```
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct Arm {
   pub attrs: Vec<Attribute>,
   pub pats: Vec<P<Pat>>,
@@ -582,19 +598,27 @@ pub struct Arm {
   pub body: P<Expr>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub struct Field {
+  pub ident: SpannedIdent,
+  pub expr: P<Expr>,
+  pub span: Span,
+}
+
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum Mutability {
   Mutable,
   Immutable,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum BindingMode {
   ByRef,
   ByValue,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// An expression
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash,)]
 pub struct Expr {
   pub id: NodeId,
   pub node: ExprKind,
@@ -602,17 +626,16 @@ pub struct Expr {
   pub attrs: ThinVec<Attribute>
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Field {
-  pub ident: SpannedIdent,
-  pub expr: P<Expr>,
-  pub span: Span,
+impl fmt::Debug for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "expr({}: {})", self.id, printer::expr_to_string(self))
+    }
 }
 
 pub type SpannedIdent = Spanned<Ident>;
 
 /// Limit types of a range (inclusive or exclusive)
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum RangeLimits {
   /// Inclusive at the beginning, exclusive at the end
   HalfOpen,
@@ -620,7 +643,7 @@ pub enum RangeLimits {
   Closed,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum ExprKind {
   /// A unary operation (For example: `!x`, `*x`)
   Unary(UnOp, P<Expr>),
@@ -773,7 +796,7 @@ pub enum ExprKind {
   Ret(Option<P<Expr>>),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum UnOp {
   /// The `!` operator for logical inversion
   Not,
@@ -792,7 +815,7 @@ impl UnOp {
 
 pub type BinOp = Spanned<BinOpKind>;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum BinOpKind {
   /// The `+` operator (addition)
   Add,
@@ -1048,14 +1071,14 @@ impl FloatTy {
 ///  ^~~~~    ^
 ///  ty       position = 0
 /// ```
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct QSelf {
   pub ty: P<Ty>,
   pub position: usize
 }
 
 /// A capture clause
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
 pub enum CaptureBy {
   Value,
   Ref,
@@ -1172,23 +1195,27 @@ pub enum MetaItemKind {
     NameValue(Lit)
 }
 
-/// Represents the header (not the body) of a function declaration
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// Header (not the body) of a function declaration.
+///
+/// E.g. `fn foo(bar: baz)`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct FnDecl {
   pub inputs: Vec<Arg>,
   pub output: FunctionRetTy,
   pub variadic: bool
 }
 
-/// represents an argument in a function header
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// An argument in a function header.
+///
+/// E.g. `bar: usize` as in `fn foo(bar: usize)`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct Arg {
   pub ty: P<Ty>,
   pub pat: P<Pat>,
   pub id: NodeId,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum FunctionRetTy {
   /// Functions with return type `!`that always
   /// raise an error or exit (i.e. never return to the caller)

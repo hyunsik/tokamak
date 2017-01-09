@@ -122,6 +122,10 @@ macro_rules! walk_list {
     }
 }
 
+pub fn walk_ident<'a, V: Visitor<'a>>(visitor: &mut V, span: Span, ident: Ident) {
+    visitor.visit_name(span, ident.name);
+}
+
 pub fn walk_package<'a, V: Visitor<'a>>(visitor: &mut V, pkg: &'a Package) {
     visitor.visit_mod(&pkg.module, pkg.span, PACKAGE_NODE_ID);
     walk_list!(visitor, visit_attribute, &pkg.attrs);
@@ -148,10 +152,6 @@ pub fn walk_foreign_item<'a, V: Visitor<'a>>(visitor: &mut V, foreign_item: &'a 
 
 pub fn walk_ty<'a, V: Visitor<'a>>(visitor: &mut V, typ: &'a Ty) {
     unimplemented!()
-}
-
-pub fn walk_ident<'a, V: Visitor<'a>>(visitor: &mut V, span: Span, ident: Ident) {
-    visitor.visit_name(span, ident.name);
 }
 
 pub fn walk_fn_decl<'a, V: Visitor<'a>>(visitor: &mut V, function_declaration: &'a FnDecl) {

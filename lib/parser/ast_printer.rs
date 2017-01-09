@@ -1639,16 +1639,11 @@ impl<'a> State<'a> {
     self.ibox(0)?;
 
     match ty.node {
-      ast::TyKind::Vec(ref ty) => {
+      ast::TyKind::Slice(ref ty) => {
         word(&mut self.s, "[")?;
         self.print_type(&ty)?;
         word(&mut self.s, "]")?;
       }
-
-      ast::TyKind::Path(ref path) => {
-        self.print_path(path, false, 0, false)?;
-      }
-
       ast::TyKind::Tup(ref elts) => {
         self.popen()?;
         self.commasep(Inconsistent, &elts[..],
@@ -1658,13 +1653,21 @@ impl<'a> State<'a> {
         }
         self.pclose()?;
       }
-
       ast::TyKind::Paren(ref typ) => {
         self.popen()?;
         self.print_type(&typ)?;
         self.pclose()?;
       }
-
+      ast::TyKind::Path(ref path) => {
+        self.print_path(path, false, 0, false)?;
+      }
+      ast::TyKind::Array(ref ty, ref v) => {
+          try!(word(&mut self.s, "["));
+          try!(self.print_type(&ty));
+          try!(word(&mut self.s, "; "));
+          try!(self.print_expr(&v));
+          try!(word(&mut self.s, "]"));
+      }
       ast::TyKind::Infer => {
         word(&mut self.s, "_")?;
       }
@@ -2518,6 +2521,14 @@ pub fn path_to_string(p: &ast::Path) -> String {
 
 pub fn ty_to_string(ty: &ast::Ty) -> String {
     to_string(|s| s.print_type(ty))
+}
+
+pub fn pat_to_string(pat: &ast::Pat) -> String {
+    to_string(|s| s.print_pat(pat))
+}
+
+pub fn expr_to_string(e: &ast::Expr) -> String {
+    to_string(|s| s.print_expr(e))
 }
 
 pub fn stmt_to_string(stmt: &ast::Stmt) -> String {
