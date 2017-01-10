@@ -329,8 +329,10 @@ pub enum ItemKind {
   Const(P<Ty>, P<Expr>),
   /// A function declaration
   Fn(P<FnDecl>, Unsafety, Spanned<Constness>, Abi, Generics, P<Block>),
-  /// A type alias, e.g. `type Foo = Bar`
-  Ty(P<Ty>),
+  /// A type alias (`type` or `pub type`).
+  ///
+  /// E.g. `type Foo = Bar<u8>;`
+  Ty(P<Ty>, Generics),
   Enum,
   Struct,
 }
@@ -658,7 +660,7 @@ pub enum ExprKind {
   /// A closure (for example, `move |a, b, c| {a + b + c}`)
   ///
   /// The final span is the span of the argument block `|...|`
-  Closure(CaptureBy, P<FnDecl>, P<Block>, Span),
+  Closure(CaptureBy, P<FnDecl>, P<Expr>, Span),
 
   /// A block (`{ ... }`)
   Block(P<Block>),

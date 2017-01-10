@@ -1231,11 +1231,12 @@ impl<'a> State<'a> {
         word(&mut self.s, " ")?;
         self.print_block_with_attrs(&body, &item.attrs)?;
       }
-      ast::ItemKind::Ty(ref ty) => {
+      ast::ItemKind::Ty(ref ty, ref params) => {
         self.ibox(INDENT_UNIT)?;
         self.ibox(0)?;
         self.word_nbsp(&visibility_qualified(&item.vis, "type"))?;
         self.print_ident(item.ident)?;
+        self.print_generics(params)?;
         self.end()?; // end the inner ibox
 
         space(&mut self.s)?;
@@ -1861,37 +1862,18 @@ impl<'a> State<'a> {
       }
 
       ast::ExprKind::Closure(capture_clause, ref decl, ref body, _) => {
-        self.print_capture_clause(capture_clause)?;
+          try!(self.print_capture_clause(capture_clause));
 
-        self.print_fn_block_args(&decl)?;
-        space(&mut self.s)?;
+          try!(self.print_fn_block_args(&decl));
+          try!(space(&mut self.s));
+          try!(self.print_expr(body));
+          try!(self.end()); // need to close a box
 
-        let default_return = match decl.output {
-          ast::FunctionRetTy::Default(..) => true,
-          _ => false
-        };
-
-        match body.stmts.last().map(|stmt| &stmt.node) {
-          Some(&ast::StmtKind::Expr(ref i_expr)) if default_return &&
-            body.stmts.len() == 1 => {
-            // we extract the block, so as not to create another set of boxes
-            if let ast::ExprKind::Block(ref blk) = i_expr.node {
-              self.print_block_unclosed_with_attrs(&blk, &i_expr.attrs)?;
-            } else {
-              // this is a bare expression
-              self.print_expr(&i_expr)?;
-              self.end()?; // need to close a box
-            }
-          }
-          _ => self.print_block_unclosed(&body)?,
-        }
-
-        // a box will be closed by print_expr, but we didn't want an overall
-        // wrapper so we closed the corresponding opening. so create an
-        // empty box to satisfy the close.
-        self.ibox(0)?;
+          // a box will be closed by print_expr, but we didn't want an overall
+          // wrapper so we closed the corresponding opening. so create an
+          // empty box to satisfy the close.
+          try!(self.ibox(0));
       }
-
       ast::ExprKind::While(ref test, ref blk, opt_ident) => {
         if let Some(ident) = opt_ident {
           self.print_ident(ident.node)?;
