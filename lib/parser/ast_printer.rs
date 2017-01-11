@@ -1252,54 +1252,44 @@ impl<'a> State<'a> {
   }
 
   pub fn print_view_path(&mut self, vp: &ast::ViewPath) -> io::Result<()> {
-    match vp.node {
-      ast::ViewPathSimple(ident, ref path) => {
-        self.print_path(path, false, 0, true)?;
+      match vp.node {
+          ast::ViewPathSimple(ident, ref path) => {
+              try!(self.print_path(path, false, 0, true));
 
-        if path.segments.last().unwrap().identifier.name != ident.name {
-          space(&mut self.s)?;
-          self.word_space("as")?;
-          self.print_ident(ident)?;
-        }
+              if path.segments.last().unwrap().identifier.name !=
+                      ident.name {
+                  try!(space(&mut self.s));
+                  try!(self.word_space("as"));
+                  try!(self.print_ident(ident));
+              }
 
-        Ok(())
-      }
-      ast::ViewPathGlob(ref path) => {
-        self.print_path(path, false, 0, true)?;
-        word(&mut self.s, "::*")
-      }
-      ast::ViewPathList(ref path, ref idents) => {
-        if path.segments.is_empty() {
-          word(&mut self.s, "{")?;
-        } else {
-          self.print_path(path, false, 0, true)?;
-          word(&mut self.s, "::{")?;
-        }
-        self.commasep(Inconsistent, &idents[..], |s, w| {
-          match w.node {
-            ast::PathListItemKind::Ident { name, rename, .. } => {
-              s.print_ident(name)?;
-              if let Some(ident) = rename {
-                space(&mut s.s)?;
-                s.word_space("as")?;
-                s.print_ident(ident)?;
-              }
               Ok(())
-            },
-            ast::PathListItemKind::Mod { rename, .. } => {
-              word(&mut s.s, "self")?;
-              if let Some(ident) = rename {
-                space(&mut s.s)?;
-                s.word_space("as")?;
-                s.print_ident(ident)?;
-              }
-              Ok(())
-            }
           }
-        })?;
-        word(&mut self.s, "}")
+
+          ast::ViewPathGlob(ref path) => {
+              try!(self.print_path(path, false, 0, true));
+              word(&mut self.s, "::*")
+          }
+
+          ast::ViewPathList(ref path, ref idents) => {
+              if path.segments.is_empty() {
+                  try!(word(&mut self.s, "{"));
+              } else {
+                  try!(self.print_path(path, false, 0, true));
+                  try!(word(&mut self.s, "::{"));
+              }
+              try!(self.commasep(Inconsistent, &idents[..], |s, w| {
+                  try!(s.print_ident(w.node.name));
+                  if let Some(ident) = w.node.rename {
+                      try!(space(&mut s.s));
+                      try!(s.word_space("as"));
+                      try!(s.print_ident(ident));
+                  }
+                  Ok(())
+              }));
+              word(&mut self.s, "}")
+          }
       }
-    }
   }
 
   fn print_path(&mut self,
@@ -1701,13 +1691,12 @@ impl<'a> State<'a> {
         }
       }
 
-      PatKind::Path(ref path) => {
-        self.print_path(path, true, 0, false)?
-      },
-
-      PatKind::QPath(ref qself, ref path) => {
-        self.print_qpath(path, qself, false)?
-      },
+      PatKind::Path(None, ref path) => {
+          try!(self.print_path(path, true, 0, false));
+      }
+      PatKind::Path(Some(ref qself), ref path) => {
+          try!(self.print_qpath(path, qself, false));
+      }
 
       PatKind::Struct(ref path, ref fields, etc) => {
         self.print_path(path, true, 0, false)?;
@@ -1773,7 +1762,7 @@ impl<'a> State<'a> {
         self.pclose()?;
       }
 
-      PatKind::Vec(ref before, ref slice, ref after) => {
+      PatKind::Slice(ref before, ref slice, ref after) => {
         word(&mut self.s, "[")?;
         self.commasep(Inconsistent,
                       &before[..],

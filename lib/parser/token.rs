@@ -8,7 +8,6 @@ use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use std::fmt;
 use std::iter;
 use std::ops::Deref;
-use std::rc::Rc;
 
 use ast;
 use symbol::keywords;

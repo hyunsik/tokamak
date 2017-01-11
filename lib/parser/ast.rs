@@ -87,42 +87,14 @@ pub enum ViewPath_ {
 }
 
 #[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Copy)]
-pub enum PathListItemKind {
-  Ident {
-    name: Ident,
-    /// renamed in list, eg `use foo::{bar as baz};`
-    rename: Option<Ident>,
-    id: NodeId
-  },
-  Mod {
-    /// renamed in list, eg `use foo::{self as baz};`
-    rename: Option<Ident>,
-    id: NodeId
-  }
+pub struct PathListItem_ {
+    pub name: Ident,
+    /// renamed in list, e.g. `use foo::{bar as baz};`
+    pub rename: Option<Ident>,
+    pub id: NodeId,
 }
 
-impl PathListItemKind {
-  pub fn id(&self) -> NodeId {
-    match *self {
-      PathListItemKind::Ident { id, .. } | PathListItemKind::Mod { id, .. } => id
-    }
-  }
-
-  pub fn name(&self) -> Option<Ident> {
-    match *self {
-      PathListItemKind::Ident { name, .. } => Some(name),
-      PathListItemKind::Mod { .. } => None,
-    }
-  }
-
-  pub fn rename(&self) -> Option<Ident> {
-    match *self {
-      PathListItemKind::Ident { rename, .. } | PathListItemKind::Mod { rename, .. } => rename
-    }
-  }
-}
-
-pub type PathListItem = Spanned<PathListItemKind>;
+pub type PathListItem = Spanned<PathListItem_>;
 
 /// A "Path" is essentially Rust's notion of a name.
 ///
@@ -179,12 +151,21 @@ impl Path {
 #[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub struct PathSegment {
   /// The identifier portion of this path segment.
-  pub identifier: Ident
+  pub identifier: Ident,
+
+  /// Type/lifetime parameters attached to this path. They come in
+  /// two flavors: `Path<A,B,C>` and `Path(A,B) -> C`. Note that
+  /// this is more than just simple syntactic sugar; the use of
+  /// parens affects the region binding rules, so we preserve the
+  /// distinction.
+  /// The `Option<P<..>>` wrapper is purely a size optimization;
+  /// `None` is used to represent both `Path` and `Path<>`.
+  pub parameters: Option<P<PathParameters>>,
 }
 
 impl From<Ident> for PathSegment {
     fn from(id: Ident) -> Self {
-        PathSegment { identifier: id }
+        PathSegment { identifier: id, parameters: None }
     }
 }
 
@@ -192,8 +173,51 @@ impl PathSegment {
     pub fn package_root() -> Self {
         PathSegment {
             identifier: keywords::PackageRoot.ident(),
+            parameters: None,
         }
     }
+}
+
+/// Parameters of a path segment.
+///
+/// E.g. `<A, B>` as in `Foo<A, B>` or `(A, B)` as in `Foo(A, B)`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub enum PathParameters {
+    /// The `<'a, A,B,C>` in `foo::bar::baz::<'a, A,B,C>`
+    AngleBracketed(AngleBracketedParameterData),
+    /// The `(A,B)` and `C` in `Foo(A,B) -> C`
+    Parenthesized(ParenthesizedParameterData),
+}
+
+/// A path like `Foo<'a, T>`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug, Default)]
+pub struct AngleBracketedParameterData {
+    /// The type parameters for this path segment, if present.
+    pub types: P<[P<Ty>]>,
+    /// Bindings (equality constraints) on associated types, if present.
+    ///
+    /// E.g., `Foo<A=Bar>`.
+    pub bindings: P<[TypeBinding]>,
+}
+
+impl Into<Option<P<PathParameters>>> for AngleBracketedParameterData {
+    fn into(self) -> Option<P<PathParameters>> {
+        let empty = self.types.is_empty() && self.bindings.is_empty();
+        if empty { None } else { Some(P(PathParameters::AngleBracketed(self))) }
+    }
+}
+
+/// A path like `Foo(A,B) -> C`
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub struct ParenthesizedParameterData {
+    /// Overall span
+    pub span: Span,
+
+    /// `(A,B)`
+    pub inputs: Vec<P<Ty>>,
+
+    /// `C`
+    pub output: Option<P<Ty>>,
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Debug,
@@ -396,6 +420,15 @@ pub enum Constness {
   NotConst,
 }
 
+// Bind a type to an associated type: `A=Foo`.
+#[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
+pub struct TypeBinding {
+    pub id: NodeId,
+    pub ident: Ident,
+    pub ty: P<Ty>,
+    pub span: Span,
+}
+
 #[derive(Clone, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash)]
 pub struct Ty {
   pub id: NodeId,
@@ -533,15 +566,11 @@ pub enum PatKind {
   /// set (of "PatIdents that refer to unit patterns or constants").
   Ident(BindingMode, SpannedIdent, Option<P<Pat>>),
 
-  /// A path pattern.
-  /// Such pattern can be resolved to a unit struct/variant or a constant.
-  Path(Path),
-
-  /// An associated const named using the qualified path `<T>::CONST` or
-  /// `<T as Trait>::CONST`. Associated consts from inherent impls can be
-  /// referred to as simply `T::CONST`, in which case they will end up as
-  /// PatKind::Path, and the resolver will have to sort that out.
-  QPath(QSelf, Path),
+  /// A possibly qualified path pattern.
+  /// Unquailfied path patterns `A::B::C` can legally refer to variants, structs, constants
+  /// or associated constants. Quailfied path patterns `<A>::B::C`/`<A as Trait>::B::C` can
+  /// only legally refer to associated constants.
+  Path(Option<QSelf>, Path),
 
   /// A struct or struct variant pattern, e.g. `Variant {x, y, ..}`.
   /// The `bool` is `true` in the presence of a `..`.
@@ -559,7 +588,7 @@ pub enum PatKind {
 
   /// `[a, b, ..i, y, z]` is represented as:
   ///     `PatKind::Vec(box [a, b], Some(i), box [y, z])`
-  Vec(Vec<P<Pat>>, Option<P<Pat>>, Vec<P<Pat>>),
+  Slice(Vec<P<Pat>>, Option<P<Pat>>, Vec<P<Pat>>),
 
   /// A range pattern, e.g. `1...2`
   Range(P<Expr>, P<Expr>),

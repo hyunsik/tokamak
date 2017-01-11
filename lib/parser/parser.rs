@@ -11,7 +11,7 @@ use abi::{self, Abi};
 use ast::{self, Attribute, Module, Item, Package, Constness, Unsafety, Visibility};
 use ast::{UnOp, BinOpKind, CaptureBy, Expr, ExprKind, Lit, LitKind, Ident, RangeLimits};
 use ast::{ItemKind, ForeignItem, ForeignItemKind};
-use ast::{ViewPath, ViewPathList, ViewPathGlob, ViewPathSimple};
+use ast::{QSelf, ViewPath, ViewPathList, ViewPathGlob, ViewPathSimple};
 use ast::{Ty, TyKind, TyParam};
 use ast::{Block, BlockCheckMode, Stmt, StmtKind, Local, Mutability, UnsafeSource};
 use ast::{Arm, BindingMode, Field, Pat, PatKind};
@@ -679,6 +679,28 @@ impl<'a> Parser<'a> {
     self.parse_seq_to_before_tokens(&[ket], sep, f, |mut e| e.emit())
   }
 
+  /// Attempt to consume a `<`. If `<<` is seen, replace it with a single
+  /// `<` and continue. If a `<` is not seen, return false.
+  ///
+  /// This is meant to be used when parsing generics on a path to get the
+  /// starting token.
+  fn eat_lt(&mut self) -> bool {
+      self.expected_tokens.push(TokenType::Token(token::Lt));
+      match self.token {
+          token::Lt => {
+              self.bump();
+              true
+          }
+          token::BinOp(token::LShift) => {
+              let span = self.span;
+              let lo = span.lo + BytePos(1);
+              self.bump_with(token::Lt, lo, span.hi);
+              true
+          }
+          _ => false,
+      }
+  }
+
   /// Expect and consume a GT. if a >> is seen, replace it
   /// with a single > and continue. If a GT is not seen,
   /// signal an error.
@@ -1056,20 +1078,23 @@ impl<'a> Parser<'a> {
     }
 
   fn parse_path_list_items(&mut self) -> PResult<'a, Vec<ast::PathListItem>> {
-    self.parse_unspanned_seq(&token::OpenDelim(token::Brace),
-                             &token::CloseDelim(token::Brace),
-                             SeqSep::trailing_allowed(token::Comma), |this| {
-        let lo = this.span.lo;
-        let node = if this.eat_keyword(keywords::SelfValue) {
-          let rename = this.parse_rename()?;
-          ast::PathListItemKind::Mod { id: ast::DUMMY_NODE_ID, rename: rename }
-        } else {
-          let ident = this.parse_ident()?;
-          let rename = this.parse_rename()?;
-          ast::PathListItemKind::Ident { name: ident, rename: rename, id: ast::DUMMY_NODE_ID }
-        };
-        let hi = this.last_span.hi;
-        Ok(spanned(lo, hi, node))
+      self.parse_unspanned_seq(&token::OpenDelim(token::Brace),
+                                 &token::CloseDelim(token::Brace),
+                                 SeqSep::trailing_allowed(token::Comma), |this| {
+            let lo = this.span.lo;
+            let ident = if this.eat_keyword(keywords::SelfValue) {
+                keywords::SelfValue.ident()
+            } else {
+                this.parse_ident()?
+            };
+            let rename = this.parse_rename()?;
+            let node = ast::PathListItem_ {
+                name: ident,
+                rename: rename,
+                id: ast::DUMMY_NODE_ID
+            };
+            let hi = this.last_span.hi;
+            Ok(spanned(lo, hi, node))
       })
   }
 
@@ -2858,6 +2883,60 @@ impl<'a> Parser<'a> {
     Ok(P(Ty {id: ast::DUMMY_NODE_ID, node: t, span: sp}))
   }
 
+  /// Parses qualified path.
+    ///
+    /// Assumes that the leading `<` has been parsed already.
+    ///
+    /// Qualifed paths are a part of the universal function call
+    /// syntax (UFCS).
+    ///
+    /// `qualified_path = <type [as trait_ref]>::path`
+    ///
+    /// See `parse_path` for `mode` meaning.
+    ///
+    /// # Examples:
+    ///
+    /// `<T as U>::a`
+    /// `<T as U>::F::a::<S>`
+    pub fn parse_qualified_path(&mut self, mode: PathStyle)
+                                -> PResult<'a, (QSelf, ast::Path)> {
+        let span = self.last_span;
+        let self_type = self.parse_ty()?;
+        let mut path = if self.eat_keyword(keywords::As) {
+            self.parse_path(PathStyle::Type)?
+        } else {
+            ast::Path {
+                span: span,
+                segments: vec![]
+            }
+        };
+
+        let qself = QSelf {
+            ty: self_type,
+            position: path.segments.len()
+        };
+
+        self.expect(&token::Gt)?;
+        self.expect(&token::ModSep)?;
+
+        let segments = match mode {
+            PathStyle::Type => {
+                self.parse_path_segments_without_colons()?
+            }
+            PathStyle::Expr => {
+                self.parse_path_segments_with_colons()?
+            }
+            PathStyle::Mod => {
+                self.parse_path_segments_without_types()?
+            }
+        };
+        path.segments.extend(segments);
+
+        path.span.hi = self.last_span.hi;
+
+        Ok((qself, path))
+    }
+
   /// Parses a path and optional type parameter bounds, depending on the
   /// mode. The `mode` parameter determines whether lifetimes, types, and/or
   /// bounds are permitted and whether `::` must precede type parameter
@@ -2917,7 +2996,7 @@ impl<'a> Parser<'a> {
             }
 
             // Assemble and push the result.
-            segments.push(ast::PathSegment { identifier: identifier });
+            segments.push(ast::PathSegment { identifier: identifier, parameters: None });
 
             // Continue only if we see a `::`
             if !self.eat(&token::ModSep) {
@@ -3039,7 +3118,7 @@ impl<'a> Parser<'a> {
         self.bump();
         let (before, slice, after) = self.parse_pat_vec_elements()?;
         self.expect(&token::CloseDelim(token::Bracket))?;
-        pat = PatKind::Vec(before, slice, after);
+        pat = PatKind::Slice(before, slice, after);
       }
       _ => {
         if self.token.is_path_start() {
@@ -3049,8 +3128,14 @@ impl<'a> Parser<'a> {
             // Parse ident @ pat
             pat = self.parse_pat_ident(BindingMode::ByValue)?;
           } else {
-            let qself = None;
-            let path = self.parse_path(PathStyle::Expr)?;
+            let (qself, path) = if self.eat_lt() {
+                // Parse a qualified path
+                let (qself, path) = self.parse_qualified_path(PathStyle::Expr)?;
+                (Some(qself), path)
+            } else {
+                // Parse an unqualified path
+                (None, self.parse_path(PathStyle::Expr)?)
+            };
 
             match self.token {
               token::DotDotDot => {
@@ -3082,14 +3167,7 @@ impl<'a> Parser<'a> {
                 self.expect(&token::CloseDelim(token::Paren))?;
                 pat = PatKind::TupleStruct(path, fields, ddpos)
               }
-              _ => {
-                pat = match qself {
-                  // Parse qualified path
-                  Some(qself) => PatKind::QPath(qself, path),
-                  // Parse nullary enum
-                  None => PatKind::Path(path)
-                };
-              }
+              _ => pat = PatKind::Path(qself, path),
             }
           }
         } else {
