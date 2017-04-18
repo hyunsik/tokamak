@@ -48,7 +48,7 @@ pub mod scan;
 use std::collections::HashMap;
 
 use common::err::{Result, Void};
-use common::page::Page;
+use common::page::{EncType, Page};
 use common::types::Ty;
 
 use driver::DriverContext;
@@ -72,15 +72,18 @@ pub trait ExecutorFactory
 pub struct NamedSchema<'a> {
   pub names: &'a [&'a str],
   pub types: &'a [&'a Ty],
+  pub enc_types: &'a [&'a EncType],
 }
 
 impl<'a> NamedSchema<'a> {
-  pub fn new(names: &'a [&'a str], types: &'a [&Ty]) -> NamedSchema<'a> {
+  pub fn new(names: &'a [&'a str], types: &'a [&Ty], enc_types: &'a [&EncType]) -> NamedSchema<'a> {
     debug_assert_eq!(names.len(), types.len());
+    debug_assert_eq!(types.len(), enc_types.len());
 
     NamedSchema {
       names: names,
       types: types,
+      enc_types: enc_types,
     }
   }
 
@@ -96,10 +99,10 @@ impl<'a> NamedSchema<'a> {
       .collect::<Vec<usize>>()
   }
 
-  pub fn to_map(&self) -> HashMap<&'a str, (usize, &'a Ty)> {
-    izip!(0..self.names.len(), self.names, self.types)
-      .map(|(id, n, t)| (*n, (id, *t)))
-      .collect::<HashMap<&str, (usize, &Ty)>>()
+  pub fn to_map(&self) -> HashMap<&'a str, (usize, &'a Ty, &'a EncType)> {
+    izip!(0..self.names.len(), self.names, self.types, self.enc_types)
+      .map(|(id, n, t, e)| (*n, (id, *t, *e)))
+      .collect::<HashMap<&str, (usize, &Ty, &EncType)>>()
   }
 }
 

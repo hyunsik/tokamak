@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <memory>
+#include <cstdlib>
 
 #include "page_ir_macro.h"
 
@@ -19,11 +21,21 @@ struct Chunk {
   size_t size;
 };
 
+struct Run {
+  uint8_t *length;
+  void * value;
+};
+
+struct RLEChunk {
+  uint16_t run_num;
+  Run* runs;
+};
+
 struct Page {
   void* ptr;
   size_t size;
 
-  Chunk* chunks;
+  void* chunks;
   // the number of minipages
   size_t chunk_num;
   // the number of values stored in each minipage.
@@ -33,9 +45,8 @@ struct Page {
   bool   owned;
 };
 
-extern "C" Chunk* get_chunk(Page* page, size_t idx) {
-  return &page->chunks[idx];
-}
+GET_CHUNK(raw, Chunk);
+GET_CHUNK(rle, RLEChunk);
 
 struct RawChunkWriter {
   Chunk* chunk;
@@ -61,7 +72,31 @@ READ_RAW_VAL(i64, int64_t);
 READ_RAW_VAL(f32, float);
 READ_RAW_VAL(f64, double);
 
+// RLE chunk interface
+READ_RLE_VAL(i8, int8_t);
+READ_RLE_VAL(i16, int16_t);
+READ_RLE_VAL(i32, int32_t);
+READ_RLE_VAL(i64, int64_t);
+READ_RLE_VAL(f32, float);
+READ_RLE_VAL(f64, double);
 
+// TODO
+// Chunk rle_to_raw(RLEChunk* chunk) {}
+
+// TODO
+// RLEChunk raw_to_rle(Chunk* chunk) {}
+
+// TODO
+// Chunk filter_with_pos_return_chunk(RLEChunk* chunk, vector<size_t> pos) {}
+
+// TODO: take a generated function as the parameter to filter input tuples out
+// vector<size_t> filter_with_pred_return_pos(RLEChunk* chunk, Function predicate) {}
+
+// TODO: take a generated function as the parameter to filter input tuples out
+// type aggregate(RLEChunk* chunk, Function predicate, Function agg_func) {}
+
+// TODO: take a generated function as the parameter to filter input tuples out
+// Chunk sort(RLEChunk* chunk, Function predicate) {}
 
 void dummy(Page* v1, Chunk* v2) {}
 
